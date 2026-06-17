@@ -77,8 +77,15 @@ runtime/
   state_manager.py           JSON state persistence.
   run_loop.py                CLI loop entry point.
 
+intake/
+  project_brief.py           V2.1 ProjectBrief builder and CLI.
+  document_loader.py         Local file cataloging, hashing, summaries, and role inference.
+  github_source.py           GitHub URL parsing and source normalization.
+  schema_validation.py       Local contract validation for intake payloads.
+
 tests/
   test_runtime.py            Unit and smoke tests for the runtime contract.
+  test_intake.py             Unit and CLI tests for v2.1 intake.
 ```
 
 ## Runtime
@@ -98,6 +105,32 @@ Implemented runtime capabilities:
 - Persistent JSON runtime state under `.alchemy/state.json`.
 
 DONE requires final gate score `>= 0.85`, completed required graph nodes, passing verification evidence, reviewer approval, no hard failures, and GitHub execution evidence.
+
+## V2.1 Intake
+
+The v2.1 intake runtime can generate a schema-compatible `ProjectBrief` from local development documents, supporting files, and optional GitHub repository metadata.
+
+Implemented intake capabilities:
+
+- Document-driven and one-line fallback modes.
+- Local file cataloging with deterministic file IDs and SHA-256 content hashes.
+- File role inference for primary requirements, API specs, database schemas, design notes, test plans, reference code, data samples, and supplemental files.
+- Explicit blockers for missing primary documents, unreadable files, unsupported required files, missing objectives, and invalid GitHub URLs.
+- GitHub URL parsing for HTTPS and SSH repository URLs without network access.
+- Private repository metadata flagging through `visibility=private` and `gh_auth_required=true`.
+- ProjectBrief contract validation against `specs/project_brief_schema.json`.
+
+Build a ProjectBrief:
+
+```bash
+python -m intake.project_brief \
+  --objective "Add workspace support" \
+  --document docs/workspace_feature_spec.md \
+  --attachment docs/api_contract.yaml \
+  --repository https://github.com/example/private-saas-dashboard \
+  --repository-visibility private \
+  --validate
+```
 
 Run a smoke execution:
 
@@ -137,8 +170,9 @@ PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 This repository does not yet implement:
 
 - Multi-file upload or document parser pipeline.
-- ProjectBrief and ContextBundle runtime generation.
-- Repository intake before planning.
+- ContextBundle runtime generation.
+- Real GitHub clone/fetch or `gh auth status` checks during intake.
+- Repository indexing before planning.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.

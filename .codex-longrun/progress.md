@@ -37,6 +37,16 @@
 - Added `specs/project_brief_schema.json` and `specs/context_bundle_schema.json`.
 - Added `examples/document_driven_project_example.md`.
 - Updated README to describe the document-driven primary workflow and current implementation boundary.
+## 2026-06-18 V2.1 Intake Runtime
+
+- Added the `intake/` package for local ProjectBrief generation.
+- Implemented `DocumentLoader` for local file cataloging, deterministic file IDs, SHA-256 hashes, media type detection, summaries, parse status, and role inference.
+- Implemented GitHub URL parsing for HTTPS, SSH shorthand, and SSH URL forms without network access.
+- Implemented `ProjectBriefBuilder` for document-driven and one-line fallback modes.
+- Added explicit blockers for missing objectives, missing primary documents, unreadable files, unsupported required files, and invalid GitHub URLs.
+- Added local ProjectBrief schema contract validation.
+- Added CLI support via `python -m intake.project_brief`.
+- Added intake tests and updated README/v2 docs to reflect V2.1 implemented scope.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0

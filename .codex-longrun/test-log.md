@@ -132,3 +132,38 @@
 - Result: passed
 - Summary: No whitespace errors were reported. Git reported existing CRLF normalization warnings for long-running markdown/state files.
 - Next verification command: final long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_intake`
+- Result: passed
+- Summary: 7 V2.1 intake tests passed.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed
+- Summary: 26 tests passed across runtime and intake modules.
+- Next verification command: ProjectBrief CLI smoke.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m intake.project_brief --objective "Add workspace support" --document .test-tmp\manual-intake-2\feature.md --attachment .test-tmp\manual-intake-2\api.yaml --repository https://github.com/example/repo --validate`
+- Result: passed
+- Summary: CLI emitted schema-compatible ProjectBrief JSON without warnings after lazy-loading package exports.
+- Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `Get-Content specs\*.json -Raw | ConvertFrom-Json`
+- Result: passed
+- Summary: All JSON specs parse after V2.1 intake changes.
+- Next verification command: final state validation.
+
+## 2026-06-18
+
+- Command: `python %USERPROFILE%\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed
+- Summary: Long-running state schema validated for V2.1 intake runtime.
+- Next verification command: none.

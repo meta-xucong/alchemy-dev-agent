@@ -354,6 +354,7 @@ class ContractAlignmentTests(unittest.TestCase):
         mode_enum = brief_properties["primary_input_mode"]["enum"]
         self.assertIn("document_driven", mode_enum)
         self.assertIn("one_line_fallback", mode_enum)
+        self.assertIn("repository", brief_properties)
 
         for key in [
             "document_index",

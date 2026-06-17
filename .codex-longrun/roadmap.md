@@ -1,30 +1,30 @@
 # Long-Running Roadmap
 
-Objective: Create the v2 document-driven autonomous development plan and supporting materials.
+Objective: Implement V2.1 intake runtime for document-driven ProjectBrief generation.
 
-## Phase 1: Scenario Reframing
+## Phase 1: Intake Runtime
 
-- Treat detailed development documents, supporting files, and GitHub repository context as the primary workflow.
-- Treat one-line objective expansion as a fallback path.
-- Keep current runtime capabilities separate from planned v2 features.
+- Add an `intake/` package.
+- Implement local file cataloging, hashing, summaries, and role inference.
+- Implement GitHub URL parsing and source normalization without network access.
+- Implement ProjectBrief generation from documents, attachments, constraints, acceptance criteria, and repository metadata.
+- Implement local ProjectBrief contract validation.
 
-## Phase 2: Contract Documents
+## Phase 2: Tests
 
-- Add the v2 development plan.
-- Add intake and context contract documentation.
-- Add UI/API requirements for multi-file upload and GitHub repository inspection.
-- Add ProjectBrief and ContextBundle schemas.
-- Add a document-driven project example.
+- Add unit tests for document-driven intake.
+- Add blocker tests for missing primary documents, unsupported required files, and invalid GitHub URLs.
+- Add one-line fallback tests.
+- Add CLI smoke coverage for `python -m intake.project_brief`.
 
-## Phase 3: Audit
+## Phase 3: Documentation
 
-- Check scenario fit against the user's intended workflow.
-- Check contract path from ProjectBrief to ContextBundle to TaskGraph.
-- Inventory current gaps without claiming unimplemented features.
+- Update README with V2.1 intake usage.
+- Update v2 plan and audit docs to distinguish implemented ProjectBrief generation from remaining ContextBundle and GitHub retrieval work.
 
 ## Phase 4: Verification And Delivery
 
-- Validate JSON schemas.
-- Run existing runtime tests.
+- Run intake tests.
+- Run full runtime test suite.
 - Validate long-running state.
-- Commit and push the v2 documentation package.
+- Commit and push V2.1 intake runtime.

@@ -43,6 +43,7 @@ Current runtime capabilities:
 - Evaluation gate.
 - GitHub execution evidence.
 - Persistent runtime state.
+- V2.1 ProjectBrief generation from local files and GitHub URL metadata.
 
 Planned v2 capabilities:
 
@@ -50,7 +51,7 @@ Planned v2 capabilities:
 - Document parsing and role classification.
 - GitHub repository inspection before planning.
 - Private repository retrieval through `gh`.
-- ProjectBrief and ContextBundle generation.
+- ContextBundle generation.
 - UI/API for intake, planning, execution monitoring, and delivery review.
 
 Result: Pass.
@@ -64,7 +65,6 @@ The current codebase does not yet implement:
 - Multi-file upload.
 - UI project creation flow.
 - API server.
-- ProjectBrief schema validation in runtime.
 - ContextBundle generation.
 - Document parser pipeline.
 - GitHub source retrieval before planning.

@@ -21,9 +21,10 @@ The repository currently contains:
 - A complete v1 specification layer for agents, task graphs, Codex worker execution, evaluation, and execution loop.
 - A CLI runtime prototype with deterministic dry-run defaults.
 - Runtime modules for orchestration, task graph scheduling, agent routing, Codex worker execution, evaluation, state persistence, and GitHub execution evidence.
+- A v2.1 intake runtime for local ProjectBrief generation from documents, attachments, and GitHub URL metadata.
 - Tests that protect the runtime contract.
 
-V2 must extend this baseline with a formal intake and context layer. It must not bypass the existing task graph, worker, state, and evaluation contracts.
+V2 must continue extending this baseline with repository retrieval, ContextBundle generation, planning, UI/API, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
 
 ## V2 Objective
 
@@ -274,11 +275,11 @@ DONE requires:
 
 ### V2.1: Intake Runtime
 
-- Implement project creation.
-- Implement multi-file cataloging.
-- Implement document role classification.
-- Implement `ProjectBrief` generation.
-- Add schema validation tests.
+- Implement project creation. Status: partial, available as local ProjectBrief generation.
+- Implement multi-file cataloging. Status: done for local files.
+- Implement document role classification. Status: done with deterministic filename and extension rules.
+- Implement `ProjectBrief` generation. Status: done.
+- Add schema validation tests. Status: done.
 
 ### V2.2: GitHub Context Runtime
 
