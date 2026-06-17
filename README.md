@@ -11,7 +11,7 @@ The system is designed primarily for workflows where a user provides a complete 
 - A development objective, such as a feature, product, system, or migration.
 - A detailed development document, requirements brief, or acceptance specification.
 - Supporting files such as API specs, database schemas, design notes, test plans, logs, or reference material.
-- An optional GitHub repository link, including private repositories available through local `gh` authentication.
+- An optional public GitHub repository link, with private repositories treated as an explicit future/authenticated path.
 
 The autonomous development system should then:
 
@@ -55,6 +55,10 @@ docs/
   09_ui_and_api_requirements.md
                               Planned v2 UI/API workflow and endpoints.
   10_v2_alignment_audit.md   V2 readiness and gap audit.
+  11_v2_repository_context_runtime.md
+                              V2.2 local repository context runtime.
+  12_v2_public_github_source_runtime.md
+                              V2.3 public GitHub clone/fetch runtime.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -81,6 +85,7 @@ intake/
   project_brief.py           V2.1 ProjectBrief builder and CLI.
   document_loader.py         Local file cataloging, hashing, summaries, and role inference.
   github_source.py           GitHub URL parsing and source normalization.
+  github_runtime.py          Public GitHub clone/fetch/checkout source runtime.
   schema_validation.py       Local contract validation for intake payloads.
 
 context/
@@ -131,7 +136,7 @@ Implemented intake capabilities:
 - File role inference for primary requirements, API specs, database schemas, design notes, test plans, reference code, data samples, and supplemental files.
 - Explicit blockers for missing primary documents, unreadable files, unsupported required files, missing objectives, and invalid GitHub URLs.
 - GitHub URL parsing for HTTPS and SSH repository URLs without network access.
-- Private repository metadata flagging through `visibility=private` and `gh_auth_required=true`.
+- Public repository metadata by default, with optional private metadata flagging through `visibility=private` and `gh_auth_required=true`.
 - ProjectBrief contract validation against `specs/project_brief_schema.json`.
 
 Build a ProjectBrief:
@@ -141,8 +146,7 @@ python -m intake.project_brief \
   --objective "Add workspace support" \
   --document docs/workspace_feature_spec.md \
   --attachment docs/api_contract.yaml \
-  --repository https://github.com/example/private-saas-dashboard \
-  --repository-visibility private \
+  --repository https://github.com/example/saas-dashboard \
   --validate
 ```
 
@@ -174,7 +178,7 @@ The demo writes:
 - `index.html`
 - `autodev_report.json`
 
-Important boundary: this is a deterministic local demo, not the full production autonomous development system. It proves the contract path and generated-artifact loop, but it does not yet use the Agent SDK, real Codex worker sessions, GitHub repository retrieval, CI, or UI/API intake.
+Important boundary: this is a deterministic local demo, not the full production autonomous development system. It proves the contract path and generated-artifact loop, but it does not yet use the Agent SDK, real Codex worker sessions, CI, or UI/API intake.
 
 ## V2.2 Repository Context
 
@@ -191,6 +195,27 @@ Implemented repository context capabilities:
 - Test, build, and lint command inference.
 - ContextBundle population with repository map and test profile.
 - Hard blockers for missing or invalid repository paths.
+
+## V2.3 Public GitHub Source Runtime
+
+The GitHub source runtime can prepare public repositories for intake without requiring `gh` login or stored tokens.
+
+Implemented public source capabilities:
+
+- Public GitHub repository clone into `RepositorySource.local_path`.
+- Fetch and deterministic checkout for an existing local git checkout.
+- Default repository visibility of `public` for ProjectBrief and CLI intake.
+- Structured blockers for invalid repository paths, clone failures, fetch failures, and explicit private repository requests.
+- CLI entry point for source preparation:
+
+```bash
+python -m intake.github_runtime \
+  --repository https://github.com/example/saas-dashboard \
+  --project-id proj_workspace_support \
+  --target-branch main
+```
+
+Private repositories are still represented in the schema, but they are not the primary path. When `visibility=private` is selected, the current public source runtime returns an explicit blocker instead of attempting to collect tokens or silently falling back to unauthenticated clone.
 
 Run a smoke execution:
 
@@ -231,7 +256,7 @@ This repository does not yet implement:
 
 - Multi-file upload or full document parser pipeline.
 - Full ContextBundle runtime generation for remote repositories.
-- Real GitHub clone/fetch or `gh auth status` checks during intake.
+- Private GitHub retrieval through `gh auth status`.
 - Deep code summarization and semantic requirement-to-file mapping.
 - Agent SDK runtime code.
 - GitHub App integration.

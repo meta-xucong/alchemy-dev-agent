@@ -30,7 +30,7 @@ class ProjectBriefBuilder:
         repository_url: str = "",
         target_branch: str = "main",
         base_branch: str = "",
-        repository_visibility: Visibility = "unknown",
+        repository_visibility: Visibility = "public",
         constraints: Sequence[str] = (),
         acceptance_criteria: Sequence[str] = (),
         file_roles: dict[str, FileRole] | None = None,
@@ -166,7 +166,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repository")
     parser.add_argument("--target-branch", default="main")
     parser.add_argument("--base-branch", default="")
-    parser.add_argument("--repository-visibility", choices=["public", "private", "unknown"], default="unknown")
+    parser.add_argument("--repository-visibility", choices=["public", "private", "unknown"], default="public")
     parser.add_argument("--constraint", action="append", default=[])
     parser.add_argument("--acceptance", action="append", default=[])
     parser.add_argument("--validate", action="store_true")

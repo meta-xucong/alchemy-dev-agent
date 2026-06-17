@@ -14,7 +14,7 @@ ProjectBrief.repository.local_path
   -> ContextBundle
 ```
 
-This stage is still local and deterministic. It does not clone repositories or call GitHub. It indexes an already available local checkout path.
+This stage is still local and deterministic. It indexes an already available local checkout path. V2.3 builds on this by preparing that local checkout from a public GitHub repository URL.
 
 ## Implemented Scope
 
@@ -100,15 +100,13 @@ These blockers are added to the ContextBundle. Planning should not execute live 
 V2.2 does not yet implement:
 
 - `gh auth status`.
-- GitHub clone.
-- GitHub fetch.
-- Branch checkout.
-- Remote repository visibility checks.
+- Private GitHub clone or fetch.
+- Authenticated remote repository visibility checks.
 - Deep code summarization.
 - Semantic requirement-to-file mapping.
 - Running detected tests.
 
-Those belong to V2.3 and later runtime stages.
+Public GitHub clone, fetch, and branch checkout are implemented in V2.3.
 
 ## Implementation Files
 

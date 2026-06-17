@@ -15,7 +15,8 @@ This audit checks whether the v2 development plan matches the user's intended wo
 | Detailed development document is the main path. | `docs/07_v2_development_plan.md`, `docs/08_intake_and_context.md` | Pass |
 | Multiple supporting files are supported. | `docs/08_intake_and_context.md`, `docs/09_ui_and_api_requirements.md`, `specs/project_brief_schema.json` | Pass |
 | GitHub repository links are supported. | `docs/07_v2_development_plan.md`, `docs/08_intake_and_context.md` | Pass |
-| Private repositories use GitHub CLI authentication. | `docs/08_intake_and_context.md`, `docs/09_ui_and_api_requirements.md` | Pass |
+| Public repositories are the primary GitHub path. | `docs/08_intake_and_context.md`, `docs/09_ui_and_api_requirements.md`, `docs/12_v2_public_github_source_runtime.md` | Pass |
+| Private repositories remain an optional GitHub CLI authentication path. | `docs/08_intake_and_context.md`, `docs/09_ui_and_api_requirements.md` | Pass |
 | One-line prompt is only a fallback. | `docs/07_v2_development_plan.md`, `specs/project_brief_schema.json` | Pass |
 | Agent cluster remains the execution mechanism. | `docs/07_v2_development_plan.md` | Pass |
 
@@ -46,13 +47,14 @@ Current runtime capabilities:
 - V2.1 ProjectBrief generation from local files and GitHub URL metadata.
 - A narrow local one-line demo pipeline that generates an original retro platformer artifact through ProjectBrief, ContextBundle, TaskGraph, deterministic local agents, static verification, and reviewer evidence.
 - V2.2 local repository indexing and ContextBundle repository/test-profile enrichment.
+- V2.3 public GitHub clone/fetch/checkout source runtime.
 
 Planned v2 capabilities:
 
 - Multi-file project intake.
 - Document parsing and role classification.
 - GitHub repository inspection before planning.
-- Private repository retrieval through `gh`.
+- Private repository retrieval through optional `gh` authentication.
 - Full ContextBundle generation from real documents and repositories.
 - UI/API for intake, planning, execution monitoring, and delivery review.
 
@@ -69,7 +71,7 @@ The current codebase does not yet implement:
 - API server.
 - Full ContextBundle generation for real repositories.
 - Document parser pipeline.
-- GitHub source retrieval before planning.
+- Private GitHub source retrieval before planning.
 - Requirement extraction and traceability.
 - Task graph generation from uploaded documents.
 - Execution event streaming.
@@ -93,7 +95,8 @@ No step depends on unstructured user files after the context bundle is created. 
 | Risk | Status | Required Control |
 | --- | --- | --- |
 | Ambiguous or contradictory documents. | Known | Requirement traceability and reviewer gate. |
-| Missing private repository access. | Known | `gh auth status` blocker before planning. |
+| Public repository clone or fetch failure. | Known | Git command blocker before planning. |
+| Missing optional private repository access. | Known | `gh auth status` blocker before planning once private mode is implemented. |
 | Unsupported file type. | Known | File parser blocker before planning. |
 | Weak one-line fallback requirements. | Known | Mark as generated and lower confidence. |
 | UI starts execution too early. | Known | Require intake review and graph preview. |

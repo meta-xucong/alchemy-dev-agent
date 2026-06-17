@@ -8,6 +8,8 @@ from .schema_validation import validate_project_brief_contract
 __all__ = [
     "Blocker",
     "DocumentLoader",
+    "GitHubSourceResult",
+    "GitHubSourceRuntime",
     "ProjectBrief",
     "ProjectBriefBuilder",
     "ProjectFile",
@@ -22,4 +24,12 @@ def __getattr__(name: str):
         from .project_brief import ProjectBriefBuilder
 
         return ProjectBriefBuilder
+    if name in {"GitHubSourceResult", "GitHubSourceRuntime"}:
+        from .github_runtime import GitHubSourceResult, GitHubSourceRuntime
+
+        exports = {
+            "GitHubSourceResult": GitHubSourceResult,
+            "GitHubSourceRuntime": GitHubSourceRuntime,
+        }
+        return exports[name]
     raise AttributeError(f"module 'intake' has no attribute {name!r}")

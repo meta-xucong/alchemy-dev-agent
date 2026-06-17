@@ -99,7 +99,8 @@ The intake and context boundary is a v2 planning contract.
 Responsibilities:
 
 - Accept the objective, primary development document, supporting files, and GitHub repository reference.
-- Check local `gh` authentication when private repository access is required.
+- Prepare public GitHub repository sources through clone/fetch.
+- Check local `gh` authentication only when private repository access is explicitly required.
 - Build a `ProjectBrief` from user-provided material.
 - Build a `ContextBundle` from parsed documents and repository inspection.
 - Extract requirements, acceptance criteria, test profile, risks, and blockers.

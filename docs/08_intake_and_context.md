@@ -100,9 +100,25 @@ Repository inspection must record:
 - Authentication requirement.
 - Retrieval status.
 
-## GitHub CLI Authentication
+## GitHub Source Retrieval
 
-Private repository support is delegated to local GitHub CLI authentication.
+Public GitHub repositories are the primary supported source path. They must not require `gh` login or stored tokens.
+
+The system must support:
+
+- URL normalization.
+- Owner and repository name parsing.
+- Branch validation.
+- Clone when no local checkout exists.
+- Fetch when a local checkout already exists.
+- Deterministic checkout of the requested target branch.
+- Clean separation between user repository code and Alchemy runtime code.
+
+The retrieval result must be added to the `ProjectBrief.repository` object.
+
+## Optional GitHub CLI Authentication
+
+Private repository support is an optional authenticated extension path delegated to local GitHub CLI authentication.
 
 The system must check:
 
@@ -116,22 +132,8 @@ Required behavior:
 - If `gh` is missing, record a blocker.
 - If `gh` is unauthenticated, record a blocker with a login instruction.
 - If `gh` is authenticated but cannot access the repository, record a repository access blocker.
-- If the repository is public, `gh` may still be used for normalized inspection.
+- If the repository is public, `gh` is not required for source retrieval.
 - No GitHub token may be collected or stored by the application UI.
-
-## Repository Retrieval
-
-The repository retrieval layer must support:
-
-- URL normalization.
-- Owner and repository name parsing.
-- Branch validation.
-- Clone when no local checkout exists.
-- Fetch when a local checkout already exists.
-- Checkout of target branch or commit reference.
-- Clean separation between user repository code and Alchemy runtime code.
-
-The retrieval result must be added to the `ProjectBrief.repository` object.
 
 ## ProjectBrief Generation
 
@@ -260,6 +262,7 @@ The intake layer must produce blockers for:
 - Unsupported required file types.
 - Unreadable uploaded files.
 - Invalid GitHub URL.
+- Public repository clone or fetch failure.
 - Missing `gh` when private repository access is required.
 - Failed `gh auth status`.
 - Repository access denied.

@@ -16,7 +16,7 @@ def parse_github_source(
     project_id: str,
     target_branch: str = "main",
     base_branch: str = "",
-    visibility: Visibility = "unknown",
+    visibility: Visibility = "public",
     local_path: str = "",
 ) -> RepositorySource | None:
     """Parse a GitHub URL without performing network access."""

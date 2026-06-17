@@ -223,3 +223,44 @@
 - Result: passed
 - Summary: All JSON specs parse after V2.2 repository context changes.
 - Next verification command: final long-running state validation.
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_github_runtime`
+- Result: failed, then passed after fixes.
+- Summary: Initial local git fixture failed because the temporary source repository was created under an ignored workspace path and existing checkout used a brittle plain `git checkout main`. Fixed the fixture to use the system temp directory and changed runtime checkout to `git checkout -B main origin/main`.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_intake`
+- Result: passed.
+- Summary: ProjectBrief builder and CLI tests pass after changing repository visibility defaults to `public` and adding explicit private metadata coverage.
+- Next verification command: public source CLI smoke.
+
+## 2026-06-18
+
+- Command: `python -B -m intake.github_runtime --repository https://github.com/example/private-repo --project-id proj_test --visibility private`
+- Result: expected blocked exit.
+- Summary: CLI returns `private_repository_not_supported_in_public_runtime` with `access_status=auth_required` and no runtime warning.
+- Next verification command: invalid GitHub URL smoke.
+
+## 2026-06-18
+
+- Command: `python -B -m intake.github_runtime --repository https://gitlab.com/example/repo --project-id proj_test`
+- Result: expected failed exit.
+- Summary: CLI returns `invalid_github_url` for unsupported non-GitHub input and no runtime warning.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 35 tests passed across runtime, intake, context, planner, autodev demo, repository context, and public GitHub source runtime modules.
+- Next verification command: JSON spec parsing and long-running state validation.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.3 public source changes.
+- Next verification command: long-running state validation.

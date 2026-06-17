@@ -77,8 +77,8 @@ This demo shows a working local generation loop, not the full target system.
 Still missing for the full goal:
 
 - Real multi-file document parsing.
-- Private GitHub repository retrieval through `gh`.
-- Repository indexing.
+- Private GitHub repository retrieval through optional `gh`.
+- General repository-aware planning beyond local/public source indexing.
 - General task graph generation for arbitrary apps.
 - Real Agent SDK orchestration.
 - Real Codex worker execution against a target repository.

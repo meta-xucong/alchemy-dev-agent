@@ -21,7 +21,7 @@ The UI is not a landing page. It is an operational console for:
 Create Project
   -> Upload Files
   -> Link GitHub Repository
-  -> Inspect Repository And Auth
+  -> Inspect Repository Source
   -> Review Intake
   -> Generate Plan
   -> Preview Task Graph
@@ -45,7 +45,8 @@ Required controls:
 - GitHub repository URL input.
 - Branch or tag input.
 - Local path input for already-cloned repositories.
-- `gh` authentication status indicator.
+- Public repository source status indicator.
+- Optional `gh` authentication status indicator when private repository mode is enabled.
 - Create project action.
 
 Required states:
@@ -87,12 +88,11 @@ Required controls:
 - Target branch.
 - Base branch.
 - Inspect action.
-- Re-auth check action.
+- Optional private repository mode.
+- Re-auth check action when private mode is enabled.
 
 Required displayed data:
 
-- `gh` installed status.
-- `gh` authenticated account when available.
 - Repository owner and name.
 - Visibility if known.
 - Access status.
@@ -100,6 +100,8 @@ Required displayed data:
 - Local checkout path.
 - Latest inspected commit.
 - CI workflow detection.
+- `gh` installed status only when private mode is enabled.
+- `gh` authenticated account only when private mode is enabled.
 
 The UI must not ask the user to paste a GitHub token.
 
@@ -309,8 +311,8 @@ The API must:
 V2 UI/API is ready when:
 
 - A user can create a project with a detailed document and multiple supporting files.
-- A user can link and inspect a GitHub repository.
-- Private repository access uses local `gh` authentication.
+- A user can link and inspect a public GitHub repository without `gh` login.
+- Private repository access, when enabled, uses local `gh` authentication.
 - Parsed requirements and blockers are visible before execution.
 - A task graph can be previewed before execution.
 - Execution can be monitored with task, agent, test, and evaluation state.

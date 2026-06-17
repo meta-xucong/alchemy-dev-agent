@@ -27,7 +27,7 @@ test_plan.md
 GitHub repository:
 
 ```text
-https://github.com/example/private-saas-dashboard
+https://github.com/example/saas-dashboard
 ```
 
 Target branch:
@@ -39,7 +39,7 @@ main
 Repository access:
 
 ```text
-Use local gh authentication.
+Public repository; no gh login required.
 ```
 
 ## Intake Result
@@ -89,14 +89,14 @@ The intake layer creates a `ProjectBrief`.
   ],
   "repository": {
     "provider": "github",
-    "url": "https://github.com/example/private-saas-dashboard",
+    "url": "https://github.com/example/saas-dashboard",
     "owner": "example",
-    "name": "private-saas-dashboard",
+    "name": "saas-dashboard",
     "target_branch": "main",
     "base_branch": "main",
     "local_path": ".alchemy/projects/proj_workspace_support/repo",
-    "visibility": "private",
-    "gh_auth_required": true,
+    "visibility": "public",
+    "gh_auth_required": false,
     "access_status": "available"
   },
   "constraints": [

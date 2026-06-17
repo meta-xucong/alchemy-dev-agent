@@ -8,7 +8,7 @@ The primary workflow is not a one-line prompt. The primary workflow is:
 
 1. The user provides a detailed development document.
 2. The user uploads supporting files such as API specs, database schemas, design notes, test plans, or reference code.
-3. The user optionally provides a GitHub repository URL, including private repositories accessible through local `gh` authentication.
+3. The user optionally provides a public GitHub repository URL; private repositories remain an explicit authenticated extension path.
 4. The system builds a structured project brief and context bundle.
 5. The multi-agent runtime converts that context into a task graph, executes tasks, tests changes, reviews evidence, and stops only when the delivery gate passes.
 
@@ -22,9 +22,11 @@ The repository currently contains:
 - A CLI runtime prototype with deterministic dry-run defaults.
 - Runtime modules for orchestration, task graph scheduling, agent routing, Codex worker execution, evaluation, state persistence, and GitHub execution evidence.
 - A v2.1 intake runtime for local ProjectBrief generation from documents, attachments, and GitHub URL metadata.
+- A v2.2 repository context runtime for local repository indexing and test profile detection.
+- A v2.3 public GitHub source runtime for clone, fetch, and deterministic branch checkout.
 - Tests that protect the runtime contract.
 
-V2 must continue extending this baseline with repository retrieval, ContextBundle generation, planning, UI/API, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
+V2 must continue extending this baseline with document parsing, full ContextBundle generation, planning, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
 
 ## V2 Objective
 
@@ -33,8 +35,8 @@ Build a system that can accept a complete project package and drive implementati
 The system must be able to:
 
 - Ingest a development document and multiple supporting files.
-- Inspect a linked GitHub repository.
-- Use `gh` login status for private repository access.
+- Inspect a linked public GitHub repository.
+- Treat private repository access as an optional path that requires local `gh` authentication.
 - Build a normalized project brief.
 - Build a context bundle from documents and repository evidence.
 - Map requirements to task graph nodes.
@@ -74,8 +76,8 @@ Project Intake
   v
 Source Retrieval
   - validate uploaded files
-  - check local gh authentication
-  - clone or fetch repository
+  - clone or fetch public repository
+  - check local gh authentication only when private repository mode is explicitly selected
   - record source metadata
   |
   v
@@ -138,8 +140,9 @@ intake/
   project_brief.py          Normalize user objective, documents, attachments, and repository references.
   document_loader.py        Load and classify uploaded files.
   attachment_indexer.py     Hash, catalog, and summarize supporting files.
-  github_source.py          Clone, fetch, and inspect GitHub repositories.
-  gh_auth.py                Check local GitHub CLI authentication and account state.
+  github_source.py          Normalize GitHub repository metadata.
+  github_runtime.py         Clone, fetch, and checkout public GitHub repositories.
+  gh_auth.py                Optional: check local GitHub CLI authentication and account state for private repositories.
 
 context/
   repository_indexer.py     Build file tree, language, package, test, and CI metadata.
@@ -205,11 +208,12 @@ The intake and context layers are system services, not new autonomous agent role
 
 The system must support:
 
-- Public GitHub repository inspection.
-- Private GitHub repository inspection through local GitHub CLI authentication.
+- Public GitHub repository inspection as the default path.
+- Public repository clone, fetch, and branch checkout without requiring `gh` authentication.
+- Private GitHub repository inspection as an optional authenticated extension through local GitHub CLI authentication.
 - Branch selection.
 - Commit, branch, pull request, and CI evidence collection.
-- Clear blocker reporting when `gh` is missing, unauthenticated, lacks access, or cannot fetch the requested repository.
+- Clear blocker reporting when public clone/fetch fails or when optional private access is requested but `gh` is missing, unauthenticated, or lacks access.
 
 The system must not store GitHub tokens. Authentication is delegated to the local `gh` installation and its credential store.
 
@@ -222,7 +226,8 @@ The v2 product surface must support:
 - File role classification.
 - GitHub repository URL input.
 - Branch or tag input.
-- `gh auth status` visibility.
+- Public repository source status.
+- Optional `gh auth status` visibility when private repository mode is enabled.
 - Repository inspection results.
 - Parsed requirement review before execution.
 - Task graph preview before execution.
@@ -288,17 +293,26 @@ DONE requires:
 - Implement test profile detection. Status: done in V2.2.
 - Implement blockers for missing local repository paths. Status: done in V2.2.
 - Implement `gh auth status` checks. Status: pending.
-- Implement public/private clone or fetch. Status: pending.
-- Add blocker handling for missing remote access. Status: pending.
+- Implement public/private clone or fetch. Status: public path moved to V2.3; private path pending.
+- Add blocker handling for missing remote access. Status: public path moved to V2.3; private path pending.
 
-### V2.3: Context And Planning Runtime
+### V2.3: Public GitHub Source Runtime
+
+- Implement public GitHub clone. Status: done.
+- Implement public GitHub fetch for existing checkouts. Status: done.
+- Implement deterministic branch checkout. Status: done.
+- Make public repository visibility the default ProjectBrief and CLI behavior. Status: done.
+- Return explicit blockers for private repository requests. Status: done.
+- Add tests for clone, fetch, and private optional blocker behavior. Status: done.
+
+### V2.4: Context And Planning Runtime
 
 - Implement `ContextBundle` generation.
 - Implement requirement extraction and traceability.
 - Implement task graph generation from context bundle.
 - Add tests for requirement-to-task mapping.
 
-### V2.4: UI And API Runtime
+### V2.5: UI And API Runtime
 
 - Implement project intake API.
 - Implement upload and repository inspection API.
@@ -306,7 +320,7 @@ DONE requires:
 - Implement execution event stream.
 - Implement UI screens for the document-driven flow.
 
-### V2.5: End-To-End Delivery Runtime
+### V2.6: End-To-End Delivery Runtime
 
 - Run against a real repository with a real development document.
 - Execute Codex worker tasks.
@@ -320,7 +334,8 @@ DONE requires:
 | --- | --- | --- |
 | Development documents are long or contradictory. | Planner may create wrong tasks. | Build requirement traceability and reviewer gate before execution. |
 | Supporting files use mixed formats. | Context bundle may miss important constraints. | Keep file role metadata and parse confidence in the context bundle. |
-| Private repository access fails. | Execution cannot inspect source. | Use local `gh auth status` and report an explicit blocker. |
+| Public repository clone or fetch fails. | Execution cannot inspect source. | Record git command output as a hard source blocker before planning. |
+| Private repository access is requested. | Execution cannot inspect source through the public path. | Use local `gh auth status` in a later optional adapter and report an explicit blocker until implemented. |
 | One-line fallback creates weak specs. | The system may over-assume. | Mark generated requirements as low-confidence and require acceptance review. |
 | Runtime drifts from documents. | Agents follow stale contracts. | Keep schemas and tests as contract checks. |
 | UI starts execution before review. | Wrong plan may mutate code. | Require intake review and task graph preview before live execution. |
@@ -332,6 +347,7 @@ The v2 plan is ready for implementation when:
 - `ProjectBrief` schema exists and covers objective, documents, attachments, repository, constraints, and acceptance criteria.
 - `ContextBundle` schema exists and covers document index, repository map, requirement map, test profile, risks, and blockers.
 - UI/API requirements define the project intake flow.
-- GitHub private repository behavior is specified through local `gh` authentication.
+- Public GitHub repository behavior is implemented and covered by tests.
+- Private GitHub repository behavior is specified as an optional local `gh` authentication path.
 - The document-driven example shows how inputs become task graph execution.
 - The plan clearly separates current runtime capabilities from planned v2 implementation.

@@ -48,8 +48,7 @@ class ProjectBriefBuilderTests(unittest.TestCase):
                 objective="Add workspace support",
                 documents=[primary],
                 attachments=[api_spec],
-                repository_url="git@github.com:example/private-saas-dashboard.git",
-                repository_visibility="private",
+                repository_url="https://github.com/example/saas-dashboard.git",
                 target_branch="main",
                 constraints=["Keep existing single-user accounts working."],
                 acceptance_criteria=["Users can create a workspace."],
@@ -62,10 +61,26 @@ class ProjectBriefBuilderTests(unittest.TestCase):
         self.assertEqual(payload["documents"][0]["role"], "primary_requirements")
         self.assertEqual(payload["documents"][0]["parse_status"], "parsed")
         self.assertEqual(payload["attachments"][0]["role"], "api_spec")
-        self.assertEqual(payload["repository"]["url"], "https://github.com/example/private-saas-dashboard")
-        self.assertTrue(payload["repository"]["gh_auth_required"])
+        self.assertEqual(payload["repository"]["url"], "https://github.com/example/saas-dashboard")
+        self.assertFalse(payload["repository"]["gh_auth_required"])
+        self.assertEqual(payload["repository"]["visibility"], "public")
         self.assertEqual(payload["repository"]["access_status"], "unchecked")
         self.assertEqual(payload["blockers"], [])
+        self.assertEqual(validate_project_brief_contract(payload), [])
+
+    def test_private_repository_metadata_is_explicit_optional_path(self) -> None:
+        brief = ProjectBriefBuilder().build(
+            objective="Add workspace support",
+            primary_input_mode="one_line_fallback",
+            repository_url="git@github.com:example/private-saas-dashboard.git",
+            repository_visibility="private",
+            created_at="2026-06-18T00:00:00+00:00",
+        )
+        payload = brief.to_dict()
+
+        self.assertEqual(payload["repository"]["url"], "https://github.com/example/private-saas-dashboard")
+        self.assertEqual(payload["repository"]["visibility"], "private")
+        self.assertTrue(payload["repository"]["gh_auth_required"])
         self.assertEqual(validate_project_brief_contract(payload), [])
 
     def test_document_driven_mode_requires_primary_document(self) -> None:
@@ -156,6 +171,8 @@ class ProjectBriefBuilderTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["objective"], "Build feature")
         self.assertEqual(payload["repository"]["owner"], "example")
+        self.assertEqual(payload["repository"]["visibility"], "public")
+        self.assertFalse(payload["repository"]["gh_auth_required"])
         self.assertEqual(validate_project_brief_contract(payload), [])
 
 

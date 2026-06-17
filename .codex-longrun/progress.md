@@ -69,6 +69,18 @@
 - Added `docs/11_v2_repository_context_runtime.md`.
 - Updated README, v2 development plan, and alignment audit for V2.2 status.
 - Added repository context tests using a synthetic local TypeScript repository.
+## 2026-06-18 V2.3 Public GitHub Source Runtime
+
+- Added `intake/github_runtime.py` for public GitHub source preparation.
+- Implemented public repository clone into `RepositorySource.local_path`.
+- Implemented fetch plus deterministic `checkout -B <branch> origin/<branch>` for existing git checkouts.
+- Added explicit blockers for private repository requests, non-empty non-git target paths, clone failures, fetch failures, checkout failures, and invalid GitHub URLs.
+- Added `python -m intake.github_runtime` CLI for source preparation smoke runs.
+- Changed ProjectBrief and CLI default repository visibility from `unknown` to `public`.
+- Kept private repository metadata as an explicit optional path with `gh_auth_required=true`.
+- Added `docs/12_v2_public_github_source_runtime.md`.
+- Updated README, architecture, V2 plan, intake/context contract, UI/API requirements, V2 audit, V2.2 context notes, and examples to reflect public repositories as the primary path.
+- Updated tests to cover public-first defaults, public clone/fetch, and private optional blocker behavior.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0
