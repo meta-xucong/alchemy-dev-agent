@@ -59,6 +59,16 @@
 - Ran the user's requested game prompt through the pipeline and generated `.alchemy/generated/retro_platformer_test/index.html`.
 - Browser-verified the generated game page through local HTTP: visible HUD, canvas, sky, platforms, coins, player, gaps, and controls.
 - Updated README, audit docs, and example material with the demo command and boundaries.
+## 2026-06-18 V2.2 Repository Context Runtime
+
+- Added `context/repository_indexer.py` for deterministic local repository indexing.
+- Added file kind classification for source, test, docs, config, CI, assets, migrations, and unknown files.
+- Added language detection, package file detection, CI workflow detection, package manager detection, and test/build/lint command inference.
+- Integrated repository indexing into `ContextBundleBuilder` when `ProjectBrief.repository.local_path` is available.
+- Added blockers for missing and invalid local repository paths.
+- Added `docs/11_v2_repository_context_runtime.md`.
+- Updated README, v2 development plan, and alignment audit for V2.2 status.
+- Added repository context tests using a synthetic local TypeScript repository.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0

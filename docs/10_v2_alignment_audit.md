@@ -45,6 +45,7 @@ Current runtime capabilities:
 - Persistent runtime state.
 - V2.1 ProjectBrief generation from local files and GitHub URL metadata.
 - A narrow local one-line demo pipeline that generates an original retro platformer artifact through ProjectBrief, ContextBundle, TaskGraph, deterministic local agents, static verification, and reviewer evidence.
+- V2.2 local repository indexing and ContextBundle repository/test-profile enrichment.
 
 Planned v2 capabilities:
 
@@ -69,7 +70,6 @@ The current codebase does not yet implement:
 - Full ContextBundle generation for real repositories.
 - Document parser pipeline.
 - GitHub source retrieval before planning.
-- Repository indexer.
 - Requirement extraction and traceability.
 - Task graph generation from uploaded documents.
 - Execution event streaming.

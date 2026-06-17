@@ -202,3 +202,24 @@
 - Result: passed
 - Summary: All JSON specs parse after one-line demo pipeline changes.
 - Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_repository_context`
+- Result: passed
+- Summary: 3 V2.2 repository context tests passed after fixing a brittle exact file-size assertion.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed
+- Summary: 31 tests passed across runtime, intake, context, planner, and autodev modules.
+- Next verification command: JSON spec parsing and long-running state validation.
+
+## 2026-06-18
+
+- Command: `Get-Content specs\*.json -Raw | ConvertFrom-Json`
+- Result: passed
+- Summary: All JSON specs parse after V2.2 repository context changes.
+- Next verification command: final long-running state validation.

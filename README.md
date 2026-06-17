@@ -85,6 +85,7 @@ intake/
 
 context/
   builder.py                 V2.2 minimal ContextBundle builder.
+  repository_indexer.py      Local repository indexing and test profile detection.
 
 planner/
   task_graph_builder.py      ContextBundle-to-task-graph planning for local demos.
@@ -98,6 +99,7 @@ tests/
   test_runtime.py            Unit and smoke tests for the runtime contract.
   test_intake.py             Unit and CLI tests for v2.1 intake.
   test_autodev_pipeline.py   End-to-end local demo generation tests.
+  test_repository_context.py Repository context runtime tests.
 ```
 
 ## Runtime
@@ -174,6 +176,22 @@ The demo writes:
 
 Important boundary: this is a deterministic local demo, not the full production autonomous development system. It proves the contract path and generated-artifact loop, but it does not yet use the Agent SDK, real Codex worker sessions, GitHub repository retrieval, CI, or UI/API intake.
 
+## V2.2 Repository Context
+
+The repository context runtime can enrich a `ContextBundle` from a local repository checkout path.
+
+Implemented repository context capabilities:
+
+- File discovery with ignored directory filtering.
+- File kind classification for source, test, docs, config, CI, assets, migrations, and unknown files.
+- Language detection by file suffix.
+- Package file detection.
+- GitHub Actions and CI file detection.
+- Package manager detection.
+- Test, build, and lint command inference.
+- ContextBundle population with repository map and test profile.
+- Hard blockers for missing or invalid repository paths.
+
 Run a smoke execution:
 
 ```bash
@@ -212,9 +230,9 @@ PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 This repository does not yet implement:
 
 - Multi-file upload or full document parser pipeline.
-- Full ContextBundle runtime generation for real repositories.
+- Full ContextBundle runtime generation for remote repositories.
 - Real GitHub clone/fetch or `gh auth status` checks during intake.
-- Repository indexing before planning.
+- Deep code summarization and semantic requirement-to-file mapping.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.

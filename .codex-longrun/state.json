@@ -1,44 +1,39 @@
 {
-  "objective": "Evaluate and implement minimal one-line autonomous app generation demo pipeline",
+  "objective": "Implement V2.2 repository context runtime and documentation",
   "current_phase": "Delivery",
   "phase_status": "done",
   "completed_phases": [
-    "Capability evaluation",
-    "Implement local demo pipeline",
-    "Generate one-line game artifact",
-    "Browser verification",
-    "Documentation update",
+    "Inspect context and intake contracts",
+    "Implement repository indexer",
+    "Integrate repository evidence into ContextBundle",
+    "Add repository context tests",
+    "Add V2.2 documentation",
     "Final verification"
   ],
   "next_actions": [
-    "Commit and push one-line demo pipeline",
+    "Commit and push V2.2 repository context runtime",
     "Notify user for review"
   ],
   "tests_run": [
     {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_autodev_pipeline",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_repository_context",
       "result": "passed",
-      "summary": "2 one-line app generation demo tests passed."
+      "summary": "3 V2.2 repository context tests passed."
     },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "28 tests passed across runtime, intake, and autodev demo modules."
-    },
-    {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.demo_run --objective <user retro platformer prompt> --output .alchemy/generated/retro_platformer_test",
-      "result": "passed",
-      "summary": "Demo returned status=done and generated index.html plus autodev_report.json."
-    },
-    {
-      "command": "Browser verification through local HTTP server",
-      "result": "passed",
-      "summary": "Screenshot and DOM confirmed generated game page renders with HUD, canvas, scene, player, platforms, coins, gaps, and controls."
+      "summary": "31 tests passed across runtime, intake, context, planner, and autodev modules."
     },
     {
       "command": "Get-Content specs\\*.json -Raw | ConvertFrom-Json",
       "result": "passed",
-      "summary": "All JSON specs parse."
+      "summary": "All JSON specs parse after V2.2 changes."
+    },
+    {
+      "command": "python %USERPROFILE%\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
+      "result": "passed",
+      "summary": "Long-running state schema validated after V2.2 changes."
     }
   ],
   "known_bugs": [],
@@ -48,7 +43,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-18T01:55:00+08:00",
-  "created_at": "2026-06-18T01:43:41+08:00",
-  "updated_at": "2026-06-18T01:43:41+08:00"
+  "last_verified_at": "2026-06-18T02:11:00+08:00",
+  "created_at": "2026-06-18T05:45:48+08:00",
+  "updated_at": "2026-06-18T05:45:48+08:00"
 }

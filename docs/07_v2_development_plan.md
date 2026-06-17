@@ -283,11 +283,13 @@ DONE requires:
 
 ### V2.2: GitHub Context Runtime
 
-- Implement GitHub URL parsing.
-- Implement `gh auth status` checks.
-- Implement public/private clone or fetch.
-- Implement repository indexing.
-- Add blocker handling for missing access.
+- Implement GitHub URL parsing. Status: done in V2.1.
+- Implement local repository indexing. Status: done in V2.2.
+- Implement test profile detection. Status: done in V2.2.
+- Implement blockers for missing local repository paths. Status: done in V2.2.
+- Implement `gh auth status` checks. Status: pending.
+- Implement public/private clone or fetch. Status: pending.
+- Add blocker handling for missing remote access. Status: pending.
 
 ### V2.3: Context And Planning Runtime
 

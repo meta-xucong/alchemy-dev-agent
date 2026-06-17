@@ -1,30 +1,31 @@
 # Long-Running Roadmap
 
-Objective: Evaluate and implement minimal one-line autonomous app generation demo pipeline.
+Objective: Implement V2.2 repository context runtime and documentation.
 
-## Phase 1: Capability Evaluation
+## Phase 1: Repository Context Runtime
 
-- Confirm the current system is not yet a full arbitrary-program autonomous delivery system.
-- Identify the smallest useful demo loop for one-line objective input.
-- Preserve copyright safety for protected commercial-game imitation requests.
+- Add local repository indexing.
+- Classify repository files by kind and language.
+- Detect package files and CI workflow files.
+- Detect package managers.
+- Infer test, build, and lint commands.
+- Record blockers for missing or invalid local repository paths.
 
-## Phase 2: Local Demo Pipeline
+## Phase 2: ContextBundle Integration
 
-- Add ContextBundle generation for one-line fallback.
-- Add ContextBundle-to-task-graph planning.
-- Add deterministic local agent chain.
-- Add original retro platformer artifact generation.
-- Add static test and reviewer evidence.
+- Enrich ContextBundle repository map from local repository evidence.
+- Enrich ContextBundle test profile from detected package signals.
+- Preserve one-line demo behavior when no repository is provided.
 
-## Phase 3: Verification
+## Phase 3: Documentation
 
-- Add unit and CLI tests for the demo pipeline.
-- Run the user's one-line game request through the pipeline.
-- Verify generated game artifact exists and renders in a local browser.
-- Validate schema and test suite.
+- Add V2.2 repository context runtime documentation.
+- Update README and v2 plan status.
+- Update alignment audit with current capability and remaining gaps.
 
-## Phase 4: Documentation And Delivery
+## Phase 4: Verification And Delivery
 
-- Document the working demo and its limits.
-- Commit and push the changes.
-- Notify the user for review.
+- Add repository context tests.
+- Run full test suite.
+- Validate JSON specs and long-running state.
+- Commit, push, and notify.

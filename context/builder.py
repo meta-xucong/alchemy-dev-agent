@@ -7,12 +7,16 @@ from typing import Any
 from intake.models import Blocker, ProjectBrief
 
 from .models import ContextBundle, DocumentSummary, Requirement, Risk
+from .repository_indexer import RepositoryIndexer
 
 PROTECTED_GAME_TERMS = ("超级玛丽", "super mario", "mario", "mushroom kingdom", "goomba", "koopa")
 
 
 class ContextBundleBuilder:
     """Create deterministic planner context from a ProjectBrief."""
+
+    def __init__(self, repository_indexer: RepositoryIndexer | None = None) -> None:
+        self.repository_indexer = repository_indexer or RepositoryIndexer()
 
     def build(self, project_brief: ProjectBrief | dict[str, Any]) -> ContextBundle:
         payload = project_brief.to_dict() if isinstance(project_brief, ProjectBrief) else project_brief
@@ -29,19 +33,26 @@ class ContextBundleBuilder:
 
         repository = payload.get("repository")
         root_path = str(repository.get("local_path", "")) if isinstance(repository, dict) else ""
+        repository_index = self.repository_indexer.index(root_path) if root_path else None
+        if repository_index:
+            blockers.extend(repository_index.blockers)
 
         return ContextBundle(
             project_id=str(payload["project_id"]),
             objective=objective,
             documents=documents,
+            repository_files=repository_index.files if repository_index else [],
+            package_files=repository_index.package_files if repository_index else [],
+            ci_files=repository_index.ci_files if repository_index else [],
             requirements=requirements,
             risks=risks,
             blockers=blockers,
             root_path=root_path,
-            test_commands=["static artifact inspection"],
-            build_commands=[],
-            lint_commands=[],
-            coverage_unknown=True,
+            package_managers=repository_index.package_managers if repository_index else [],
+            test_commands=repository_index.test_commands if repository_index else ["static artifact inspection"],
+            build_commands=repository_index.build_commands if repository_index else [],
+            lint_commands=repository_index.lint_commands if repository_index else [],
+            coverage_unknown=repository_index.coverage_unknown if repository_index else True,
         )
 
     def _document_summary(self, payload: dict[str, Any]) -> DocumentSummary:
