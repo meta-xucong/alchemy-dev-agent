@@ -1,51 +1,41 @@
 {
-  "objective": "Fully implement Alchemy Dev Agent System from specification into a usable autonomous development runtime, including real Codex worker adapter, retry/debug loop, task graph scheduling, evaluation gates, GitHub execution flow, tests, docs, and keep iterating until done or blocked.",
-  "current_phase": "Documentation And Delivery",
+  "objective": "Contract Alignment Fix: align docs, specs, runtime, tests, and README into one consistent execution contract",
+  "current_phase": "Contract Alignment Fix",
   "phase_status": "done",
   "completed_phases": [
-    "Discover project structure",
-    "Runtime Skeleton",
-    "Autonomous Runtime Capabilities",
-    "Verification",
-    "Documentation And Delivery"
+    "Contract audit",
+    "Schema alignment",
+    "Regression tests",
+    "Verification"
   ],
   "next_actions": [],
   "tests_run": [
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "13 runtime tests passed."
+      "summary": "15 tests passed after adding schema/runtime contract regression tests."
     },
     {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp/<unique-smoke-dir> --objective \"build a todo app with login\" --reset",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp/alignment-smoke --objective \"build a todo app with login\" --reset",
       "result": "passed",
-      "summary": "CLI smoke reached done=true, status=passed, final_gate_score=0.94."
+      "summary": "CLI smoke reached done=true and evaluation_score=0.94."
     },
     {
-      "command": "python %USERPROFILE%\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
+      "command": "ConvertFrom-Json for specs/state_schema_v2.json and specs/task_graph_schema.json",
       "result": "passed",
-      "summary": "Long-running task state schema validated."
-    },
-    {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp/final-smoke --objective \"build a todo app with login\" --reset",
-      "result": "passed",
-      "summary": "Final CLI smoke reached done=true, status=passed, final_gate_score=0.94."
+      "summary": "Both JSON schema files parse successfully."
     }
   ],
-  "known_bugs": [
-    "Windows sandbox denies Python bytecode writes to existing __pycache__; verification uses PYTHONDONTWRITEBYTECODE=1 and python -B.",
-    "This environment reports access denied when launching the installed Codex app alias, so real Codex execution is implemented and subprocess-tested but not live-smoke-tested here."
-  ],
+  "known_bugs": [],
   "blockers": [],
   "done_criteria": [
-    "Real Codex worker adapter exists with structured worker package and result parsing.",
-    "Retry/debug loop and task graph scheduling are implemented.",
-    "Evaluation gate enforces weighted dimensions and hard failures.",
-    "GitHub execution flow records dry-run evidence and supports real git/gh mode.",
-    "Relevant unit tests and CLI smoke pass.",
-    "README and docs describe runtime usage."
+    "Docs, specs, runtime, tests, and README use one execution contract",
+    "Runtime persisted state fields are declared in state schema",
+    "Runtime task graph node fields are declared in task graph schema",
+    "Relevant tests and smoke checks pass",
+    "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-17T23:12:27+08:00",
-  "created_at": "2026-06-17T21:59:35+08:00",
-  "updated_at": "2026-06-17T14:21:13+00:00"
+  "last_verified_at": "2026-06-17T23:45:00+08:00",
+  "created_at": "2026-06-17T23:35:56+08:00",
+  "updated_at": "2026-06-17T23:35:56+08:00"
 }

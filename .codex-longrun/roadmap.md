@@ -1,28 +1,24 @@
 # Long-Running Roadmap
 
-Objective: Implement Alchemy Dev Agent Runtime Engine as a usable autonomous development runtime.
+Objective: Contract Alignment Fix for `alchemy-dev-agent`.
 
-## Phase 1: Runtime Skeleton
+## Phase 1: Contract Audit
 
-- Create `runtime/` package.
-- Add orchestrator, task graph engine, agent router, worker adapter, evaluator, state manager, and run loop.
-- Keep runtime standard-library only with deterministic dry-run defaults.
+- Compare docs, specs, runtime, tests, and README.
+- Identify semantic drift without adding features.
 
-## Phase 2: Autonomous Runtime Capabilities
+## Phase 2: Minimal Alignment Fixes
 
-- Add real Codex subprocess worker adapter behind explicit CLI flag.
-- Add retry/debug loop and task graph retry scheduling.
-- Add weighted evaluation gate with hard failures.
-- Add GitHub execution flow adapter with dry-run and real `git`/`gh` modes.
+- Update schemas to recognize intentional runtime fields.
+- Update stale README or CLI wording.
+- Keep runtime behavior unchanged unless it violates the documented contract.
 
 ## Phase 3: Verification
 
-- Add focused unit tests for graph readiness, routing, evaluation, state persistence, and loop termination.
-- Add a CLI smoke test.
-- Add worker subprocess parsing, retry/debug, and GitHub flow tests.
+- Add regression tests that prevent schema/runtime contract drift.
+- Run unit tests, CLI smoke, JSON parsing, and long-running state validation.
 
-## Phase 4: Documentation And Delivery
+## Phase 4: Delivery
 
-- Update README with runtime usage.
-- Validate tests.
-- Record long-running state and verification.
+- Record mismatches found and fixes applied.
+- Commit and push the alignment fix.

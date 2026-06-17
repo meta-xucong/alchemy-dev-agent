@@ -260,5 +260,41 @@ class OrchestratorTests(unittest.TestCase):
             self.assertTrue(payload["done"])
             self.assertEqual(payload["evaluation"]["status"], "passed")
 
+
+class ContractAlignmentTests(unittest.TestCase):
+    def test_runtime_state_fields_are_declared_in_state_schema(self) -> None:
+        state_schema = json.loads(Path("specs/state_schema_v2.json").read_text(encoding="utf-8"))
+        properties = state_schema["properties"]
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(StateManager(Path(tmp_dir) / ".alchemy" / "state.json"), repository_path=tmp_dir).run(
+                "build a todo app with login",
+                reset=True,
+            )
+        runtime_payload = state.to_dict()
+
+        for key in runtime_payload:
+            self.assertIn(key, properties, f"{key} missing from state_schema_v2.json")
+
+        self.assertIn("evaluation_result", properties)
+        self.assertIn("iteration_history", properties)
+        self.assertIn("done", properties)
+        self.assertIn("created_at", properties)
+        self.assertIn("commit", properties["github"]["properties"])
+        self.assertIn("branch", properties["github"]["properties"])
+
+    def test_runtime_task_node_fields_are_declared_in_task_graph_schema(self) -> None:
+        task_schema = json.loads(Path("specs/task_graph_schema.json").read_text(encoding="utf-8"))
+        node_properties = task_schema["$defs"]["node"]["properties"]
+        graph = TaskGraphEngine().create_default_graph("build a todo app with login")
+
+        for node in graph.to_dict()["nodes"]:
+            for key in node:
+                self.assertIn(key, node_properties, f"{key} missing from task_graph_schema.json")
+
+        self.assertIn("commands_to_run", node_properties)
+        self.assertIn("relevant_files", node_properties)
+
+
 if __name__ == "__main__":
     unittest.main()

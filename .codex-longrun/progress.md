@@ -12,6 +12,14 @@
 - Added `runtime/github_flow.py`, expanded persistent runtime state toward schema v2, and added release/GitHub evidence as a required final gate input.
 - Expanded tests to cover subprocess worker parsing failures, retry/debug scheduling, GitHub dry-run evidence, final gate behavior, and CLI smoke completion.
 - Updated README, worker docs, execution-loop docs, and roadmap for the new runtime behavior.
+## 2026-06-17 Contract Alignment Fix
+
+- Audited docs, specs, runtime modules, tests, and README for contract drift.
+- Found schema/runtime drift: runtime persisted `done`, `created_at`, `evaluation_result`, `iteration_history`, repository/GitHub execution fields, string task ID lists, and task node `relevant_files`, `commands_to_run`, and `retry_count` fields not fully represented in schemas.
+- Updated `specs/state_schema_v2.json` and `specs/task_graph_schema.json` to recognize intentional runtime fields.
+- Updated stale runtime/README version wording.
+- Added regression tests that assert runtime state and task node keys are declared in schemas.
+- Verified unit tests, CLI smoke, and JSON parsing.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0

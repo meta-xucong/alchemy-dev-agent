@@ -10,7 +10,7 @@ from .orchestrator import Orchestrator
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run Alchemy Dev Agent Runtime Engine v0.1.")
+    parser = argparse.ArgumentParser(description="Run Alchemy Dev Agent Runtime Engine.")
     parser.add_argument("--objective", required=True, help="User development objective.")
     parser.add_argument("--project", default=".", help="Project directory for runtime state.")
     parser.add_argument("--state-file", default=".alchemy/state.json", help="State file path under project directory.")

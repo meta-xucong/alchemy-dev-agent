@@ -48,3 +48,24 @@
 - Result: passed
 - Summary: Long-running task state schema validated after implementation updates.
 - Next verification command: none.
+
+## 2026-06-17
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: failed, then passed
+- Summary: Initial contract test caught missing `retry_count` in `task_graph_schema.json`; after adding it, 15 tests passed.
+- Next verification command: CLI smoke and JSON parsing.
+
+## 2026-06-17
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp/alignment-smoke --objective "build a todo app with login" --reset`
+- Result: passed
+- Summary: CLI smoke reached `done=true`, `evaluation_score=0.94`.
+- Next verification command: long-running state validation.
+
+## 2026-06-17
+
+- Command: `Get-Content specs/*.json -Raw | ConvertFrom-Json`
+- Result: passed
+- Summary: State and task graph schemas parse as valid JSON.
+- Next verification command: long-running state validation.

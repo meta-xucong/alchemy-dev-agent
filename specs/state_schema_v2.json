@@ -76,19 +76,40 @@
     "active_tasks": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/task_ref"
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/task_ref"
+          }
+        ]
       }
     },
     "completed_tasks": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/task_completion"
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/task_completion"
+          }
+        ]
       }
     },
     "failed_tasks": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/task_failure"
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/task_failure"
+          }
+        ]
       }
     },
     "evaluation_score": {
@@ -104,6 +125,19 @@
         "status": {
           "type": "string",
           "enum": ["not_started", "in_progress", "passed", "failed"]
+        },
+        "done": {
+          "type": "boolean"
+        },
+        "final_gate_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "final_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "dimension_scores": {
           "type": "object",
@@ -140,17 +174,50 @@
           "type": "string",
           "enum": ["not_reviewed", "approved", "changes_requested", "rejected"]
         },
+        "test_pass_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "spec_alignment": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reviewer_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "hard_failures": {
           "type": "array",
           "items": {
             "type": "string"
           }
         },
+        "required_changes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence_summary": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reason": {
+          "type": "string"
+        },
         "last_evaluated_at": {
           "type": "string",
           "format": "date-time"
         }
       }
+    },
+    "evaluation_result": {
+      "$ref": "#/properties/evaluation"
     },
     "blockers": {
       "type": "array",
@@ -185,11 +252,48 @@
             "type": "string"
           }
         },
+        "commit": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["recorded", "pushed", "failed", "unknown"]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "commands_run": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
         "ci_status": {
           "type": "string",
           "enum": ["unknown", "pending", "passed", "failed"]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
         }
       }
+    },
+    "iteration_history": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/history_event"
+      }
+    },
+    "done": {
+      "type": "boolean",
+      "description": "True when the latest evaluation passed and the runtime terminated successfully."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
     },
     "updated_at": {
       "type": "string",

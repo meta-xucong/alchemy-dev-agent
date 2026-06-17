@@ -107,6 +107,11 @@
             "$ref": "#/$defs/evidence"
           }
         },
+        "retry_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Runtime retry count for this task node. Mirrors retry_policy.attempts in persisted runtime state."
+        },
         "retry_policy": {
           "type": "object",
           "additionalProperties": false,
@@ -124,6 +129,20 @@
               "default": true
             }
           }
+        },
+        "relevant_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Repository files or directories the worker should inspect for this task."
+        },
+        "commands_to_run": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Verification commands the worker should run for this task."
         },
         "artifacts": {
           "type": "array",

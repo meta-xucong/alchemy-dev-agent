@@ -66,7 +66,7 @@ runtime/
   run_loop.py                CLI loop entry point.
 
 tests/
-  test_runtime.py            Unit and smoke tests for runtime v0.1.
+  test_runtime.py            Unit and smoke tests for the runtime contract.
 ```
 
 ## Runtime
