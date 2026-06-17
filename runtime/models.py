@@ -155,9 +155,9 @@ class RuntimeState:
         return cls(
             objective=str(payload["objective"]),
             task_graph=TaskGraph.from_dict(payload["task_graph"]),
-            active_tasks=list(payload.get("active_tasks", [])),
-            completed_tasks=list(payload.get("completed_tasks", [])),
-            failed_tasks=list(payload.get("failed_tasks", [])),
+            active_tasks=_task_ids(payload.get("active_tasks", [])),
+            completed_tasks=_task_ids(payload.get("completed_tasks", [])),
+            failed_tasks=_task_ids(payload.get("failed_tasks", [])),
             evaluation_result=dict(payload.get("evaluation_result", payload.get("evaluation", {}))),
             iteration_history=list(payload.get("iteration_history", payload.get("execution_history", []))),
             blockers=list(payload.get("blockers", [])),
@@ -200,3 +200,15 @@ class RuntimeState:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
+
+
+def _task_ids(items: list[Any]) -> list[str]:
+    task_ids: list[str] = []
+    for item in items:
+        if isinstance(item, dict):
+            task_id = item.get("task_id")
+            if task_id:
+                task_ids.append(str(task_id))
+            continue
+        task_ids.append(str(item))
+    return task_ids

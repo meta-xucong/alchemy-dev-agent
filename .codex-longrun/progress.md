@@ -20,6 +20,13 @@
 - Updated stale runtime/README version wording.
 - Added regression tests that assert runtime state and task node keys are declared in schemas.
 - Verified unit tests, CLI smoke, and JSON parsing.
+## 2026-06-18 Self-Check Bug Fixes
+
+- Found and fixed real GitHub flow bug where a clean worktree caused `git commit` to be treated as a fatal failure.
+- Found and fixed state-loading bug where schema-style task reference objects could remain as dictionaries in runtime task ID lists.
+- Found and fixed real Codex worker parsing brittleness for JSONL/event-stream outputs containing nested worker JSON.
+- Added regression tests for all three bugs.
+- Verified 18 tests, CLI smoke, JSON parsing, and long-running state validation.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0

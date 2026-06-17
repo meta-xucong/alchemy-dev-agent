@@ -15,6 +15,7 @@ from runtime.codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWork
 from runtime.evaluator import Evaluator
 from runtime.github_flow import GitHubFlow
 from runtime.orchestrator import Orchestrator
+from runtime.models import RuntimeState
 from runtime.state_manager import StateManager
 from runtime.task_graph_engine import TaskGraphEngine
 
@@ -125,6 +126,48 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.status, "failed")
         self.assertIn("parseable", result.summary)
 
+    def test_real_worker_parses_jsonl_event_stream_output(self) -> None:
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            event_stream = "\n".join(
+                [
+                    json.dumps({"type": "session.started"}),
+                    json.dumps(
+                        {
+                            "type": "message",
+                            "item": {
+                                "content": [
+                                    {
+                                        "text": json.dumps(
+                                            {
+                                                "task_id": "T012",
+                                                "status": "completed",
+                                                "summary": "done from event stream",
+                                                "files_changed": ["runtime/codex_worker.py"],
+                                                "commands_run": [],
+                                                "tests_passed": ["worker parsing"],
+                                                "tests_failed": [],
+                                                "evidence": ["jsonl parsed"],
+                                                "known_issues": [],
+                                                "follow_up_tasks": [],
+                                                "confidence": 0.9,
+                                            }
+                                        )
+                                    }
+                                ]
+                            },
+                        }
+                    ),
+                ]
+            )
+            return subprocess.CompletedProcess(args, 0, event_stream, "")
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T012", goal="do work", repository_path="."))
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.summary, "done from event stream")
+        self.assertEqual(result.tests_passed, ["worker parsing"])
+
 
 class GitHubFlowTests(unittest.TestCase):
     def test_dry_run_records_github_evidence(self) -> None:
@@ -139,6 +182,32 @@ class GitHubFlowTests(unittest.TestCase):
         self.assertEqual(result.status, "recorded")
         self.assertEqual(result.ci_status, "passed")
         self.assertTrue(result.pull_request_url.startswith("dry-run://"))
+
+    def test_real_flow_skips_commit_when_no_changes_exist(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_runner(args, *, cwd, capture_output, text, check):
+            calls.append(args)
+            if args == ["git", "status", "--short"]:
+                return subprocess.CompletedProcess(args, 0, "", "")
+            if args == ["gh", "pr", "create", "--title", "test", "--body", "body"]:
+                return subprocess.CompletedProcess(args, 0, "https://example.test/pr/1\n", "")
+            if args == ["git", "rev-parse", "HEAD"]:
+                return subprocess.CompletedProcess(args, 0, "abc123\n", "")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        result = GitHubFlow(dry_run=False, runner=fake_runner).record_execution(
+            repository_path=".",
+            branch="agent/test",
+            task_ids=["T001"],
+            title="test",
+            body="body",
+        )
+
+        self.assertEqual(result.status, "pushed")
+        self.assertEqual(result.commit, "abc123")
+        self.assertNotIn(["git", "commit", "-m", "test"], calls)
+        self.assertIn(["git", "push", "-u", "origin", "agent/test"], calls)
 
 
 class EvaluatorTests(unittest.TestCase):
@@ -294,6 +363,24 @@ class ContractAlignmentTests(unittest.TestCase):
 
         self.assertIn("commands_to_run", node_properties)
         self.assertIn("relevant_files", node_properties)
+
+    def test_runtime_state_loads_schema_style_task_references_as_ids(self) -> None:
+        state = RuntimeState.from_dict(
+            {
+                "objective": "objective",
+                "task_graph": TaskGraphEngine().create_default_graph("objective").to_dict(),
+                "active_tasks": [{"task_id": "T001", "status": "active"}],
+                "completed_tasks": [{"task_id": "T002", "completed_at": "2026-01-01T00:00:00+00:00", "evidence": []}],
+                "failed_tasks": [{"task_id": "T003", "failed_at": "2026-01-01T00:00:00+00:00", "reason": "failed"}],
+                "evaluation_score": 0.0,
+                "blockers": [],
+                "done_criteria": ["done"],
+            }
+        )
+
+        self.assertEqual(state.active_tasks, ["T001"])
+        self.assertEqual(state.completed_tasks, ["T002"])
+        self.assertEqual(state.failed_tasks, ["T003"])
 
 
 if __name__ == "__main__":

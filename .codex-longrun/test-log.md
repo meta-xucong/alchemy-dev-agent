@@ -69,3 +69,31 @@
 - Result: passed
 - Summary: State and task graph schemas parse as valid JSON.
 - Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed
+- Summary: 17 tests passed, including regressions for clean real GitHub flow and schema-style task reference loading.
+- Next verification command: CLI smoke and JSON parsing.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp/selfcheck-smoke --objective "build a todo app with login" --reset`
+- Result: passed
+- Summary: CLI smoke reached `done=true`, `evaluation_score=0.94`.
+- Next verification command: JSON parsing and long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed
+- Summary: 18 tests passed after adding JSONL/event-stream Codex worker parsing coverage.
+- Next verification command: CLI smoke, JSON parsing, and state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp/selfcheck-smoke-2 --objective "build a todo app with login" --reset`
+- Result: passed
+- Summary: CLI smoke reached `done=true`, `evaluation_score=0.94`.
+- Next verification command: none.

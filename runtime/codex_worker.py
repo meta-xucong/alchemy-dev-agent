@@ -290,23 +290,62 @@ class CodexWorkerAdapter:
     def _parse_worker_json(self, output: str) -> dict[str, Any] | None:
         if not output.strip():
             return None
+        matches: list[dict[str, Any]] = []
         for candidate in self._json_candidates(output):
             try:
                 payload = json.loads(candidate)
             except json.JSONDecodeError:
                 continue
-            if isinstance(payload, dict) and "status" in payload:
-                return payload
-        return None
+            match = self._find_worker_result(payload)
+            if match is not None:
+                matches.append(match)
+        return matches[-1] if matches else None
 
     def _json_candidates(self, output: str) -> list[str]:
         stripped = output.strip()
         candidates = [stripped]
+        candidates.extend(line.strip() for line in stripped.splitlines() if line.strip())
+        candidates.extend(self._fenced_json_candidates(stripped))
         start = stripped.find("{")
         end = stripped.rfind("}")
         if 0 <= start < end:
             candidates.append(stripped[start : end + 1])
         return candidates
+
+    def _fenced_json_candidates(self, output: str) -> list[str]:
+        candidates: list[str] = []
+        fence = "```"
+        start = 0
+        while True:
+            open_index = output.find(fence, start)
+            if open_index < 0:
+                break
+            content_start = output.find("\n", open_index + len(fence))
+            if content_start < 0:
+                break
+            close_index = output.find(fence, content_start + 1)
+            if close_index < 0:
+                break
+            candidates.append(output[content_start + 1 : close_index].strip())
+            start = close_index + len(fence)
+        return candidates
+
+    def _find_worker_result(self, payload: Any) -> dict[str, Any] | None:
+        if isinstance(payload, dict):
+            if "status" in payload:
+                return payload
+            for value in payload.values():
+                match = self._find_worker_result(value)
+                if match is not None:
+                    return match
+        if isinstance(payload, list):
+            for value in payload:
+                match = self._find_worker_result(value)
+                if match is not None:
+                    return match
+        if isinstance(payload, str):
+            return self._parse_worker_json(payload)
+        return None
 
     def _blocked(self, worker_input: CodexWorkerInput, summary: str) -> CodexWorkerResult:
         return CodexWorkerResult(

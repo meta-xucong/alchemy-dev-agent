@@ -83,19 +83,14 @@ class GitHubFlow:
                 summary="Dry-run GitHub execution evidence recorded.",
             )
 
-        commands = [
-            [self.git_executable, "checkout", "-B", branch],
-            [self.git_executable, "status", "--short"],
-            [self.git_executable, "add", "-A"],
-            [self.git_executable, "commit", "-m", title],
-            [self.git_executable, "push", "-u", "origin", branch],
-            [self.gh_executable, "pr", "create", "--title", title, "--body", body],
-        ]
         command_results: list[dict] = []
         pull_request_url = ""
         commit_sha = ""
 
-        for command in commands:
+        for command in [
+            [self.git_executable, "checkout", "-B", branch],
+            [self.git_executable, "add", "-A"],
+        ]:
             completed = self.runner(
                 command,
                 cwd=repository_path,
@@ -111,6 +106,39 @@ class GitHubFlow:
                     "stderr": completed.stderr,
                 }
             )
+            if completed.returncode != 0:
+                return GitHubExecutionResult(
+                    status="failed",
+                    branch=branch,
+                    commands_run=command_results,
+                    summary=f"GitHub flow command failed: {' '.join(command)}",
+                )
+
+        status_result = self._run([self.git_executable, "status", "--short"], repository_path, command_results)
+        if status_result.returncode != 0:
+            return GitHubExecutionResult(
+                status="failed",
+                branch=branch,
+                commands_run=command_results,
+                summary="GitHub flow command failed: git status --short",
+            )
+        has_changes = bool(status_result.stdout.strip())
+
+        if has_changes:
+            commit_result = self._run([self.git_executable, "commit", "-m", title], repository_path, command_results)
+            if commit_result.returncode != 0:
+                return GitHubExecutionResult(
+                    status="failed",
+                    branch=branch,
+                    commands_run=command_results,
+                    summary="GitHub flow command failed: git commit",
+                )
+
+        for command in [
+            [self.git_executable, "push", "-u", "origin", branch],
+            [self.gh_executable, "pr", "create", "--title", title, "--body", body],
+        ]:
+            completed = self._run(command, repository_path, command_results)
             if completed.returncode != 0:
                 return GitHubExecutionResult(
                     status="failed",
@@ -148,3 +176,26 @@ class GitHubFlow:
             commands_run=command_results,
             summary="GitHub branch, commit, push, and PR flow completed.",
         )
+
+    def _run(
+        self,
+        command: list[str],
+        repository_path: str | Path,
+        command_results: list[dict],
+    ) -> subprocess.CompletedProcess[str]:
+        completed = self.runner(
+            command,
+            cwd=repository_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        command_results.append(
+            {
+                "command": " ".join(command),
+                "exit_code": completed.returncode,
+                "stdout": completed.stdout,
+                "stderr": completed.stderr,
+            }
+        )
+        return completed
