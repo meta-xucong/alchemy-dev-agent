@@ -92,6 +92,9 @@ Codex worker performs:
 
 The worker result is attached to the task node as evidence.
 
+The current runtime exposes this through `python -m runtime.run_loop`.
+Dry-run worker execution is the default for deterministic local runs. Pass `--real-codex` to invoke a real Codex subprocess.
+
 ## Step 6: Testing
 
 Testing can happen inside a worker run, as a separate Test Agent task, through CI, or all three.
@@ -196,6 +199,9 @@ The system terminates successfully only when:
 - No hard fail condition exists.
 - Final state is persisted.
 - GitHub sync evidence is recorded.
+
+The current runtime records GitHub evidence with `runtime/github_flow.py`.
+Dry-run evidence is recorded by default. Pass `--real-github` to run local `git` and `gh` commands for branch, commit, push, and pull request creation.
 
 ## Failed Termination
 

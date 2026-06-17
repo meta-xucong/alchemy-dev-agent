@@ -18,6 +18,7 @@ class StateManager:
     def initialize(self, objective: str, graph_engine: TaskGraphEngine | None = None) -> RuntimeState:
         engine = graph_engine or TaskGraphEngine()
         state = RuntimeState(objective=objective, task_graph=engine.create_default_graph(objective))
+        state.repository = {"provider": "local", "path": str(self.state_path.parent.parent)}
         self.save(state)
         return state
 

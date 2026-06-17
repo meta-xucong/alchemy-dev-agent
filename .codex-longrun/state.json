@@ -1,42 +1,51 @@
 {
-  "objective": "Implement Alchemy Dev Agent Runtime Engine v0.1 as a deterministic CLI prototype",
-  "current_phase": "Runtime v0.1 implementation",
+  "objective": "Fully implement Alchemy Dev Agent System from specification into a usable autonomous development runtime, including real Codex worker adapter, retry/debug loop, task graph scheduling, evaluation gates, GitHub execution flow, tests, docs, and keep iterating until done or blocked.",
+  "current_phase": "Documentation And Delivery",
   "phase_status": "done",
   "completed_phases": [
-    "Repository discovery",
-    "Runtime skeleton",
+    "Discover project structure",
+    "Runtime Skeleton",
+    "Autonomous Runtime Capabilities",
     "Verification",
-    "Documentation update"
+    "Documentation And Delivery"
   ],
   "next_actions": [],
   "tests_run": [
     {
-      "command": "python -m unittest discover -s tests",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "8 runtime tests passed.",
-      "timestamp": "2026-06-17T17:48:00+08:00"
+      "summary": "13 runtime tests passed."
     },
     {
-      "command": "python -m runtime.run_loop --project <temp> --objective \"build a todo app with login\" --reset",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp/<unique-smoke-dir> --objective \"build a todo app with login\" --reset",
       "result": "passed",
-      "summary": "CLI smoke run reached done=true with final_score=1.0.",
-      "timestamp": "2026-06-17T17:48:00+08:00"
+      "summary": "CLI smoke reached done=true, status=passed, final_gate_score=0.94."
     },
     {
       "command": "python %USERPROFILE%\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
       "result": "passed",
-      "summary": "Long-running task state schema validated.",
-      "timestamp": "2026-06-17T17:50:00+08:00"
+      "summary": "Long-running task state schema validated."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp/final-smoke --objective \"build a todo app with login\" --reset",
+      "result": "passed",
+      "summary": "Final CLI smoke reached done=true, status=passed, final_gate_score=0.94."
     }
   ],
-  "known_bugs": [],
+  "known_bugs": [
+    "Windows sandbox denies Python bytecode writes to existing __pycache__; verification uses PYTHONDONTWRITEBYTECODE=1 and python -B.",
+    "This environment reports access denied when launching the installed Codex app alias, so real Codex execution is implemented and subprocess-tested but not live-smoke-tested here."
+  ],
   "blockers": [],
   "done_criteria": [
-    "Requested implementation work is complete",
-    "Relevant tests or checks pass",
-    "Progress and verification are recorded"
+    "Real Codex worker adapter exists with structured worker package and result parsing.",
+    "Retry/debug loop and task graph scheduling are implemented.",
+    "Evaluation gate enforces weighted dimensions and hard failures.",
+    "GitHub execution flow records dry-run evidence and supports real git/gh mode.",
+    "Relevant unit tests and CLI smoke pass.",
+    "README and docs describe runtime usage."
   ],
-  "last_verified_at": "2026-06-17T17:50:00+08:00",
-  "created_at": "2026-06-17T17:41:45+08:00",
-  "updated_at": "2026-06-17T17:41:45+08:00"
+  "last_verified_at": "2026-06-17T23:12:27+08:00",
+  "created_at": "2026-06-17T21:59:35+08:00",
+  "updated_at": "2026-06-17T14:21:13+00:00"
 }

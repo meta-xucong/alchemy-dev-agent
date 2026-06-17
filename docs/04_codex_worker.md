@@ -35,6 +35,12 @@ Codex worker must not:
 
 The orchestrator invokes Codex worker with a bounded task package.
 
+The prototype runtime implements this contract in `runtime/codex_worker.py`.
+It has two modes:
+
+- Dry-run mode, the default, returns deterministic structured evidence without mutating a repository.
+- Real mode invokes `codex exec --json` as a subprocess and parses the `codex_worker_result_v1` JSON report.
+
 Required invocation fields:
 
 - `task_id`
@@ -193,3 +199,5 @@ When a worker returns `failed` or `partial`, the orchestrator should:
 - Avoid repeating the same prompt without new diagnosis.
 
 Retry limits should be defined per task type and risk level.
+
+The prototype runtime creates a debug task for retryable failures, preserves the failed evidence on the original node, resets that node to pending for retry, and evaluates only the latest worker result when deciding whether the final gate still has active test failures.

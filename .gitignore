@@ -4,3 +4,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .alchemy/
+.test-tmp/
+.codex-longrun/logs/
+.codex-longrun/snapshots/
+.codex-longrun/supervisor/

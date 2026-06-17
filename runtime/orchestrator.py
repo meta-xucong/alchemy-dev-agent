@@ -5,15 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 
 from .agent_router import AgentRouter
-from .codex_worker import CodexWorkerAdapter, CodexWorkerInput
+from .codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult
 from .evaluator import EvaluationResult, Evaluator
+from .github_flow import GitHubFlow
 from .models import RuntimeState, TaskNode, utc_now_iso
 from .state_manager import StateManager
 from .task_graph_engine import TaskGraphEngine
 
 
 class Orchestrator:
-    """Coordinate graph selection, worker execution, state updates, and evaluation."""
+    """Coordinate scheduling, worker execution, retries, state, and evaluation."""
 
     def __init__(
         self,
@@ -22,21 +23,48 @@ class Orchestrator:
         router: AgentRouter | None = None,
         worker: CodexWorkerAdapter | None = None,
         evaluator: Evaluator | None = None,
+        github_flow: GitHubFlow | None = None,
+        repository_path: str | Path = ".",
     ) -> None:
         self.state_manager = state_manager
         self.graph_engine = graph_engine or TaskGraphEngine()
         self.router = router or AgentRouter()
         self.worker = worker or CodexWorkerAdapter()
         self.evaluator = evaluator or Evaluator()
+        self.github_flow = github_flow or GitHubFlow()
+        self.repository_path = Path(repository_path)
 
     @classmethod
-    def for_project(cls, project_dir: str | Path, state_file: str = ".alchemy/state.json") -> "Orchestrator":
-        return cls(StateManager(Path(project_dir) / state_file))
+    def for_project(
+        cls,
+        project_dir: str | Path,
+        state_file: str = ".alchemy/state.json",
+        *,
+        real_codex: bool = False,
+        real_github: bool = False,
+        codex_executable: str = "codex",
+        max_worker_seconds: int = 1800,
+    ) -> "Orchestrator":
+        project_path = Path(project_dir)
+        return cls(
+            StateManager(project_path / state_file),
+            worker=CodexWorkerAdapter(
+                executable=codex_executable,
+                dry_run=not real_codex,
+                timeout_seconds=max_worker_seconds,
+            ),
+            github_flow=GitHubFlow(dry_run=not real_github),
+            repository_path=project_path,
+        )
 
     def initialize(self, objective: str, reset: bool = False) -> RuntimeState:
         if reset and self.state_manager.state_path.exists():
             self.state_manager.state_path.unlink()
-        return self.state_manager.load_or_initialize(objective, self.graph_engine)
+        state = self.state_manager.load_or_initialize(objective, self.graph_engine)
+        if not state.repository:
+            state.repository = {"provider": "local", "path": str(self.repository_path)}
+        self.state_manager.save(state)
+        return state
 
     def run(self, objective: str, max_iterations: int = 20, reset: bool = False) -> RuntimeState:
         state = self.initialize(objective, reset=reset)
@@ -50,6 +78,9 @@ class Orchestrator:
 
             ready_tasks = self.graph_engine.get_ready_tasks(state.task_graph)
             if not ready_tasks:
+                if self._handle_retryable_failures(state):
+                    self.state_manager.save(state)
+                    continue
                 self._record_history(state, "no_ready_tasks", "No ready tasks were available.")
                 self.state_manager.save(state)
                 return state
@@ -69,50 +100,189 @@ class Orchestrator:
         return state
 
     def execute_task(self, state: RuntimeState, task: TaskNode, iteration: int) -> None:
+        if task.type == "release":
+            self._execute_release_task(state, task, iteration)
+            return
+
         self.graph_engine.mark_active(state.task_graph, task.id)
         state.active_tasks = self._add_unique(state.active_tasks, task.id)
         self.state_manager.save(state)
 
-        worker_input = CodexWorkerInput(
+        worker_input = self._build_worker_input(state, task)
+        result = self.worker.execute(worker_input)
+        evidence = self._worker_evidence(task, result, iteration)
+
+        state.active_tasks = [task_id for task_id in state.active_tasks if task_id != task.id]
+        if result.status == "completed":
+            self.graph_engine.mark_completed(state.task_graph, task.id, evidence)
+            state.completed_tasks = self._add_unique(state.completed_tasks, task.id)
+            state.failed_tasks = [task_id for task_id in state.failed_tasks if task_id != task.id]
+            self._record_history(state, "task_completed", f"{task.id} completed.", task.id)
+            return
+
+        if result.status == "blocked":
+            self.graph_engine.mark_blocked(state.task_graph, task.id, evidence)
+            state.failed_tasks = self._add_unique(state.failed_tasks, task.id)
+            self._record_blocker(state, task, result.summary)
+            self._record_history(state, "task_blocked", f"{task.id} blocked.", task.id)
+            return
+
+        self.graph_engine.mark_failed(state.task_graph, task.id, evidence)
+        state.failed_tasks = self._add_unique(state.failed_tasks, task.id)
+        self._record_history(state, "task_failed", f"{task.id} returned {result.status}.", task.id)
+        self._handle_failed_task(state, task, result)
+
+    def _build_worker_input(self, state: RuntimeState, task: TaskNode) -> CodexWorkerInput:
+        upstream = [
+            dependency.source
+            for dependency in self.graph_engine.dependency_edges_for(state.task_graph, [task.id])
+            if dependency.target == task.id
+        ]
+        retry_context = ""
+        if task.retry_count:
+            retry_context = f"Retry attempt {task.retry_count + 1}; use prior evidence to avoid repeating failures."
+        return CodexWorkerInput(
             task_id=task.id,
             goal=self.router.build_worker_goal(task),
-            context_files=[],
+            objective=state.objective,
+            task_description=task.description,
+            acceptance_criteria=list(task.completion_criteria),
+            repository_path=str(self.repository_path),
+            branch=task.branch or self._default_branch_for_task(task),
+            agent_context={
+                "assigned_agent": self.router.route(task),
+                "task_type": task.type,
+                "upstream_tasks": upstream,
+            },
+            relevant_files=list(task.relevant_files),
             constraints=[],
+            commands_to_run=list(task.commands_to_run),
+            retry_context=retry_context,
         )
-        result = self.worker.execute(worker_input)
-        evidence = {
+
+    def _worker_evidence(self, task: TaskNode, result: CodexWorkerResult, iteration: int) -> dict:
+        return {
             "type": "worker_result",
-            "summary": result.logs,
+            "summary": result.summary,
             "result": result.to_dict(),
             "agent": self.router.route(task),
             "created_at": utc_now_iso(),
             "iteration": iteration,
         }
 
+    def _handle_failed_task(self, state: RuntimeState, task: TaskNode, result: CodexWorkerResult) -> None:
+        if not self.graph_engine.can_retry(task):
+            self._record_blocker(
+                state,
+                task,
+                f"Retry policy exhausted after {task.retry_count} attempt(s): {result.summary}",
+                blocker_type="technical_limit",
+            )
+            return
+
+        debug_task = self.graph_engine.create_debug_task(state.task_graph, task, result.summary)
+        self._record_history(
+            state,
+            "debug_task_created",
+            f"Created {debug_task.id} to diagnose {task.id}.",
+            debug_task.id,
+        )
+        self.graph_engine.reset_for_retry(task)
+
+    def _handle_retryable_failures(self, state: RuntimeState) -> bool:
+        changed = False
+        for task in self.graph_engine.failed_required_tasks(state.task_graph):
+            if task.status == "failed" and self.graph_engine.can_retry(task):
+                self._handle_failed_task(
+                    state,
+                    task,
+                    CodexWorkerResult(task_id=task.id, status="failed", summary="Retryable failure found."),
+                )
+                changed = True
+        return changed
+
+    def _execute_release_task(self, state: RuntimeState, task: TaskNode, iteration: int) -> None:
+        self.graph_engine.mark_active(state.task_graph, task.id)
+        state.active_tasks = self._add_unique(state.active_tasks, task.id)
+        self.state_manager.save(state)
+
+        result = self.github_flow.record_execution(
+            repository_path=self.repository_path,
+            branch=task.branch or "agent/alchemy-runtime",
+            task_ids=list(state.completed_tasks),
+            title=f"{task.id}: {task.title}",
+            body=self._build_release_body(state),
+        )
+        state.github = result.to_dict()
         state.active_tasks = [task_id for task_id in state.active_tasks if task_id != task.id]
-        if result.status == "passed":
+
+        evidence = {
+            "type": "ci_result" if result.ci_status != "unknown" else "artifact",
+            "summary": result.summary,
+            "result": result.to_dict(),
+            "agent": self.router.route(task),
+            "created_at": utc_now_iso(),
+            "iteration": iteration,
+        }
+        if result.status in {"recorded", "pushed"}:
             self.graph_engine.mark_completed(state.task_graph, task.id, evidence)
             state.completed_tasks = self._add_unique(state.completed_tasks, task.id)
-            state.failed_tasks = [task_id for task_id in state.failed_tasks if task_id != task.id]
-            self._record_history(state, "task_completed", f"{task.id} completed.")
+            self._record_history(state, "github_evidence_recorded", result.summary, task.id)
             return
 
         self.graph_engine.mark_failed(state.task_graph, task.id, evidence)
         state.failed_tasks = self._add_unique(state.failed_tasks, task.id)
-        self._record_history(state, "task_failed", f"{task.id} returned {result.status}.")
+        self._record_history(state, "github_flow_failed", result.summary, task.id)
+
+    def _build_release_body(self, state: RuntimeState) -> str:
+        completed = ", ".join(state.completed_tasks) or "none"
+        return (
+            f"Objective: {state.objective}\n\n"
+            f"Completed task IDs: {completed}\n\n"
+            f"Latest evaluation: {state.evaluation_result.get('reason', 'not evaluated')}"
+        )
 
     def _record_evaluation(self, state: RuntimeState, evaluation: EvaluationResult) -> None:
         state.evaluation_result = evaluation.to_dict()
         self._record_history(state, "evaluation", evaluation.reason)
 
-    def _record_history(self, state: RuntimeState, event_type: str, summary: str) -> None:
-        state.iteration_history.append(
+    def _record_history(self, state: RuntimeState, event_type: str, summary: str, task_id: str = "") -> None:
+        payload = {
+            "timestamp": utc_now_iso(),
+            "type": event_type,
+            "summary": summary,
+        }
+        if task_id:
+            payload["task_id"] = task_id
+        state.iteration_history.append(payload)
+
+    def _record_blocker(
+        self,
+        state: RuntimeState,
+        task: TaskNode,
+        description: str,
+        blocker_type: str = "technical_limit",
+    ) -> None:
+        blocker_id = f"B-{task.id}-{task.retry_count}"
+        if any(blocker.get("id") == blocker_id for blocker in state.blockers):
+            return
+        state.blockers.append(
             {
-                "timestamp": utc_now_iso(),
-                "type": event_type,
-                "summary": summary,
+                "id": blocker_id,
+                "type": blocker_type,
+                "description": description,
+                "required_resolution": "Inspect task evidence and provide a fix, dependency, or revised requirement.",
+                "task_ids": [task.id],
+                "can_continue_partially": False,
+                "created_at": utc_now_iso(),
             }
         )
+
+    def _default_branch_for_task(self, task: TaskNode) -> str:
+        slug = "".join(char.lower() if char.isalnum() else "-" for char in task.title).strip("-")
+        while "--" in slug:
+            slug = slug.replace("--", "-")
+        return f"agent/{task.id.lower()}-{slug[:40]}"
 
     def _add_unique(self, values: list[str], value: str) -> list[str]:
         if value not in values:

@@ -1,18 +1,42 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
-import tempfile
+import time
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from runtime.agent_router import AgentRouter
-from runtime.codex_worker import CodexWorkerAdapter, CodexWorkerInput
+from runtime.codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult
 from runtime.evaluator import Evaluator
+from runtime.github_flow import GitHubFlow
 from runtime.orchestrator import Orchestrator
 from runtime.state_manager import StateManager
 from runtime.task_graph_engine import TaskGraphEngine
+
+
+TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
+
+
+_TEMP_COUNTER = 0
+_TEMP_RUN_ID = str(time.time_ns())
+
+
+@contextmanager
+def temp_project_dir() -> Iterator[str]:
+    global _TEMP_COUNTER
+    _TEMP_COUNTER += 1
+    TEST_TMP_ROOT.mkdir(exist_ok=True)
+    path = TEST_TMP_ROOT / f"case-{_TEMP_RUN_ID}-{_TEMP_COUNTER}"
+    path.mkdir(parents=True, exist_ok=False)
+    try:
+        yield str(path)
+    finally:
+        shutil.rmtree(path, ignore_errors=True)
 
 
 class TaskGraphEngineTests(unittest.TestCase):
@@ -27,6 +51,19 @@ class TaskGraphEngineTests(unittest.TestCase):
         ready = engine.get_ready_tasks(graph)
         self.assertEqual([task.id for task in ready], ["T002"])
 
+    def test_debug_task_is_created_once_for_retryable_failure(self) -> None:
+        engine = TaskGraphEngine()
+        graph = engine.create_default_graph("objective")
+        task = engine.get_node(graph, "T002")
+        task.retry_count = 1
+
+        debug_task = engine.create_debug_task(graph, task, "tests failed")
+        same_task = engine.create_debug_task(graph, task, "tests failed again")
+
+        self.assertIs(debug_task, same_task)
+        self.assertEqual(debug_task.type, "debug")
+        self.assertGreater(debug_task.priority, task.priority)
+
 
 class AgentRouterTests(unittest.TestCase):
     def test_routes_task_to_assigned_agent(self) -> None:
@@ -37,12 +74,12 @@ class AgentRouterTests(unittest.TestCase):
 
 
 class CodexWorkerTests(unittest.TestCase):
-    def test_worker_returns_passed_result_by_default(self) -> None:
+    def test_worker_returns_completed_result_by_default(self) -> None:
         worker = CodexWorkerAdapter()
         result = worker.execute(CodexWorkerInput(task_id="T001", goal="do work"))
 
-        self.assertEqual(result.status, "passed")
-        self.assertTrue(result.diff)
+        self.assertEqual(result.status, "completed")
+        self.assertTrue(result.files_changed)
 
     def test_worker_can_return_failed_by_constraint(self) -> None:
         worker = CodexWorkerAdapter()
@@ -50,36 +87,107 @@ class CodexWorkerTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
 
+    def test_real_worker_parses_structured_subprocess_output(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            calls.append(args)
+            payload = {
+                "task_id": "T010",
+                "status": "completed",
+                "summary": "implemented task",
+                "files_changed": ["runtime/example.py"],
+                "commands_run": [{"command": "python -m unittest", "exit_code": 0}],
+                "tests_passed": ["runtime tests"],
+                "tests_failed": [],
+                "evidence": ["all criteria met"],
+                "known_issues": [],
+                "follow_up_tasks": [],
+                "confidence": 0.95,
+            }
+            return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T010", goal="do work", repository_path="."))
+
+        self.assertEqual(calls[0], ["codex", "exec", "--json"])
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.files_changed, ["runtime/example.py"])
+        self.assertEqual(result.commands_run[0].exit_code, 0)
+
+    def test_real_worker_reports_unparseable_output_as_failed(self) -> None:
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            return subprocess.CompletedProcess(args, 1, "plain text", "error")
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T011", goal="do work", repository_path="."))
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("parseable", result.summary)
+
+
+class GitHubFlowTests(unittest.TestCase):
+    def test_dry_run_records_github_evidence(self) -> None:
+        result = GitHubFlow(dry_run=True).record_execution(
+            repository_path=".",
+            branch="agent/test",
+            task_ids=["T001"],
+            title="test",
+            body="body",
+        )
+
+        self.assertEqual(result.status, "recorded")
+        self.assertEqual(result.ci_status, "passed")
+        self.assertTrue(result.pull_request_url.startswith("dry-run://"))
+
 
 class EvaluatorTests(unittest.TestCase):
     def test_evaluator_requires_completed_graph(self) -> None:
-        manager = StateManager(Path(tempfile.mkdtemp()) / "state.json")
-        state = manager.initialize("objective")
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective")
 
         result = Evaluator().evaluate(state)
 
         self.assertFalse(result.done)
         self.assertLess(result.final_score, 0.85)
+        self.assertIn("Required tasks are unfinished", result.hard_failures[0])
 
-    def test_evaluator_marks_done_after_all_tasks_complete(self) -> None:
+    def test_evaluator_marks_done_after_graph_review_and_github_evidence(self) -> None:
         engine = TaskGraphEngine()
-        manager = StateManager(Path(tempfile.mkdtemp()) / "state.json")
-        state = manager.initialize("objective", engine)
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective", engine)
 
         for node in state.task_graph.nodes:
-            engine.mark_completed(state.task_graph, node.id, {"summary": "done"})
+            engine.mark_completed(
+                state.task_graph,
+                node.id,
+                {
+                    "type": "worker_result",
+                    "summary": "done",
+                    "result": {"status": "completed", "tests_failed": []},
+                },
+            )
+        state.github = {"commit": "abc123", "pull_request_url": "https://example.test/pr/1"}
 
         result = Evaluator().evaluate(state)
 
         self.assertTrue(result.done)
         self.assertGreaterEqual(result.final_score, 0.85)
+        self.assertEqual(result.reviewer_decision, "approved")
 
 
 class OrchestratorTests(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if TEST_TMP_ROOT.exists():
+            shutil.rmtree(TEST_TMP_ROOT, ignore_errors=True)
+
     def test_run_reaches_done_and_persists_state(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        with temp_project_dir() as tmp_dir:
             state_path = Path(tmp_dir) / ".alchemy" / "state.json"
-            orchestrator = Orchestrator(StateManager(state_path))
+            orchestrator = Orchestrator(StateManager(state_path), repository_path=tmp_dir)
 
             state = orchestrator.run("build a todo app with login", reset=True)
 
@@ -87,13 +195,53 @@ class OrchestratorTests(unittest.TestCase):
             self.assertTrue(state_path.exists())
             persisted = json.loads(state_path.read_text(encoding="utf-8"))
             self.assertTrue(persisted["done"])
-            self.assertEqual(persisted["evaluation_result"]["reason"], "DONE condition met.")
+            self.assertEqual(persisted["evaluation"]["reason"], "DONE condition met.")
+            self.assertIn("pull_request_url", persisted["github"])
+
+    def test_failed_task_creates_debug_task_and_retries(self) -> None:
+        class FlakyWorker:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                if worker_input.task_id == "T002" and self.calls == 1:
+                    self.calls += 1
+                    return CodexWorkerResult(
+                        task_id=worker_input.task_id,
+                        status="failed",
+                        summary="first attempt failed",
+                        tests_failed=["unit tests"],
+                    )
+                self.calls += 1
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="completed",
+                    tests_passed=["unit tests"],
+                    evidence=["ok"],
+                    confidence=0.9,
+                )
+
+        with temp_project_dir() as tmp_dir:
+            orchestrator = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=FlakyWorker(),  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            )
+
+            state = orchestrator.run("build a todo app with login", reset=True)
+
+            task_ids = {node.id for node in state.task_graph.nodes}
+            self.assertIn("T002-DEBUG-1", task_ids)
+            self.assertTrue(state.done)
+            self.assertFalse(state.blockers)
 
     def test_cli_smoke_run(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        with temp_project_dir() as tmp_dir:
             result = subprocess.run(
                 [
                     sys.executable,
+                    "-B",
                     "-m",
                     "runtime.run_loop",
                     "--project",
@@ -110,7 +258,7 @@ class OrchestratorTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads(result.stdout)
             self.assertTrue(payload["done"])
-
+            self.assertEqual(payload["evaluation"]["status"], "passed")
 
 if __name__ == "__main__":
     unittest.main()

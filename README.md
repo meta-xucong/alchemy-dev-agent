@@ -1,8 +1,8 @@
 # alchemy-dev-agent
 
-`alchemy-dev-agent` is a specification repository and v0.1 prototype runtime for an autonomous software development agent system.
+`alchemy-dev-agent` is a specification repository and prototype runtime for an autonomous software development agent system.
 
-Its purpose is to define the architecture, protocols, state model, task graph model, worker contract, and evaluation gates required to build a multi-agent autonomous development system. The included `runtime/` package is a deterministic CLI prototype that exercises those contracts without requiring external services.
+Its purpose is to define the architecture, protocols, state model, task graph model, worker contract, GitHub execution flow, retry loop, and evaluation gates required to build a multi-agent autonomous development system. The included `runtime/` package is a usable CLI runtime with deterministic dry-run defaults and opt-in real Codex/GitHub adapters.
 
 ## Goal
 
@@ -59,8 +59,9 @@ runtime/
   orchestrator.py            Runtime entry point and control loop coordinator.
   task_graph_engine.py       Dependency resolution and graph status updates.
   agent_router.py            Task-to-agent mapping.
-  codex_worker.py            Deterministic Codex worker adapter contract.
+  codex_worker.py            Dry-run and real Codex subprocess worker adapter.
   evaluator.py               DONE gate scoring.
+  github_flow.py             Dry-run and real git/gh execution flow adapter.
   state_manager.py           JSON state persistence.
   run_loop.py                CLI loop entry point.
 
@@ -68,25 +69,23 @@ tests/
   test_runtime.py            Unit and smoke tests for runtime v0.1.
 ```
 
-## Runtime v0.1
+## Runtime
 
-The first executable prototype is intentionally narrow:
+The runtime is intentionally standard-library only. By default it runs in deterministic dry-run mode so local tests and smoke runs do not require credentials or mutate remotes.
 
-- CLI-only.
-- Standard-library Python.
-- Deterministic worker stub.
-- Persistent JSON state.
-- Sequential task execution.
-- DONE gate using:
+Implemented runtime capabilities:
 
-```text
-final_score =
-  test_pass_rate * 0.5 +
-  spec_alignment * 0.3 +
-  reviewer_score * 0.2
-```
+- Dependency-aware task graph scheduling.
+- Task-to-agent routing.
+- Bounded Codex worker task packages.
+- Real Codex subprocess adapter with structured JSON parsing.
+- Deterministic dry-run worker for tests and demos.
+- Retry/debug loop with generated debug tasks.
+- Weighted evaluation gate across test health, spec alignment, graph completion, reviewer approval, and risk quality.
+- GitHub execution evidence through dry-run records or real `git`/`gh` commands.
+- Persistent JSON runtime state under `.alchemy/state.json`.
 
-DONE requires `final_score >= 0.85` and all graph nodes completed.
+DONE requires final gate score `>= 0.85`, completed required graph nodes, passing verification evidence, reviewer approval, no hard failures, and GitHub execution evidence.
 
 Run a smoke execution:
 
@@ -94,10 +93,31 @@ Run a smoke execution:
 python -m runtime.run_loop --objective "build a todo app with login" --reset
 ```
 
+Run with a real Codex worker:
+
+```bash
+python -m runtime.run_loop \
+  --objective "implement the requested feature" \
+  --project /path/to/repo \
+  --real-codex
+```
+
+Run with real GitHub branch/commit/push/PR flow:
+
+```bash
+python -m runtime.run_loop \
+  --objective "implement the requested feature" \
+  --project /path/to/repo \
+  --real-codex \
+  --real-github
+```
+
+`--real-github` expects local `git` and `gh` authentication to be available. Without it, the runtime records dry-run branch, commit, PR, and CI evidence instead.
+
 Run tests:
 
 ```bash
-python -m unittest discover -s tests
+PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 ```
 
 ## Non-Goals
@@ -105,8 +125,8 @@ python -m unittest discover -s tests
 This repository does not yet implement:
 
 - Agent SDK runtime code.
-- Real Codex CLI subprocess invocation.
-- GitHub App or GitHub Actions integrations.
+- GitHub App integration.
+- GitHub Actions log ingestion.
 - UI, API server, database, or worker daemon.
 
 Those systems should be implemented against the protocols defined here.
