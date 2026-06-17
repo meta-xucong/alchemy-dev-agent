@@ -1,0 +1,9 @@
+[project]
+name = "alchemy-dev-agent"
+version = "0.1.0"
+description = "Specification and prototype runtime for autonomous development agents."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

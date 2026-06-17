@@ -1,8 +1,8 @@
 # alchemy-dev-agent
 
-`alchemy-dev-agent` is a specification repository for an autonomous software development agent system.
+`alchemy-dev-agent` is a specification repository and v0.1 prototype runtime for an autonomous software development agent system.
 
-It is not an application runtime, SDK implementation, or production worker. Its purpose is to define the architecture, protocols, state model, task graph model, worker contract, and evaluation gates required to build a multi-agent autonomous development system.
+Its purpose is to define the architecture, protocols, state model, task graph model, worker contract, and evaluation gates required to build a multi-agent autonomous development system. The included `runtime/` package is a deterministic CLI prototype that exercises those contracts without requiring external services.
 
 ## Goal
 
@@ -54,14 +54,58 @@ specs/
 
 examples/
   full_autodev_example.md    Example autonomous development run.
+
+runtime/
+  orchestrator.py            Runtime entry point and control loop coordinator.
+  task_graph_engine.py       Dependency resolution and graph status updates.
+  agent_router.py            Task-to-agent mapping.
+  codex_worker.py            Deterministic Codex worker adapter contract.
+  evaluator.py               DONE gate scoring.
+  state_manager.py           JSON state persistence.
+  run_loop.py                CLI loop entry point.
+
+tests/
+  test_runtime.py            Unit and smoke tests for runtime v0.1.
+```
+
+## Runtime v0.1
+
+The first executable prototype is intentionally narrow:
+
+- CLI-only.
+- Standard-library Python.
+- Deterministic worker stub.
+- Persistent JSON state.
+- Sequential task execution.
+- DONE gate using:
+
+```text
+final_score =
+  test_pass_rate * 0.5 +
+  spec_alignment * 0.3 +
+  reviewer_score * 0.2
+```
+
+DONE requires `final_score >= 0.85` and all graph nodes completed.
+
+Run a smoke execution:
+
+```bash
+python -m runtime.run_loop --objective "build a todo app with login" --reset
+```
+
+Run tests:
+
+```bash
+python -m unittest discover -s tests
 ```
 
 ## Non-Goals
 
-This repository does not implement:
+This repository does not yet implement:
 
 - Agent SDK runtime code.
-- Codex CLI invocation scripts.
+- Real Codex CLI subprocess invocation.
 - GitHub App or GitHub Actions integrations.
 - UI, API server, database, or worker daemon.
 
