@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/alchemy-dev-agent/specs/state_schema_v2.json",
+  "title": "Alchemy Dev Agent State Schema v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "objective",
+    "task_graph",
+    "active_tasks",
+    "completed_tasks",
+    "failed_tasks",
+    "evaluation_score",
+    "blockers",
+    "done_criteria"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "2.0"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Stable identifier for this autonomous development run."
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1,
+      "description": "User-provided development objective."
+    },
+    "requirements_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["inline", "file", "url", "github_issue", "github_pr"]
+        },
+        "location": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["github", "local", "other"]
+        },
+        "owner": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "default_branch": {
+          "type": "string"
+        },
+        "working_branch": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "task_graph": {
+      "$ref": "./task_graph_schema.json"
+    },
+    "active_tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/task_ref"
+      }
+    },
+    "completed_tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/task_completion"
+      }
+    },
+    "failed_tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/task_failure"
+      }
+    },
+    "evaluation_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Most recent final or interim evaluation score."
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "in_progress", "passed", "failed"]
+        },
+        "dimension_scores": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "test_health": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "spec_alignment": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "graph_completion": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "reviewer_approval": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "risk_quality": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "reviewer_decision": {
+          "type": "string",
+          "enum": ["not_reviewed", "approved", "changes_requested", "rejected"]
+        },
+        "hard_failures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "last_evaluated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/blocker"
+      }
+    },
+    "done_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "execution_history": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/history_event"
+      }
+    },
+    "github": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pull_request_url": {
+          "type": "string"
+        },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ci_status": {
+          "type": "string",
+          "enum": ["unknown", "pending", "passed", "failed"]
+        }
+      }
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "task_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "status"],
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ready", "active", "blocked"]
+        },
+        "assigned_agent": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "task_completion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "completed_at", "evidence"],
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      }
+    },
+    "task_failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "failed_at", "reason"],
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "failed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "retry_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_error": {
+          "type": "string"
+        }
+      }
+    },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "description", "required_resolution", "task_ids"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "missing_input",
+            "permission",
+            "external_service",
+            "ambiguous_requirement",
+            "technical_limit",
+            "ci_infrastructure",
+            "other"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "required_resolution": {
+          "type": "string"
+        },
+        "task_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "can_continue_partially": {
+          "type": "boolean",
+          "default": false
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "summary"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["worker_result", "test_result", "ci_result", "review", "artifact", "manual_check"]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "history_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp", "type", "summary"],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "type": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}
