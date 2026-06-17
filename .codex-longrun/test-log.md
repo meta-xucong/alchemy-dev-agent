@@ -97,3 +97,38 @@
 - Result: passed
 - Summary: CLI smoke reached `done=true`, `evaluation_score=0.94`.
 - Next verification command: none.
+
+## 2026-06-18
+
+- Command: `Get-Content specs\*.json -Raw | ConvertFrom-Json`
+- Result: passed
+- Summary: Existing and new v2 JSON schemas parse successfully, including ProjectBrief and ContextBundle.
+- Next verification command: runtime unit tests.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed
+- Summary: 19 tests passed, including the new v2 intake/context schema contract test.
+- Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `python %USERPROFILE%\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed
+- Summary: Long-running state schema validated during v2 documentation work.
+- Next verification command: final git diff and smoke checks.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp\v2-docs-smoke --objective "build a todo app with login" --reset`
+- Result: passed
+- Summary: CLI smoke reached `done=true`, `status=passed`, and `final_gate_score=0.94`.
+- Next verification command: final diff check.
+
+## 2026-06-18
+
+- Command: `git diff --check`
+- Result: passed
+- Summary: No whitespace errors were reported. Git reported existing CRLF normalization warnings for long-running markdown/state files.
+- Next verification command: final long-running state validation.

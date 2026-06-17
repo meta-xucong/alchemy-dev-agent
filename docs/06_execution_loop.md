@@ -9,17 +9,18 @@ The loop is state-driven. Every iteration reads persistent state, performs a bou
 ## High-Level Loop
 
 ```text
-1. Load objective, requirements, repository context, and persisted state.
-2. Create or update task graph.
-3. Select ready tasks.
-4. Assign tasks to agents.
-5. Invoke Codex workers for executable tasks.
-6. Run tests and collect evidence.
-7. Update task state.
-8. Evaluate graph progress.
-9. Retry, debug, replan, or review.
-10. Run final evaluation gate.
-11. Terminate only when done criteria pass.
+1. Load objective, documents, supporting files, repository context, and persisted state.
+2. Build or load ProjectBrief and ContextBundle when v2 intake is enabled.
+3. Create or update task graph.
+4. Select ready tasks.
+5. Assign tasks to agents.
+6. Invoke Codex workers for executable tasks.
+7. Run tests and collect evidence.
+8. Update task state.
+9. Evaluate graph progress.
+10. Retry, debug, replan, or review.
+11. Run final evaluation gate.
+12. Terminate only when done criteria pass.
 ```
 
 ## Step 1: Intake
@@ -28,11 +29,23 @@ Inputs:
 
 - User objective.
 - Requirements or development document.
+- Supporting files.
 - Target repository.
 - Constraints.
 - Done criteria.
 
 The orchestrator initializes state using `state_schema_v2.json`.
+
+In v2, raw intake material is normalized before graph planning:
+
+```text
+Objective + Documents + Attachments + GitHub Source
+  -> ProjectBrief
+  -> ContextBundle
+  -> TaskGraph
+```
+
+If the user provides only one sentence, the system may expand it into a generated `ProjectBrief`, but that path is lower confidence than document-driven intake.
 
 ## Step 2: Task Graph Creation
 

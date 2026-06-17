@@ -6,13 +6,16 @@ Its purpose is to define the architecture, protocols, state model, task graph mo
 
 ## Goal
 
-The system is designed for workflows where a user provides:
+The system is designed primarily for workflows where a user provides a complete project package:
 
 - A development objective, such as a feature, product, system, or migration.
 - A detailed development document, requirements brief, or acceptance specification.
+- Supporting files such as API specs, database schemas, design notes, test plans, logs, or reference material.
+- An optional GitHub repository link, including private repositories available through local `gh` authentication.
 
 The autonomous development system should then:
 
+- Normalize the uploaded material into a project brief and context bundle.
 - Decompose the objective into a dependency-aware task graph.
 - Assign tasks to specialized agents.
 - Use Codex CLI as an execution worker.
@@ -47,13 +50,22 @@ docs/
   04_codex_worker.md         Codex CLI worker contract.
   05_evaluation_system.md    Completion criteria and scoring.
   06_execution_loop.md       End-to-end execution loop.
+  07_v2_development_plan.md  Document-driven v2 development plan.
+  08_intake_and_context.md   Project intake and context bundle contract.
+  09_ui_and_api_requirements.md
+                              Planned v2 UI/API workflow and endpoints.
+  10_v2_alignment_audit.md   V2 readiness and gap audit.
 
 specs/
+  project_brief_schema.json  Document-driven intake schema.
+  context_bundle_schema.json Planner-ready context bundle schema.
   state_schema_v2.json       Persistent project state schema.
   task_graph_schema.json     Task graph schema.
 
 examples/
   full_autodev_example.md    Example autonomous development run.
+  document_driven_project_example.md
+                              Example with documents, attachments, and GitHub repository input.
 
 runtime/
   orchestrator.py            Runtime entry point and control loop coordinator.
@@ -124,6 +136,9 @@ PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 
 This repository does not yet implement:
 
+- Multi-file upload or document parser pipeline.
+- ProjectBrief and ContextBundle runtime generation.
+- Repository intake before planning.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.

@@ -27,6 +27,16 @@
 - Found and fixed real Codex worker parsing brittleness for JSONL/event-stream outputs containing nested worker JSON.
 - Added regression tests for all three bugs.
 - Verified 18 tests, CLI smoke, JSON parsing, and long-running state validation.
+## 2026-06-18 V2 Document-Driven Plan
+
+- Reframed v2 around the user's primary scenario: detailed development documents, supporting files, and optional GitHub repository context.
+- Added `docs/07_v2_development_plan.md` with lifecycle, module boundaries, milestones, risks, and implementation readiness criteria.
+- Added `docs/08_intake_and_context.md` for ProjectBrief, ContextBundle, document parsing, repository retrieval, GitHub CLI authentication, requirement mapping, and blocker handling.
+- Added `docs/09_ui_and_api_requirements.md` for multi-file upload, GitHub inspection, intake review, task graph preview, execution monitoring, and delivery review.
+- Added `docs/10_v2_alignment_audit.md` to record scenario, contract, runtime boundary, gap, logic, and risk audits.
+- Added `specs/project_brief_schema.json` and `specs/context_bundle_schema.json`.
+- Added `examples/document_driven_project_example.md`.
+- Updated README to describe the document-driven primary workflow and current implementation boundary.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0

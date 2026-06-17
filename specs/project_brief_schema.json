@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alchemy-dev-agent.local/specs/project_brief_schema.json",
+  "title": "Alchemy Dev Agent ProjectBrief",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project_id",
+    "objective",
+    "primary_input_mode",
+    "documents",
+    "attachments",
+    "repository",
+    "constraints",
+    "acceptance_criteria",
+    "generated_from_one_liner",
+    "blockers",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "2.0"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "primary_input_mode": {
+      "type": "string",
+      "enum": [
+        "document_driven",
+        "one_line_fallback"
+      ]
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/project_file"
+      }
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/project_file"
+      }
+    },
+    "repository": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/repository_source"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "generated_from_one_liner": {
+      "type": "boolean"
+    },
+    "source_confidence": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "default": "high"
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/blocker"
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "project_file": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "path",
+        "media_type",
+        "role",
+        "required",
+        "content_hash",
+        "parse_status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "primary_requirements",
+            "supplemental",
+            "api_spec",
+            "database_schema",
+            "design",
+            "test_plan",
+            "reference_code",
+            "data_sample",
+            "other"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "content_hash": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string"
+        },
+        "parse_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "parsed",
+            "unsupported",
+            "failed"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "repository_source": {
+      "type": "object",
+      "required": [
+        "provider",
+        "url",
+        "owner",
+        "name",
+        "target_branch",
+        "local_path",
+        "visibility",
+        "gh_auth_required",
+        "access_status"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "const": "github"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "target_branch": {
+          "type": "string"
+        },
+        "base_branch": {
+          "type": "string"
+        },
+        "local_path": {
+          "type": "string"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "public",
+            "private",
+            "unknown"
+          ]
+        },
+        "gh_auth_required": {
+          "type": "boolean"
+        },
+        "access_status": {
+          "type": "string",
+          "enum": [
+            "unchecked",
+            "available",
+            "auth_required",
+            "access_denied",
+            "not_found",
+            "failed"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "severity"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "warning",
+            "hard"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

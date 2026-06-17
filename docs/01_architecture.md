@@ -10,10 +10,22 @@ The system is organized into five layers:
 - **GitHub sync layer**: synchronizes branches, commits, pull requests, CI status, and review metadata.
 - **State persistence layer**: stores project state, task graph state, evidence, scores, and blockers.
 
+V2 adds a pre-execution intake and context boundary in front of the orchestrator. It produces `ProjectBrief` and `ContextBundle` inputs from development documents, supporting files, and GitHub repository evidence. This boundary does not replace the five execution layers.
+
 ## Architecture Diagram
 
 ```text
-                          User Objective + Spec
+                    User Project Package
+              objective + docs + files + GitHub
+                                   |
+                                   v
+                         +--------------------+
+                         | Intake + Context   |
+                         |--------------------|
+                         | ProjectBrief       |
+                         | ContextBundle      |
+                         | blockers           |
+                         +---------+----------+
                                    |
                                    v
                          +--------------------+
@@ -68,7 +80,7 @@ The orchestrator is the control plane. It is responsible for deciding what shoul
 
 Responsibilities:
 
-- Load the objective, requirements, repository metadata, and current state.
+- Load the objective, requirements, repository metadata, context bundle, and current state.
 - Ask the Architect Agent to create or update the task graph.
 - Select executable tasks whose dependencies are complete.
 - Assign each task to the correct agent.
@@ -79,6 +91,21 @@ Responsibilities:
 - Continue retry loops until done criteria pass or a blocker requires escalation.
 
 The orchestrator must not silently mark work complete without evaluation evidence.
+
+## Intake And Context Boundary
+
+The intake and context boundary is a v2 planning contract.
+
+Responsibilities:
+
+- Accept the objective, primary development document, supporting files, and GitHub repository reference.
+- Check local `gh` authentication when private repository access is required.
+- Build a `ProjectBrief` from user-provided material.
+- Build a `ContextBundle` from parsed documents and repository inspection.
+- Extract requirements, acceptance criteria, test profile, risks, and blockers.
+- Stop before execution when hard blockers exist.
+
+This boundary is a system service, not a new autonomous agent role.
 
 ## Agent Layer
 

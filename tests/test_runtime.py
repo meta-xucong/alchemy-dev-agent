@@ -331,6 +331,43 @@ class OrchestratorTests(unittest.TestCase):
 
 
 class ContractAlignmentTests(unittest.TestCase):
+    def test_v2_intake_and_context_schemas_are_parseable_and_complete(self) -> None:
+        project_brief_schema = json.loads(Path("specs/project_brief_schema.json").read_text(encoding="utf-8"))
+        context_bundle_schema = json.loads(Path("specs/context_bundle_schema.json").read_text(encoding="utf-8"))
+
+        brief_properties = project_brief_schema["properties"]
+        context_properties = context_bundle_schema["properties"]
+
+        for key in [
+            "objective",
+            "primary_input_mode",
+            "documents",
+            "attachments",
+            "repository",
+            "constraints",
+            "acceptance_criteria",
+            "generated_from_one_liner",
+            "blockers",
+        ]:
+            self.assertIn(key, brief_properties, f"{key} missing from project_brief_schema.json")
+
+        mode_enum = brief_properties["primary_input_mode"]["enum"]
+        self.assertIn("document_driven", mode_enum)
+        self.assertIn("one_line_fallback", mode_enum)
+
+        for key in [
+            "document_index",
+            "repository_map",
+            "requirement_map",
+            "test_profile",
+            "risk_profile",
+            "blockers",
+        ]:
+            self.assertIn(key, context_properties, f"{key} missing from context_bundle_schema.json")
+
+        self.assertEqual(project_brief_schema["properties"]["schema_version"]["const"], "2.0")
+        self.assertEqual(context_bundle_schema["properties"]["schema_version"]["const"], "2.0")
+
     def test_runtime_state_fields_are_declared_in_state_schema(self) -> None:
         state_schema = json.loads(Path("specs/state_schema_v2.json").read_text(encoding="utf-8"))
         properties = state_schema["properties"]

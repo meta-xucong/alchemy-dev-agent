@@ -1,43 +1,54 @@
 {
-  "objective": "Contract Alignment Fix: align docs, specs, runtime, tests, and README into one consistent execution contract",
-  "current_phase": "Contract Alignment Fix",
+  "objective": "Create v2 document-driven autonomous development plan and supporting materials, then audit for logical completeness",
+  "current_phase": "Delivery",
   "phase_status": "done",
   "completed_phases": [
-    "Contract audit",
-    "Schema alignment",
-    "Regression tests",
-    "Verification"
+    "Discover project structure",
+    "Scenario reframing",
+    "Add v2 document-driven contracts",
+    "Add v2 schema and example materials",
+    "Audit v2 consistency",
+    "Final verification"
   ],
-  "next_actions": [],
+  "next_actions": [
+    "Commit and push v2 documentation package",
+    "Notify user for review"
+  ],
   "tests_run": [
+    {
+      "command": "Get-Content specs\\*.json -Raw | ConvertFrom-Json",
+      "result": "passed",
+      "summary": "Existing and new v2 JSON schemas parse successfully."
+    },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "18 tests passed after self-check bug fixes and regression tests."
+      "summary": "19 tests passed, including v2 intake/context schema contract coverage."
     },
     {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp/alignment-smoke --objective \"build a todo app with login\" --reset",
+      "command": "python %USERPROFILE%\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
       "result": "passed",
-      "summary": "CLI smoke reached done=true and evaluation_score=0.94."
+      "summary": "Long-running state schema validated."
     },
     {
-      "command": "ConvertFrom-Json for specs/state_schema_v2.json and specs/task_graph_schema.json",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m runtime.run_loop --project .test-tmp\\v2-docs-smoke --objective \"build a todo app with login\" --reset",
       "result": "passed",
-      "summary": "Both JSON schema files parse successfully."
+      "summary": "CLI smoke reached done=true with final_gate_score=0.94."
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "summary": "No whitespace errors were reported."
     }
   ],
   "known_bugs": [],
   "blockers": [],
   "done_criteria": [
-    "Docs, specs, runtime, tests, and README use one execution contract",
-    "Runtime persisted state fields are declared in state schema",
-    "Runtime task graph node fields are declared in task graph schema",
-    "Self-check bug fixes have regression coverage",
-    "Real worker parsing handles structured JSON and JSONL event-stream outputs",
-    "Relevant tests and smoke checks pass",
+    "Requested implementation work is complete",
+    "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-18T00:05:00+08:00",
-  "created_at": "2026-06-17T23:35:56+08:00",
-  "updated_at": "2026-06-17T23:35:56+08:00"
+  "last_verified_at": "2026-06-18T01:00:00+08:00",
+  "created_at": "2026-06-18T00:38:41+08:00",
+  "updated_at": "2026-06-18T00:38:41+08:00"
 }

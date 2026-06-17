@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alchemy-dev-agent.local/specs/context_bundle_schema.json",
+  "title": "Alchemy Dev Agent ContextBundle",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project_id",
+    "objective",
+    "document_index",
+    "repository_map",
+    "requirement_map",
+    "test_profile",
+    "risk_profile",
+    "blockers",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "2.0"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "document_index": {
+      "type": "object",
+      "required": [
+        "documents"
+      ],
+      "properties": {
+        "documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/document_summary"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "repository_map": {
+      "type": "object",
+      "required": [
+        "root_path",
+        "files",
+        "package_files",
+        "ci_files"
+      ],
+      "properties": {
+        "root_path": {
+          "type": "string"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repository_file"
+          }
+        },
+        "package_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ci_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "requirement_map": {
+      "type": "object",
+      "required": [
+        "requirements"
+      ],
+      "properties": {
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/requirement"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "test_profile": {
+      "type": "object",
+      "required": [
+        "package_managers",
+        "test_commands",
+        "build_commands",
+        "lint_commands",
+        "ci_files",
+        "coverage_unknown"
+      ],
+      "properties": {
+        "package_managers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "test_commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "build_commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lint_commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ci_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "coverage_unknown": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "risk_profile": {
+      "type": "object",
+      "required": [
+        "risks"
+      ],
+      "properties": {
+        "risks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/risk"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/blocker"
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "document_summary": {
+      "type": "object",
+      "required": [
+        "id",
+        "path",
+        "role",
+        "content_hash",
+        "parse_status",
+        "summary",
+        "key_requirements",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_hash": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parse_status": {
+          "type": "string",
+          "enum": [
+            "parsed",
+            "unsupported",
+            "failed"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "key_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "repository_file": {
+      "type": "object",
+      "required": [
+        "path",
+        "kind"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "source",
+            "test",
+            "doc",
+            "config",
+            "ci",
+            "asset",
+            "migration",
+            "unknown"
+          ]
+        },
+        "language": {
+          "type": "string"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "requirement": {
+      "type": "object",
+      "required": [
+        "id",
+        "source_document_id",
+        "text",
+        "priority",
+        "acceptance_criteria",
+        "related_files",
+        "planned_task_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_document_id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "must",
+            "should",
+            "could"
+          ]
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "related_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "planned_task_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "risk": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "severity",
+        "description",
+        "mitigation"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mitigation": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "severity"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "warning",
+            "hard"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

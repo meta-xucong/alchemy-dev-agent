@@ -1,24 +1,30 @@
 # Long-Running Roadmap
 
-Objective: Contract Alignment Fix for `alchemy-dev-agent`.
+Objective: Create the v2 document-driven autonomous development plan and supporting materials.
 
-## Phase 1: Contract Audit
+## Phase 1: Scenario Reframing
 
-- Compare docs, specs, runtime, tests, and README.
-- Identify semantic drift without adding features.
+- Treat detailed development documents, supporting files, and GitHub repository context as the primary workflow.
+- Treat one-line objective expansion as a fallback path.
+- Keep current runtime capabilities separate from planned v2 features.
 
-## Phase 2: Minimal Alignment Fixes
+## Phase 2: Contract Documents
 
-- Update schemas to recognize intentional runtime fields.
-- Update stale README or CLI wording.
-- Keep runtime behavior unchanged unless it violates the documented contract.
+- Add the v2 development plan.
+- Add intake and context contract documentation.
+- Add UI/API requirements for multi-file upload and GitHub repository inspection.
+- Add ProjectBrief and ContextBundle schemas.
+- Add a document-driven project example.
 
-## Phase 3: Verification
+## Phase 3: Audit
 
-- Add regression tests that prevent schema/runtime contract drift.
-- Run unit tests, CLI smoke, JSON parsing, and long-running state validation.
+- Check scenario fit against the user's intended workflow.
+- Check contract path from ProjectBrief to ContextBundle to TaskGraph.
+- Inventory current gaps without claiming unimplemented features.
 
-## Phase 4: Delivery
+## Phase 4: Verification And Delivery
 
-- Record mismatches found and fixes applied.
-- Commit and push the alignment fix.
+- Validate JSON schemas.
+- Run existing runtime tests.
+- Validate long-running state.
+- Commit and push the v2 documentation package.

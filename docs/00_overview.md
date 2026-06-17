@@ -2,9 +2,9 @@
 
 ## Problem
 
-Modern AI coding agents can generate code, run tests, and iterate on failures, but complex software delivery needs more than a single long-running coding loop. A realistic development objective usually includes architecture decisions, task decomposition, repository constraints, implementation, testing, review, and delivery judgment.
+Modern AI coding agents can generate code, run tests, and iterate on failures, but complex software delivery needs more than a single long-running coding loop. A realistic development objective usually arrives with a development document, supporting files, repository constraints, architecture decisions, task decomposition, implementation requirements, testing requirements, review standards, and delivery judgment.
 
-The goal of this system is to define a specification for autonomous development that can move from a user objective to a delivery-ready result through structured planning, delegated execution, and measurable completion gates.
+The goal of this system is to define a specification for autonomous development that can move from a user-provided project package to a delivery-ready result through structured intake, context building, planning, delegated execution, and measurable completion gates.
 
 ## Why This System Is Needed
 
@@ -18,6 +18,8 @@ A single agent loop is useful for local implementation work, but it becomes brit
 - Passing tests does not prove the result matches the user objective.
 
 Autonomous software development needs a persistent state model and a task graph rather than a stream of loosely connected prompts.
+
+For v2, the primary input is a document-driven project package: objective, primary development document, supporting files, and optional GitHub repository link. A one-line objective is only a fallback that must be expanded into the same structured intake contract before planning.
 
 ## Limits Of Long-Running Codex Tasks
 
@@ -64,6 +66,14 @@ It allows the orchestrator to:
 - Evaluate final delivery against all required nodes.
 
 The graph is the contract between planning, execution, and evaluation.
+
+The v2 intake contracts add a pre-graph boundary:
+
+```text
+ProjectBrief -> ContextBundle -> TaskGraph
+```
+
+This keeps document parsing, repository inspection, and requirement extraction separate from task execution.
 
 ## Design Position
 
