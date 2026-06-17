@@ -167,3 +167,38 @@
 - Result: passed
 - Summary: Long-running state schema validated for V2.1 intake runtime.
 - Next verification command: none.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_autodev_pipeline`
+- Result: passed
+- Summary: 2 one-line app generation demo tests passed.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed
+- Summary: 28 tests passed across runtime, intake, and autodev demo modules.
+- Next verification command: user's one-line game prompt.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.demo_run --objective "我要生成一个超级玛丽第一关的游戏。关卡设计、人物和场景形象均完全模仿经典原始版的超级玛丽" --output .alchemy/generated/retro_platformer_test`
+- Result: passed
+- Summary: Demo returned `status=done`, generated `index.html` and `autodev_report.json`, and recorded architect/frontend/test/reviewer events. The request was converted into an original retro platformer for copyright safety.
+- Next verification command: browser rendering check.
+
+## 2026-06-18
+
+- Command: Browser verification through local HTTP server for `.alchemy/generated/retro_platformer_test/index.html`
+- Result: passed
+- Summary: Screenshot showed HUD, canvas, sky, platforms, coins, player, gaps, and control hint. DOM reported title `Original Retro Platformer`, canvas `960x540`, score/coins/time/state HUD, and controls.
+- Next verification command: final suite and schema checks.
+
+## 2026-06-18
+
+- Command: `Get-Content specs\*.json -Raw | ConvertFrom-Json`
+- Result: passed
+- Summary: All JSON specs parse after one-line demo pipeline changes.
+- Next verification command: long-running state validation.

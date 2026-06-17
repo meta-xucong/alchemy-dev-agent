@@ -16,6 +16,15 @@ def validate_project_brief_contract(
     return validate_json_subset(payload, schema, schema, "$")
 
 
+def validate_context_bundle_contract(
+    payload: dict[str, Any],
+    schema_path: str | Path | None = None,
+) -> list[str]:
+    path = Path(schema_path) if schema_path else Path(__file__).resolve().parents[1] / "specs" / "context_bundle_schema.json"
+    schema = json.loads(path.read_text(encoding="utf-8"))
+    return validate_json_subset(payload, schema, schema, "$")
+
+
 def validate_json_subset(payload: Any, schema: dict[str, Any], root: dict[str, Any], path: str) -> list[str]:
     errors: list[str] = []
 

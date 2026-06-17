@@ -1,0 +1,116 @@
+"""Build ContextBundle inputs from ProjectBrief payloads."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from intake.models import Blocker, ProjectBrief
+
+from .models import ContextBundle, DocumentSummary, Requirement, Risk
+
+PROTECTED_GAME_TERMS = ("超级玛丽", "super mario", "mario", "mushroom kingdom", "goomba", "koopa")
+
+
+class ContextBundleBuilder:
+    """Create deterministic planner context from a ProjectBrief."""
+
+    def build(self, project_brief: ProjectBrief | dict[str, Any]) -> ContextBundle:
+        payload = project_brief.to_dict() if isinstance(project_brief, ProjectBrief) else project_brief
+        objective = str(payload["objective"])
+        documents = [self._document_summary(document) for document in payload.get("documents", [])]
+        documents.extend(self._document_summary(attachment) for attachment in payload.get("attachments", []))
+
+        requirements = self._requirements_from_payload(payload, objective)
+        risks = self._risks_for_objective(objective)
+        blockers = [
+            Blocker(code=str(blocker["code"]), message=str(blocker["message"]), severity=blocker.get("severity", "hard"))
+            for blocker in payload.get("blockers", [])
+        ]
+
+        repository = payload.get("repository")
+        root_path = str(repository.get("local_path", "")) if isinstance(repository, dict) else ""
+
+        return ContextBundle(
+            project_id=str(payload["project_id"]),
+            objective=objective,
+            documents=documents,
+            requirements=requirements,
+            risks=risks,
+            blockers=blockers,
+            root_path=root_path,
+            test_commands=["static artifact inspection"],
+            build_commands=[],
+            lint_commands=[],
+            coverage_unknown=True,
+        )
+
+    def _document_summary(self, payload: dict[str, Any]) -> DocumentSummary:
+        summary = str(payload.get("summary", ""))
+        key_requirements = [summary] if summary else []
+        return DocumentSummary(
+            id=str(payload["id"]),
+            path=str(payload["path"]),
+            role=str(payload["role"]),
+            content_hash=str(payload["content_hash"]),
+            parse_status=str(payload["parse_status"]),
+            summary=summary,
+            key_requirements=key_requirements,
+            confidence="high" if payload.get("parse_status") == "parsed" else "low",
+        )
+
+    def _requirements_from_payload(self, payload: dict[str, Any], objective: str) -> list[Requirement]:
+        acceptance = list(payload.get("acceptance_criteria", []))
+        if self._is_retro_platformer_request(objective):
+            safe_acceptance = [
+                "Game is a playable original retro side-scrolling platformer.",
+                "Game uses canvas-rendered original pixel-style shapes and no external copyrighted assets.",
+                "Player can move, jump, collide with platforms, collect coins, avoid enemies, and reach a finish flag.",
+                "A first-stage level is present with ground, blocks, gaps, coins, enemies, timer, score, and restart.",
+                "The generated artifact can run locally by opening index.html.",
+            ]
+            return [
+                Requirement(
+                    id="REQ-001",
+                    source_document_id="generated_one_line",
+                    text="Create an original retro side-scrolling platform game from the user's one-line objective.",
+                    priority="must",
+                    acceptance_criteria=safe_acceptance,
+                    related_files=["index.html"],
+                    planned_task_ids=["T001", "T002", "T003", "T004"],
+                )
+            ]
+
+        fallback_acceptance = acceptance or [
+            "Generate a local runnable artifact.",
+            "Record implementation and verification evidence.",
+        ]
+        return [
+            Requirement(
+                id="REQ-001",
+                source_document_id="generated_one_line" if payload.get("generated_from_one_liner") else "project_brief",
+                text=objective,
+                priority="should" if payload.get("generated_from_one_liner") else "must",
+                acceptance_criteria=fallback_acceptance,
+                planned_task_ids=["T001", "T002", "T003", "T004"],
+            )
+        ]
+
+    def _risks_for_objective(self, objective: str) -> list[Risk]:
+        risks: list[Risk] = []
+        lowered = objective.lower()
+        if any(term in lowered or term in objective for term in PROTECTED_GAME_TERMS):
+            risks.append(
+                Risk(
+                    id="RISK-001",
+                    type="copyright_safety",
+                    severity="high",
+                    description="The user requested close imitation of a protected commercial game.",
+                    mitigation="Generate an original retro platformer with original shapes, names, colors, layout, and mechanics inspired only by the broad genre.",
+                )
+            )
+        return risks
+
+    def _is_retro_platformer_request(self, objective: str) -> bool:
+        lowered = objective.lower()
+        platform_terms = ("platform", "platformer", "横版", "闯关", "关卡", "游戏", "game")
+        return any(term in lowered or term in objective for term in platform_terms)

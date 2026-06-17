@@ -44,6 +44,7 @@ Current runtime capabilities:
 - GitHub execution evidence.
 - Persistent runtime state.
 - V2.1 ProjectBrief generation from local files and GitHub URL metadata.
+- A narrow local one-line demo pipeline that generates an original retro platformer artifact through ProjectBrief, ContextBundle, TaskGraph, deterministic local agents, static verification, and reviewer evidence.
 
 Planned v2 capabilities:
 
@@ -51,7 +52,7 @@ Planned v2 capabilities:
 - Document parsing and role classification.
 - GitHub repository inspection before planning.
 - Private repository retrieval through `gh`.
-- ContextBundle generation.
+- Full ContextBundle generation from real documents and repositories.
 - UI/API for intake, planning, execution monitoring, and delivery review.
 
 Result: Pass.
@@ -65,13 +66,15 @@ The current codebase does not yet implement:
 - Multi-file upload.
 - UI project creation flow.
 - API server.
-- ContextBundle generation.
+- Full ContextBundle generation for real repositories.
 - Document parser pipeline.
 - GitHub source retrieval before planning.
 - Repository indexer.
 - Requirement extraction and traceability.
 - Task graph generation from uploaded documents.
 - Execution event streaming.
+
+It does include a deterministic local demo for one-line game generation, but that path is intentionally narrow and should not be treated as proof of general autonomous software delivery.
 
 These are expected gaps for the next implementation phase, not contradictions in the current repository.
 

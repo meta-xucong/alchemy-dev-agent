@@ -47,6 +47,18 @@
 - Added local ProjectBrief schema contract validation.
 - Added CLI support via `python -m intake.project_brief`.
 - Added intake tests and updated README/v2 docs to reflect V2.1 implemented scope.
+## 2026-06-18 One-Line App Generation Demo
+
+- Evaluated the current system honestly: V2.1 did not yet satisfy arbitrary "user input objective -> finished program" delivery.
+- Added a narrow local demo pipeline from one-line objective to ProjectBrief, ContextBundle, TaskGraph, deterministic local agent events, generated artifact, static verification, and reviewer evidence.
+- Added ContextBundle data structures and builder.
+- Added TaskGraphBuilder for generated-app demos.
+- Added `autodev.demo_run` CLI.
+- Added an original HTML5 canvas retro platformer generator that avoids protected game names, characters, layouts, and external assets.
+- Added tests for the one-line platformer generation path and CLI.
+- Ran the user's requested game prompt through the pipeline and generated `.alchemy/generated/retro_platformer_test/index.html`.
+- Browser-verified the generated game page through local HTTP: visible HUD, canvas, sky, platforms, coins, player, gaps, and controls.
+- Updated README, audit docs, and example material with the demo command and boundaries.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0

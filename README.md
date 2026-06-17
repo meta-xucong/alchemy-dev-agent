@@ -83,9 +83,21 @@ intake/
   github_source.py           GitHub URL parsing and source normalization.
   schema_validation.py       Local contract validation for intake payloads.
 
+context/
+  builder.py                 V2.2 minimal ContextBundle builder.
+
+planner/
+  task_graph_builder.py      ContextBundle-to-task-graph planning for local demos.
+
+autodev/
+  demo_run.py                One-line local app generation demo.
+  agents.py                  Deterministic local agent cluster for demo delivery.
+  game_generator.py          Original retro platformer artifact generator.
+
 tests/
   test_runtime.py            Unit and smoke tests for the runtime contract.
   test_intake.py             Unit and CLI tests for v2.1 intake.
+  test_autodev_pipeline.py   End-to-end local demo generation tests.
 ```
 
 ## Runtime
@@ -132,6 +144,36 @@ python -m intake.project_brief \
   --validate
 ```
 
+## Local One-Line Demo
+
+The repository now includes a narrow local demo pipeline that exercises the v2 contracts end to end:
+
+```text
+one-line objective
+  -> ProjectBrief
+  -> ContextBundle
+  -> TaskGraph
+  -> deterministic local agent cluster
+  -> generated local artifact
+  -> static verification
+  -> reviewer evidence
+```
+
+Generate an original retro platform game:
+
+```bash
+python -m autodev.demo_run \
+  --objective "Build a small retro platform game" \
+  --output .alchemy/generated/retro_platformer
+```
+
+The demo writes:
+
+- `index.html`
+- `autodev_report.json`
+
+Important boundary: this is a deterministic local demo, not the full production autonomous development system. It proves the contract path and generated-artifact loop, but it does not yet use the Agent SDK, real Codex worker sessions, GitHub repository retrieval, CI, or UI/API intake.
+
 Run a smoke execution:
 
 ```bash
@@ -169,8 +211,8 @@ PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 
 This repository does not yet implement:
 
-- Multi-file upload or document parser pipeline.
-- ContextBundle runtime generation.
+- Multi-file upload or full document parser pipeline.
+- Full ContextBundle runtime generation for real repositories.
 - Real GitHub clone/fetch or `gh auth status` checks during intake.
 - Repository indexing before planning.
 - Agent SDK runtime code.

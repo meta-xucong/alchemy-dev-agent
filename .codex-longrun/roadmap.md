@@ -1,30 +1,30 @@
 # Long-Running Roadmap
 
-Objective: Implement V2.1 intake runtime for document-driven ProjectBrief generation.
+Objective: Evaluate and implement minimal one-line autonomous app generation demo pipeline.
 
-## Phase 1: Intake Runtime
+## Phase 1: Capability Evaluation
 
-- Add an `intake/` package.
-- Implement local file cataloging, hashing, summaries, and role inference.
-- Implement GitHub URL parsing and source normalization without network access.
-- Implement ProjectBrief generation from documents, attachments, constraints, acceptance criteria, and repository metadata.
-- Implement local ProjectBrief contract validation.
+- Confirm the current system is not yet a full arbitrary-program autonomous delivery system.
+- Identify the smallest useful demo loop for one-line objective input.
+- Preserve copyright safety for protected commercial-game imitation requests.
 
-## Phase 2: Tests
+## Phase 2: Local Demo Pipeline
 
-- Add unit tests for document-driven intake.
-- Add blocker tests for missing primary documents, unsupported required files, and invalid GitHub URLs.
-- Add one-line fallback tests.
-- Add CLI smoke coverage for `python -m intake.project_brief`.
+- Add ContextBundle generation for one-line fallback.
+- Add ContextBundle-to-task-graph planning.
+- Add deterministic local agent chain.
+- Add original retro platformer artifact generation.
+- Add static test and reviewer evidence.
 
-## Phase 3: Documentation
+## Phase 3: Verification
 
-- Update README with V2.1 intake usage.
-- Update v2 plan and audit docs to distinguish implemented ProjectBrief generation from remaining ContextBundle and GitHub retrieval work.
+- Add unit and CLI tests for the demo pipeline.
+- Run the user's one-line game request through the pipeline.
+- Verify generated game artifact exists and renders in a local browser.
+- Validate schema and test suite.
 
-## Phase 4: Verification And Delivery
+## Phase 4: Documentation And Delivery
 
-- Run intake tests.
-- Run full runtime test suite.
-- Validate long-running state.
-- Commit and push V2.1 intake runtime.
+- Document the working demo and its limits.
+- Commit and push the changes.
+- Notify the user for review.
