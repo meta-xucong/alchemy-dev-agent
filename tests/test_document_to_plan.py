@@ -163,9 +163,12 @@ class DocumentToPlanTests(unittest.TestCase):
         implementation_nodes = [node for node in graph["nodes"] if node["type"] == "documentation"]
         self.assertEqual(len(implementation_nodes), 1)
         self.assertEqual(implementation_nodes[0]["relevant_files"], ["docs/28_representative_delivery_probe.md"])
+        self.assertEqual(implementation_nodes[0]["commands_to_run"], ["static document inspection"])
         self.assertIn("REQ-001, REQ-002, REQ-003, REQ-004", implementation_nodes[0]["description"])
         for requirement in requirements:
             self.assertEqual(requirement["planned_task_ids"][0], implementation_nodes[0]["id"])
+        verify_nodes = [node for node in graph["nodes"] if node["title"] == "Verify implementation against project checks"]
+        self.assertEqual(verify_nodes[0]["commands_to_run"], ["static document inspection"])
 
     def test_one_line_generated_game_keeps_legacy_demo_graph(self) -> None:
         brief = ProjectBriefBuilder().build(

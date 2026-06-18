@@ -37,6 +37,11 @@ class TaskGraphBuilder:
         implementation_nodes, requirement_task_ids = self._implementation_nodes(requirements, test_commands)
         nodes.extend(implementation_nodes)
         implementation_ids = [node.id for node in implementation_nodes]
+        verification_commands = (
+            ["static document inspection"]
+            if implementation_nodes and all(node.type == "documentation" for node in implementation_nodes)
+            else test_commands + context_bundle.build_commands + context_bundle.lint_commands
+        )
 
         verify_id = f"T{len(nodes) + 1:03d}"
         nodes.append(
@@ -51,7 +56,7 @@ class TaskGraphBuilder:
                     "Detected verification commands pass or produce documented blockers.",
                     "Every must requirement has implementation evidence.",
                 ],
-                commands_to_run=test_commands + context_bundle.build_commands + context_bundle.lint_commands,
+                commands_to_run=verification_commands,
                 relevant_files=self._test_relevant_files(context_bundle),
                 priority=85,
             )
@@ -113,7 +118,7 @@ class TaskGraphBuilder:
                     dependencies=["T001"],
                     completion_criteria=dedupe([criterion for item in grouped_requirements for criterion in item.acceptance_criteria]),
                     relevant_files=dedupe([file for item in grouped_requirements for file in item.related_files]),
-                    commands_to_run=test_commands,
+                    commands_to_run=commands_for_task_type(task_type, test_commands),
                     priority=max(priority_for_requirement(item) for item in grouped_requirements),
                 )
             )
@@ -247,6 +252,12 @@ def group_implementation_requirements(requirements: list[Requirement]) -> list[l
 
 def priority_for_requirement(requirement: Requirement) -> int:
     return {"must": 90, "should": 70, "could": 50}.get(requirement.priority, 70)
+
+
+def commands_for_task_type(task_type: str, test_commands: list[str]) -> list[str]:
+    if task_type == "documentation":
+        return ["static document inspection"]
+    return list(test_commands)
 
 
 def shorten(text: str, limit: int = 72) -> str:
