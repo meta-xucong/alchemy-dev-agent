@@ -8,9 +8,23 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
+from typing import Protocol, Sequence
 
 from intake.models import utc_now_iso
+
+
+class CommandRunner(Protocol):
+    def __call__(
+        self,
+        args: list[str],
+        *,
+        cwd: str | None,
+        capture_output: bool,
+        text: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess:
+        ...
 
 
 @dataclass(slots=True)
@@ -50,14 +64,22 @@ class EnvironmentReport:
 class RealEnvironmentCheck:
     """Check whether local real Codex/GitHub execution can start."""
 
-    def run(self, *, output_dir: str | Path = ".alchemy/real_env_check") -> EnvironmentReport:
+    def __init__(self, runner: CommandRunner = subprocess.run) -> None:
+        self.runner = runner
+
+    def run(
+        self,
+        *,
+        output_dir: str | Path = ".alchemy/real_env_check",
+        codex_executable: str = "codex",
+    ) -> EnvironmentReport:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
         checks = [
             self._command_check("git", ["git", "--version"]),
             self._command_check("gh", ["gh", "--version"]),
             self._command_check("gh_auth", ["gh", "auth", "status"]),
-            self._command_check("codex", ["codex", "--version"]),
+            self._command_check("codex", [codex_executable, "--version"]),
         ]
         blockers = []
         for check in checks:
@@ -78,10 +100,10 @@ class RealEnvironmentCheck:
 
     def _command_check(self, name: str, command: list[str]) -> EnvironmentCheck:
         executable = command[0]
-        if shutil.which(executable) is None:
+        if not is_launchable_reference(executable):
             return EnvironmentCheck(name, "failed", f"Executable not found on PATH: {executable}")
         try:
-            result = subprocess.run(command, cwd=None, capture_output=True, text=False, check=False, timeout=30)
+            result = self.runner(command, cwd=None, capture_output=True, text=False, check=False, timeout=30)
         except (OSError, subprocess.SubprocessError, UnicodeDecodeError) as exc:
             return EnvironmentCheck(name, "failed", redact(str(exc)))
         stdout = decode_output(result.stdout)
@@ -102,6 +124,10 @@ def decode_output(value: object) -> str:
     return ""
 
 
+def is_launchable_reference(executable: str) -> bool:
+    return shutil.which(executable) is not None or Path(executable).is_file()
+
+
 def redact(text: str) -> str:
     lines = []
     for line in text.splitlines():
@@ -115,12 +141,13 @@ def redact(text: str) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate local real-execution environment readiness.")
     parser.add_argument("--output", default=".alchemy/real_env_check")
+    parser.add_argument("--codex-executable", default="codex")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    report = RealEnvironmentCheck().run(output_dir=args.output)
+    report = RealEnvironmentCheck().run(output_dir=args.output, codex_executable=args.codex_executable)
     print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
     return 0 if report.status == "ready" else 1
 

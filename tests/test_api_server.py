@@ -336,6 +336,34 @@ class ApiServerTests(unittest.TestCase):
             thread.join(timeout=10)
             server.server_close()
 
+    def test_http_api_environment_check_accepts_codex_executable(self) -> None:
+        root = temp_root()
+        fake_codex = root / "codex.exe"
+        fake_codex.write_text("", encoding="utf-8")
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            report = request_json(
+                conn,
+                "POST",
+                "/environment/check",
+                {"codex_executable": str(fake_codex)},
+                expected=200,
+            )
+
+            self.assertIn(report["status"], {"ready", "blocked"})
+            checks = {check["name"]: check for check in report["checks"]}
+            self.assertIn("codex", checks)
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
 
 def request_json(
     conn: http.client.HTTPConnection,

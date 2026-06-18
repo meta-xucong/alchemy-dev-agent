@@ -158,11 +158,13 @@ class CodexWorkerAdapter:
         *,
         executable: str = "codex",
         dry_run: bool = True,
+        sandbox: Literal["read-only", "workspace-write", "danger-full-access"] = "workspace-write",
         timeout_seconds: int = 1800,
         runner: SubprocessRunner = subprocess.run,
     ) -> None:
         self.executable = executable
         self.dry_run = dry_run
+        self.sandbox = sandbox
         self.timeout_seconds = timeout_seconds
         self.runner = runner
 
@@ -186,7 +188,7 @@ class CodexWorkerAdapter:
 
     def _execute_codex(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         prompt = self.build_prompt(worker_input)
-        args = [self.executable, "exec", "--json"]
+        args = [self.executable, "exec", "--json", "--sandbox", self.sandbox]
         try:
             completed = self.runner(
                 args,

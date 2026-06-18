@@ -527,3 +527,52 @@
 - Result: passed.
 - Summary: All JSON specs parse after V2.13 changes.
 - Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `D:\AI\Tools\CodexCLI\bin\codex.exe --version`
+- Result: passed.
+- Summary: Standalone Codex CLI 0.141.0 launches from explicit path.
+- Next verification command: real environment check with explicit Codex path.
+
+## 2026-06-18
+
+- Command: `python -B -m autodev.real_env_check --output .alchemy\real_env_check --codex-executable "D:\AI\Tools\CodexCLI\bin\codex.exe"`
+- Result: passed.
+- Summary: `git`, `gh`, `gh_auth`, and explicit Codex CLI checks all passed; report status `ready`.
+- Next verification command: focused CLI/API tests.
+
+## 2026-06-18
+
+- Command: `python -B -m unittest tests.test_runtime.CodexWorkerTests tests.test_real_env_check tests.test_api_server.ApiServerTests.test_http_api_environment_check_accepts_codex_executable`
+- Result: passed.
+- Summary: 10 focused tests passed for worker args, real env check, and API environment endpoint.
+- Next verification command: real worker adapter smoke.
+
+## 2026-06-18
+
+- Command: `CodexWorkerAdapter real CLI smoke with explicit executable`
+- Result: passed.
+- Summary: Real `codex exec --json` returned parseable `codex_worker_result_v1` JSON through the runtime adapter.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 70 tests passed after V2.14 CLI API integration.
+- Next verification command: acceptance harness.
+
+## 2026-06-18
+
+- Command: `python -B -m autodev.acceptance_run --output .alchemy\acceptance`
+- Result: passed.
+- Summary: Acceptance report status `passed` with 8/8 checks.
+- Next verification command: HTTP API real Codex smoke.
+
+## 2026-06-18
+
+- Command: `HTTP API real_codex smoke with max_iterations=1 and explicit Codex CLI path`
+- Result: passed.
+- Summary: `POST /projects/{id}/runs` preflight passed, Codex check passed, and one real worker task completed; run intentionally remained `in_progress` after one bounded iteration.
+- Next verification command: controlled real repository delivery validation.

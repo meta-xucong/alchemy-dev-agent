@@ -248,3 +248,13 @@ PY"`
 - Wrote `.alchemy/real_env_check/real_environment_report.json` with status `blocked`.
 - Added tests for report payload helpers and token redaction.
 - Marked the long-running task blocked on external Codex CLI launchability, because real worker validation cannot proceed safely without a working CLI executable.
+
+## 2026-06-18 V2.14 Standalone Codex CLI API Integration
+
+- Installed standalone Codex CLI 0.141.0 to `D:\AI\Tools\CodexCLI\bin\codex.exe` using the official install script and an explicit `CODEX_INSTALL_DIR`.
+- Verified the standalone CLI launches without relying on the WindowsApps desktop package path.
+- Added `--codex-executable` support to `autodev.real_env_check` and made environment checks accept absolute executable paths.
+- Added `POST /environment/check` to the local API and wired the browser console to pass a Codex CLI executable path.
+- Updated real worker invocation to use `codex exec --json --sandbox workspace-write` for implementation-capable real runs.
+- Added `docs/23_codex_cli_api_integration.md` and updated README/V2.13 docs.
+- Verified API-to-real-Codex-worker smoke with `max_iterations=1`; the run completed one real task and intentionally remained `in_progress` because the smoke was bounded to one iteration.

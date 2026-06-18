@@ -114,12 +114,25 @@ async function uploadSelected() {
 async function startRun() {
   const result = await api(`/projects/${state.projectId}/runs`, {
     method: "POST",
-    body: { async: true },
+    body: {
+      async: true,
+      codex_executable: el("codexExecutable").value.trim() || "codex",
+    },
   });
   state.runId = result.run_id;
   setSummary({}, result.job);
   setControls();
   startPolling();
+}
+
+async function checkEnvironment() {
+  const result = await api("/environment/check", {
+    method: "POST",
+    body: {
+      codex_executable: el("codexExecutable").value.trim() || "codex",
+    },
+  });
+  show("eventOutput", result);
 }
 
 async function controlRun(action) {
@@ -166,6 +179,7 @@ function bind() {
   el("createProject").addEventListener("click", () => createProject().catch(showError));
   el("uploadSelected").addEventListener("click", () => uploadSelected().catch(showError));
   el("buildPlan").addEventListener("click", () => buildPlan().catch(showError));
+  el("checkEnvironment").addEventListener("click", () => checkEnvironment().catch(showError));
   el("startRun").addEventListener("click", () => startRun().catch(showError));
   el("pauseRun").addEventListener("click", () => controlRun("pause").catch(showError));
   el("resumeRun").addEventListener("click", () => controlRun("resume").catch(showError));

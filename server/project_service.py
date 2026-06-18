@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from autodev import DocumentRunPipeline
+from autodev.real_env_check import RealEnvironmentCheck
 from context import ContextBundleBuilder
 from intake import GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
 from intake.models import FileRole, ProjectBrief, utc_now_iso
@@ -138,6 +139,17 @@ class ProjectService:
             "project": record.to_dict(),
             "brief": brief.to_dict(),
         }
+
+    def check_environment(self, payload: dict[str, Any] | None = None) -> dict[str, object]:
+        payload = payload or {}
+        codex_executable = str(payload.get("codex_executable", "codex") or "codex")
+        output_dir = payload.get("output_dir")
+        if output_dir:
+            output_path = Path(str(output_dir))
+        else:
+            output_path = self.storage_root / "environment"
+        report = RealEnvironmentCheck().run(output_dir=output_path, codex_executable=codex_executable)
+        return report.to_dict()
 
     def get_project(self, project_id: str) -> dict[str, object]:
         record = self.load_project(project_id)

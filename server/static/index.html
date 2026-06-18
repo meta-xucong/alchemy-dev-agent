@@ -44,10 +44,17 @@
               Local repository path
               <input id="repositoryPath" type="text" placeholder="D:\path\to\repo">
             </label>
+            <label>
+              Codex CLI executable
+              <input id="codexExecutable" type="text" value="codex" placeholder="D:\AI\Tools\CodexCLI\bin\codex.exe">
+            </label>
             <div class="buttonRow">
               <button id="createProject">Create</button>
               <button id="uploadSelected" disabled>Upload</button>
               <button id="buildPlan" disabled>Plan</button>
+            </div>
+            <div class="buttonRow secondary">
+              <button id="checkEnvironment">Check Env</button>
             </div>
             <div class="buttonRow secondary">
               <button id="startRun" disabled>Run</button>

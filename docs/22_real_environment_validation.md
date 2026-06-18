@@ -24,9 +24,10 @@ The command writes:
 .alchemy/real_env_check/real_environment_report.json
 ```
 
-## Current Result
+## Original Result
 
-On this machine:
+The original V2.13 check used the default `codex` command resolved from
+WindowsApps. On this machine:
 
 - `git` passed.
 - `gh` passed.
@@ -45,6 +46,30 @@ Blocker:
 B-ENV-CODEX
 ```
 
+## V2.14 Resolution Path
+
+V2.14 installs the standalone Codex CLI to an explicit tool path:
+
+```text
+D:\AI\Tools\CodexCLI\bin\codex.exe
+```
+
+Use:
+
+```bash
+python -m autodev.real_env_check \
+  --output .alchemy/real_env_check \
+  --codex-executable "D:\AI\Tools\CodexCLI\bin\codex.exe"
+```
+
+The local API also accepts the same path through:
+
+```text
+POST /environment/check
+```
+
+See `docs/23_codex_cli_api_integration.md`.
+
 ## Required Resolution
 
 Real Codex worker validation needs a launchable Codex CLI entry point.
@@ -55,4 +80,6 @@ Acceptable fixes include:
 - installing a separate Codex CLI executable available on `PATH`
 - providing an alternate executable path via `--codex-executable`
 
-Until then, the system can run deterministic dry-run acceptance and GitHub preflight, but not real Codex worker execution.
+Until a real target repository run is completed, the system has validated local
+CLI launchability and `codex exec` smoke execution, but not arbitrary external
+repository delivery.

@@ -78,6 +78,8 @@ docs/
                               V2.12 local acceptance harness.
   22_real_environment_validation.md
                               V2.13 real environment validation and current blocker.
+  23_codex_cli_api_integration.md
+                              V2.14 standalone Codex CLI installation and API integration.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -418,7 +420,42 @@ Check whether this machine can run real Codex/GitHub execution:
 python -m autodev.real_env_check --output .alchemy/real_env_check
 ```
 
-Current validation result on this machine is blocked because `codex --version` fails with Windows access denied. See `docs/22_real_environment_validation.md`.
+The original default-path validation was blocked because Windows resolved `codex` to a WindowsApps desktop package path that failed with access denied. V2.14 resolves this with an explicit standalone CLI path. See `docs/22_real_environment_validation.md`.
+
+## V2.14 Codex CLI API Integration
+
+The previous WindowsApps Codex entry point can be bypassed by installing the standalone CLI outside this repository:
+
+```powershell
+$env:CODEX_NON_INTERACTIVE = "1"
+$env:CODEX_INSTALL_DIR = "D:\AI\Tools\CodexCLI\bin"
+irm https://chatgpt.com/codex/install.ps1 | iex
+```
+
+Validate the explicit executable path:
+
+```powershell
+python -B -m autodev.real_env_check `
+  --output .alchemy\real_env_check `
+  --codex-executable "D:\AI\Tools\CodexCLI\bin\codex.exe"
+```
+
+The API also exposes:
+
+```text
+POST /environment/check
+```
+
+Run payloads can pass:
+
+```json
+{
+  "real_codex": true,
+  "codex_executable": "D:\\AI\\Tools\\CodexCLI\\bin\\codex.exe"
+}
+```
+
+The browser console includes the same Codex CLI executable field. Dry-run mode remains the default; real Codex and real GitHub execution require explicit flags.
 
 Run a smoke execution:
 

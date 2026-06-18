@@ -112,7 +112,7 @@ class CodexWorkerTests(unittest.TestCase):
         worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
         result = worker.execute(CodexWorkerInput(task_id="T010", goal="do work", repository_path="."))
 
-        self.assertEqual(calls[0], ["codex", "exec", "--json"])
+        self.assertEqual(calls[0], ["codex", "exec", "--json", "--sandbox", "workspace-write"])
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.files_changed, ["runtime/example.py"])
         self.assertEqual(result.commands_run[0].exit_code, 0)

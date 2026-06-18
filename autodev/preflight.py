@@ -90,7 +90,7 @@ class ExecutionPreflight:
 
     def _command_check(self, executable: str, *, required: bool, display_name: str | None = None) -> PreflightCheck:
         name = display_name or executable
-        resolved = shutil.which(executable)
+        resolved = shutil.which(executable) or (executable if Path(executable).is_file() else "")
         if not resolved:
             return PreflightCheck(name, "failed", f"Executable not found on PATH: {executable}", required=required)
         try:
