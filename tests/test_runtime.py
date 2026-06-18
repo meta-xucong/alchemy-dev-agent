@@ -169,6 +169,34 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.summary, "done from event stream")
         self.assertEqual(result.tests_passed, ["worker parsing"])
 
+    def test_real_worker_decodes_bytes_output_with_replacement(self) -> None:
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            if args and str(args[0]).endswith("codex"):
+                self.assertFalse(text)
+                self.assertIsInstance(input, bytes)
+                payload = {
+                    "task_id": "T012C",
+                    "status": "completed",
+                    "summary": "bytes decoded",
+                    "files_changed": [],
+                    "commands_run": [],
+                    "tests_passed": ["decode"],
+                    "tests_failed": [],
+                    "evidence": ["utf8 replacement safe"],
+                    "known_issues": [],
+                    "follow_up_tasks": [],
+                    "confidence": 0.9,
+                }
+                return subprocess.CompletedProcess(args, 0, json.dumps(payload).encode("utf-8") + b"\xa6", b"")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T012C", goal="decode output", repository_path="."))
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.summary, "bytes decoded")
+        self.assertIn("\ufffd", result.raw_output)
+
     def test_worker_result_coerces_non_dict_command_entries(self) -> None:
         payload = {
             "task_id": "T012B",

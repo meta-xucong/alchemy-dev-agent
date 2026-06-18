@@ -196,9 +196,9 @@ class CodexWorkerAdapter:
             completed = self.runner(
                 args,
                 cwd=worker_input.repository_path,
-                input=prompt,
+                input=prompt.encode("utf-8"),
                 capture_output=True,
-                text=True,
+                text=False,
                 timeout=self.timeout_seconds,
                 check=False,
             )
@@ -217,7 +217,9 @@ class CodexWorkerAdapter:
                 raw_output=str(exc),
             )
 
-        raw_output = "\n".join(part for part in [completed.stdout, completed.stderr] if part)
+        stdout = _decode_subprocess_output(completed.stdout)
+        stderr = _decode_subprocess_output(completed.stderr)
+        raw_output = "\n".join(part for part in [stdout, stderr] if part)
         changed_files = self._new_or_modified_files(worker_input.repository_path, before_changes)
         boundary_violation = self._audit_file_boundaries(worker_input, changed_files)
         if boundary_violation:
@@ -234,7 +236,7 @@ class CodexWorkerAdapter:
                 confidence=0.0,
                 raw_output=raw_output,
             )
-        parsed = self._parse_worker_json(completed.stdout) or self._parse_worker_json(raw_output)
+        parsed = self._parse_worker_json(stdout) or self._parse_worker_json(raw_output)
         if parsed is None:
             status: WorkerStatus = "failed" if completed.returncode else "partial"
             return CodexWorkerResult(
@@ -246,8 +248,8 @@ class CodexWorkerAdapter:
                         command=" ".join(args),
                         exit_code=completed.returncode,
                         summary="Codex subprocess completed without a parseable structured result.",
-                        stdout=completed.stdout,
-                        stderr=completed.stderr,
+                        stdout=stdout,
+                        stderr=stderr,
                     )
                 ],
                 known_issues=["Missing structured worker JSON."],
@@ -499,6 +501,14 @@ def _coerce_float(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _decode_subprocess_output(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
 
 
 def _normalize_repo_path(path: str) -> str:
