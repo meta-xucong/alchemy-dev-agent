@@ -31,6 +31,7 @@ The repository currently contains:
 - A v2.8 local API/project service runtime for project intake, planning, execution runs, event retrieval, and delivery summaries.
 - A v2.9 browser console, multipart upload path, async run job records, and persisted run controls/events.
 - A v2.10 task-boundary pause/stop hook and optional private GitHub CLI auth preflight.
+- A v2.11 private GitHub source adapter using local `gh` authentication.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -150,6 +151,7 @@ intake/
   github_source.py          Normalize GitHub repository metadata.
   github_runtime.py         Clone, fetch, and checkout public GitHub repositories.
   gh_auth.py                Check local GitHub CLI authentication and account state for optional private repositories.
+  private_github_runtime.py Clone, fetch, and checkout private GitHub repositories through local `gh` authentication.
 
 context/
   repository_indexer.py     Build file tree, language, package, test, and CI metadata.
@@ -369,9 +371,16 @@ DONE requires:
 - Implement safe task-boundary pause before dispatching each worker task. Status: done.
 - Implement stop behavior that prevents further task dispatch and records a blocked delivery state. Status: done.
 - Implement safe cancellation for real Codex subprocesses where possible. Status: pending.
-- Implement optional private GitHub source retrieval through local `gh` authentication. Status: partial; auth preflight is done, clone/fetch remains pending.
+- Implement optional private GitHub source retrieval through local `gh` authentication. Status: done for source preparation; end-to-end private delivery remains pending.
 
-### V2.11: End-To-End Delivery Runtime
+### V2.11: Private GitHub Source Adapter
+
+- Implement private repository clone through `gh repo clone`. Status: done.
+- Implement private repository fetch/checkout for existing checkouts. Status: done.
+- Integrate private preparation into document-run and API inspect. Status: done.
+- Add deterministic fake-runner tests. Status: done.
+
+### V2.12: End-To-End Delivery Runtime
 
 - Run against a real repository with a real development document.
 - Execute Codex worker tasks.

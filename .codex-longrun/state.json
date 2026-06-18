@@ -1,35 +1,36 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.11 private GitHub source adapter",
+  "current_phase": "V2.12 controlled end-to-end acceptance harness",
   "phase_status": "advancing",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
     "V2.8 local API and project service runtime",
     "V2.9 browser UI and async runtime",
-    "V2.10 task-boundary controls and private GitHub preflight"
+    "V2.10 task-boundary controls and private GitHub preflight",
+    "V2.11 private GitHub source adapter"
   ],
   "next_actions": [
-    "Commit and push verified V2.10 task-boundary and gh-auth changes",
-    "Implement optional private repository clone/fetch through local gh when auth preflight passes",
-    "Integrate private source preparation into document-run and API source inspection where safe",
-    "Add deterministic fake-runner tests for private source behavior",
+    "Commit and push verified V2.11 private GitHub source adapter changes",
+    "Implement a local end-to-end acceptance harness",
+    "Exercise project creation, file intake, planning, async execution, events, and delivery report generation",
+    "Persist a machine-readable acceptance report",
     "Run focused and full verification"
   ],
   "tests_run": [
     {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_gh_auth tests.test_execution_preflight tests.test_runtime tests.test_api_server tests.test_document_run_pipeline",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_private_github_runtime tests.test_gh_auth tests.test_execution_preflight tests.test_api_server tests.test_document_run_pipeline",
       "result": "passed",
-      "summary": "39 focused tests passed across gh auth, preflight, runtime controls, API, and document-run behavior."
+      "summary": "22 focused tests passed for private GitHub source preparation, gh auth, preflight, API inspect, and document-run behavior."
     },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "59 tests passed across the repository."
+      "summary": "63 tests passed across the repository."
     },
     {
       "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
       "result": "passed",
-      "summary": "All JSON specs parse after V2.10 changes."
+      "summary": "All JSON specs parse after V2.11 changes."
     }
   ],
   "known_bugs": [
@@ -41,7 +42,7 @@
   ],
   "blockers": [],
   "done_criteria": [
-    "Document-driven intake accepts objective, documents, supporting files, and public GitHub repository context",
+    "Document-driven intake accepts objective, documents, supporting files, and public/private GitHub repository context",
     "Task graph and runtime handoff are generated from development documents",
     "Dry-run execution, real-execution preflight, and audit artifacts are persisted",
     "Local service/API path supports project creation and execution runs",
@@ -49,10 +50,11 @@
     "Asynchronous execution control is implemented or a documented blocker prevents implementation",
     "Task-boundary stop/pause semantics are implemented or a documented blocker prevents implementation",
     "Optional private GitHub access has auth preflight and source adapter or a documented blocker prevents implementation",
+    "A local acceptance harness produces a machine-readable delivery-readiness report",
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-18T12:11:30.9909074+08:00",
+  "last_verified_at": "2026-06-18T12:17:40.7182808+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-18T12:11:30.9909074+08:00"
+  "updated_at": "2026-06-18T12:17:40.7182808+08:00"
 }

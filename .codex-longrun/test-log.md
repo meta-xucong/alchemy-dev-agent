@@ -450,3 +450,24 @@
 - Result: passed.
 - Summary: All JSON specs parse after V2.10 changes.
 - Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_private_github_runtime tests.test_gh_auth tests.test_execution_preflight tests.test_api_server tests.test_document_run_pipeline`
+- Result: passed.
+- Summary: 22 focused tests passed for private GitHub source preparation, gh auth, preflight, API inspect, and document-run behavior.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 63 tests passed after V2.11 private GitHub source adapter changes.
+- Next verification command: JSON spec parsing.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.11 changes.
+- Next verification command: long-running state validation.

@@ -56,12 +56,13 @@ Current runtime capabilities:
 - V2.8 local JSON API and persistent project service for project creation, file references, intake, planning, execution runs, run events, and delivery summaries.
 - V2.9 browser console, multipart uploads, async run job records, persisted run controls, and event retrieval.
 - V2.10 task-boundary pause/stop controls and optional private GitHub CLI auth preflight.
+- V2.11 private GitHub clone/fetch adapter through local `gh` authentication.
 
 Planned v2 capabilities:
 
 - Document parsing and role classification.
 - GitHub repository inspection before planning.
-- Private repository retrieval through optional `gh` authentication.
+- Private repository end-to-end delivery validation through optional `gh` authentication.
 - Deep document parser pipeline and semantic code summarization.
 - Controlled real Codex/GitHub validation against representative repositories.
 - Richer browser UI for graph visualization and delivery evidence review.
@@ -76,7 +77,7 @@ The v2 plan clearly separates implemented runtime capabilities from planned prod
 The current codebase does not yet implement:
 
 - Deep PDF/DOCX document parser pipeline.
-- Private GitHub clone/fetch after successful `gh` auth preflight.
+- Proven private GitHub source preparation and delivery against a representative private repository.
 - Semantic requirement contradiction detection.
 - Semantic code summarization beyond deterministic file/path matching.
 - Proven real Codex worker execution across representative target repositories.

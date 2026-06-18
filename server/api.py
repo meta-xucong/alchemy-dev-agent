@@ -195,7 +195,7 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "GET" and tail == ["delivery"]:
         return service.get_delivery(project_id), HTTPStatus.OK
     if method == "POST" and len(tail) == 2 and tail[0] == "github" and tail[1] == "inspect":
-        return service.build_intake(project_id), HTTPStatus.OK
+        return service.inspect_github(project_id, payload), HTTPStatus.OK
 
     raise ApiError(404, "not_found", "Endpoint not found.")
 

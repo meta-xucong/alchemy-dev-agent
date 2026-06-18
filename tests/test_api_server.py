@@ -206,6 +206,23 @@ class ApiServerTests(unittest.TestCase):
             thread.join(timeout=10)
             server.server_close()
 
+    def test_project_service_github_inspect_without_prepare_returns_intake(self) -> None:
+        root = temp_root()
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "primary_input_mode": "one_line_fallback",
+                "repository": "https://github.com/example/saas-dashboard",
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+
+        inspected = service.inspect_github(project_id, {"prepare": False})
+
+        self.assertEqual(inspected["brief"]["repository"]["owner"], "example")
+        self.assertNotIn("source", inspected)
+
     def test_http_api_async_run_and_controls(self) -> None:
         root = temp_root()
         repo = root / "repo"

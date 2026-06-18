@@ -15,6 +15,8 @@ __all__ = [
     "ProjectBrief",
     "ProjectBriefBuilder",
     "ProjectFile",
+    "PrivateGitHubSourceResult",
+    "PrivateGitHubSourceRuntime",
     "RepositorySource",
     "parse_github_source",
     "validate_project_brief_contract",
@@ -40,6 +42,14 @@ def __getattr__(name: str):
         exports = {
             "GitHubAuthPreflight": GitHubAuthPreflight,
             "GitHubAuthResult": GitHubAuthResult,
+        }
+        return exports[name]
+    if name in {"PrivateGitHubSourceResult", "PrivateGitHubSourceRuntime"}:
+        from .private_github_runtime import PrivateGitHubSourceResult, PrivateGitHubSourceRuntime
+
+        exports = {
+            "PrivateGitHubSourceResult": PrivateGitHubSourceResult,
+            "PrivateGitHubSourceRuntime": PrivateGitHubSourceRuntime,
         }
         return exports[name]
     raise AttributeError(f"module 'intake' has no attribute {name!r}")

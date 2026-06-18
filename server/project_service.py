@@ -9,7 +9,7 @@ from typing import Any
 
 from autodev import DocumentRunPipeline
 from context import ContextBundleBuilder
-from intake import ProjectBriefBuilder
+from intake import GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
 from intake.models import FileRole, ProjectBrief, utc_now_iso
 from planner import TaskGraphBuilder
 
@@ -239,6 +239,40 @@ class ProjectService:
         return {
             "project": updated.to_dict(),
             "brief": brief.to_dict(),
+        }
+
+    def inspect_github(self, project_id: str, payload: dict[str, Any] | None = None) -> dict[str, object]:
+        payload = payload or {}
+        record = self.load_project(project_id)
+        intake = self.build_intake(project_id)
+        brief = intake["brief"]
+        repository = brief.get("repository") if isinstance(brief, dict) else None
+        if not isinstance(repository, dict):
+            raise ApiError(409, "repository_missing", "Project does not include a GitHub repository.")
+        if not payload.get("prepare", False):
+            return intake
+
+        built_brief = self._build_brief(record.to_dict())
+        if not built_brief.repository:
+            raise ApiError(409, "repository_missing", "Project does not include a GitHub repository.")
+        source_runtime = (
+            PrivateGitHubSourceRuntime()
+            if built_brief.repository.visibility == "private" or built_brief.repository.gh_auth_required
+            else GitHubSourceRuntime()
+        )
+        result = source_runtime.prepare(built_brief.repository)
+        if result.blockers:
+            built_brief.blockers.extend(result.blockers)
+        updated_record = ProjectRecord.from_dict(record.to_dict())
+        updated_record.repository_path = built_brief.repository.local_path
+        updated_record.status = "intake_blocked" if built_brief.blockers else "intake_ready"
+        updated_record.updated_at = utc_now_iso()
+        self._write_json(self.project_dir(project_id) / "project.json", updated_record.to_dict())
+        self._write_json(self.project_dir(project_id) / "brief.json", built_brief.to_dict())
+        return {
+            "project": updated_record.to_dict(),
+            "brief": built_brief.to_dict(),
+            "source": result.to_dict(),
         }
 
     def get_brief(self, project_id: str) -> dict[str, object]:

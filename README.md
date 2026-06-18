@@ -72,6 +72,8 @@ docs/
                               V2.9 browser console, multipart upload, and async run jobs.
   19_v2_task_boundary_and_private_github_preflight.md
                               V2.10 task-boundary controls and private GitHub auth preflight.
+  20_v2_private_github_source_adapter.md
+                              V2.11 private GitHub source adapter.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -102,6 +104,7 @@ intake/
   github_source.py           GitHub URL parsing and source normalization.
   github_runtime.py          Public GitHub clone/fetch/checkout source runtime.
   gh_auth.py                 Optional GitHub CLI auth preflight for private repositories.
+  private_github_runtime.py  Private GitHub clone/fetch through local gh authentication.
   schema_validation.py       Local contract validation for intake payloads.
 
 context/
@@ -382,6 +385,15 @@ python -m autodev.document_run \
   --repository-visibility private
 ```
 
+Prepare a private repository source through local `gh` authentication:
+
+```bash
+python -m intake.private_github_runtime \
+  --repository https://github.com/example/private-repo \
+  --project-id proj_private \
+  --target-branch main
+```
+
 Run a smoke execution:
 
 ```bash
@@ -420,7 +432,7 @@ PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 This repository does not yet implement:
 
 - Deep PDF/DOCX document parser pipeline.
-- Private GitHub clone/fetch through `gh`.
+- Proven private GitHub end-to-end delivery against a real private repository.
 - Deep code summarization and semantic requirement-to-file mapping beyond deterministic file/path signals.
 - Agent SDK runtime code.
 - GitHub App integration.

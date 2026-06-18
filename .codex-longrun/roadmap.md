@@ -33,14 +33,20 @@ Objective: Continue autonomous development until the document-driven agent syste
 - Add optional private GitHub `gh auth status` preflight without storing tokens.
 - Preserve public repository as the default path.
 
-## Current Next Phase: V2.11 Private GitHub Source Adapter
+## Completed Phase: V2.11 Private GitHub Source Adapter
 
 - Implement optional private repository clone/fetch using local `gh` when auth preflight passes.
 - Keep public clone/fetch as default and token-free.
 - Add deterministic tests with fake command runners.
 - Integrate private preparation into document-run and API source inspection where safe.
 
-## Later Phase: V2.12 Controlled Real Repository Validation
+## Current Next Phase: V2.12 Controlled End-To-End Acceptance Harness
+
+- Add a local acceptance harness that exercises document intake, file upload/source paths, planning, async execution, event retrieval, and delivery report generation.
+- Produce a single machine-readable acceptance report for the current repository.
+- Use this as the last local gate before real external repository validation.
+
+## Later Phase: V2.13 Controlled Real Repository Validation
 
 - Run the system against a representative public repository and detailed development document.
 - Validate real Codex worker preflight and, when environment permits, real worker execution.

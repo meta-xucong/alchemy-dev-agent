@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Sequence
 
 from context import ContextBundleBuilder
-from intake import GitHubSourceRuntime, ProjectBriefBuilder
+from intake import GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
 from planner import TaskGraphBuilder
 from runtime.control import ExecutionController
 from runtime import CodexWorkerAdapter, GitHubFlow, Orchestrator, RuntimeHandoff, StateManager
@@ -77,7 +77,12 @@ class DocumentRunPipeline:
         if brief.repository and repository_path:
             brief.repository.local_path = str(repository_path)
         if brief.repository and prepare_repository and not repository_path:
-            source_result = GitHubSourceRuntime().prepare(brief.repository)
+            source_runtime = (
+                PrivateGitHubSourceRuntime()
+                if brief.repository.visibility == "private" or brief.repository.gh_auth_required
+                else GitHubSourceRuntime()
+            )
+            source_result = source_runtime.prepare(brief.repository)
             if source_result.blockers:
                 brief.blockers.extend(source_result.blockers)
             repository_path = brief.repository.local_path

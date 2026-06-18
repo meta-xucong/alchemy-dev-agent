@@ -216,3 +216,14 @@ PY"`
 - Integrated private repository visibility into document-run preflight with `--repository-visibility`.
 - Updated README and V2 docs for task-boundary controls and private GitHub auth preflight.
 - Added tests for runtime stop/pause controls, server job boundary stop, GitHub auth preflight, and private repository preflight.
+
+## 2026-06-18 V2.11 Private GitHub Source Adapter
+
+- Added `intake/private_github_runtime.py` for optional private GitHub source preparation through local `gh` authentication.
+- Implemented private clone with `gh repo clone OWNER/REPO <local_path> -- --branch <branch> --single-branch`.
+- Implemented fetch and deterministic checkout for existing private git checkouts.
+- Preserved public repository clone/fetch as the default token-free path.
+- Integrated private preparation into `autodev.document_run --prepare-repository --repository-visibility private`.
+- Added API `github/inspect` prepare behavior that chooses public or private source runtime based on repository visibility.
+- Updated README, V2 plan, private GitHub docs, and V2 audit.
+- Added deterministic fake-runner tests for private clone, fetch, and auth-blocked behavior.
