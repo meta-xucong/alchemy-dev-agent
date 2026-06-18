@@ -191,6 +191,8 @@ def classify_requirement_task(requirement: Requirement) -> tuple[str, str]:
     text = requirement.text.lower()
     files = " ".join(requirement.related_files).lower()
     combined = f"{text} {files}"
+    if any(file.endswith((".md", ".txt", ".rst")) for file in requirement.related_files):
+        return "documentation", "architect"
     if any(marker in combined for marker in ("test", "tests/", ".test.", ".spec.", "qa", "verification", "coverage", "ci")):
         return "test", "test"
     if any(marker in combined for marker in ("api", "backend", "database", "schema", "migration", "auth", "server", "service")):

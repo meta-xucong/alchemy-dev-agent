@@ -135,6 +135,7 @@ class DocumentToPlanTests(unittest.TestCase):
                         "- Must create `docs/28_representative_delivery_probe.md`.",
                         "- Must state that real worker execution happens inside an isolated git worktree.",
                         "- Must state that the source checkout must remain unchanged during worker execution.",
+                        "- Must include a short verification section for generated evidence and tests.",
                         "",
                         "## Acceptance Criteria",
                         "- `docs/28_representative_delivery_probe.md` exists.",
@@ -162,7 +163,7 @@ class DocumentToPlanTests(unittest.TestCase):
         implementation_nodes = [node for node in graph["nodes"] if node["type"] == "documentation"]
         self.assertEqual(len(implementation_nodes), 1)
         self.assertEqual(implementation_nodes[0]["relevant_files"], ["docs/28_representative_delivery_probe.md"])
-        self.assertIn("REQ-001, REQ-002, REQ-003", implementation_nodes[0]["description"])
+        self.assertIn("REQ-001, REQ-002, REQ-003, REQ-004", implementation_nodes[0]["description"])
         for requirement in requirements:
             self.assertEqual(requirement["planned_task_ids"][0], implementation_nodes[0]["id"])
 
