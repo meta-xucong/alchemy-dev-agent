@@ -1,6 +1,14 @@
 """Local autonomous development demo pipeline."""
 
-__all__ = ["AutoDevPipeline", "AutoDevResult", "DocumentRunPipeline", "DocumentRunResult", "ExecutionPreflight"]
+__all__ = [
+    "AutoDevPipeline",
+    "AutoDevResult",
+    "DocumentRunPipeline",
+    "DocumentRunResult",
+    "ExecutionPreflight",
+    "RealDeliveryValidation",
+    "DeliveryValidationReport",
+]
 
 
 def __getattr__(name: str):
@@ -24,4 +32,12 @@ def __getattr__(name: str):
         from .preflight import ExecutionPreflight
 
         return ExecutionPreflight
+    if name in {"RealDeliveryValidation", "DeliveryValidationReport"}:
+        from .real_delivery_validation import DeliveryValidationReport, RealDeliveryValidation
+
+        exports = {
+            "DeliveryValidationReport": DeliveryValidationReport,
+            "RealDeliveryValidation": RealDeliveryValidation,
+        }
+        return exports[name]
     raise AttributeError(f"module 'autodev' has no attribute {name!r}")

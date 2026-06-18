@@ -275,6 +275,12 @@
           "type": "string",
           "enum": ["unknown", "pending", "passed", "failed"]
         },
+        "ci_details": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
         "created_at": {
           "type": "string",
           "format": "date-time"

@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run unit tests
+        run: PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
+      - name: Validate JSON specs
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in Path("specs").glob("*.json"):
+              json.loads(path.read_text(encoding="utf-8"))
+              print(f"OK {path}")
+          PY

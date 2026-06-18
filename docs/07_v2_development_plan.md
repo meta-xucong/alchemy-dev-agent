@@ -38,6 +38,7 @@ The repository currently contains:
 - A v2.15 real Codex worker hardening layer with allowed-file enforcement.
 - A v2.16 isolated real-run worktree lifecycle.
 - A v2.17 recovery controller for resumable worker execution.
+- A v2.18 controlled real GitHub delivery validation harness and CI workflow.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, richer UI/API observability, representative real GitHub delivery validation, and safer live execution controls. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -177,6 +178,8 @@ autodev/
   acceptance_run.py         Run local end-to-end acceptance checks and write an acceptance report.
   document_run.py           Run document-driven intake, context, planning, handoff, and dry-run execution.
   preflight.py              Check local readiness for real Codex and GitHub execution.
+  real_delivery_validation.py
+                            Validate real GitHub branch, PR, and CI evidence collection.
 
 server/
   api.py                    Project, file upload, GitHub inspect, plan, run, and state endpoints.
@@ -428,10 +431,18 @@ DONE requires:
 - Add CLI/API/UI resume wiring. Status: done.
 - Verify dry-run recovery and bounded real Codex recovery. Status: done.
 
-### V2.18: End-To-End Delivery Runtime
+### V2.18: Real Delivery Validation
 
-- Run against a real repository with a real development document.
-- Execute Codex worker tasks.
+- Add a minimal GitHub Actions CI workflow. Status: done.
+- Make `GitHubFlow` create or reuse PRs idempotently. Status: done.
+- Collect PR check evidence and normalize CI state. Status: done.
+- Add a controlled real delivery validation harness. Status: done.
+- Run the harness against the public repository and record results. Status: pending.
+
+### V2.19: End-To-End Autonomous Delivery Runtime
+
+- Run against a representative real repository with a detailed development document.
+- Execute real Codex worker tasks through document-driven graph execution.
 - Run tests and collect CI evidence.
 - Open or update a GitHub pull request.
 - Produce a final delivery report.

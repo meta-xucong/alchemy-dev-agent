@@ -63,13 +63,14 @@ Current runtime capabilities:
 - V2.15 real Codex allowed-file and dirty-diff boundary hardening.
 - V2.16 isolated real-run worktree lifecycle.
 - V2.17 resumable worker execution with persisted recovery checkpoints.
+- V2.18 real GitHub PR/CI validation harness and minimal CI workflow.
 
 Planned v2 capabilities:
 
 - Deep PDF/DOCX parsing beyond current text/Markdown/JSON/YAML/local file cataloging.
 - Private repository end-to-end delivery validation through optional `gh` authentication.
 - Deep document parser pipeline and semantic code summarization.
-- Controlled real GitHub PR/CI validation against representative repositories.
+- Representative end-to-end real Codex plus GitHub delivery against non-trivial target repositories.
 - Richer browser UI for graph visualization and delivery evidence review.
 - Hard worker cancellation and true live event streaming.
 
@@ -85,7 +86,7 @@ The current codebase does not yet implement or prove:
 - Proven private GitHub end-to-end delivery against a representative private repository.
 - Semantic requirement contradiction detection.
 - Semantic code summarization beyond deterministic file/path matching.
-- Proven real GitHub PR and CI execution across representative target repositories.
+- Proven real Codex plus GitHub PR and CI execution across representative target repositories.
 - Safe real Codex subprocess cancellation after dispatch.
 - Server-sent events or WebSocket live event streaming.
 
@@ -119,8 +120,9 @@ No step depends on unstructured user files after the context bundle is created. 
 
 The v2 runtime is logically ready for controlled real delivery validation.
 
-The current application performs the local document-driven workflow and has
-bounded real Codex worker validation. It still needs representative real
-GitHub PR/CI delivery validation, deeper parsing, richer UI observability, and
-hard subprocess cancellation before it should be described as a production
-autonomous development system.
+The current application performs the local document-driven workflow, has
+bounded real Codex worker validation, and now has a controlled GitHub PR/CI
+validation harness. It still needs representative real Codex plus GitHub
+delivery on non-trivial target repositories, deeper parsing, richer UI
+observability, and hard subprocess cancellation before it should be described
+as a production autonomous development system.

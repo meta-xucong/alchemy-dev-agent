@@ -259,8 +259,19 @@ class GitHubFlowTests(unittest.TestCase):
             calls.append(args)
             if args == ["git", "status", "--short"]:
                 return subprocess.CompletedProcess(args, 0, "", "")
-            if args == ["gh", "pr", "create", "--title", "test", "--body", "body"]:
+            if args == ["gh", "pr", "view", "agent/test", "--json", "url,number,state"]:
+                return subprocess.CompletedProcess(args, 1, "", "no pull request")
+            if args == ["gh", "pr", "create", "--title", "test", "--body", "body", "--head", "agent/test"]:
                 return subprocess.CompletedProcess(args, 0, "https://example.test/pr/1\n", "")
+            if args == [
+                "gh",
+                "pr",
+                "checks",
+                "agent/test",
+                "--json",
+                "name,state,bucket,workflow,link,completedAt,startedAt",
+            ]:
+                return subprocess.CompletedProcess(args, 0, '[{"name":"ci","bucket":"pass"}]\n', "")
             if args == ["git", "rev-parse", "HEAD"]:
                 return subprocess.CompletedProcess(args, 0, "abc123\n", "")
             return subprocess.CompletedProcess(args, 0, "", "")
@@ -275,8 +286,65 @@ class GitHubFlowTests(unittest.TestCase):
 
         self.assertEqual(result.status, "pushed")
         self.assertEqual(result.commit, "abc123")
+        self.assertEqual(result.ci_status, "passed")
         self.assertNotIn(["git", "commit", "-m", "test"], calls)
         self.assertIn(["git", "push", "-u", "origin", "agent/test"], calls)
+        self.assertIn(["gh", "pr", "create", "--title", "test", "--body", "body", "--head", "agent/test"], calls)
+
+    def test_real_flow_reuses_existing_pull_request(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_runner(args, *, cwd, capture_output, text, check):
+            calls.append(args)
+            if args == ["git", "status", "--short"]:
+                return subprocess.CompletedProcess(args, 0, "", "")
+            if args == ["git", "rev-parse", "HEAD"]:
+                return subprocess.CompletedProcess(args, 0, "abc123\n", "")
+            if args == ["gh", "pr", "view", "agent/test", "--json", "url,number,state"]:
+                return subprocess.CompletedProcess(args, 0, '{"url":"https://example.test/pr/2","number":2,"state":"OPEN"}\n', "")
+            if args == [
+                "gh",
+                "pr",
+                "checks",
+                "agent/test",
+                "--json",
+                "name,state,bucket,workflow,link,completedAt,startedAt",
+            ]:
+                return subprocess.CompletedProcess(args, 8, '[{"name":"ci","bucket":"pending"}]\n', "")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        result = GitHubFlow(dry_run=False, runner=fake_runner).record_execution(
+            repository_path=".",
+            branch="agent/test",
+            task_ids=["T001"],
+            title="test",
+            body="body",
+        )
+
+        self.assertEqual(result.pull_request_url, "https://example.test/pr/2")
+        self.assertEqual(result.ci_status, "pending")
+        self.assertNotIn(["gh", "pr", "create", "--title", "test", "--body", "body", "--head", "agent/test"], calls)
+
+    def test_collect_ci_status_marks_failures(self) -> None:
+        def fake_runner(args, *, cwd, capture_output, text, check):
+            if args == [
+                "gh",
+                "pr",
+                "checks",
+                "agent/test",
+                "--json",
+                "name,state,bucket,workflow,link,completedAt,startedAt",
+            ]:
+                return subprocess.CompletedProcess(args, 1, '[{"name":"ci","bucket":"fail"}]\n', "")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        status, details = GitHubFlow(dry_run=False, runner=fake_runner).collect_ci_status(
+            repository_path=".",
+            branch="agent/test",
+        )
+
+        self.assertEqual(status, "failed")
+        self.assertEqual(details[0]["name"], "ci")
 
 
 class EvaluatorTests(unittest.TestCase):

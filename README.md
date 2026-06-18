@@ -86,6 +86,8 @@ docs/
                               V2.16 isolated worktree lifecycle for real Codex runs.
   26_resumable_real_worker_execution.md
                               V2.17 explicit resume/retry recovery controls.
+  27_real_delivery_validation.md
+                              V2.18 real GitHub branch, PR, and CI validation.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -131,6 +133,8 @@ planner/
 autodev/
   acceptance_run.py          Local end-to-end acceptance harness.
   real_env_check.py          Real git/gh/Codex environment readiness report.
+  real_delivery_validation.py
+                              Controlled real GitHub delivery validation harness.
   document_run.py            Document-driven end-to-end dry-run CLI.
   preflight.py               Real execution environment preflight checks.
   demo_run.py                One-line local app generation demo.
@@ -173,6 +177,7 @@ Implemented runtime capabilities:
 - Explicit resume/retry recovery from prior run state.
 - Weighted evaluation gate across test health, spec alignment, graph completion, reviewer approval, and risk quality.
 - GitHub execution evidence through dry-run records or real `git`/`gh` commands.
+- Real PR/CI evidence collection through the V2.18 delivery validation harness.
 - Persistent JSON runtime state under `.alchemy/state.json`.
 
 DONE requires final gate score `>= 0.85`, completed required graph nodes, passing verification evidence, reviewer approval, no hard failures, and GitHub execution evidence.
@@ -551,6 +556,30 @@ The browser `Resume` control starts a new recovery run when the source run is
 paused and switches monitoring to the returned `resumed_run_id`.
 
 See `docs/26_resumable_real_worker_execution.md`.
+
+## V2.18 Real Delivery Validation
+
+The repository includes a controlled real GitHub validation harness:
+
+```bash
+python -m autodev.real_delivery_validation \
+  --repository-path . \
+  --output .alchemy/real_delivery_validation \
+  --branch agent/alchemy-real-delivery-validation \
+  --base-branch master
+```
+
+The harness defaults to an isolated git worktree, creates or reuses a validation
+PR, and records CI status through `gh pr checks`. It writes:
+
+```text
+.alchemy/real_delivery_validation/real_delivery_validation_report.json
+```
+
+The repository also includes `.github/workflows/ci.yml`, which runs the unit
+test suite and JSON spec parsing for pushes and pull requests.
+
+See `docs/27_real_delivery_validation.md`.
 
 Run a smoke execution:
 

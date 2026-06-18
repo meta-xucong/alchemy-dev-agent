@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,6 +18,7 @@ class GitHubExecutionResult:
     commit: str = ""
     pull_request_url: str = ""
     ci_status: str = "unknown"
+    ci_details: list[dict] = field(default_factory=list)
     commands_run: list[dict] = field(default_factory=list)
     summary: str = ""
 
@@ -27,6 +29,7 @@ class GitHubExecutionResult:
             "commit": self.commit,
             "pull_request_url": self.pull_request_url,
             "ci_status": self.ci_status,
+            "ci_details": list(self.ci_details),
             "commands_run": list(self.commands_run),
             "summary": self.summary,
             "created_at": utc_now_iso(),
@@ -70,6 +73,9 @@ class GitHubFlow:
         task_ids: list[str],
         title: str,
         body: str,
+        base_branch: str = "",
+        draft: bool = False,
+        collect_ci: bool = True,
     ) -> GitHubExecutionResult:
         if self.dry_run:
             commit = f"dry-run:{'-'.join(task_ids) or 'runtime'}"
@@ -79,6 +85,7 @@ class GitHubFlow:
                 commit=commit,
                 pull_request_url=f"dry-run://pull-request/{branch}",
                 ci_status="passed",
+                ci_details=[],
                 commands_run=[],
                 summary="Dry-run GitHub execution evidence recorded.",
             )
@@ -134,20 +141,31 @@ class GitHubFlow:
                     summary="GitHub flow command failed: git commit",
                 )
 
-        for command in [
-            [self.git_executable, "push", "-u", "origin", branch],
-            [self.gh_executable, "pr", "create", "--title", title, "--body", body],
-        ]:
-            completed = self._run(command, repository_path, command_results)
-            if completed.returncode != 0:
-                return GitHubExecutionResult(
-                    status="failed",
-                    branch=branch,
-                    commands_run=command_results,
-                    summary=f"GitHub flow command failed: {' '.join(command)}",
-                )
-            if command[:3] == [self.gh_executable, "pr", "create"]:
-                pull_request_url = completed.stdout.strip().splitlines()[-1] if completed.stdout.strip() else ""
+        push_result = self._run([self.git_executable, "push", "-u", "origin", branch], repository_path, command_results)
+        if push_result.returncode != 0:
+            return GitHubExecutionResult(
+                status="failed",
+                branch=branch,
+                commands_run=command_results,
+                summary="GitHub flow command failed: git push -u origin " + branch,
+            )
+
+        pull_request_url = self._ensure_pull_request(
+            repository_path=repository_path,
+            branch=branch,
+            title=title,
+            body=body,
+            base_branch=base_branch,
+            draft=draft,
+            command_results=command_results,
+        )
+        if not pull_request_url:
+            return GitHubExecutionResult(
+                status="failed",
+                branch=branch,
+                commands_run=command_results,
+                summary="GitHub flow failed to create or locate a pull request.",
+            )
 
         rev_parse = self.runner(
             [self.git_executable, "rev-parse", "HEAD"],
@@ -167,15 +185,115 @@ class GitHubFlow:
         if rev_parse.returncode == 0:
             commit_sha = rev_parse.stdout.strip()
 
+        ci_status = "unknown"
+        ci_details: list[dict] = []
+        if collect_ci:
+            ci_status, ci_details = self.collect_ci_status(
+                repository_path=repository_path,
+                branch=branch,
+                command_results=command_results,
+            )
+
         return GitHubExecutionResult(
             status="pushed",
             branch=branch,
             commit=commit_sha,
             pull_request_url=pull_request_url,
-            ci_status="unknown",
+            ci_status=ci_status,
+            ci_details=ci_details,
             commands_run=command_results,
-            summary="GitHub branch, commit, push, and PR flow completed.",
+            summary=f"GitHub branch, commit, push, PR flow, and CI collection completed with CI status {ci_status}.",
         )
+
+    def collect_ci_status(
+        self,
+        *,
+        repository_path: str | Path,
+        branch: str,
+        command_results: list[dict] | None = None,
+    ) -> tuple[str, list[dict]]:
+        results = command_results if command_results is not None else []
+        completed = self._run(
+            [
+                self.gh_executable,
+                "pr",
+                "checks",
+                branch,
+                "--json",
+                "name,state,bucket,workflow,link,completedAt,startedAt",
+            ],
+            repository_path,
+            results,
+        )
+        checks = self._parse_json_list(completed.stdout)
+        if not checks:
+            return "unknown", []
+        buckets = {str(check.get("bucket", "")).lower() for check in checks}
+        if buckets & {"fail", "cancel"}:
+            return "failed", checks
+        if buckets & {"pending"}:
+            return "pending", checks
+        if buckets <= {"pass", "skipping"}:
+            return "passed", checks
+        return "unknown", checks
+
+    def _ensure_pull_request(
+        self,
+        *,
+        repository_path: str | Path,
+        branch: str,
+        title: str,
+        body: str,
+        base_branch: str,
+        draft: bool,
+        command_results: list[dict],
+    ) -> str:
+        existing = self._view_pull_request(repository_path, branch, command_results)
+        if existing:
+            return existing
+
+        command = [self.gh_executable, "pr", "create", "--title", title, "--body", body, "--head", branch]
+        if base_branch:
+            command.extend(["--base", base_branch])
+        if draft:
+            command.append("--draft")
+        created = self._run(command, repository_path, command_results)
+        if created.returncode == 0:
+            return _last_nonempty_line(created.stdout)
+
+        return self._view_pull_request(repository_path, branch, command_results)
+
+    def _view_pull_request(
+        self,
+        repository_path: str | Path,
+        branch: str,
+        command_results: list[dict],
+    ) -> str:
+        viewed = self._run(
+            [self.gh_executable, "pr", "view", branch, "--json", "url,number,state"],
+            repository_path,
+            command_results,
+        )
+        if viewed.returncode != 0:
+            return ""
+        payload = self._parse_json_object(viewed.stdout)
+        return str(payload.get("url", ""))
+
+    def _parse_json_object(self, output: str) -> dict:
+        try:
+            payload = json.loads(output)
+        except json.JSONDecodeError:
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    def _parse_json_list(self, output: str) -> list[dict]:
+        try:
+            payload = json.loads(output)
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(payload, list):
+            return []
+        return [item for item in payload if isinstance(item, dict)]
 
     def _run(
         self,
@@ -199,3 +317,8 @@ class GitHubFlow:
             }
         )
         return completed
+
+
+def _last_nonempty_line(output: str) -> str:
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    return lines[-1] if lines else ""
