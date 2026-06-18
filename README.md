@@ -74,6 +74,8 @@ docs/
                               V2.10 task-boundary controls and private GitHub auth preflight.
   20_v2_private_github_source_adapter.md
                               V2.11 private GitHub source adapter.
+  21_v2_acceptance_harness.md
+                              V2.12 local acceptance harness.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -116,6 +118,7 @@ planner/
   task_graph_builder.py      ContextBundle-to-task-graph planning.
 
 autodev/
+  acceptance_run.py          Local end-to-end acceptance harness.
   document_run.py            Document-driven end-to-end dry-run CLI.
   preflight.py               Real execution environment preflight checks.
   demo_run.py                One-line local app generation demo.
@@ -393,6 +396,16 @@ python -m intake.private_github_runtime \
   --project-id proj_private \
   --target-branch main
 ```
+
+## V2.12 Local Acceptance Harness
+
+Run the current local product path end to end:
+
+```bash
+python -m autodev.acceptance_run --output .alchemy/acceptance
+```
+
+The harness creates a fixture repository and development document, builds intake/context/task graph artifacts, starts an async run, collects events, checks delivery, and writes `.alchemy/acceptance/acceptance_report.json`.
 
 Run a smoke execution:
 

@@ -471,3 +471,31 @@
 - Result: passed.
 - Summary: All JSON specs parse after V2.11 changes.
 - Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_acceptance_run tests.test_private_github_runtime tests.test_api_server`
+- Result: passed.
+- Summary: 13 focused tests passed for acceptance harness, private GitHub source runtime, and API behavior.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 65 tests passed after V2.12 local acceptance harness changes.
+- Next verification command: JSON spec parsing.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.12 changes.
+- Next verification command: acceptance CLI smoke.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.acceptance_run --output .alchemy\acceptance`
+- Result: passed.
+- Summary: Acceptance report status was `passed`; checks passed for project creation, intake readiness, task graph generation, async job completion, run completion, event recording, delivery completion, and final gate pass. Report path: `.alchemy/acceptance/acceptance_report.json`.
+- Next verification command: long-running state validation.

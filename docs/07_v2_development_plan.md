@@ -32,6 +32,7 @@ The repository currently contains:
 - A v2.9 browser console, multipart upload path, async run job records, and persisted run controls/events.
 - A v2.10 task-boundary pause/stop hook and optional private GitHub CLI auth preflight.
 - A v2.11 private GitHub source adapter using local `gh` authentication.
+- A v2.12 local acceptance harness for document intake, planning, async execution, events, and delivery reports.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -167,6 +168,7 @@ runtime/
   orchestrator.py           Execute task graphs through worker, retry, evaluation, and delivery gates.
 
 autodev/
+  acceptance_run.py         Run local end-to-end acceptance checks and write an acceptance report.
   document_run.py           Run document-driven intake, context, planning, handoff, and dry-run execution.
   preflight.py              Check local readiness for real Codex and GitHub execution.
 
@@ -380,7 +382,13 @@ DONE requires:
 - Integrate private preparation into document-run and API inspect. Status: done.
 - Add deterministic fake-runner tests. Status: done.
 
-### V2.12: End-To-End Delivery Runtime
+### V2.12: Local Acceptance Harness
+
+- Exercise local fixture project creation, intake, planning, async execution, event retrieval, and delivery report generation. Status: done.
+- Persist `acceptance_report.json`. Status: done.
+- Use deterministic dry-run mode as the final local gate before external validation. Status: done.
+
+### V2.13: End-To-End Delivery Runtime
 
 - Run against a real repository with a real development document.
 - Execute Codex worker tasks.

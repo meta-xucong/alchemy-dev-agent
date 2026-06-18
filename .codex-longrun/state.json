@@ -1,36 +1,41 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.12 controlled end-to-end acceptance harness",
+  "current_phase": "V2.13 controlled real repository validation",
   "phase_status": "advancing",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
     "V2.8 local API and project service runtime",
     "V2.9 browser UI and async runtime",
     "V2.10 task-boundary controls and private GitHub preflight",
-    "V2.11 private GitHub source adapter"
+    "V2.11 private GitHub source adapter",
+    "V2.12 local acceptance harness"
   ],
   "next_actions": [
-    "Commit and push verified V2.11 private GitHub source adapter changes",
-    "Implement a local end-to-end acceptance harness",
-    "Exercise project creation, file intake, planning, async execution, events, and delivery report generation",
-    "Persist a machine-readable acceptance report",
-    "Run focused and full verification"
+    "Commit and push verified V2.12 acceptance harness changes",
+    "Check local real-execution environment for Codex CLI, git, and gh readiness",
+    "Decide whether a safe representative public repository validation can run without user input",
+    "Record exact blockers if real external validation requires a target repository, credentials, or unsafe mutation approval"
   ],
   "tests_run": [
     {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_private_github_runtime tests.test_gh_auth tests.test_execution_preflight tests.test_api_server tests.test_document_run_pipeline",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_acceptance_run tests.test_private_github_runtime tests.test_api_server",
       "result": "passed",
-      "summary": "22 focused tests passed for private GitHub source preparation, gh auth, preflight, API inspect, and document-run behavior."
+      "summary": "13 focused tests passed for acceptance harness, private GitHub runtime, and API behavior."
     },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "63 tests passed across the repository."
+      "summary": "65 tests passed across the repository."
     },
     {
       "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
       "result": "passed",
-      "summary": "All JSON specs parse after V2.11 changes."
+      "summary": "All JSON specs parse after V2.12 changes."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.acceptance_run --output .alchemy\\acceptance",
+      "result": "passed",
+      "summary": "Local acceptance report status passed with 8/8 checks."
     }
   ],
   "known_bugs": [
@@ -51,10 +56,11 @@
     "Task-boundary stop/pause semantics are implemented or a documented blocker prevents implementation",
     "Optional private GitHub access has auth preflight and source adapter or a documented blocker prevents implementation",
     "A local acceptance harness produces a machine-readable delivery-readiness report",
+    "Real external repository validation is completed or blocked with exact environmental requirements",
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-18T12:17:40.7182808+08:00",
+  "last_verified_at": "2026-06-18T12:22:36.8293838+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-18T12:17:40.7182808+08:00"
+  "updated_at": "2026-06-18T12:22:36.8293838+08:00"
 }

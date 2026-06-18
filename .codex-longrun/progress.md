@@ -227,3 +227,13 @@ PY"`
 - Added API `github/inspect` prepare behavior that chooses public or private source runtime based on repository visibility.
 - Updated README, V2 plan, private GitHub docs, and V2 audit.
 - Added deterministic fake-runner tests for private clone, fetch, and auth-blocked behavior.
+
+## 2026-06-18 V2.12 Local Acceptance Harness
+
+- Added `autodev/acceptance_run.py` for a local end-to-end acceptance harness.
+- The harness creates a fixture repository, development document, supporting API contract, ProjectService project, task graph, async run, event retrieval, and delivery summary.
+- Added `acceptance_report.json` with machine-readable pass/fail checks.
+- Added `docs/21_v2_acceptance_harness.md`.
+- Updated README, V2 plan, and V2 audit for the acceptance gate.
+- Added direct harness and CLI tests.
+- Ran the acceptance CLI manually and generated `.alchemy/acceptance/acceptance_report.json` with status `passed`.

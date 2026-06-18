@@ -57,6 +57,7 @@ Current runtime capabilities:
 - V2.9 browser console, multipart uploads, async run job records, persisted run controls, and event retrieval.
 - V2.10 task-boundary pause/stop controls and optional private GitHub CLI auth preflight.
 - V2.11 private GitHub clone/fetch adapter through local `gh` authentication.
+- V2.12 local acceptance harness that verifies intake, planning, async execution, events, and delivery reports.
 
 Planned v2 capabilities:
 
