@@ -1,41 +1,41 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
   "current_phase": "V2.13 controlled real repository validation",
-  "phase_status": "advancing",
+  "phase_status": "blocked",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
     "V2.8 local API and project service runtime",
     "V2.9 browser UI and async runtime",
     "V2.10 task-boundary controls and private GitHub preflight",
     "V2.11 private GitHub source adapter",
-    "V2.12 local acceptance harness"
+    "V2.12 local acceptance harness",
+    "V2.13 real environment validation report"
   ],
   "next_actions": [
-    "Commit and push verified V2.12 acceptance harness changes",
-    "Check local real-execution environment for Codex CLI, git, and gh readiness",
-    "Decide whether a safe representative public repository validation can run without user input",
-    "Record exact blockers if real external validation requires a target repository, credentials, or unsafe mutation approval"
+    "Commit and push V2.13 real environment validation report",
+    "User or environment must repair Codex CLI launchability",
+    "After `codex --version` works from PowerShell, resume controlled real repository validation"
   ],
   "tests_run": [
     {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_acceptance_run tests.test_private_github_runtime tests.test_api_server",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.real_env_check --output .alchemy\\real_env_check",
+      "result": "blocked",
+      "summary": "git, gh, and gh_auth passed; codex failed with Windows access denied."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_real_env_check tests.test_acceptance_run",
       "result": "passed",
-      "summary": "13 focused tests passed for acceptance harness, private GitHub runtime, and API behavior."
+      "summary": "5 focused tests passed for real environment report helpers and acceptance harness."
     },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "65 tests passed across the repository."
+      "summary": "68 tests passed across the repository."
     },
     {
       "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
       "result": "passed",
-      "summary": "All JSON specs parse after V2.12 changes."
-    },
-    {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.acceptance_run --output .alchemy\\acceptance",
-      "result": "passed",
-      "summary": "Local acceptance report status passed with 8/8 checks."
+      "summary": "All JSON specs parse after V2.13 changes."
     }
   ],
   "known_bugs": [
@@ -45,7 +45,15 @@
       "summary": "Browser screenshot capture timed out during V2.9 verification, while DOM and HTTP static tests passed."
     }
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "id": "B-ENV-CODEX",
+      "type": "environment",
+      "description": "Real Codex worker validation is blocked because `codex --version` fails from PowerShell with Windows access denied.",
+      "required_resolution": "Repair the installed Codex Desktop/CLI package, install a separate Codex CLI executable available on PATH, or provide a working executable path via --codex-executable.",
+      "evidence": ".alchemy/real_env_check/real_environment_report.json"
+    }
+  ],
   "done_criteria": [
     "Document-driven intake accepts objective, documents, supporting files, and public/private GitHub repository context",
     "Task graph and runtime handoff are generated from development documents",
@@ -60,7 +68,7 @@
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-18T12:22:36.8293838+08:00",
+  "last_verified_at": "2026-06-18T12:29:01.5964230+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-18T12:22:36.8293838+08:00"
+  "updated_at": "2026-06-18T12:29:01.5964230+08:00"
 }

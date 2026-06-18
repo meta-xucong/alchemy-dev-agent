@@ -499,3 +499,31 @@
 - Result: passed.
 - Summary: Acceptance report status was `passed`; checks passed for project creation, intake readiness, task graph generation, async job completion, run completion, event recording, delivery completion, and final gate pass. Report path: `.alchemy/acceptance/acceptance_report.json`.
 - Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.real_env_check --output .alchemy\real_env_check`
+- Result: blocked as expected.
+- Summary: `git`, `gh`, and `gh_auth` passed. `codex` failed with Windows access denied. Report path: `.alchemy/real_env_check/real_environment_report.json`.
+- Next verification command: focused real-env and acceptance tests.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_real_env_check tests.test_acceptance_run`
+- Result: passed.
+- Summary: 5 focused tests passed for real environment report helpers and acceptance harness.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 68 tests passed after V2.13 real environment validation changes.
+- Next verification command: JSON spec parsing.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.13 changes.
+- Next verification command: long-running state validation.

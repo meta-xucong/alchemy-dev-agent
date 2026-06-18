@@ -76,6 +76,8 @@ docs/
                               V2.11 private GitHub source adapter.
   21_v2_acceptance_harness.md
                               V2.12 local acceptance harness.
+  22_real_environment_validation.md
+                              V2.13 real environment validation and current blocker.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -119,6 +121,7 @@ planner/
 
 autodev/
   acceptance_run.py          Local end-to-end acceptance harness.
+  real_env_check.py          Real git/gh/Codex environment readiness report.
   document_run.py            Document-driven end-to-end dry-run CLI.
   preflight.py               Real execution environment preflight checks.
   demo_run.py                One-line local app generation demo.
@@ -406,6 +409,16 @@ python -m autodev.acceptance_run --output .alchemy/acceptance
 ```
 
 The harness creates a fixture repository and development document, builds intake/context/task graph artifacts, starts an async run, collects events, checks delivery, and writes `.alchemy/acceptance/acceptance_report.json`.
+
+## V2.13 Real Environment Validation
+
+Check whether this machine can run real Codex/GitHub execution:
+
+```bash
+python -m autodev.real_env_check --output .alchemy/real_env_check
+```
+
+Current validation result on this machine is blocked because `codex --version` fails with Windows access denied. See `docs/22_real_environment_validation.md`.
 
 Run a smoke execution:
 

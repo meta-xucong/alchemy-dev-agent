@@ -237,3 +237,14 @@ PY"`
 - Updated README, V2 plan, and V2 audit for the acceptance gate.
 - Added direct harness and CLI tests.
 - Ran the acceptance CLI manually and generated `.alchemy/acceptance/acceptance_report.json` with status `passed`.
+
+## 2026-06-18 V2.13 Real Environment Validation
+
+- Added `autodev/real_env_check.py` to produce a machine-readable real-execution readiness report.
+- Added `docs/22_real_environment_validation.md`.
+- Verified `git` is available.
+- Verified `gh` is available and authenticated as `meta-xucong`.
+- Verified `codex --version` fails from PowerShell with Windows access denied.
+- Wrote `.alchemy/real_env_check/real_environment_report.json` with status `blocked`.
+- Added tests for report payload helpers and token redaction.
+- Marked the long-running task blocked on external Codex CLI launchability, because real worker validation cannot proceed safely without a working CLI executable.
