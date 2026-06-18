@@ -31,7 +31,9 @@ REQUIREMENT_HEADINGS = (
     "user stories",
 )
 
-PATH_PATTERN = re.compile(r"(?P<path>[\w./-]+\.(?:py|js|jsx|ts|tsx|go|rs|java|cs|rb|php|html|css|sql|md|json|ya?ml))")
+PATH_PATTERN = re.compile(
+    r"(?P<path>[\w./-]+\.(?:tsx|jsx|yaml|yml|py|js|ts|go|rs|java|cs|rb|php|html|css|sql|md|json))(?![\w.-])"
+)
 LEADING_MARKER_PATTERN = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 
 

@@ -96,6 +96,7 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(requirements[0]["priority"], "must")
         self.assertIn("src/api/workspaces.ts", requirements[0]["related_files"])
         self.assertIn("src/pages/dashboard.tsx", requirements[1]["related_files"])
+        self.assertNotIn("src/pages/dashboard.ts", requirements[1]["related_files"])
         self.assertIn("tests/workspaces.test.ts", requirements[2]["related_files"])
         self.assertEqual(requirements[0]["acceptance_criteria"][0], "Users can create a workspace.")
         self.assertEqual(bundle_payload["document_index"]["documents"][0]["key_requirements"][0], "Must add workspace API support in src/api/workspaces.ts.")

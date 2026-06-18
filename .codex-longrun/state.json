@@ -1,30 +1,30 @@
 {
-  "objective": "Implement V2.5 plan-to-execution handoff runtime for document-driven task graphs",
-  "current_phase": "V2.5 plan-to-execution handoff runtime",
+  "objective": "Implement V2.6 document-driven end-to-end dry-run CLI",
+  "current_phase": "V2.6 document-driven dry-run CLI",
   "phase_status": "done",
   "completed_phases": [
-    "Runtime handoff contract",
-    "Worker package preparation",
-    "Dry-run execution bridge",
-    "Documentation and verification"
+    "Document run pipeline",
+    "CLI verification",
+    "Documentation and audit",
+    "Delivery"
   ],
   "next_actions": [],
   "tests_run": [
-    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_runtime_handoff",
+    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_run_pipeline",
+    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_to_plan tests.test_document_run_pipeline",
     "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
     "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\""
   ],
   "known_bugs": [],
   "blockers": [],
   "done_criteria": [
-    "ProjectBrief, ContextBundle, and TaskGraph convert into RuntimeState",
-    "Generated task nodes convert into CodexWorkerInput packages",
-    "Document-driven graphs can run through Orchestrator dry-run execution",
-    "Release/GitHub evidence is recorded for the existing DONE gate",
+    "A single CLI command runs the document-driven dry-run pipeline",
+    "The report includes ProjectBrief, ContextBundle, TaskGraph, worker packages, RuntimeState, and final status",
+    "The generated runtime reaches DONE in deterministic dry-run mode",
     "Relevant tests and contract checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-18T10:44:58+08:00",
-  "created_at": "2026-06-18T10:04:44+08:00",
-  "updated_at": "2026-06-18T10:44:58+08:00"
+  "last_verified_at": "2026-06-18T11:01:35+08:00",
+  "created_at": "2026-06-18T10:49:00+08:00",
+  "updated_at": "2026-06-18T11:01:35+08:00"
 }

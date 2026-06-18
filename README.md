@@ -63,6 +63,8 @@ docs/
                               V2.4 requirement extraction and task planning runtime.
   14_v2_plan_to_execution_handoff.md
                               V2.5 runtime handoff and worker package bridge.
+  15_v2_document_run_cli.md
+                              V2.6 document-driven dry-run CLI.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -102,6 +104,7 @@ planner/
   task_graph_builder.py      ContextBundle-to-task-graph planning.
 
 autodev/
+  document_run.py            Document-driven end-to-end dry-run CLI.
   demo_run.py                One-line local app generation demo.
   agents.py                  Deterministic local agent cluster for demo delivery.
   game_generator.py          Original retro platformer artifact generator.
@@ -113,6 +116,8 @@ tests/
   test_repository_context.py Repository context runtime tests.
   test_document_to_plan.py   Requirement extraction and task graph planning tests.
   test_runtime_handoff.py    Plan-to-execution handoff tests.
+  test_document_run_pipeline.py
+                              Document-driven dry-run CLI tests.
 ```
 
 ## Runtime
@@ -251,6 +256,21 @@ Implemented handoff capabilities:
 - Include objective, assigned agent, upstream task IDs, acceptance criteria, related files, and verification commands in worker packages.
 - Append a release task when needed so the existing DONE gate can record GitHub or dry-run delivery evidence.
 - Run generated document-driven graphs through the `Orchestrator` dry-run loop to DONE.
+
+## V2.6 Document-Driven Dry-Run CLI
+
+The document-run CLI provides a single local command for the document-driven pipeline:
+
+```bash
+python -m autodev.document_run \
+  --objective "Add workspace support" \
+  --document workspace_feature_spec.md \
+  --repository https://github.com/example/saas-dashboard \
+  --repository-path .alchemy/projects/proj_workspace_support/repo \
+  --output .alchemy/document_run
+```
+
+The command emits a JSON report containing ProjectBrief, ContextBundle, TaskGraph, worker packages, RuntimeState, and final dry-run status. It proves the contract path can execute end to end without requiring credentials or mutating a remote repository.
 
 Run a smoke execution:
 

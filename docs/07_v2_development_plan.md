@@ -26,6 +26,7 @@ The repository currently contains:
 - A v2.3 public GitHub source runtime for clone, fetch, and deterministic branch checkout.
 - A v2.4 document-to-plan runtime for deterministic requirement extraction, traceability, and task graph generation.
 - A v2.5 plan-to-execution handoff runtime for RuntimeState creation, worker package generation, and orchestrator dry-run execution.
+- A v2.6 document-driven dry-run CLI that emits a complete integration report.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -157,6 +158,9 @@ planner/
 runtime/
   handoff.py                Convert ProjectBrief, ContextBundle, and TaskGraph into RuntimeState and worker packages.
   orchestrator.py           Execute task graphs through worker, retry, evaluation, and delivery gates.
+
+autodev/
+  document_run.py           Run document-driven intake, context, planning, handoff, and dry-run execution.
 
 server/
   api.py                    Project, file upload, GitHub inspect, plan, run, and state endpoints.
@@ -323,7 +327,14 @@ DONE requires:
 - Run generated document-driven graphs through orchestrator dry-run execution. Status: done.
 - Add tests for state handoff, worker package generation, and dry-run DONE. Status: done.
 
-### V2.6: UI And API Runtime
+### V2.6: Document-Driven Dry-Run CLI
+
+- Implement one local command for document-driven dry-run execution. Status: done.
+- Emit ProjectBrief, ContextBundle, TaskGraph, worker packages, RuntimeState, and final status. Status: done.
+- Persist `document_run_report.json` and runtime `state.json`. Status: done.
+- Add CLI and pipeline tests. Status: done.
+
+### V2.7: UI And API Runtime
 
 - Implement project intake API.
 - Implement upload and repository inspection API.
@@ -331,7 +342,7 @@ DONE requires:
 - Implement execution event stream.
 - Implement UI screens for the document-driven flow.
 
-### V2.7: End-To-End Delivery Runtime
+### V2.8: End-To-End Delivery Runtime
 
 - Run against a real repository with a real development document.
 - Execute Codex worker tasks.

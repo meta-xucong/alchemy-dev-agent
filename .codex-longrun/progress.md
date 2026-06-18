@@ -101,6 +101,16 @@
 - Added `docs/14_v2_plan_to_execution_handoff.md`.
 - Updated README, V2 plan, and V2 audit for V2.5 status.
 - Added `tests/test_runtime_handoff.py` covering state handoff, worker packages, and dry-run orchestrator execution to DONE.
+## 2026-06-18 V2.6 Document-Driven Dry-Run CLI
+
+- Added `autodev/document_run.py` for a single-command document-driven dry-run pipeline.
+- The CLI now builds ProjectBrief, ContextBundle, TaskGraph, RuntimeState, worker packages, orchestrator dry-run state, and final report.
+- Added `document_run_report.json` output with all major contract payloads.
+- Added lazy autodev exports so `python -m autodev.document_run` runs without module preload warnings.
+- Fixed requirement path extraction so `.tsx` and `.jsx` paths are not truncated by `.ts` or `.js` alternatives.
+- Added `docs/15_v2_document_run_cli.md`.
+- Updated README, V2 plan, and V2 audit for V2.6 status.
+- Added `tests/test_document_run_pipeline.py` and expanded document-to-plan path matching coverage.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0

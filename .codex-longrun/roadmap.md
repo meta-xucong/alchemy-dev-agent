@@ -1,28 +1,26 @@
 # Long-Running Roadmap
 
-Objective: Implement V2.5 plan-to-execution handoff runtime for document-driven task graphs.
+Objective: Implement V2.6 document-driven end-to-end dry-run CLI.
 
-## Phase 1: Runtime Handoff Contract
+## Phase 1: Document Run Pipeline
 
-- Convert `ProjectBrief`, `ContextBundle`, and generated `TaskGraph` into a `RuntimeState`.
-- Preserve repository metadata, blockers, objective, task graph, and done criteria.
-- Avoid creating a second runtime state model.
+- Add a CLI that accepts objective, primary document, attachments, repository URL, and optional local repository path.
+- Build ProjectBrief, ContextBundle, TaskGraph, RuntimeState, worker packages, and orchestrator dry-run result.
+- Emit a deterministic JSON report with every major contract payload.
 
-## Phase 2: Worker Package Preparation
+## Phase 2: CLI Verification
 
-- Build `CodexWorkerInput` packages from generated task nodes.
-- Include objective, task description, acceptance criteria, repository path, agent context, relevant files, commands, and constraints.
-- Support deterministic inspection before task execution.
+- Add tests for document-driven CLI execution against a synthetic local repository.
+- Verify generated report includes ProjectBrief, ContextBundle, TaskGraph, RuntimeState, worker packages, and DONE result.
+- Preserve existing runtime and one-line demo behavior.
 
-## Phase 3: Dry-Run Execution Bridge
+## Phase 3: Documentation And Audit
 
-- Run document-driven generated graphs through the existing `Orchestrator` in dry-run mode.
-- Persist state to `.alchemy/state.json`.
-- Verify DONE gate behavior with generated graph tasks and GitHub dry-run evidence.
+- Add V2.6 documentation.
+- Update README, V2 plan, and alignment audit to distinguish dry-run end-to-end from real Codex execution.
 
-## Phase 4: Documentation And Verification
+## Phase 4: Delivery
 
-- Add V2.5 handoff documentation.
-- Update README, V2 plan, and audit docs.
-- Add tests for handoff state, worker packages, and dry-run execution.
-- Run full verification, commit, push, and notify.
+- Run focused and full test suites.
+- Validate JSON specs and long-running state.
+- Commit, push, and notify.

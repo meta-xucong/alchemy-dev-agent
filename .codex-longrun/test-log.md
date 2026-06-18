@@ -318,3 +318,30 @@
 - Result: passed.
 - Summary: All JSON specs parse after V2.5 handoff changes.
 - Next verification command: long-running state validation.
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_run_pipeline`
+- Result: failed, then passed after fixes.
+- Summary: Initial assertions checked output after temporary cleanup and CLI had a module preload warning from eager package exports. Fixed test lifecycle and changed autodev exports to lazy loading.
+- Next verification command: focused document pipeline and planner tests.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_to_plan tests.test_document_run_pipeline`
+- Result: passed.
+- Summary: 4 tests passed, including document path extraction, document-run pipeline, and CLI report generation.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 41 tests passed across runtime, intake, GitHub source, repository context, document-to-plan, handoff, document-run CLI, planner, and autodev modules.
+- Next verification command: JSON spec parsing and long-running state validation.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.6 document-run CLI changes.
+- Next verification command: long-running state validation.
