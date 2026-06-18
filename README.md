@@ -582,6 +582,17 @@ test suite and JSON spec parsing for pushes and pull requests.
 
 See `docs/27_real_delivery_validation.md`.
 
+## V2.19 Representative Real Delivery Probe
+
+V2.19 validates the document-driven real worker path with a bounded
+documentation task. The run used a local development document, an isolated
+worktree, a real Codex worker for the implementation task, deterministic static
+document inspection for the verification task, deterministic review evidence,
+and dry-run GitHub delivery evidence. The runtime reached `DONE condition met`
+with a final gate score of `0.88` while the source checkout stayed clean.
+
+See `docs/28_representative_delivery_probe.md`.
+
 Run a smoke execution:
 
 ```bash

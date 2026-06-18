@@ -80,21 +80,21 @@ Objective: Continue autonomous development until the document-driven agent syste
 - Rebasing the validation PR onto the fix produced GitHub Actions `CI / tests` success.
 - Added configurable CI wait polling to avoid early `unknown` check state.
 
-## Current Phase: V2.19 Representative Real Document-Driven Delivery Run
+### V2.19 Representative Real Document-Driven Delivery Run
 
-Goal: prove the document-driven pipeline can drive a controlled real Codex worker run against the current repository, preserve task boundaries through an isolated worktree, collect delivery evidence, and expose any remaining gaps before a broader v2 stabilization pass.
+- Proved the document-driven pipeline can drive a controlled real Codex worker run against the current repository.
+- Real Codex created `docs/28_representative_delivery_probe.md` inside an isolated worktree.
+- Source checkout stayed clean while task-local edits remained in the worktree.
+- Added deterministic static document verification and deterministic review so read-only tasks do not drift into unrelated Codex debugging.
+- The representative run reached `DONE condition met` with final gate score `0.88`.
+
+## Current Phase: V2.20 Delivery Stabilization And Acceptance Closure
+
+Goal: close the current long-running objective if the repository is now acceptance-ready, or record the exact remaining gap as a blocker or next targeted phase.
 
 Planned actions:
 
-- Create a small, controlled development document for the current repository.
-- Run `autodev.document_run` with real Codex, explicit Codex CLI path, isolated worktree, bounded iterations, and safe file boundaries.
-- Inspect generated state, worker packages, git status, and task evidence.
-- If the representative run produces a real code or documentation change worth keeping, route it through the GitHub delivery flow rather than mutating `master` directly.
-- Fix any planner, worker, recovery, CI, or delivery-report issues exposed by the run.
-- Verify with focused tests, full tests, acceptance harness, JSON specs, diff checks, and long-running state validation.
-
-## Next Phase Candidate: V2.20 Delivery Stabilization
-
-- Reduce gaps found during V2.19 into deterministic contracts and tests.
-- Improve final delivery reporting for real runs.
-- Decide whether the repository is ready to mark the current objective done or needs another targeted stabilization phase.
+- Run final local acceptance and full unit suites.
+- Validate JSON specs, diff hygiene, and long-running state.
+- Confirm GitHub push status and inspect relevant CI/PR evidence.
+- Decide whether the current objective can be marked `done` or requires one more targeted stabilization phase.

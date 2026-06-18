@@ -1,7 +1,7 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.19 representative real document-driven delivery run",
-  "phase_status": "advancing",
+  "current_phase": "Acceptance ready",
+  "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
     "V2.8 local API and project service runtime",
@@ -14,12 +14,13 @@
     "V2.15 real Codex worker file-boundary hardening",
     "V2.16 isolated real-run worktree lifecycle",
     "V2.17 resumable real worker execution and recovery controls",
-    "V2.18 controlled real GitHub PR and CI delivery validation"
+    "V2.18 controlled real GitHub PR and CI delivery validation",
+    "V2.19 representative real document-driven delivery run",
+    "V2.20 delivery stabilization and acceptance closure"
   ],
   "next_actions": [
-    "Run a representative document-driven real Codex execution on a controlled target repository using the current repository as the source of truth.",
-    "Validate that real worker output, isolated worktree behavior, GitHub PR evidence, and CI evidence remain coherent across the full pipeline.",
-    "Tighten any remaining planner, worker-boundary, or delivery-report gaps found by the representative run."
+    "User review and acceptance.",
+    "Optional next roadmap: merge or close validation PR #2, add real GitHub PR delivery for representative document-run changes, and expand production-grade task scheduling."
   ],
   "tests_run": [
     {
@@ -196,6 +197,71 @@
       "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
       "result": "passed",
       "summary": "89 tests passed after adding configurable CI wait polling to the real delivery validation path."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.CodexWorkerTests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_real_codex_missing_executable_blocks_before_execution tests.test_worktree_runtime",
+      "result": "passed",
+      "summary": "15 focused tests passed after real Codex output decoding was hardened for Windows byte streams."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "90 tests passed after real Codex output decoding changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_document_to_plan tests.test_runtime_handoff tests.test_document_run_pipeline",
+      "result": "passed",
+      "summary": "9 focused planner/handoff/document-run tests passed after keeping document task file boundaries focused and grouping same-file requirements."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "91 tests passed after document file-boundary grouping and documentation target classification fixes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.OrchestratorTests.test_static_document_verification_and_review_do_not_call_worker tests.test_document_to_plan tests.test_runtime_handoff tests.test_document_run_pipeline",
+      "result": "passed",
+      "summary": "10 focused tests passed after deterministic static document verification and review were moved into the runtime."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "92 tests passed after deterministic static document verification and review implementation."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.document_run --objective \"Validate V2.19 representative document-driven delivery\" --document .alchemy\\v2_19_representative_development_document.md --repository https://github.com/meta-xucong/alchemy-dev-agent --repository-path . --output .alchemy\\v2_19_representative_run_deterministic --real-codex --codex-executable \"D:\\AI\\Tools\\CodexCLI\\bin\\codex.exe\" --max-worker-seconds 600 --max-iterations 8 --worktree-branch-prefix agent/v2-19-representative-run",
+      "result": "passed",
+      "summary": "Representative real document-driven run reached DONE with final gate score 0.88; real Codex created docs/28_representative_delivery_probe.md inside an isolated worktree, deterministic static verification and review passed, and source checkout stayed clean."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_20",
+      "result": "passed",
+      "summary": "Acceptance report status passed with 8/8 checks during V2.20 closure."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "92 tests passed during V2.20 final verification."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
+      "result": "passed",
+      "summary": "All JSON specs parsed during V2.20 final verification."
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "summary": "No whitespace errors reported during V2.20 final verification; only CRLF normalization warnings on long-running state files."
+    },
+    {
+      "command": "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
+      "result": "passed",
+      "summary": "Long-running state schema validated during V2.20 final verification."
+    },
+    {
+      "command": "gh run list --branch master --limit 5 --json status,conclusion,headSha,displayTitle,url,workflowName,createdAt",
+      "result": "passed",
+      "summary": "Latest five master GitHub Actions CI runs were successful, including commit 705af9b."
     }
   ],
   "known_bugs": [
@@ -220,7 +286,7 @@
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-19T01:24:20.006471+08:00",
+  "last_verified_at": "2026-06-19T02:58:02.009243+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T01:24:20.006471+08:00"
+  "updated_at": "2026-06-19T02:58:02.009243+08:00"
 }

@@ -306,3 +306,22 @@ PY"`
 - Rebasing the validation PR branch onto the fix produced GitHub Actions `CI / tests` success.
 - Added configurable CI wait polling so future validation reports can wait for terminal PR check status.
 - Advanced the long-running phase to V2.19 representative real document-driven delivery run.
+
+## 2026-06-19 V2.19 Representative Real Document-Driven Delivery
+
+- Ran a representative document-driven real Codex delivery probe against the current repository.
+- The first attempts exposed three real issues: Windows Codex output decoding, planner file-boundary drift for document requirements, and read-only verification tasks drifting into full unittest/debug work.
+- Fixed real Codex output capture to use bytes plus UTF-8 replacement decoding.
+- Fixed document planning so acceptance-target files guide same-document requirements, same-file requirements are grouped, documentation target classification wins before verification keywords, and documentation-only plans use static checks.
+- Added deterministic runtime execution for static document verification and review tasks so verification evidence is bounded and does not ask Codex to improvise unrelated test commands.
+- Re-ran the representative real document-run successfully: real Codex created `docs/28_representative_delivery_probe.md` in an isolated worktree, deterministic verification and review passed, dry-run release evidence was recorded, final gate score was 0.88, and the source checkout stayed clean.
+- Advanced the long-running phase to V2.20 delivery stabilization and acceptance closure.
+
+## 2026-06-19 V2.20 Delivery Stabilization And Acceptance Closure
+
+- Ran final local acceptance harness: 8/8 checks passed.
+- Ran full unit suite: 92 tests passed.
+- Validated JSON specs, whitespace diff hygiene, and long-running state schema.
+- Checked GitHub Actions on `master`: the latest five runs are successful, including commit `705af9b`.
+- Added `docs/28_representative_delivery_probe.md` as the formalized artifact from the successful V2.19 representative real worker run.
+- Marked the long-running objective as acceptance ready / done.

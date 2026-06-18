@@ -723,3 +723,80 @@
 - Result: passed.
 - Summary: 89 tests passed after adding configurable CI wait polling to V2.18 delivery validation.
 - Next verification command: JSON specs, diff check, and long-running state validation.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 90 tests passed after hardening real Codex output decoding for Windows byte streams.
+- Next verification command: planner/handoff regression tests.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 91 tests passed after fixing document requirement file-boundary grouping and documentation-target classification.
+- Next verification command: deterministic static verification tests.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.OrchestratorTests.test_static_document_verification_and_review_do_not_call_worker tests.test_document_to_plan tests.test_runtime_handoff tests.test_document_run_pipeline`
+- Result: passed.
+- Summary: 10 focused tests passed for deterministic static document verification, deterministic review, planner grouping, handoff, and document-run contracts.
+- Next verification command: full unit suite.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 92 tests passed after deterministic static document verification and review implementation.
+- Next verification command: representative real Codex document-run.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.document_run --objective "Validate V2.19 representative document-driven delivery" --document .alchemy\v2_19_representative_development_document.md --repository https://github.com/meta-xucong/alchemy-dev-agent --repository-path . --output .alchemy\v2_19_representative_run_deterministic --real-codex --codex-executable "D:\AI\Tools\CodexCLI\bin\codex.exe" --max-worker-seconds 600 --max-iterations 8 --worktree-branch-prefix agent/v2-19-representative-run`
+- Result: passed.
+- Summary: Representative real document-run reached `DONE condition met` with final gate score 0.88. Real Codex created `docs/28_representative_delivery_probe.md` inside an isolated worktree; deterministic static verification, deterministic review, and dry-run release evidence completed; source checkout stayed clean.
+- Next verification command: acceptance harness, JSON specs, diff check, and long-running state validation.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_20`
+- Result: passed.
+- Summary: Acceptance report status passed with 8/8 checks during V2.20 closure.
+- Next verification command: full unit suite.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 92 tests passed during V2.20 final verification.
+- Next verification command: JSON specs, diff check, state validation, and GitHub Actions status.
+
+## 2026-06-19
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parsed during V2.20 final verification.
+- Next verification command: diff check.
+
+## 2026-06-19
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported; Git emitted CRLF normalization warnings for long-running state files only.
+- Next verification command: long-running state validation.
+
+## 2026-06-19
+
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed.
+- Summary: Long-running state schema validated.
+- Next verification command: GitHub Actions status check.
+
+## 2026-06-19
+
+- Command: `gh run list --branch master --limit 5 --json status,conclusion,headSha,displayTitle,url,workflowName,createdAt`
+- Result: passed.
+- Summary: Latest five master GitHub Actions CI runs were successful, including commit `705af9b`.
+- Next verification command: none; objective is acceptance ready.
