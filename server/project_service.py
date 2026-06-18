@@ -13,7 +13,7 @@ from intake import ProjectBriefBuilder
 from intake.models import FileRole, ProjectBrief, utc_now_iso
 from planner import TaskGraphBuilder
 
-from .jobs import JobStore, start_background_job
+from .jobs import JobExecutionController, JobStore, start_background_job
 
 
 class ApiError(Exception):
@@ -310,10 +310,13 @@ class ProjectService:
         def worker() -> None:
             try:
                 job_store.transition(run_id, "running", "Run started.", source="runtime")
-                result = self._execute_run(record, run_id, run_payload)
+                result = self._execute_run(record, run_id, run_payload, controller=JobExecutionController(job_store, run_id))
                 result_path = self.project_dir(project_id) / "runs" / run_id / "run.json"
-                job_store.set_result(run_id, result_path, project_status_for_run(str(result.get("status", ""))))
-                self._update_project_status(record, project_status_for_run(str(result.get("status", ""))))
+                job_status = project_status_for_run(str(result.get("status", "")))
+                if result.get("runtime_state", {}).get("iteration_history", []) and has_history_type(result, "run_paused"):
+                    job_status = "paused"
+                job_store.set_result(run_id, result_path, job_status)
+                self._update_project_status(record, job_status)
             except Exception as exc:  # pragma: no cover - thread boundary defense.
                 job_store.transition(run_id, "failed", "Run failed.", source="runtime", error=str(exc))
                 self._update_project_status(record, "failed")
@@ -436,7 +439,14 @@ class ProjectService:
     def job_store(self, project_id: str) -> JobStore:
         return JobStore(self.project_dir(project_id))
 
-    def _execute_run(self, record: ProjectRecord, run_id: str, run_payload: dict[str, Any]) -> dict[str, object]:
+    def _execute_run(
+        self,
+        record: ProjectRecord,
+        run_id: str,
+        run_payload: dict[str, Any],
+        *,
+        controller: Any = None,
+    ) -> dict[str, object]:
         output_dir = self.project_dir(record.project_id) / "runs" / run_id
         result = DocumentRunPipeline().run(
             objective=record.objective,
@@ -451,6 +461,7 @@ class ProjectService:
             real_github=bool(run_payload.get("real_github", False)),
             codex_executable=str(run_payload.get("codex_executable", "codex")),
             max_worker_seconds=int(run_payload.get("max_worker_seconds", 1800)),
+            controller=controller,
         )
         result_payload = result.to_dict()
         result_payload["run_id"] = run_id
@@ -587,3 +598,13 @@ def unique_upload_path(upload_dir: Path, filename: str) -> Path:
 
 def parse_bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def has_history_type(result: dict[str, object], event_type: str) -> bool:
+    runtime_state = result.get("runtime_state", {})
+    if not isinstance(runtime_state, dict):
+        return False
+    history = runtime_state.get("iteration_history", runtime_state.get("execution_history", []))
+    if not isinstance(history, list):
+        return False
+    return any(isinstance(item, dict) and item.get("type") == event_type for item in history)

@@ -11,6 +11,7 @@ from typing import Sequence
 from context import ContextBundleBuilder
 from intake import GitHubSourceRuntime, ProjectBriefBuilder
 from planner import TaskGraphBuilder
+from runtime.control import ExecutionController
 from runtime import CodexWorkerAdapter, GitHubFlow, Orchestrator, RuntimeHandoff, StateManager
 
 from .preflight import ExecutionPreflight
@@ -53,6 +54,7 @@ class DocumentRunPipeline:
         attachments: Sequence[str | Path] = (),
         repository_url: str = "",
         repository_path: str | Path | None = None,
+        repository_visibility: str = "public",
         output_dir: str | Path = ".alchemy/document_run",
         max_iterations: int = 50,
         prepare_repository: bool = False,
@@ -60,6 +62,7 @@ class DocumentRunPipeline:
         real_github: bool = False,
         codex_executable: str = "codex",
         max_worker_seconds: int = 1800,
+        controller: ExecutionController | None = None,
     ) -> DocumentRunResult:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
@@ -69,6 +72,7 @@ class DocumentRunPipeline:
             documents=documents,
             attachments=attachments,
             repository_url=repository_url,
+            repository_visibility=repository_visibility,  # type: ignore[arg-type]
         )
         if brief.repository and repository_path:
             brief.repository.local_path = str(repository_path)
@@ -93,6 +97,7 @@ class DocumentRunPipeline:
             real_codex=real_codex,
             real_github=real_github,
             codex_executable=codex_executable,
+            private_repository=bool(brief.repository and (brief.repository.visibility == "private" or brief.repository.gh_auth_required)),
         )
         if preflight.status == "blocked":
             state.blockers.append(
@@ -118,6 +123,7 @@ class DocumentRunPipeline:
                 repository_path=state.repository.get("path", "."),
                 worker=worker,
                 github_flow=github_flow,
+                controller=controller,
             )
             final_state = orchestrator.run(
                 state.objective,
@@ -152,6 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--attachment", action="append", default=[], help="Supporting file path.")
     parser.add_argument("--repository", default="", help="GitHub repository URL.")
     parser.add_argument("--repository-path", default="", help="Local repository checkout path to index and execute against.")
+    parser.add_argument("--repository-visibility", choices=["public", "private", "unknown"], default="public")
     parser.add_argument("--output", default=".alchemy/document_run", help="Output directory for state and report.")
     parser.add_argument("--max-iterations", type=int, default=50)
     parser.add_argument("--prepare-repository", action="store_true", help="Clone/fetch the public GitHub repository before context indexing when no local path is provided.")
@@ -170,6 +177,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         attachments=args.attachment,
         repository_url=args.repository,
         repository_path=args.repository_path or None,
+        repository_visibility=args.repository_visibility,
         output_dir=args.output,
         max_iterations=args.max_iterations,
         prepare_repository=args.prepare_repository,

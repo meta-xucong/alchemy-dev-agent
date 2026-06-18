@@ -429,3 +429,24 @@
 - Result: passed with caveat.
 - Summary: DOM showed title `Alchemy Dev Agent Console`, API status `API Online`, file upload input, Create/Upload/Plan/Run/Pause/Resume/Stop buttons, and Intake/Task Graph/Events/Delivery panels. Screenshot capture timed out in the browser tool; HTTP static tests and DOM assertions passed. Port `8765` was occupied by another local service, so verification used `18765`.
 - Next verification command: state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_gh_auth tests.test_execution_preflight tests.test_runtime tests.test_api_server tests.test_document_run_pipeline`
+- Result: failed, then passed.
+- Summary: Initial run exposed a Windows text decoding edge in real `gh auth status` execution. Fixed GitHub auth preflight to tolerate `None` outputs and `UnicodeDecodeError`, and made private preflight tests deterministic with a fake runner. Final focused run passed 39 tests.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 59 tests passed after V2.10 task-boundary controls and private GitHub auth preflight.
+- Next verification command: JSON spec parsing.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.10 changes.
+- Next verification command: long-running state validation.

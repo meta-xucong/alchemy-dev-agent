@@ -1,39 +1,35 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.10 task-boundary controls and private GitHub preflight",
+  "current_phase": "V2.11 private GitHub source adapter",
   "phase_status": "advancing",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
     "V2.8 local API and project service runtime",
-    "V2.9 browser UI and async runtime"
+    "V2.9 browser UI and async runtime",
+    "V2.10 task-boundary controls and private GitHub preflight"
   ],
   "next_actions": [
-    "Commit and push verified V2.9 browser UI and async runtime changes",
-    "Implement task-boundary pause/stop checks before worker dispatch",
-    "Record stopped runs as blocked delivery states with audit evidence",
-    "Add optional private GitHub gh-auth preflight without storing tokens",
+    "Commit and push verified V2.10 task-boundary and gh-auth changes",
+    "Implement optional private repository clone/fetch through local gh when auth preflight passes",
+    "Integrate private source preparation into document-run and API source inspection where safe",
+    "Add deterministic fake-runner tests for private source behavior",
     "Run focused and full verification"
   ],
   "tests_run": [
     {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_api_server tests.test_execution_preflight tests.test_document_run_pipeline",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_gh_auth tests.test_execution_preflight tests.test_runtime tests.test_api_server tests.test_document_run_pipeline",
       "result": "passed",
-      "summary": "12 focused tests passed across local API, preflight, and document-run behavior."
+      "summary": "39 focused tests passed across gh auth, preflight, runtime controls, API, and document-run behavior."
     },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "51 tests passed across the repository."
+      "summary": "59 tests passed across the repository."
     },
     {
       "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
       "result": "passed",
-      "summary": "All JSON specs parse after V2.9 changes."
-    },
-    {
-      "command": "Browser DOM smoke at http://127.0.0.1:18765/",
-      "result": "passed_with_caveat",
-      "summary": "Console DOM showed API Online, upload input, workflow buttons, and core panels. Screenshot capture timed out in the browser tool."
+      "summary": "All JSON specs parse after V2.10 changes."
     }
   ],
   "known_bugs": [
@@ -52,10 +48,11 @@
     "Browser UI supports the document-driven workflow or a documented blocker prevents implementation",
     "Asynchronous execution control is implemented or a documented blocker prevents implementation",
     "Task-boundary stop/pause semantics are implemented or a documented blocker prevents implementation",
+    "Optional private GitHub access has auth preflight and source adapter or a documented blocker prevents implementation",
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-18T11:58:55.9190795+08:00",
+  "last_verified_at": "2026-06-18T12:11:30.9909074+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-18T11:58:55.9190795+08:00"
+  "updated_at": "2026-06-18T12:11:30.9909074+08:00"
 }

@@ -55,6 +55,7 @@ Current runtime capabilities:
 - V2.7 real execution flags, preflight checks, and optional public source preparation in the document-run CLI.
 - V2.8 local JSON API and persistent project service for project creation, file references, intake, planning, execution runs, run events, and delivery summaries.
 - V2.9 browser console, multipart uploads, async run job records, persisted run controls, and event retrieval.
+- V2.10 task-boundary pause/stop controls and optional private GitHub CLI auth preflight.
 
 Planned v2 capabilities:
 
@@ -75,12 +76,12 @@ The v2 plan clearly separates implemented runtime capabilities from planned prod
 The current codebase does not yet implement:
 
 - Deep PDF/DOCX document parser pipeline.
-- Private GitHub source retrieval before planning.
+- Private GitHub clone/fetch after successful `gh` auth preflight.
 - Semantic requirement contradiction detection.
 - Semantic code summarization beyond deterministic file/path matching.
 - Proven real Codex worker execution across representative target repositories.
 - Proven real GitHub PR and CI execution across representative target repositories.
-- Hard task-boundary cancellation and safe real Codex subprocess cancellation.
+- Safe real Codex subprocess cancellation after dispatch.
 - Server-sent events or WebSocket live event streaming.
 
 It does include a deterministic local demo for one-line game generation, but that path is intentionally narrow and should not be treated as proof of general autonomous software delivery.

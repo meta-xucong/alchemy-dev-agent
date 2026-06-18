@@ -30,6 +30,7 @@ The repository currently contains:
 - A v2.7 real execution preflight layer and configurable document-run adapters.
 - A v2.8 local API/project service runtime for project intake, planning, execution runs, event retrieval, and delivery summaries.
 - A v2.9 browser console, multipart upload path, async run job records, and persisted run controls/events.
+- A v2.10 task-boundary pause/stop hook and optional private GitHub CLI auth preflight.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -148,7 +149,7 @@ intake/
   attachment_indexer.py     Hash, catalog, and summarize supporting files.
   github_source.py          Normalize GitHub repository metadata.
   github_runtime.py         Clone, fetch, and checkout public GitHub repositories.
-  gh_auth.py                Optional: check local GitHub CLI authentication and account state for private repositories.
+  gh_auth.py                Check local GitHub CLI authentication and account state for optional private repositories.
 
 context/
   repository_indexer.py     Build file tree, language, package, test, and CI metadata.
@@ -159,6 +160,7 @@ planner/
   task_graph_builder.py     Build task graph nodes using the existing task graph schema.
 
 runtime/
+  control.py                Task-boundary execution controls.
   handoff.py                Convert ProjectBrief, ContextBundle, and TaskGraph into RuntimeState and worker packages.
   orchestrator.py           Execute task graphs through worker, retry, evaluation, and delivery gates.
 
@@ -364,10 +366,10 @@ DONE requires:
 
 ### V2.10: Task-Boundary Cancellation And Private GitHub Runtime
 
-- Implement safe task-boundary pause before dispatching each worker task.
-- Implement stop behavior that prevents further task dispatch and records a blocked delivery state.
-- Implement safe cancellation for real Codex subprocesses where possible.
-- Implement optional private GitHub source retrieval through local `gh` authentication.
+- Implement safe task-boundary pause before dispatching each worker task. Status: done.
+- Implement stop behavior that prevents further task dispatch and records a blocked delivery state. Status: done.
+- Implement safe cancellation for real Codex subprocesses where possible. Status: pending.
+- Implement optional private GitHub source retrieval through local `gh` authentication. Status: partial; auth preflight is done, clone/fetch remains pending.
 
 ### V2.11: End-To-End Delivery Runtime
 

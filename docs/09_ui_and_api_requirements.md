@@ -247,11 +247,16 @@ V2.9 adds:
 - `POST /projects/{project_id}/runs/{run_id}/resume`.
 - `POST /projects/{project_id}/runs/{run_id}/stop`.
 
+V2.10 adds task-boundary semantics for those controls:
+
+- pause stops before the next worker dispatch and records `run_paused`.
+- stop prevents the next worker dispatch and records blocker `B-RUN-STOPPED`.
+
 Still not implemented:
 
 - `PATCH /projects/{project_id}/files/{file_id}`
 - `DELETE /projects/{project_id}/files/{file_id}`
-- hard worker cancellation
+- cancellation of an already-running worker subprocess
 - server-sent events or WebSocket live streaming
 
 ## Data Objects

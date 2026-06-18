@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .agent_router import AgentRouter
+from .control import ExecutionController, NoopExecutionController
 from .codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult
 from .evaluator import EvaluationResult, Evaluator
 from .github_flow import GitHubFlow
@@ -24,6 +25,7 @@ class Orchestrator:
         worker: CodexWorkerAdapter | None = None,
         evaluator: Evaluator | None = None,
         github_flow: GitHubFlow | None = None,
+        controller: ExecutionController | None = None,
         repository_path: str | Path = ".",
     ) -> None:
         self.state_manager = state_manager
@@ -32,6 +34,7 @@ class Orchestrator:
         self.worker = worker or CodexWorkerAdapter()
         self.evaluator = evaluator or Evaluator()
         self.github_flow = github_flow or GitHubFlow()
+        self.controller = controller or NoopExecutionController()
         self.repository_path = Path(repository_path)
 
     @classmethod
@@ -112,6 +115,15 @@ class Orchestrator:
                 return state
 
             for task in ready_tasks:
+                decision = self.controller.before_task(task.id)
+                if decision.action == "stop":
+                    self._record_external_stop(state, decision.reason or "Run stopped before task dispatch.")
+                    self.state_manager.save(state)
+                    return state
+                if decision.action == "pause":
+                    self._record_history(state, "run_paused", decision.reason or "Run paused before task dispatch.", task.id)
+                    self.state_manager.save(state)
+                    return state
                 self.execute_task(state, task, iteration)
 
             evaluation = self.evaluator.evaluate(state)
@@ -303,6 +315,22 @@ class Orchestrator:
                 "created_at": utc_now_iso(),
             }
         )
+
+    def _record_external_stop(self, state: RuntimeState, reason: str) -> None:
+        blocker_id = "B-RUN-STOPPED"
+        if not any(blocker.get("id") == blocker_id for blocker in state.blockers):
+            state.blockers.append(
+                {
+                    "id": blocker_id,
+                    "type": "operator_control",
+                    "description": reason,
+                    "required_resolution": "Resume or start a new run when the operator is ready.",
+                    "task_ids": [],
+                    "can_continue_partially": True,
+                    "created_at": utc_now_iso(),
+                }
+            )
+        self._record_history(state, "run_stopped", reason)
 
     def _default_branch_for_task(self, task: TaskNode) -> str:
         slug = "".join(char.lower() if char.isalnum() else "-" for char in task.title).strip("-")

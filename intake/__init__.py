@@ -10,6 +10,8 @@ __all__ = [
     "DocumentLoader",
     "GitHubSourceResult",
     "GitHubSourceRuntime",
+    "GitHubAuthPreflight",
+    "GitHubAuthResult",
     "ProjectBrief",
     "ProjectBriefBuilder",
     "ProjectFile",
@@ -30,6 +32,14 @@ def __getattr__(name: str):
         exports = {
             "GitHubSourceResult": GitHubSourceResult,
             "GitHubSourceRuntime": GitHubSourceRuntime,
+        }
+        return exports[name]
+    if name in {"GitHubAuthPreflight", "GitHubAuthResult"}:
+        from .gh_auth import GitHubAuthPreflight, GitHubAuthResult
+
+        exports = {
+            "GitHubAuthPreflight": GitHubAuthPreflight,
+            "GitHubAuthResult": GitHubAuthResult,
         }
         return exports[name]
     raise AttributeError(f"module 'intake' has no attribute {name!r}")

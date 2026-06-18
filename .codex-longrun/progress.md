@@ -204,3 +204,15 @@ PY"`
 - Updated README, UI/API requirements, V2 plan, V2.8 local API notes, and V2 alignment audit.
 - Browser DOM-verified the console on a free local port after finding port `8765` was occupied by another local service.
 - Added service-level, HTTP, multipart upload, async run, control endpoint, and static asset tests.
+
+## 2026-06-18 V2.10 Task-Boundary Controls And Private GitHub Preflight
+
+- Added `runtime/control.py` with `ExecutionController`, `ControlDecision`, and no-op default control behavior.
+- Wired Orchestrator to check pause/stop decisions before dispatching each ready task.
+- Stop decisions now record blocker `B-RUN-STOPPED` and prevent further task dispatch.
+- Pause decisions now record `run_paused` and return before worker dispatch.
+- Added `JobExecutionController` to translate persisted async job controls into task-boundary runtime decisions.
+- Added `intake/gh_auth.py` for optional `gh --version` and `gh auth status` checks without reading or storing tokens.
+- Integrated private repository visibility into document-run preflight with `--repository-visibility`.
+- Updated README and V2 docs for task-boundary controls and private GitHub auth preflight.
+- Added tests for runtime stop/pause controls, server job boundary stop, GitHub auth preflight, and private repository preflight.

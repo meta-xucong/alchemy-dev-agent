@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from intake.gh_auth import GitHubAuthPreflight
+
 
 class CommandRunner(Protocol):
     def __call__(self, args: list[str], *, cwd: str | None, capture_output: bool, text: bool, check: bool) -> subprocess.CompletedProcess:
@@ -55,6 +57,7 @@ class ExecutionPreflight:
         real_codex: bool = False,
         real_github: bool = False,
         codex_executable: str = "codex",
+        private_repository: bool = False,
     ) -> PreflightResult:
         checks: list[PreflightCheck] = []
         repo = Path(repository_path)
@@ -64,10 +67,16 @@ class ExecutionPreflight:
             checks.append(self._command_check(codex_executable, required=True, display_name="codex"))
         else:
             checks.append(PreflightCheck("codex", "skipped", "Dry-run mode does not require Codex CLI.", required=False))
-        if real_github:
+        if real_github and not private_repository:
             checks.append(self._command_check("gh", required=True))
-        else:
+        elif not private_repository:
             checks.append(PreflightCheck("gh", "skipped", "Dry-run GitHub mode does not require gh.", required=False))
+        if private_repository:
+            auth_result = GitHubAuthPreflight(runner=self.runner).check(required=True)
+            for check in auth_result.checks:
+                checks.append(PreflightCheck(check.name, check.status, check.summary, check.required))
+        else:
+            checks.append(PreflightCheck("gh_auth", "skipped", "Public repository mode does not require GitHub CLI authentication.", required=False))
 
         blocking = [check for check in checks if check.required and check.status != "passed"]
         return PreflightResult(status="blocked" if blocking else "passed", checks=checks)

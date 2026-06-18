@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from intake.models import utc_now_iso
+from runtime.control import ControlDecision
 
 
 @dataclass(slots=True)
@@ -157,3 +158,23 @@ def start_background_job(target: Callable[[], None]) -> threading.Thread:
     thread = threading.Thread(target=target, daemon=True)
     thread.start()
     return thread
+
+
+class JobExecutionController:
+    """Translate persisted job controls into runtime task-boundary decisions."""
+
+    def __init__(self, store: JobStore, run_id: str) -> None:
+        self.store = store
+        self.run_id = run_id
+
+    def before_task(self, task_id: str) -> ControlDecision:
+        job = self.store.load(self.run_id)
+        if job.controls.get("stop_requested"):
+            self.store.append_event(job, "stop_boundary", "runtime", f"Run stopped before dispatching {task_id}.", task_id=task_id)
+            return ControlDecision("stop", f"Operator requested stop before task {task_id}.")
+        if job.controls.get("pause_requested"):
+            job.status = "paused"
+            self.store.save(job)
+            self.store.append_event(job, "pause_boundary", "runtime", f"Run paused before dispatching {task_id}.", task_id=task_id)
+            return ControlDecision("pause", f"Operator requested pause before task {task_id}.")
+        return ControlDecision()

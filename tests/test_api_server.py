@@ -10,6 +10,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from server.api import make_handler
+from server.jobs import JobExecutionController
 from server.project_service import ProjectService
 
 
@@ -119,10 +120,6 @@ class ApiServerTests(unittest.TestCase):
 
         started = service.start_run(project_id, {})
         run_id = str(started["run_id"])
-        paused = service.pause_run(project_id, run_id)
-        self.assertEqual(paused["job"]["controls"]["pause_requested"], True)
-        stopped = service.stop_run(project_id, run_id)
-        self.assertEqual(stopped["job"]["controls"]["stop_requested"], True)
         job = wait_for_job(service, project_id, run_id)
 
         self.assertEqual(job["status"], "done")
@@ -131,8 +128,40 @@ class ApiServerTests(unittest.TestCase):
         events = service.get_run_events(project_id, run_id)
         event_types = {str(event.get("type", "")) for event in events["events"]}
         self.assertIn("queued", event_types)
-        self.assertIn("pause_requested", event_types)
-        self.assertIn("stop_requested", event_types)
+        self.assertIn("running", event_types)
+        self.assertIn("done", event_types)
+
+    def test_project_service_job_controller_stops_at_task_boundary(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository": "https://github.com/example/saas-dashboard",
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        service.build_plan(project_id)
+        record = service.load_project(project_id)
+        run_id = service.next_run_id(project_id)
+        store = service.job_store(project_id)
+        store.create(project_id, run_id)
+        store.update_control(run_id, "stop_requested", True, "Stop before execution.")
+
+        result = service._execute_run(record, run_id, {}, controller=JobExecutionController(store, run_id))
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["runtime_state"]["blockers"][0]["id"], "B-RUN-STOPPED")
+        events = service.get_run_events(project_id, run_id)
+        event_types = {str(event.get("type", "")) for event in events["events"]}
+        self.assertIn("stop_boundary", event_types)
 
     def test_http_api_create_plan_run_and_fetch_report(self) -> None:
         root = temp_root()

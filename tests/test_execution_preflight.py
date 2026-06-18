@@ -45,6 +45,7 @@ class ExecutionPreflightTests(unittest.TestCase):
         self.assertEqual(checks["repository_path"]["status"], "passed")
         self.assertEqual(checks["codex"]["status"], "skipped")
         self.assertEqual(checks["gh"]["status"], "skipped")
+        self.assertEqual(checks["gh_auth"]["status"], "skipped")
 
     def test_real_codex_requires_executable(self) -> None:
         with temp_preflight_dir() as repo:
@@ -73,6 +74,34 @@ class ExecutionPreflightTests(unittest.TestCase):
 
         checks = {check.name: check for check in result.checks}
         self.assertEqual(checks["codex"].status, "failed")
+
+    def test_private_repository_requires_gh_auth(self) -> None:
+        def unauthenticated_runner(args, *, cwd, capture_output, text, check):
+            if args == ["gh", "--version"]:
+                return subprocess.CompletedProcess(args, 0, "gh version 2.0.0\n", "")
+            if args == ["gh", "auth", "status"]:
+                return subprocess.CompletedProcess(args, 1, "", "not logged in")
+            return subprocess.CompletedProcess(args, 0, "git version 2.0.0\n", "")
+
+        with temp_preflight_dir() as repo:
+            result = ExecutionPreflight(runner=unauthenticated_runner).check(
+                repository_path=repo,
+                private_repository=True,
+            )
+
+        checks = {check.name: check for check in result.checks}
+        self.assertIn("gh_auth", checks)
+        self.assertTrue(checks["gh_auth"].required)
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(checks["gh_auth"].status, "failed")
+
+    def test_public_repository_skips_gh_auth_even_when_real_github_is_false(self) -> None:
+        with temp_preflight_dir() as repo:
+            result = ExecutionPreflight().check(repository_path=repo, private_repository=False)
+
+        checks = {check.name: check for check in result.checks}
+        self.assertEqual(result.status, "passed")
+        self.assertEqual(checks["gh_auth"].status, "skipped")
 
 
 if __name__ == "__main__":

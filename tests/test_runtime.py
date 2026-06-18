@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Iterator
 
 from runtime.agent_router import AgentRouter
+from runtime.control import ControlDecision
 from runtime.codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult
 from runtime.evaluator import Evaluator
 from runtime.github_flow import GitHubFlow
@@ -303,6 +304,64 @@ class OrchestratorTests(unittest.TestCase):
             task_ids = {node.id for node in state.task_graph.nodes}
             self.assertIn("T002-DEBUG-1", task_ids)
             self.assertTrue(state.done)
+            self.assertFalse(state.blockers)
+
+    def test_stop_controller_blocks_before_dispatching_worker(self) -> None:
+        class StopController:
+            def before_task(self, task_id: str) -> ControlDecision:
+                return ControlDecision("stop", f"stop before {task_id}")
+
+        class CountingWorker:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls += 1
+                return CodexWorkerResult(task_id=worker_input.task_id, status="completed", summary="done")
+
+        with temp_project_dir() as tmp_dir:
+            worker = CountingWorker()
+            orchestrator = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                controller=StopController(),
+                repository_path=tmp_dir,
+            )
+
+            state = orchestrator.run("build a todo app with login", reset=True)
+
+            self.assertEqual(worker.calls, 0)
+            self.assertFalse(state.done)
+            self.assertEqual(state.blockers[0]["id"], "B-RUN-STOPPED")
+            self.assertEqual(state.iteration_history[-1]["type"], "run_stopped")
+
+    def test_pause_controller_returns_before_dispatching_worker(self) -> None:
+        class PauseController:
+            def before_task(self, task_id: str) -> ControlDecision:
+                return ControlDecision("pause", f"pause before {task_id}")
+
+        class CountingWorker:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls += 1
+                return CodexWorkerResult(task_id=worker_input.task_id, status="completed", summary="done")
+
+        with temp_project_dir() as tmp_dir:
+            worker = CountingWorker()
+            orchestrator = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                controller=PauseController(),
+                repository_path=tmp_dir,
+            )
+
+            state = orchestrator.run("build a todo app with login", reset=True)
+
+            self.assertEqual(worker.calls, 0)
+            self.assertFalse(state.done)
+            self.assertEqual(state.iteration_history[-1]["type"], "run_paused")
             self.assertFalse(state.blockers)
 
     def test_cli_smoke_run(self) -> None:

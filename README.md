@@ -70,6 +70,8 @@ docs/
   17_v2_local_api_runtime.md  V2.8 local JSON API and project service runtime.
   18_v2_browser_ui_async_runtime.md
                               V2.9 browser console, multipart upload, and async run jobs.
+  19_v2_task_boundary_and_private_github_preflight.md
+                              V2.10 task-boundary controls and private GitHub auth preflight.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -83,6 +85,7 @@ examples/
                               Example with documents, attachments, and GitHub repository input.
 
 runtime/
+  control.py                 Task-boundary pause/stop control hook.
   orchestrator.py            Runtime entry point and control loop coordinator.
   task_graph_engine.py       Dependency resolution and graph status updates.
   agent_router.py            Task-to-agent mapping.
@@ -98,6 +101,7 @@ intake/
   document_loader.py         Local file cataloging, hashing, summaries, and role inference.
   github_source.py           GitHub URL parsing and source normalization.
   github_runtime.py          Public GitHub clone/fetch/checkout source runtime.
+  gh_auth.py                 Optional GitHub CLI auth preflight for private repositories.
   schema_validation.py       Local contract validation for intake payloads.
 
 context/
@@ -360,7 +364,23 @@ POST /projects/{project_id}/files
 Content-Type: multipart/form-data
 ```
 
-Pause/resume/stop are persisted request controls in the current synchronous worker model. Hard task-boundary cancellation remains planned.
+Pause/resume/stop are persisted controls. V2.10 upgrades those controls into task-boundary runtime decisions: stop requests prevent the next task from dispatching and record blocker `B-RUN-STOPPED`; pause requests stop before the next task and record `run_paused`.
+
+Private GitHub preflight is available without storing tokens:
+
+```bash
+python -m intake.gh_auth
+```
+
+Document-run private repository checks:
+
+```bash
+python -m autodev.document_run \
+  --objective "Add workspace support" \
+  --document workspace_feature_spec.md \
+  --repository https://github.com/example/private-repo \
+  --repository-visibility private
+```
 
 Run a smoke execution:
 
@@ -400,11 +420,11 @@ PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 This repository does not yet implement:
 
 - Deep PDF/DOCX document parser pipeline.
-- Private GitHub retrieval through `gh auth status`.
+- Private GitHub clone/fetch through `gh`.
 - Deep code summarization and semantic requirement-to-file mapping beyond deterministic file/path signals.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.
-- Production database, asynchronous worker daemon process, hard worker cancellation, or multi-user access control.
+- Production database, asynchronous worker daemon process, hard already-running worker cancellation, or multi-user access control.
 
 Those systems should be implemented against the protocols defined here.
