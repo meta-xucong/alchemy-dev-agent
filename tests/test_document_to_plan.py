@@ -114,6 +114,58 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("npm run lint", nodes["T005"]["commands_to_run"])
         self.assertEqual(requirements[0]["planned_task_ids"], ["T002", "T005", "T006"])
 
+    def test_acceptance_target_file_guides_same_document_requirements(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "docs").mkdir()
+            (repo / "runtime").mkdir()
+            (repo / ".codex-longrun").mkdir()
+            (repo / "docs" / "27_real_delivery_validation.md").write_text("existing\n", encoding="utf-8")
+            (repo / "runtime" / "worktree.py").write_text("class Worktree: pass\n", encoding="utf-8")
+            (repo / ".codex-longrun" / "state.json").write_text("{}\n", encoding="utf-8")
+            (repo / "pyproject.toml").write_text("[project]\nname='probe'\n", encoding="utf-8")
+            spec = root / "probe.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Probe",
+                        "",
+                        "## Requirements",
+                        "- Must create `docs/28_representative_delivery_probe.md`.",
+                        "- Must state that real worker execution happens inside an isolated git worktree.",
+                        "- Must state that the source checkout must remain unchanged during worker execution.",
+                        "",
+                        "## Acceptance Criteria",
+                        "- `docs/28_representative_delivery_probe.md` exists.",
+                        "- The file mentions isolated git worktree.",
+                        "- The file mentions source checkout safety.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Probe delivery",
+                documents=[spec],
+                repository_url="https://github.com/example/probe",
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+            brief.repository.local_path = str(repo)
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        requirements = bundle.to_dict()["requirement_map"]["requirements"]
+        for requirement in requirements:
+            self.assertEqual(requirement["related_files"], ["docs/28_representative_delivery_probe.md"])
+
+        implementation_nodes = [node for node in graph["nodes"] if node["type"] == "documentation"]
+        self.assertEqual(len(implementation_nodes), 1)
+        self.assertEqual(implementation_nodes[0]["relevant_files"], ["docs/28_representative_delivery_probe.md"])
+        self.assertIn("REQ-001, REQ-002, REQ-003", implementation_nodes[0]["description"])
+        for requirement in requirements:
+            self.assertEqual(requirement["planned_task_ids"][0], implementation_nodes[0]["id"])
+
     def test_one_line_generated_game_keeps_legacy_demo_graph(self) -> None:
         brief = ProjectBriefBuilder().build(
             objective="Build a small retro platform game",

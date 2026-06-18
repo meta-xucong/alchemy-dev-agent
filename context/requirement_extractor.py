@@ -79,6 +79,10 @@ class RequirementExtractor:
                 candidates.append((source, "objective", objective, priority))
 
         explicit_acceptance = [str(item) for item in payload.get("acceptance_criteria", []) if str(item).strip()]
+        acceptance_files_by_doc = {
+            doc_id: explicit_paths_from_text("\n".join(lines))
+            for doc_id, lines in acceptance_by_doc.items()
+        }
         requirements: list[Requirement] = []
         seen: set[str] = set()
         for index, (doc_id, role, text, priority) in enumerate(candidates, start=1):
@@ -94,7 +98,11 @@ class RequirementExtractor:
                 acceptance = [clean_text]
             if not acceptance:
                 acceptance = [f"Requirement is implemented and verified: {clean_text}"]
-            related_files = related_files_for_requirement(clean_text, repository_files)
+            related_files = related_files_for_requirement(
+                clean_text,
+                repository_files,
+                preferred_files=acceptance_files_by_doc.get(doc_id, []),
+            )
             requirements.append(
                 Requirement(
                     id=f"REQ-{len(requirements) + 1:03d}",
@@ -202,12 +210,20 @@ def infer_priority(text: str, role: str) -> str:
     return "should"
 
 
-def related_files_for_requirement(text: str, repository_files: list[RepositoryFile]) -> list[str]:
-    explicit = [match.group("path") for match in PATH_PATTERN.finditer(text)]
+def related_files_for_requirement(
+    text: str,
+    repository_files: list[RepositoryFile],
+    *,
+    preferred_files: list[str] | None = None,
+) -> list[str]:
+    explicit = explicit_paths_from_text(text)
+    preferred = [path for path in list(preferred_files or []) if path not in explicit]
+    if preferred and not explicit:
+        return dedupe_preserve_order(preferred)
     paths_by_name = {Path(file.path).name.lower(): file.path for file in repository_files}
     paths_by_stem = {Path(file.path).stem.lower(): file.path for file in repository_files if Path(file.path).stem}
     lowered = text.lower()
-    related = list(explicit)
+    related = [*explicit, *preferred]
     for name, path in paths_by_name.items():
         if name in lowered:
             related.append(path)
@@ -215,6 +231,10 @@ def related_files_for_requirement(text: str, repository_files: list[RepositoryFi
         if stem and len(stem) >= 4 and stem in lowered:
             related.append(path)
     return dedupe_preserve_order(related)
+
+
+def explicit_paths_from_text(text: str) -> list[str]:
+    return dedupe_preserve_order([match.group("path") for match in PATH_PATTERN.finditer(text)])
 
 
 def dedupe_preserve_order(values: list[str]) -> list[str]:

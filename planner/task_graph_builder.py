@@ -34,7 +34,7 @@ class TaskGraphBuilder:
             )
         ]
 
-        implementation_nodes = self._implementation_nodes(requirements, test_commands)
+        implementation_nodes, requirement_task_ids = self._implementation_nodes(requirements, test_commands)
         nodes.extend(implementation_nodes)
         implementation_ids = [node.id for node in implementation_nodes]
 
@@ -76,7 +76,6 @@ class TaskGraphBuilder:
             )
         )
 
-        requirement_task_ids = {requirement.id: node.id for requirement, node in zip(requirements, implementation_nodes)}
         for requirement in requirements:
             if requirement.id in requirement_task_ids:
                 requirement.planned_task_ids = [requirement_task_ids[requirement.id], verify_id, review_id]
@@ -86,28 +85,41 @@ class TaskGraphBuilder:
         dependencies.append(Dependency(source=verify_id, target=review_id, type="requires_review"))
         return TaskGraph(graph_id=f"{context_bundle.project_id}-document-plan", version=1, nodes=nodes, dependencies=dependencies)
 
-    def _implementation_nodes(self, requirements: list[Requirement], test_commands: list[str]) -> list[TaskNode]:
+    def _implementation_nodes(self, requirements: list[Requirement], test_commands: list[str]) -> tuple[list[TaskNode], dict[str, str]]:
         nodes: list[TaskNode] = []
+        requirement_task_ids: dict[str, str] = {}
         if not requirements:
-            return nodes
-        for index, requirement in enumerate(requirements, start=2):
+            return nodes, requirement_task_ids
+        for index, grouped_requirements in enumerate(group_implementation_requirements(requirements), start=2):
+            requirement = grouped_requirements[0]
             task_type, agent = classify_requirement_task(requirement)
             task_id = f"T{index:03d}"
+            title = task_title(requirement, task_type) if len(grouped_requirements) == 1 else grouped_task_title(grouped_requirements, task_type)
+            description = (
+                f"Implement requirement {requirement.id}: {requirement.text}"
+                if len(grouped_requirements) == 1
+                else "Implement requirements "
+                + ", ".join(item.id for item in grouped_requirements)
+                + ": "
+                + " ".join(item.text for item in grouped_requirements)
+            )
             nodes.append(
                 TaskNode(
                     id=task_id,
-                    title=task_title(requirement, task_type),
-                    description=f"Implement requirement {requirement.id}: {requirement.text}",
+                    title=title,
+                    description=description,
                     type=task_type,
                     assigned_agent=agent,
                     dependencies=["T001"],
-                    completion_criteria=requirement.acceptance_criteria,
-                    relevant_files=requirement.related_files,
+                    completion_criteria=dedupe([criterion for item in grouped_requirements for criterion in item.acceptance_criteria]),
+                    relevant_files=dedupe([file for item in grouped_requirements for file in item.related_files]),
                     commands_to_run=test_commands,
-                    priority=priority_for_requirement(requirement),
+                    priority=max(priority_for_requirement(item) for item in grouped_requirements),
                 )
             )
-        return nodes
+            for item in grouped_requirements:
+                requirement_task_ids[item.id] = task_id
+        return nodes, requirement_task_ids
 
     def _build_generated_artifact_graph(self, context_bundle: ContextBundle) -> TaskGraph:
         requirements = context_bundle.requirements
@@ -201,6 +213,34 @@ def task_title(requirement: Requirement, task_type: str) -> str:
         "integration": "Implement integration requirement",
     }.get(task_type, "Implement requirement")
     return f"{label}: {shorten(requirement.text)}"
+
+
+def grouped_task_title(requirements: list[Requirement], task_type: str) -> str:
+    label = {
+        "backend": "Implement grouped backend requirements",
+        "frontend": "Implement grouped frontend requirements",
+        "test": "Implement grouped verification requirements",
+        "documentation": "Update grouped documentation requirements",
+        "integration": "Implement grouped integration requirements",
+    }.get(task_type, "Implement grouped requirements")
+    files = dedupe([file for requirement in requirements for file in requirement.related_files])
+    if files:
+        return f"{label}: {', '.join(files)}"
+    return f"{label}: {shorten(requirements[0].text)}"
+
+
+def group_implementation_requirements(requirements: list[Requirement]) -> list[list[Requirement]]:
+    groups: list[list[Requirement]] = []
+    group_index: dict[tuple[str, tuple[str, ...]], int] = {}
+    for requirement in requirements:
+        task_type, _agent = classify_requirement_task(requirement)
+        key = (task_type, tuple(requirement.related_files))
+        if requirement.related_files and key in group_index:
+            groups[group_index[key]].append(requirement)
+            continue
+        group_index[key] = len(groups)
+        groups.append([requirement])
+    return groups
 
 
 def priority_for_requirement(requirement: Requirement) -> int:
