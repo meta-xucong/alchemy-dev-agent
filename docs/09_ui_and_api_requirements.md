@@ -235,9 +235,24 @@ Not yet implemented:
 
 - `PATCH /projects/{project_id}/files/{file_id}`
 - `DELETE /projects/{project_id}/files/{file_id}`
-- run `pause`, `resume`, and `stop`
-- live asynchronous event streaming
-- browser multipart file upload
+
+V2.9 adds:
+
+- Browser console at `GET /`.
+- Static assets at `GET /static/styles.css` and `GET /static/app.js`.
+- Multipart upload to `POST /projects/{project_id}/files`.
+- Async run start using `POST /projects/{project_id}/runs` with `{ "async": true }`.
+- `GET /projects/{project_id}/runs/{run_id}/job`.
+- `POST /projects/{project_id}/runs/{run_id}/pause`.
+- `POST /projects/{project_id}/runs/{run_id}/resume`.
+- `POST /projects/{project_id}/runs/{run_id}/stop`.
+
+Still not implemented:
+
+- `PATCH /projects/{project_id}/files/{file_id}`
+- `DELETE /projects/{project_id}/files/{file_id}`
+- hard worker cancellation
+- server-sent events or WebSocket live streaming
 
 ## Data Objects
 

@@ -99,6 +99,41 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(events["run_id"], "run_001")
         self.assertGreater(len(events["events"]), 0)
 
+    def test_project_service_async_run_records_job_controls_and_events(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository": "https://github.com/example/saas-dashboard",
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+
+        started = service.start_run(project_id, {})
+        run_id = str(started["run_id"])
+        paused = service.pause_run(project_id, run_id)
+        self.assertEqual(paused["job"]["controls"]["pause_requested"], True)
+        stopped = service.stop_run(project_id, run_id)
+        self.assertEqual(stopped["job"]["controls"]["stop_requested"], True)
+        job = wait_for_job(service, project_id, run_id)
+
+        self.assertEqual(job["status"], "done")
+        run = service.get_run(project_id, run_id)
+        self.assertEqual(run["status"], "done")
+        events = service.get_run_events(project_id, run_id)
+        event_types = {str(event.get("type", "")) for event in events["events"]}
+        self.assertIn("queued", event_types)
+        self.assertIn("pause_requested", event_types)
+        self.assertIn("stop_requested", event_types)
+
     def test_http_api_create_plan_run_and_fetch_report(self) -> None:
         root = temp_root()
         repo = root / "repo"
@@ -142,6 +177,119 @@ class ApiServerTests(unittest.TestCase):
             thread.join(timeout=10)
             server.server_close()
 
+    def test_http_api_async_run_and_controls(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            created = request_json(
+                conn,
+                "POST",
+                "/projects",
+                {
+                    "objective": "Add workspace support",
+                    "documents": [str(spec)],
+                    "repository": "https://github.com/example/saas-dashboard",
+                    "repository_path": str(repo),
+                },
+                expected=201,
+            )
+            project_id = str(created["project"]["project_id"])
+            started = request_json(conn, "POST", f"/projects/{project_id}/runs", {"async": True}, expected=202)
+            run_id = str(started["run_id"])
+            request_json(conn, "POST", f"/projects/{project_id}/runs/{run_id}/pause", {}, expected=200)
+            request_json(conn, "POST", f"/projects/{project_id}/runs/{run_id}/resume", {}, expected=200)
+            job = wait_for_http_job(conn, project_id, run_id)
+            self.assertEqual(job["status"], "done")
+            events = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/events", expected=200)
+            self.assertGreater(len(events["events"]), 0)
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
+    def test_http_api_accepts_multipart_file_upload(self) -> None:
+        root = temp_root()
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "primary_input_mode": "one_line_fallback",
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            boundary = "----alchemy-test-boundary"
+            body = multipart_body(
+                boundary,
+                fields={"role": "primary_requirements", "required": "true"},
+                files={
+                    "file": (
+                        "workspace_spec.md",
+                        b"# Workspace Feature\n- Must add workspace support.\n",
+                        "text/markdown",
+                    )
+                },
+            )
+            conn.request(
+                "POST",
+                f"/projects/{project_id}/files",
+                body=body,
+                headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            )
+            response = conn.getresponse()
+            data = json.loads(response.read().decode("utf-8"))
+            if response.status != 200:
+                raise AssertionError(f"Expected 200, got {response.status}: {data}")
+
+            self.assertEqual(data["project"]["status"], "intake_ready")
+            uploaded = data["uploaded_files"][0]
+            self.assertEqual(uploaded["name"], "workspace_spec.md")
+            self.assertTrue(Path(uploaded["path"]).exists())
+            self.assertEqual(data["brief"]["documents"][0]["name"], "workspace_spec.md")
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
+    def test_http_api_serves_console_static_assets(self) -> None:
+        root = temp_root()
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            html = request_text(conn, "GET", "/", expected=200)
+            css = request_text(conn, "GET", "/static/styles.css", expected=200)
+            js = request_text(conn, "GET", "/static/app.js", expected=200)
+
+            self.assertIn("Alchemy Dev Agent", html)
+            self.assertIn("grid-template-areas", css)
+            self.assertIn("startRun", js)
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
 
 def request_json(
     conn: http.client.HTTPConnection,
@@ -160,6 +308,65 @@ def request_json(
     if response.status != expected:
         raise AssertionError(f"Expected {expected}, got {response.status}: {parsed}")
     return parsed
+
+
+def request_text(conn: http.client.HTTPConnection, method: str, path: str, *, expected: int) -> str:
+    conn.request(method, path)
+    response = conn.getresponse()
+    data = response.read().decode("utf-8")
+    if response.status != expected:
+        raise AssertionError(f"Expected {expected}, got {response.status}: {data}")
+    return data
+
+
+def wait_for_job(service: ProjectService, project_id: str, run_id: str) -> dict[str, object]:
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        job = service.get_run_job(project_id, run_id)
+        if job["status"] not in {"queued", "running", "paused"}:
+            return job
+        time.sleep(0.05)
+    raise AssertionError(f"Timed out waiting for job {run_id}")
+
+
+def wait_for_http_job(conn: http.client.HTTPConnection, project_id: str, run_id: str) -> dict[str, object]:
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        job = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/job", expected=200)
+        if job["status"] not in {"queued", "running", "paused"}:
+            return job
+        time.sleep(0.05)
+    raise AssertionError(f"Timed out waiting for HTTP job {run_id}")
+
+
+def multipart_body(
+    boundary: str,
+    *,
+    fields: dict[str, str],
+    files: dict[str, tuple[str, bytes, str]],
+) -> bytes:
+    chunks: list[bytes] = []
+    for name, value in fields.items():
+        chunks.extend(
+            [
+                f"--{boundary}\r\n".encode("utf-8"),
+                f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode("utf-8"),
+                value.encode("utf-8"),
+                b"\r\n",
+            ]
+        )
+    for name, (filename, content, content_type) in files.items():
+        chunks.extend(
+            [
+                f"--{boundary}\r\n".encode("utf-8"),
+                f'Content-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'.encode("utf-8"),
+                f"Content-Type: {content_type}\r\n\r\n".encode("utf-8"),
+                content,
+                b"\r\n",
+            ]
+        )
+    chunks.append(f"--{boundary}--\r\n".encode("utf-8"))
+    return b"".join(chunks)
 
 
 if __name__ == "__main__":

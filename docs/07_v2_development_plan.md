@@ -29,6 +29,7 @@ The repository currently contains:
 - A v2.6 document-driven dry-run CLI that emits a complete integration report.
 - A v2.7 real execution preflight layer and configurable document-run adapters.
 - A v2.8 local API/project service runtime for project intake, planning, execution runs, event retrieval, and delivery summaries.
+- A v2.9 browser console, multipart upload path, async run job records, and persisted run controls/events.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -168,7 +169,8 @@ autodev/
 server/
   api.py                    Project, file upload, GitHub inspect, plan, run, and state endpoints.
   project_service.py        Project metadata, context bundles, task graphs, run records, and delivery summaries.
-  events.py                 Planned asynchronous execution event stream for UI monitoring.
+  jobs.py                   Async run job status, persisted controls, and event records.
+  static/                   Browser console for project creation, upload, planning, execution, and delivery review.
 
 ui/
   project_create            Objective, document upload, GitHub URL, branch, and auth status.
@@ -355,12 +357,19 @@ DONE requires:
 
 ### V2.9: Browser UI And Async Execution Runtime
 
-- Implement browser screens for project create, file intake, GitHub source, intake review, task graph preview, execution monitor, and delivery review.
-- Implement real multipart upload into per-project storage.
-- Implement asynchronous run control with pause, resume, stop, and live events.
-- Keep the current local API contract as the backend interface.
+- Implement browser screens for project create, file intake, GitHub source, intake review, task graph preview, execution monitor, and delivery review. Status: partial; one local operational console covers the full flow, richer graph visualization remains pending.
+- Implement real multipart upload into per-project storage. Status: done.
+- Implement asynchronous run control with pause, resume, stop, and live events. Status: partial; background run jobs, persisted controls, and event retrieval are done; hard worker cancellation and true live streaming remain pending.
+- Keep the current local API contract as the backend interface. Status: done.
 
-### V2.10: End-To-End Delivery Runtime
+### V2.10: Task-Boundary Cancellation And Private GitHub Runtime
+
+- Implement safe task-boundary pause before dispatching each worker task.
+- Implement stop behavior that prevents further task dispatch and records a blocked delivery state.
+- Implement safe cancellation for real Codex subprocesses where possible.
+- Implement optional private GitHub source retrieval through local `gh` authentication.
+
+### V2.11: End-To-End Delivery Runtime
 
 - Run against a real repository with a real development document.
 - Execute Codex worker tasks.

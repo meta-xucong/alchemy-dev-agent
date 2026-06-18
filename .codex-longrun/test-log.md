@@ -394,3 +394,38 @@
 - Result: passed.
 - Summary: All JSON specs parse after V2.8 local API runtime changes.
 - Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_api_server`
+- Result: passed.
+- Summary: 6 local API tests passed, covering project service, sync and async runs, run controls, multipart upload, event retrieval, and static console assets.
+- Next verification command: focused API/preflight/document-run group.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_api_server tests.test_execution_preflight tests.test_document_run_pipeline`
+- Result: passed.
+- Summary: 12 focused tests passed across local API, preflight, and document-run pipeline behavior.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 51 tests passed across runtime, intake, GitHub source, repository context, document-to-plan, handoff, document-run CLI, preflight, local API, browser console static assets, planner, and autodev modules.
+- Next verification command: JSON spec parsing.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.9 browser UI and async runtime changes.
+- Next verification command: browser DOM smoke.
+
+## 2026-06-18
+
+- Command: Browser DOM smoke at `http://127.0.0.1:18765/`
+- Result: passed with caveat.
+- Summary: DOM showed title `Alchemy Dev Agent Console`, API status `API Online`, file upload input, Create/Upload/Plan/Run/Pause/Resume/Stop buttons, and Intake/Task Graph/Events/Delivery panels. Screenshot capture timed out in the browser tool; HTTP static tests and DOM assertions passed. Port `8765` was occupied by another local service, so verification used `18765`.
+- Next verification command: state validation.

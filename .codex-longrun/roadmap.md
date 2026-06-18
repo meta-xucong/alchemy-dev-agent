@@ -26,7 +26,14 @@ Objective: Continue autonomous development until the document-driven agent syste
 - Add asynchronous run jobs with pause/resume/stop state and live event retrieval.
 - Verify the UI through browser smoke tests.
 
-## Later Phase: V2.10 Controlled Real Repository Validation
+## Current Next Phase: V2.10 Task-Boundary Controls And Private GitHub Preflight
+
+- Make pause/stop requests visible to the execution loop before dispatching the next task.
+- Record blocked delivery state when a run is stopped before completion.
+- Add optional private GitHub `gh auth status` preflight without storing tokens.
+- Preserve public repository as the default path.
+
+## Later Phase: V2.11 Controlled Real Repository Validation
 
 - Run the system against a representative public repository and detailed development document.
 - Validate real Codex worker preflight and, when environment permits, real worker execution.

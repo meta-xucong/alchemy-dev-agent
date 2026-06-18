@@ -6,6 +6,8 @@ V2.8 adds a local JSON API and persistent project service around the document-dr
 
 This is the backend foundation for the future UI console. It does not yet implement browser file upload widgets, asynchronous workers, or a production database.
 
+Update: V2.9 adds the first browser console, multipart upload path, async run job records, and persisted pause/resume/stop requests on top of this API foundation. See `docs/18_v2_browser_ui_async_runtime.md`.
+
 ## Implemented Scope
 
 The local API can:
@@ -137,11 +139,12 @@ Planning is blocked when intake has hard blockers. Execution automatically build
 
 V2.8 is a local API runtime, not the final product UI.
 
+V2.9 implements the first browser console and async job layer. The remaining boundaries below are historical V2.8 boundaries plus current production-readiness gaps.
+
 Still planned:
 
-- Browser UI screens.
-- Real multipart upload.
-- Run pause/resume/stop controls.
-- Asynchronous execution workers.
+- Richer browser UI screens and visual graph rendering.
+- Hard task-boundary run pause/stop behavior.
+- A separate asynchronous worker daemon process.
 - Private GitHub retrieval through local `gh` authentication.
 - Production database or multi-user access control.

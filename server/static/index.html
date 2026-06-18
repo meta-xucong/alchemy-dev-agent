@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Alchemy Dev Agent Console</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>Alchemy Dev Agent</h1>
+            <p>Document-driven autonomous development console</p>
+          </div>
+          <span id="apiStatus" class="status">Checking API</span>
+        </header>
+
+        <div class="layout">
+          <section class="panel controls" aria-label="Project controls">
+            <h2>Create Project</h2>
+            <label>
+              Objective
+              <textarea id="objective" rows="4" spellcheck="false">Add workspace support</textarea>
+            </label>
+            <label>
+              Development documents
+              <textarea id="documents" rows="3" spellcheck="false" placeholder="One local path per line"></textarea>
+            </label>
+            <label>
+              Supporting files
+              <textarea id="attachments" rows="3" spellcheck="false" placeholder="One local path per line"></textarea>
+            </label>
+            <label>
+              Upload files
+              <input id="uploadFiles" type="file" multiple>
+            </label>
+            <label>
+              GitHub repository
+              <input id="repository" type="url" placeholder="https://github.com/org/repo">
+            </label>
+            <label>
+              Local repository path
+              <input id="repositoryPath" type="text" placeholder="D:\path\to\repo">
+            </label>
+            <div class="buttonRow">
+              <button id="createProject">Create</button>
+              <button id="uploadSelected" disabled>Upload</button>
+              <button id="buildPlan" disabled>Plan</button>
+            </div>
+            <div class="buttonRow secondary">
+              <button id="startRun" disabled>Run</button>
+              <button id="pauseRun" disabled>Pause</button>
+              <button id="resumeRun" disabled>Resume</button>
+            </div>
+            <div class="buttonRow secondary">
+              <button id="stopRun" disabled>Stop</button>
+            </div>
+          </section>
+
+          <section class="panel summary" aria-label="Project summary">
+            <h2>Project</h2>
+            <dl>
+              <dt>Project ID</dt>
+              <dd id="projectId">-</dd>
+              <dt>Status</dt>
+              <dd id="projectStatus">-</dd>
+              <dt>Run ID</dt>
+              <dd id="runId">-</dd>
+              <dt>Run Status</dt>
+              <dd id="runStatus">-</dd>
+            </dl>
+          </section>
+
+          <section class="panel output briefPanel">
+            <h2>Intake</h2>
+            <pre id="briefOutput">{}</pre>
+          </section>
+
+          <section class="panel output graphPanel">
+            <h2>Task Graph</h2>
+            <pre id="graphOutput">{}</pre>
+          </section>
+
+          <section class="panel output eventPanel">
+            <h2>Events</h2>
+            <pre id="eventOutput">[]</pre>
+          </section>
+
+          <section class="panel output deliveryPanel">
+            <h2>Delivery</h2>
+            <pre id="deliveryOutput">{}</pre>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

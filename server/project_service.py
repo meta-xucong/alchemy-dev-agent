@@ -13,6 +13,8 @@ from intake import ProjectBriefBuilder
 from intake.models import FileRole, ProjectBrief, utc_now_iso
 from planner import TaskGraphBuilder
 
+from .jobs import JobStore, start_background_job
+
 
 class ApiError(Exception):
     """Structured error raised by the project service."""
@@ -172,6 +174,61 @@ class ProjectService:
         self._write_json(self.project_dir(project_id) / "project.json", updated_record.to_dict())
         return self.build_intake(project_id)
 
+    def upload_files(self, project_id: str, uploads: list[dict[str, Any]], fields: dict[str, str] | None = None) -> dict[str, object]:
+        if not uploads:
+            raise ApiError(400, "missing_upload", "At least one uploaded file is required.")
+        record = self.load_project(project_id)
+        fields = fields or {}
+        upload_dir = self.project_dir(project_id) / "uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        documents = list(record.documents)
+        attachments = list(record.attachments)
+        file_roles = dict(record.file_roles or {})
+        required_attachments = list(record.required_attachments or [])
+        uploaded_files = []
+
+        for index, upload in enumerate(uploads):
+            filename = safe_filename(str(upload.get("filename", "")))
+            content = upload.get("content", b"")
+            if not isinstance(content, bytes):
+                raise ApiError(400, "invalid_upload", f"Uploaded content for {filename} is not bytes.")
+            target = unique_upload_path(upload_dir, filename)
+            target.write_bytes(content)
+            path = str(target)
+            role = str(upload.get("role") or fields.get("role") or "")
+            if not role:
+                role = "primary_requirements" if not documents and index == 0 else "supplemental"
+            required = parse_bool(str(upload.get("required", fields.get("required", "")))) or role == "primary_requirements"
+
+            if role == "primary_requirements":
+                documents = dedupe([*documents, path])
+            else:
+                attachments = dedupe([*attachments, path])
+                if required:
+                    required_attachments = dedupe([*required_attachments, path])
+            file_roles[path] = role
+            uploaded_files.append(
+                {
+                    "name": filename,
+                    "path": path,
+                    "role": role,
+                    "required": required,
+                    "media_type": str(upload.get("content_type", "")),
+                }
+            )
+
+        updated = ProjectRecord.from_dict(record.to_dict())
+        updated.documents = documents
+        updated.attachments = attachments
+        updated.file_roles = file_roles
+        updated.required_attachments = required_attachments
+        updated.status = "intake_pending"
+        updated.updated_at = utc_now_iso()
+        self._write_json(self.project_dir(project_id) / "project.json", updated.to_dict())
+        result = self.build_intake(project_id)
+        result["uploaded_files"] = uploaded_files
+        return result
+
     def build_intake(self, project_id: str) -> dict[str, object]:
         record = self.load_project(project_id)
         brief = self._build_brief(record.to_dict())
@@ -229,27 +286,44 @@ class ProjectService:
             record = self.load_project(project_id)
 
         run_id = self.next_run_id(project_id)
-        output_dir = self.project_dir(project_id) / "runs" / run_id
-        result = DocumentRunPipeline().run(
-            objective=record.objective,
-            documents=record.documents,
-            attachments=record.attachments,
-            repository_url=record.repository_url,
-            repository_path=record.repository_path or None,
-            output_dir=output_dir,
-            max_iterations=int(run_payload.get("max_iterations", 50)),
-            prepare_repository=bool(run_payload.get("prepare_repository", False)),
-            real_codex=bool(run_payload.get("real_codex", False)),
-            real_github=bool(run_payload.get("real_github", False)),
-            codex_executable=str(run_payload.get("codex_executable", "codex")),
-            max_worker_seconds=int(run_payload.get("max_worker_seconds", 1800)),
-        )
-        result_payload = result.to_dict()
-        result_payload["run_id"] = run_id
-        result_payload["project_id"] = project_id
-        self._write_json(output_dir / "run.json", result_payload)
-        self._update_project_status(record, project_status_for_run(result.status))
+        result_payload = self._execute_run(record, run_id, run_payload)
+        self._update_project_status(record, project_status_for_run(str(result_payload.get("status", ""))))
         return result_payload
+
+    def start_run(self, project_id: str, payload: dict[str, Any] | None = None) -> dict[str, object]:
+        record = self.load_project(project_id)
+        if record.status not in {"intake_ready", "planned", "done", "blocked"}:
+            raise ApiError(409, "project_not_ready", f"Project status '{record.status}' cannot start execution.")
+        if self.active_run(project_id):
+            raise ApiError(409, "run_already_active", "A run is already active for this project.")
+        if record.status != "planned":
+            self.build_plan(project_id)
+            record = self.load_project(project_id)
+
+        run_id = self.next_run_id(project_id)
+        job_store = self.job_store(project_id)
+        job = job_store.create(project_id, run_id)
+        self._update_project_status(record, "running")
+
+        run_payload = dict(payload or {})
+
+        def worker() -> None:
+            try:
+                job_store.transition(run_id, "running", "Run started.", source="runtime")
+                result = self._execute_run(record, run_id, run_payload)
+                result_path = self.project_dir(project_id) / "runs" / run_id / "run.json"
+                job_store.set_result(run_id, result_path, project_status_for_run(str(result.get("status", ""))))
+                self._update_project_status(record, project_status_for_run(str(result.get("status", ""))))
+            except Exception as exc:  # pragma: no cover - thread boundary defense.
+                job_store.transition(run_id, "failed", "Run failed.", source="runtime", error=str(exc))
+                self._update_project_status(record, "failed")
+
+        start_background_job(worker)
+        return {
+            "project_id": project_id,
+            "run_id": run_id,
+            "job": job.to_dict(),
+        }
 
     def get_run(self, project_id: str, run_id: str) -> dict[str, object]:
         path = self.project_dir(project_id) / "runs" / run_id / "run.json"
@@ -258,13 +332,15 @@ class ProjectService:
         return self._read_json(path)
 
     def get_run_events(self, project_id: str, run_id: str) -> dict[str, object]:
-        run = self.get_run(project_id, run_id)
+        stored_events = self.job_store(project_id).events(run_id)
+        run_path = self.project_dir(project_id) / "runs" / run_id / "run.json"
+        run = self._read_json(run_path) if run_path.exists() else {}
         runtime_state = run.get("runtime_state", {})
         history = runtime_state.get("execution_history", []) if isinstance(runtime_state, dict) else []
-        events = []
+        events = list(stored_events)
         for index, item in enumerate(history, start=1):
             event = dict(item) if isinstance(item, dict) else {"message": str(item)}
-            event.setdefault("event_id", f"{run_id}-event-{index:03d}")
+            event.setdefault("event_id", f"{run_id}-runtime-{index:03d}")
             event.setdefault("run_id", run_id)
             event.setdefault("level", "info")
             event.setdefault("source", "runtime")
@@ -276,6 +352,38 @@ class ProjectService:
             "run_id": run_id,
             "events": events,
         }
+
+    def get_run_job(self, project_id: str, run_id: str) -> dict[str, object]:
+        path = self.project_dir(project_id) / "runs" / run_id / "job.json"
+        if not path.exists():
+            raise ApiError(404, "run_not_found", f"Run job not found: {run_id}")
+        return self.job_store(project_id).load(run_id).to_dict()
+
+    def pause_run(self, project_id: str, run_id: str) -> dict[str, object]:
+        job = self.job_store(project_id).update_control(
+            run_id,
+            "pause_requested",
+            True,
+            "Pause requested. Current synchronous worker will pause at the next controllable boundary.",
+        )
+        return {"project_id": project_id, "run_id": run_id, "job": job.to_dict()}
+
+    def resume_run(self, project_id: str, run_id: str) -> dict[str, object]:
+        store = self.job_store(project_id)
+        job = store.update_control(run_id, "pause_requested", False, "Resume requested.")
+        if job.status == "paused":
+            job.status = "running"
+            store.save(job)
+        return {"project_id": project_id, "run_id": run_id, "job": job.to_dict()}
+
+    def stop_run(self, project_id: str, run_id: str) -> dict[str, object]:
+        job = self.job_store(project_id).update_control(
+            run_id,
+            "stop_requested",
+            True,
+            "Stop requested. Current synchronous worker will stop at the next controllable boundary.",
+        )
+        return {"project_id": project_id, "run_id": run_id, "job": job.to_dict()}
 
     def get_delivery(self, project_id: str) -> dict[str, object]:
         runs_dir = self.project_dir(project_id) / "runs"
@@ -311,6 +419,44 @@ class ProjectService:
         existing = [path.name for path in runs_dir.iterdir() if path.is_dir() and path.name.startswith("run_")]
         numbers = [int(name.split("_", 1)[1]) for name in existing if name.split("_", 1)[1].isdigit()]
         return f"run_{(max(numbers) if numbers else 0) + 1:03d}"
+
+    def active_run(self, project_id: str) -> str:
+        runs_dir = self.project_dir(project_id) / "runs"
+        if not runs_dir.exists():
+            return ""
+        for run_dir in sorted(runs_dir.iterdir()):
+            job_path = run_dir / "job.json"
+            if not job_path.exists():
+                continue
+            job = self.job_store(project_id).load(run_dir.name)
+            if job.status in {"queued", "running", "paused"}:
+                return job.run_id
+        return ""
+
+    def job_store(self, project_id: str) -> JobStore:
+        return JobStore(self.project_dir(project_id))
+
+    def _execute_run(self, record: ProjectRecord, run_id: str, run_payload: dict[str, Any]) -> dict[str, object]:
+        output_dir = self.project_dir(record.project_id) / "runs" / run_id
+        result = DocumentRunPipeline().run(
+            objective=record.objective,
+            documents=record.documents,
+            attachments=record.attachments,
+            repository_url=record.repository_url,
+            repository_path=record.repository_path or None,
+            output_dir=output_dir,
+            max_iterations=int(run_payload.get("max_iterations", 50)),
+            prepare_repository=bool(run_payload.get("prepare_repository", False)),
+            real_codex=bool(run_payload.get("real_codex", False)),
+            real_github=bool(run_payload.get("real_github", False)),
+            codex_executable=str(run_payload.get("codex_executable", "codex")),
+            max_worker_seconds=int(run_payload.get("max_worker_seconds", 1800)),
+        )
+        result_payload = result.to_dict()
+        result_payload["run_id"] = run_id
+        result_payload["project_id"] = record.project_id
+        self._write_json(output_dir / "run.json", result_payload)
+        return result_payload
 
     def _build_brief(self, payload: dict[str, Any]) -> ProjectBrief:
         project_id_override = str(payload.get("project_id", ""))
@@ -418,3 +564,26 @@ def project_status_for_run(run_status: str) -> str:
     if run_status == "blocked":
         return "blocked"
     return "running"
+
+
+def safe_filename(filename: str) -> str:
+    if not filename:
+        raise ApiError(400, "invalid_filename", "Uploaded filename is required.")
+    if filename != Path(filename).name or any(part in filename for part in ("/", "\\", "..")):
+        raise ApiError(400, "invalid_filename", f"Unsafe uploaded filename: {filename}")
+    return filename
+
+
+def unique_upload_path(upload_dir: Path, filename: str) -> Path:
+    stem = Path(filename).stem
+    suffix = Path(filename).suffix
+    candidate = upload_dir / filename
+    counter = 1
+    while candidate.exists():
+        candidate = upload_dir / f"{stem}-{counter}{suffix}"
+        counter += 1
+    return candidate
+
+
+def parse_bool(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}

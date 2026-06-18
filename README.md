@@ -68,6 +68,8 @@ docs/
   16_v2_real_execution_preflight.md
                               V2.7 real execution flags and preflight checks.
   17_v2_local_api_runtime.md  V2.8 local JSON API and project service runtime.
+  18_v2_browser_ui_async_runtime.md
+                              V2.9 browser console, multipart upload, and async run jobs.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -115,7 +117,9 @@ autodev/
 
 server/
   project_service.py         Persistent project service for intake, planning, runs, and delivery reports.
+  jobs.py                    Async run job records, controls, and events.
   api.py                     Standard-library local JSON API server.
+  static/                    Browser console assets.
 
 tests/
   test_runtime.py            Unit and smoke tests for the runtime contract.
@@ -323,7 +327,40 @@ GET  /projects/{project_id}/runs/{run_id}/events
 GET  /projects/{project_id}/delivery
 ```
 
-The API accepts local file paths through `documents`, `attachments`, or a UI-oriented `files` list. Real browser upload, asynchronous run control, and UI screens remain planned next steps.
+The API accepts local file paths through `documents`, `attachments`, or a UI-oriented `files` list. V2.9 builds browser upload, async run jobs, and a local console on top of this backend.
+
+## V2.9 Browser Console And Async Runs
+
+The local API server now serves an operational browser console:
+
+```text
+http://127.0.0.1:8765/
+```
+
+The console can create a project, upload files, build a task graph, start an async run, request pause/resume/stop, show events, and show delivery output.
+
+Use a free port if `8765` is already occupied:
+
+```bash
+python -m server.api --host 127.0.0.1 --port 18765 --storage-root .alchemy/server
+```
+
+Async run start:
+
+```json
+{
+  "async": true
+}
+```
+
+Multipart upload is supported through:
+
+```text
+POST /projects/{project_id}/files
+Content-Type: multipart/form-data
+```
+
+Pause/resume/stop are persisted request controls in the current synchronous worker model. Hard task-boundary cancellation remains planned.
 
 Run a smoke execution:
 
@@ -362,12 +399,12 @@ PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 
 This repository does not yet implement:
 
-- Browser-based multi-file upload or full document parser pipeline.
+- Deep PDF/DOCX document parser pipeline.
 - Private GitHub retrieval through `gh auth status`.
 - Deep code summarization and semantic requirement-to-file mapping beyond deterministic file/path signals.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.
-- Browser UI, production database, asynchronous worker daemon, or multi-user access control.
+- Production database, asynchronous worker daemon process, hard worker cancellation, or multi-user access control.
 
 Those systems should be implemented against the protocols defined here.

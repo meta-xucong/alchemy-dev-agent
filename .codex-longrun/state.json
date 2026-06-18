@@ -1,36 +1,48 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.9 browser UI and async run control",
+  "current_phase": "V2.10 task-boundary controls and private GitHub preflight",
   "phase_status": "advancing",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
-    "V2.8 local API and project service runtime"
+    "V2.8 local API and project service runtime",
+    "V2.9 browser UI and async runtime"
   ],
   "next_actions": [
-    "Commit and push verified V2.8 local API changes",
-    "Design a minimal operational browser UI backed by the local API",
-    "Implement browser upload handling into per-project storage",
-    "Add asynchronous run job control and live event retrieval",
-    "Verify UI flows with automated tests or browser smoke checks"
+    "Commit and push verified V2.9 browser UI and async runtime changes",
+    "Implement task-boundary pause/stop checks before worker dispatch",
+    "Record stopped runs as blocked delivery states with audit evidence",
+    "Add optional private GitHub gh-auth preflight without storing tokens",
+    "Run focused and full verification"
   ],
   "tests_run": [
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_api_server tests.test_execution_preflight tests.test_document_run_pipeline",
       "result": "passed",
-      "summary": "8 focused tests passed across local API, preflight, and document-run behavior."
+      "summary": "12 focused tests passed across local API, preflight, and document-run behavior."
     },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "47 tests passed across the repository."
+      "summary": "51 tests passed across the repository."
     },
     {
       "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
       "result": "passed",
-      "summary": "All JSON specs parse after V2.8 changes."
+      "summary": "All JSON specs parse after V2.9 changes."
+    },
+    {
+      "command": "Browser DOM smoke at http://127.0.0.1:18765/",
+      "result": "passed_with_caveat",
+      "summary": "Console DOM showed API Online, upload input, workflow buttons, and core panels. Screenshot capture timed out in the browser tool."
     }
   ],
-  "known_bugs": [],
+  "known_bugs": [
+    {
+      "id": "BROWSER_SCREENSHOT_TIMEOUT",
+      "status": "environment_caveat",
+      "summary": "Browser screenshot capture timed out during V2.9 verification, while DOM and HTTP static tests passed."
+    }
+  ],
   "blockers": [],
   "done_criteria": [
     "Document-driven intake accepts objective, documents, supporting files, and public GitHub repository context",
@@ -39,10 +51,11 @@
     "Local service/API path supports project creation and execution runs",
     "Browser UI supports the document-driven workflow or a documented blocker prevents implementation",
     "Asynchronous execution control is implemented or a documented blocker prevents implementation",
+    "Task-boundary stop/pause semantics are implemented or a documented blocker prevents implementation",
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-18T11:37:00.9184579+08:00",
+  "last_verified_at": "2026-06-18T11:58:55.9190795+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-18T11:37:00.9184579+08:00"
+  "updated_at": "2026-06-18T11:58:55.9190795+08:00"
 }

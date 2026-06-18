@@ -191,3 +191,16 @@ PY"`
 - Added `docs/17_v2_local_api_runtime.md`.
 - Updated README, UI/API requirements, V2 plan, and V2 alignment audit for the implemented local API boundary.
 - Added service-level and HTTP smoke tests.
+
+## 2026-06-18 V2.9 Browser UI And Async Runtime
+
+- Added `server/jobs.py` for async run job records, persisted controls, and append-only event logs.
+- Extended the local API with async run start using `{ "async": true }`.
+- Added run job, pause, resume, stop, and events endpoints.
+- Added multipart upload support for `POST /projects/{project_id}/files`.
+- Stored browser uploads under each project's `uploads/` directory and fed them back into ProjectBrief intake.
+- Added `server/static/` browser console assets for project creation, upload, planning, async run start, controls, events, and delivery review.
+- Added `docs/18_v2_browser_ui_async_runtime.md`.
+- Updated README, UI/API requirements, V2 plan, V2.8 local API notes, and V2 alignment audit.
+- Browser DOM-verified the console on a free local port after finding port `8765` was occupied by another local service.
+- Added service-level, HTTP, multipart upload, async run, control endpoint, and static asset tests.
