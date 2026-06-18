@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -81,13 +82,26 @@ class JobStore:
         return job
 
     def load(self, run_id: str) -> RunJob:
-        return RunJob.from_dict(json.loads(self.job_path(run_id).read_text(encoding="utf-8")))
+        path = self.job_path(run_id)
+        last_error: json.JSONDecodeError | FileNotFoundError | PermissionError | None = None
+        for _ in range(10):
+            try:
+                return RunJob.from_dict(json.loads(path.read_text(encoding="utf-8")))
+            except (FileNotFoundError, json.JSONDecodeError, PermissionError) as exc:
+                last_error = exc
+                time.sleep(0.01)
+        if last_error:
+            raise last_error
+        raise FileNotFoundError(path)
 
     def save(self, job: RunJob) -> None:
         path = self.job_path(job.run_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         job.updated_at = utc_now_iso()
-        path.write_text(json.dumps(job.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        payload = json.dumps(job.to_dict(), indent=2, sort_keys=True) + "\n"
+        temp_path = path.with_name(f"{path.name}.tmp-{threading.get_ident()}")
+        temp_path.write_text(payload, encoding="utf-8")
+        temp_path.replace(path)
 
     def transition(self, run_id: str, status: str, message: str, *, source: str = "runtime", error: str = "") -> RunJob:
         job = self.load(run_id)

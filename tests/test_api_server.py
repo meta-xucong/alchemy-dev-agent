@@ -10,7 +10,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from server.api import make_handler
-from server.jobs import JobExecutionController
+from server.jobs import JobExecutionController, JobStore
 from server.project_service import ProjectService
 
 
@@ -154,6 +154,18 @@ class ApiServerTests(unittest.TestCase):
         self.assertIn("queued", event_types)
         self.assertIn("running", event_types)
         self.assertIn("done", event_types)
+
+    def test_job_store_save_uses_complete_json_payload(self) -> None:
+        root = temp_root()
+        store = JobStore(root)
+        job = store.create("proj_test", "run_001")
+        job.status = "running"
+
+        store.save(job)
+        loaded = store.load("run_001")
+
+        self.assertEqual(loaded.status, "running")
+        self.assertFalse(list((root / "runs" / "run_001").glob("job.json.tmp-*")))
 
     def test_project_service_job_controller_stops_at_task_boundary(self) -> None:
         root = temp_root()
