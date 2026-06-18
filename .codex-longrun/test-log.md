@@ -800,3 +800,54 @@
 - Result: passed.
 - Summary: Latest five master GitHub Actions CI runs were successful, including commit `705af9b`.
 - Next verification command: none; objective is acceptance ready.
+
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 102 tests passed after V2.21 post-acceptance hardening.
+- Next verification command: acceptance harness.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_post_audit_final`
+- Result: passed.
+- Summary: Acceptance report status passed with 8/8 checks and final gate reason `DONE condition met.`
+- Next verification command: JSON specs, diff hygiene, and long-running state validation.
+
+## 2026-06-19
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parsed.
+- Next verification command: `git diff --check`.
+
+## 2026-06-19
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported; Git emitted CRLF normalization warnings for long-running state only.
+- Next verification command: long-running state validation.
+
+## 2026-06-19
+
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed.
+- Summary: Long-running state schema validated.
+- Next verification command: commit, push, and GitHub Actions status.
+
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 103 tests passed after explicit GitHub CI collection control was added.
+- Next verification command: final acceptance harness.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_21_final`
+- Result: passed.
+- Summary: Acceptance report status passed with 8/8 checks and final gate reason `DONE condition met.`
+- Next verification command: JSON specs, diff hygiene, state validation, commit, push, and GitHub Actions status.

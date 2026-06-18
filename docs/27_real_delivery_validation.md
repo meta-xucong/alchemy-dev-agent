@@ -24,6 +24,8 @@ The goal is to prove that Alchemy can create real GitHub delivery evidence:
 - optional draft PR creation
 - PR check collection through `gh pr checks --json`
 - CI status normalization to `passed`, `failed`, `pending`, or `unknown`
+- configurable CI collection and waiting through runtime, document-run, API, and
+  browser console run payloads
 - persisted `ci_details` evidence in runtime state
 
 ### Validation Harness
@@ -55,6 +57,11 @@ The report includes:
 - commit SHA
 - CI status and raw check details
 - blockers, if validation could not complete
+
+If CI check collection returns `failed`, remains `pending`, or cannot produce a
+known status after the configured wait, the validation report is `blocked`. A
+pushed branch and PR are necessary delivery evidence, but they are not
+sufficient when the quality gate is not healthy.
 
 ### CI Workflow
 
@@ -88,7 +95,9 @@ python -m autodev.real_delivery_validation \
 
 This prevents the common race where GitHub Actions has accepted the PR but has
 not yet reported any checks. The final report records a terminal CI state when
-checks finish within the configured timeout.
+checks finish within the configured timeout. Failed checks, timed-out pending
+checks, and missing check status block the validation result when CI collection
+is enabled.
 
 ## Boundaries
 

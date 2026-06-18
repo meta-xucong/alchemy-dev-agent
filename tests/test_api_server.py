@@ -8,6 +8,7 @@ import time
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest import mock
 
 from server.api import make_handler
 from server.jobs import JobExecutionController, JobStore
@@ -124,6 +125,43 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(run["workspace"]["status"], "skipped")
         self.assertEqual(run["workspace"]["enabled"], False)
 
+    def test_project_service_run_payload_records_github_ci_wait_contract(self) -> None:
+        root = temp_root()
+        captured = {"kwargs": {}}
+
+        class FakeRunResult:
+            status = "done"
+
+            def to_dict(self) -> dict[str, object]:
+                return {"status": "done", "runtime_state": {"done": True}}
+
+        class FakePipeline:
+            def run(self, **kwargs) -> FakeRunResult:
+                captured["kwargs"] = kwargs
+                return FakeRunResult()
+
+        service = ProjectService(storage_root=root / "server")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        created = service.create_project({"objective": "Add workspace support", "documents": [str(spec)]})
+        project_id = str(created["project"]["project_id"])
+        service.build_plan(project_id)
+
+        with mock.patch("server.project_service.DocumentRunPipeline", return_value=FakePipeline()):
+            run = service.run_project(
+                project_id,
+                {
+                    "github_collect_ci": False,
+                    "github_ci_wait_seconds": 33,
+                    "github_ci_poll_interval_seconds": 4,
+                },
+            )
+
+        self.assertEqual(run["status"], "done")
+        self.assertEqual(captured["kwargs"]["github_collect_ci"], False)
+        self.assertEqual(captured["kwargs"]["github_ci_wait_seconds"], 33.0)
+        self.assertEqual(captured["kwargs"]["github_ci_poll_interval_seconds"], 4.0)
+
     def test_project_service_async_run_records_job_controls_and_events(self) -> None:
         root = temp_root()
         repo = root / "repo"
@@ -165,6 +203,27 @@ class ApiServerTests(unittest.TestCase):
         loaded = store.load("run_001")
 
         self.assertEqual(loaded.status, "running")
+        self.assertFalse(list((root / "runs" / "run_001").glob("job.json.tmp-*")))
+
+    def test_job_store_save_retries_transient_replace_permission_error(self) -> None:
+        root = temp_root()
+        store = JobStore(root)
+        job = store.create("proj_test", "run_001")
+        job.status = "running"
+        original_replace = Path.replace
+        attempts = {"count": 0}
+
+        def flaky_replace(path: Path, target: Path) -> Path:
+            if path.name.startswith("job.json.tmp-") and attempts["count"] == 0:
+                attempts["count"] += 1
+                raise PermissionError("temporary lock")
+            return original_replace(path, target)
+
+        with mock.patch.object(Path, "replace", flaky_replace):
+            store.save(job)
+
+        self.assertEqual(attempts["count"], 1)
+        self.assertEqual(store.load("run_001").status, "running")
         self.assertFalse(list((root / "runs" / "run_001").glob("job.json.tmp-*")))
 
     def test_project_service_job_controller_stops_at_task_boundary(self) -> None:
@@ -404,8 +463,12 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("startRun", js)
             self.assertIn("realCodex", html)
             self.assertIn("isolateRealRun", html)
+            self.assertIn("githubCiWaitSeconds", html)
+            self.assertIn("githubCollectCi", html)
             self.assertIn("real_codex", js)
             self.assertIn("isolate_real_run", js)
+            self.assertIn("github_ci_wait_seconds", js)
+            self.assertIn("github_collect_ci", js)
         finally:
             conn.close()
             server.shutdown()

@@ -14,7 +14,7 @@ from runtime.agent_router import AgentRouter
 from runtime.control import ControlDecision
 from runtime.codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult
 from runtime.evaluator import Evaluator
-from runtime.github_flow import GitHubFlow
+from runtime.github_flow import GitHubExecutionResult, GitHubFlow
 from runtime.orchestrator import Orchestrator
 from runtime.models import Dependency, RuntimeState, TaskGraph, TaskNode
 from runtime.state_manager import StateManager
@@ -404,6 +404,36 @@ class GitHubFlowTests(unittest.TestCase):
         self.assertEqual(details[0]["bucket"], "pass")
         self.assertEqual(calls, 2)
 
+    def test_real_flow_returns_pushed_with_failed_ci_evidence(self) -> None:
+        def fake_runner(args, *, cwd, capture_output, text, check):
+            if args == ["git", "status", "--short"]:
+                return subprocess.CompletedProcess(args, 0, "", "")
+            if args == ["git", "rev-parse", "HEAD"]:
+                return subprocess.CompletedProcess(args, 0, "abc123\n", "")
+            if args == ["gh", "pr", "view", "agent/test", "--json", "url,number,state"]:
+                return subprocess.CompletedProcess(args, 0, '{"url":"https://example.test/pr/2","number":2,"state":"OPEN"}\n', "")
+            if args == [
+                "gh",
+                "pr",
+                "checks",
+                "agent/test",
+                "--json",
+                "name,state,bucket,workflow,link,completedAt,startedAt",
+            ]:
+                return subprocess.CompletedProcess(args, 1, '[{"name":"ci","bucket":"fail"}]\n', "")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        result = GitHubFlow(dry_run=False, runner=fake_runner).record_execution(
+            repository_path=".",
+            branch="agent/test",
+            task_ids=["T001"],
+            title="test",
+            body="body",
+        )
+
+        self.assertEqual(result.status, "pushed")
+        self.assertEqual(result.ci_status, "failed")
+
 
 class EvaluatorTests(unittest.TestCase):
     def test_evaluator_requires_completed_graph(self) -> None:
@@ -667,6 +697,236 @@ class OrchestratorTests(unittest.TestCase):
         nodes = {node.id: node for node in state.task_graph.nodes}
         self.assertEqual(nodes["T002"].evidence[-1]["result"]["commands_run"][0]["command"], "static document inspection")
         self.assertEqual(nodes["T003"].evidence[-1]["result"]["status"], "completed")
+
+    def test_static_document_verification_requires_target_files(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            task = TaskNode(
+                id="T001",
+                title="Verify docs",
+                description="Verify generated document evidence.",
+                type="test",
+                assigned_agent="test",
+                completion_criteria=["A generated document exists."],
+                commands_to_run=["static document inspection"],
+            )
+            result = Orchestrator(StateManager(Path(tmp_dir) / "state.json"), repository_path=tmp_dir)._static_document_result(task)
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("No task-specific document files", result.tests_failed[0])
+
+    def test_release_task_blocks_when_ci_is_failed(self) -> None:
+        class FailedCIFlow:
+            def record_execution(self, **kwargs) -> GitHubExecutionResult:
+                return GitHubExecutionResult(
+                    status="pushed",
+                    branch="agent/test",
+                    commit="abc123",
+                    pull_request_url="https://example.test/pr/4",
+                    ci_status="failed",
+                    ci_details=[{"name": "ci", "bucket": "fail"}],
+                    summary="GitHub delivery completed with CI status failed.",
+                )
+
+        with temp_project_dir() as tmp_dir:
+            graph = TaskGraph(
+                graph_id="release-ci",
+                version=1,
+                nodes=[
+                    TaskNode(
+                        id="T001",
+                        title="Review",
+                        description="Review evidence",
+                        type="review",
+                        assigned_agent="reviewer",
+                        status="completed",
+                        completion_criteria=["Reviewer approval is recorded."],
+                        evidence=[{"type": "worker_result", "result": {"status": "completed", "tests_failed": []}}],
+                    ),
+                    TaskNode(
+                        id="T002",
+                        title="Release",
+                        description="Record GitHub evidence",
+                        type="release",
+                        assigned_agent="reviewer",
+                        dependencies=["T001"],
+                    ),
+                ],
+                dependencies=[Dependency(source="T001", target="T002", type="requires_review")],
+            )
+
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                github_flow=FailedCIFlow(),  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run("release with failing ci", reset=True, task_graph=graph, max_iterations=2)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(nodes["T002"].status, "blocked")
+        self.assertFalse(state.done)
+        self.assertEqual(state.github["ci_status"], "failed")
+        self.assertTrue(any(blocker["type"] == "quality_gate" for blocker in state.blockers))
+
+    def test_release_task_blocks_when_ci_status_is_unknown(self) -> None:
+        class UnknownCIFlow:
+            def record_execution(self, **kwargs) -> GitHubExecutionResult:
+                return GitHubExecutionResult(
+                    status="pushed",
+                    branch="agent/test",
+                    commit="abc123",
+                    pull_request_url="https://example.test/pr/5",
+                    ci_status="unknown",
+                    summary="GitHub delivery completed without CI status.",
+                )
+
+        with temp_project_dir() as tmp_dir:
+            graph = TaskGraph(
+                graph_id="release-ci-unknown",
+                version=1,
+                nodes=[
+                    TaskNode(
+                        id="T001",
+                        title="Review",
+                        description="Review evidence",
+                        type="review",
+                        assigned_agent="reviewer",
+                        status="completed",
+                        evidence=[{"type": "worker_result", "result": {"status": "completed", "tests_failed": []}}],
+                    ),
+                    TaskNode(
+                        id="T002",
+                        title="Release",
+                        description="Record GitHub evidence",
+                        type="release",
+                        assigned_agent="reviewer",
+                        dependencies=["T001"],
+                    ),
+                ],
+                dependencies=[Dependency(source="T001", target="T002", type="requires_review")],
+            )
+
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                github_flow=UnknownCIFlow(),  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run("release with unknown ci", reset=True, task_graph=graph, max_iterations=2)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(nodes["T002"].status, "blocked")
+        self.assertFalse(state.done)
+        self.assertEqual(state.github["ci_status"], "unknown")
+
+    def test_release_task_allows_unknown_ci_when_collection_is_disabled(self) -> None:
+        class UnknownCIFlow:
+            def __init__(self) -> None:
+                self.kwargs: dict[str, object] = {}
+
+            def record_execution(self, **kwargs) -> GitHubExecutionResult:
+                self.kwargs = kwargs
+                return GitHubExecutionResult(
+                    status="pushed",
+                    branch="agent/test",
+                    commit="abc123",
+                    pull_request_url="https://example.test/pr/5",
+                    ci_status="unknown",
+                    summary="GitHub delivery completed without CI collection.",
+                )
+
+        flow = UnknownCIFlow()
+        with temp_project_dir() as tmp_dir:
+            graph = TaskGraph(
+                graph_id="release-ci-disabled",
+                version=1,
+                nodes=[
+                    TaskNode(
+                        id="T001",
+                        title="Review",
+                        description="Review evidence",
+                        type="review",
+                        assigned_agent="reviewer",
+                        status="completed",
+                        evidence=[{"type": "worker_result", "result": {"status": "completed", "tests_failed": []}}],
+                    ),
+                    TaskNode(
+                        id="T002",
+                        title="Release",
+                        description="Record GitHub evidence",
+                        type="release",
+                        assigned_agent="reviewer",
+                        dependencies=["T001"],
+                    ),
+                ],
+                dependencies=[Dependency(source="T001", target="T002", type="requires_review")],
+            )
+
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                github_flow=flow,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+                github_collect_ci=False,
+            ).run("release without ci collection", reset=True, task_graph=graph, max_iterations=2)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(nodes["T002"].status, "completed")
+        self.assertFalse(state.blockers)
+        self.assertEqual(flow.kwargs["collect_ci"], False)
+
+    def test_release_task_passes_ci_wait_configuration_to_github_flow(self) -> None:
+        class CapturingFlow:
+            def __init__(self) -> None:
+                self.kwargs: dict[str, object] = {}
+
+            def record_execution(self, **kwargs) -> GitHubExecutionResult:
+                self.kwargs = kwargs
+                return GitHubExecutionResult(
+                    status="pushed",
+                    branch="agent/test",
+                    commit="abc123",
+                    pull_request_url="https://example.test/pr/6",
+                    ci_status="passed",
+                    summary="GitHub delivery completed with CI status passed.",
+                )
+
+        flow = CapturingFlow()
+        with temp_project_dir() as tmp_dir:
+            graph = TaskGraph(
+                graph_id="release-ci-wait",
+                version=1,
+                nodes=[
+                    TaskNode(
+                        id="T001",
+                        title="Review",
+                        description="Review evidence",
+                        type="review",
+                        assigned_agent="reviewer",
+                        status="completed",
+                        evidence=[{"type": "worker_result", "result": {"status": "completed", "tests_failed": []}}],
+                    ),
+                    TaskNode(
+                        id="T002",
+                        title="Release",
+                        description="Record GitHub evidence",
+                        type="release",
+                        assigned_agent="reviewer",
+                        dependencies=["T001"],
+                    ),
+                ],
+                dependencies=[Dependency(source="T001", target="T002", type="requires_review")],
+            )
+
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                github_flow=flow,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+                github_ci_wait_seconds=45,
+                github_ci_poll_interval_seconds=3,
+            ).run("release with ci wait", reset=True, task_graph=graph, max_iterations=2)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(nodes["T002"].status, "completed")
+        self.assertFalse(state.blockers)
+        self.assertEqual(flow.kwargs["collect_ci"], True)
+        self.assertEqual(flow.kwargs["ci_wait_seconds"], 45)
+        self.assertEqual(flow.kwargs["ci_poll_interval_seconds"], 3)
 
     def test_cli_smoke_run(self) -> None:
         with temp_project_dir() as tmp_dir:

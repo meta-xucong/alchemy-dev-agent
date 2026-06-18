@@ -48,6 +48,14 @@
               Codex CLI executable
               <input id="codexExecutable" type="text" value="codex" placeholder="D:\AI\Tools\CodexCLI\bin\codex.exe">
             </label>
+            <label>
+              CI wait seconds
+              <input id="githubCiWaitSeconds" type="number" min="0" step="1" value="120">
+            </label>
+            <label>
+              CI poll seconds
+              <input id="githubCiPollSeconds" type="number" min="1" step="1" value="10">
+            </label>
             <label class="check">
               <input id="realCodex" type="checkbox">
               <span>Real Codex worker</span>
@@ -55,6 +63,10 @@
             <label class="check">
               <input id="realGithub" type="checkbox">
               <span>Real GitHub flow</span>
+            </label>
+            <label class="check">
+              <input id="githubCollectCi" type="checkbox" checked>
+              <span>Collect GitHub CI</span>
             </label>
             <label class="check">
               <input id="isolateRealRun" type="checkbox" checked>

@@ -177,6 +177,16 @@ class RealDeliveryValidation:
                     "can_continue_partially": False,
                 }
             )
+        if result.status == "pushed" and collect_ci and result.ci_status in {"failed", "pending", "unknown"}:
+            blockers.append(
+                {
+                    "id": "B-REAL-DELIVERY-CI",
+                    "type": "quality_gate",
+                    "description": f"GitHub CI status {result.ci_status} prevented delivery validation from passing.",
+                    "required_resolution": "Wait for checks to finish or fix failing CI, then rerun validation.",
+                    "can_continue_partially": False,
+                }
+            )
 
         status = "passed" if result.status == "pushed" and result.pull_request_url and not blockers else "blocked"
         report = DeliveryValidationReport(

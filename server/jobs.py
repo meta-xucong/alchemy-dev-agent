@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -99,9 +100,20 @@ class JobStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         job.updated_at = utc_now_iso()
         payload = json.dumps(job.to_dict(), indent=2, sort_keys=True) + "\n"
-        temp_path = path.with_name(f"{path.name}.tmp-{threading.get_ident()}")
+        temp_path = path.with_name(f"{path.name}.tmp-{threading.get_ident()}-{uuid.uuid4().hex}")
         temp_path.write_text(payload, encoding="utf-8")
-        temp_path.replace(path)
+        try:
+            for attempt in range(10):
+                try:
+                    temp_path.replace(path)
+                    return
+                except PermissionError:
+                    if attempt == 9:
+                        raise
+                    time.sleep(0.02)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
 
     def transition(self, run_id: str, status: str, message: str, *, source: str = "runtime", error: str = "") -> RunJob:
         job = self.load(run_id)

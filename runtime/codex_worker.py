@@ -141,12 +141,12 @@ class SubprocessRunner(Protocol):
         args: list[str],
         *,
         cwd: str | Path,
-        input: str,
+        input: str | bytes,
         capture_output: bool,
         text: bool,
         timeout: int,
         check: bool,
-    ) -> subprocess.CompletedProcess[str]:
+    ) -> subprocess.CompletedProcess[Any]:
         ...
 
 

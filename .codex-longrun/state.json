@@ -1,6 +1,6 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "Acceptance ready",
+  "current_phase": "V2.21 post-acceptance quality gate hardening",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -16,11 +16,12 @@
     "V2.17 resumable real worker execution and recovery controls",
     "V2.18 controlled real GitHub PR and CI delivery validation",
     "V2.19 representative real document-driven delivery run",
-    "V2.20 delivery stabilization and acceptance closure"
+    "V2.20 delivery stabilization and acceptance closure",
+    "V2.21 post-acceptance quality gate hardening"
   ],
   "next_actions": [
     "User review and acceptance.",
-    "Optional next roadmap: merge or close validation PR #2, add real GitHub PR delivery for representative document-run changes, and expand production-grade task scheduling."
+    "Optional future work: merge or close validation PR #2, then add production-grade scheduling and richer semantic requirement mapping."
   ],
   "tests_run": [
     {
@@ -262,6 +263,51 @@
       "command": "gh run list --branch master --limit 5 --json status,conclusion,headSha,displayTitle,url,workflowName,createdAt",
       "result": "passed",
       "summary": "Latest five master GitHub Actions CI runs were successful, including commit 705af9b."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.GitHubFlowTests tests.test_runtime.OrchestratorTests.test_static_document_verification_requires_target_files tests.test_runtime.OrchestratorTests.test_release_task_blocks_when_ci_is_failed tests.test_real_delivery_validation tests.test_api_server.ApiServerTests.test_job_store_save_uses_complete_json_payload tests.test_api_server.ApiServerTests.test_job_store_save_retries_transient_replace_permission_error",
+      "result": "passed",
+      "summary": "12 focused tests passed for CI gate blocking, static document target enforcement, real delivery validation blockers, and atomic job save retry."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "102 tests passed after CI quality gate blocking, CI wait runtime wiring, static document target enforcement, and JobStore save retry hardening."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_post_audit_final",
+      "result": "passed",
+      "summary": "Acceptance report status passed with 8/8 checks; final gate reached DONE condition with score 0.9571."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
+      "result": "passed",
+      "summary": "All JSON specs parsed after V2.21 hardening."
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "summary": "No whitespace errors reported; Git emitted CRLF normalization warnings for long-running state only."
+    },
+    {
+      "command": "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
+      "result": "passed",
+      "summary": "Long-running state schema validated after V2.21 updates."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "103 tests passed after adding explicit GitHub CI collection control."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_21_final",
+      "result": "passed",
+      "summary": "Acceptance report status passed with 8/8 checks and final gate reason DONE condition met."
+    },
+    {
+      "command": "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
+      "result": "passed",
+      "summary": "Long-running state schema validated before commit."
     }
   ],
   "known_bugs": [
@@ -286,7 +332,7 @@
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-19T02:58:02.009243+08:00",
+  "last_verified_at": "2026-06-19T03:18:56.779426+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T02:58:02.009243+08:00"
+  "updated_at": "2026-06-19T03:18:56.779426+08:00"
 }

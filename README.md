@@ -571,7 +571,10 @@ python -m autodev.real_delivery_validation \
 
 The harness defaults to an isolated git worktree, creates or reuses a validation
 PR, waits for PR checks by default, and records CI status through `gh pr checks`.
-Use `--ci-wait-seconds` and `--ci-poll-interval-seconds` to tune that wait. It writes:
+Failed, still-pending, or missing CI status blocks the validation report instead
+of being treated as successful delivery when CI collection is enabled. Use
+`--ci-wait-seconds` and
+`--ci-poll-interval-seconds` to tune that wait. It writes:
 
 ```text
 .alchemy/real_delivery_validation/real_delivery_validation_report.json
@@ -615,10 +618,16 @@ python -m runtime.run_loop \
   --objective "implement the requested feature" \
   --project /path/to/repo \
   --real-codex \
-  --real-github
+  --real-github \
+  --github-ci-wait-seconds 120 \
+  --github-ci-poll-interval-seconds 10
 ```
 
-`--real-github` expects local `git` and `gh` authentication to be available. Without it, the runtime records dry-run branch, commit, PR, and CI evidence instead.
+`--real-github` expects local `git` and `gh` authentication to be available.
+When CI collection is enabled, failed, pending, or missing CI status blocks the
+release gate. Use `--no-github-ci` only for repositories where PR check evidence
+is intentionally unavailable. Without real GitHub mode, the runtime records
+dry-run branch, commit, PR, and CI evidence instead.
 
 Run tests:
 

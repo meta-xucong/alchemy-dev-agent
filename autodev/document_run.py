@@ -66,6 +66,9 @@ class DocumentRunPipeline:
         real_github: bool = False,
         codex_executable: str = "codex",
         max_worker_seconds: int = 1800,
+        github_collect_ci: bool = True,
+        github_ci_wait_seconds: float = 120,
+        github_ci_poll_interval_seconds: float = 10,
         isolate_real_run: bool = True,
         keep_worktree: bool = True,
         worktree_branch_prefix: str = "agent/alchemy-real-run",
@@ -87,6 +90,9 @@ class DocumentRunPipeline:
                 real_github=real_github,
                 codex_executable=codex_executable,
                 max_worker_seconds=max_worker_seconds,
+                github_collect_ci=github_collect_ci,
+                github_ci_wait_seconds=github_ci_wait_seconds,
+                github_ci_poll_interval_seconds=github_ci_poll_interval_seconds,
                 max_iterations=max_iterations,
                 controller=controller,
             )
@@ -200,6 +206,9 @@ class DocumentRunPipeline:
                 worker=worker,
                 github_flow=github_flow,
                 controller=controller,
+                github_collect_ci=github_collect_ci,
+                github_ci_wait_seconds=github_ci_wait_seconds if real_github else 0,
+                github_ci_poll_interval_seconds=github_ci_poll_interval_seconds,
             )
             final_state = orchestrator.run(
                 state.objective,
@@ -242,6 +251,9 @@ class DocumentRunPipeline:
         real_github: bool,
         codex_executable: str,
         max_worker_seconds: int,
+        github_collect_ci: bool,
+        github_ci_wait_seconds: float,
+        github_ci_poll_interval_seconds: float,
         max_iterations: int,
         controller: ExecutionController | None,
     ) -> DocumentRunResult:
@@ -294,6 +306,9 @@ class DocumentRunPipeline:
                 worker=worker,
                 github_flow=GitHubFlow(dry_run=not real_github),
                 controller=controller,
+                github_collect_ci=github_collect_ci,
+                github_ci_wait_seconds=github_ci_wait_seconds if real_github else 0,
+                github_ci_poll_interval_seconds=github_ci_poll_interval_seconds,
             )
             final_state = orchestrator.run(
                 state.objective or objective,
@@ -338,6 +353,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--real-github", action="store_true", help="Run real git/gh delivery evidence instead of dry-run GitHub mode.")
     parser.add_argument("--codex-executable", default="codex")
     parser.add_argument("--max-worker-seconds", type=int, default=1800)
+    parser.add_argument("--no-github-ci", action="store_true", help="Skip PR check collection in real GitHub mode.")
+    parser.add_argument("--github-ci-wait-seconds", type=float, default=120)
+    parser.add_argument("--github-ci-poll-interval-seconds", type=float, default=10)
     parser.add_argument("--no-isolated-worktree", action="store_true", help="Run real Codex directly in the repository path instead of an isolated git worktree.")
     parser.add_argument("--cleanup-worktree", action="store_true", help="Remove the isolated real-run worktree and branch after the run.")
     parser.add_argument("--worktree-branch-prefix", default="agent/alchemy-real-run")
@@ -362,6 +380,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         real_github=args.real_github,
         codex_executable=args.codex_executable,
         max_worker_seconds=args.max_worker_seconds,
+        github_collect_ci=not args.no_github_ci,
+        github_ci_wait_seconds=args.github_ci_wait_seconds,
+        github_ci_poll_interval_seconds=args.github_ci_poll_interval_seconds,
         isolate_real_run=not args.no_isolated_worktree,
         keep_worktree=not args.cleanup_worktree,
         worktree_branch_prefix=args.worktree_branch_prefix,

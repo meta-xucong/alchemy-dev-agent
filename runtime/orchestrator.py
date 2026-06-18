@@ -27,6 +27,9 @@ class Orchestrator:
         github_flow: GitHubFlow | None = None,
         controller: ExecutionController | None = None,
         repository_path: str | Path = ".",
+        github_collect_ci: bool = True,
+        github_ci_wait_seconds: float = 0,
+        github_ci_poll_interval_seconds: float = 5,
     ) -> None:
         self.state_manager = state_manager
         self.graph_engine = graph_engine or TaskGraphEngine()
@@ -36,6 +39,9 @@ class Orchestrator:
         self.github_flow = github_flow or GitHubFlow()
         self.controller = controller or NoopExecutionController()
         self.repository_path = Path(repository_path)
+        self.github_collect_ci = github_collect_ci
+        self.github_ci_wait_seconds = github_ci_wait_seconds
+        self.github_ci_poll_interval_seconds = github_ci_poll_interval_seconds
 
     @classmethod
     def for_project(
@@ -47,6 +53,9 @@ class Orchestrator:
         real_github: bool = False,
         codex_executable: str = "codex",
         max_worker_seconds: int = 1800,
+        github_collect_ci: bool = True,
+        github_ci_wait_seconds: float = 0,
+        github_ci_poll_interval_seconds: float = 5,
     ) -> "Orchestrator":
         project_path = Path(project_dir)
         return cls(
@@ -58,6 +67,9 @@ class Orchestrator:
             ),
             github_flow=GitHubFlow(dry_run=not real_github),
             repository_path=project_path,
+            github_collect_ci=github_collect_ci,
+            github_ci_wait_seconds=github_ci_wait_seconds,
+            github_ci_poll_interval_seconds=github_ci_poll_interval_seconds,
         )
 
     def initialize(
@@ -203,15 +215,18 @@ class Orchestrator:
         self._handle_failed_task(state, task, result)
 
     def _static_document_result(self, task: TaskNode) -> CodexWorkerResult:
-        paths = [Path(self.repository_path) / path for path in task.relevant_files]
-        missing = [str(path.relative_to(self.repository_path)) for path in paths if not path.exists()]
+        repository_path = Path(self.repository_path).resolve()
+        paths = [repository_path / path for path in task.relevant_files]
+        missing = [str(path.relative_to(repository_path)) for path in paths if not path.exists()]
         evidence: list[str] = []
         tests_failed: list[str] = []
+        if not paths:
+            tests_failed.append("No task-specific document files were provided for static document inspection.")
         if missing:
             tests_failed.extend(f"Missing required file: {path}" for path in missing)
         for path in paths:
             if path.exists():
-                relative = str(path.relative_to(self.repository_path))
+                relative = str(path.relative_to(repository_path))
                 text = path.read_text(encoding="utf-8", errors="replace")
                 evidence.append(f"Found required file: {relative}")
                 for expected in self._expected_document_phrases(task.completion_criteria):
@@ -219,8 +234,6 @@ class Orchestrator:
                         evidence.append(f"Found expected phrase in {relative}: {expected}")
                     else:
                         tests_failed.append(f"Missing expected phrase in {relative}: {expected}")
-        if not paths:
-            evidence.append("No task-specific document files were required.")
         status = "failed" if tests_failed else "completed"
         summary = "Static document inspection passed." if status == "completed" else "Static document inspection failed."
         return CodexWorkerResult(
@@ -373,6 +386,9 @@ class Orchestrator:
             task_ids=list(state.completed_tasks),
             title=f"{task.id}: {task.title}",
             body=self._build_release_body(state),
+            collect_ci=self.github_collect_ci,
+            ci_wait_seconds=self.github_ci_wait_seconds,
+            ci_poll_interval_seconds=self.github_ci_poll_interval_seconds,
         )
         state.github = result.to_dict()
         state.active_tasks = [task_id for task_id in state.active_tasks if task_id != task.id]
@@ -385,10 +401,25 @@ class Orchestrator:
             "created_at": utc_now_iso(),
             "iteration": iteration,
         }
-        if result.status in {"recorded", "pushed"}:
+        unhealthy_ci_status = result.ci_status in {"failed", "pending"} or (
+            self.github_collect_ci and result.ci_status == "unknown"
+        )
+        if result.status in {"recorded", "pushed"} and not unhealthy_ci_status:
             self.graph_engine.mark_completed(state.task_graph, task.id, evidence)
             state.completed_tasks = self._add_unique(state.completed_tasks, task.id)
             self._record_history(state, "github_evidence_recorded", result.summary, task.id)
+            return
+
+        if result.status in {"recorded", "pushed"} and unhealthy_ci_status:
+            self.graph_engine.mark_blocked(state.task_graph, task.id, evidence)
+            state.failed_tasks = self._add_unique(state.failed_tasks, task.id)
+            self._record_blocker(
+                state,
+                task,
+                f"GitHub CI status {result.ci_status} prevented release completion.",
+                blocker_type="quality_gate",
+            )
+            self._record_history(state, "github_flow_blocked", result.summary, task.id)
             return
 
         self.graph_engine.mark_failed(state.task_graph, task.id, evidence)

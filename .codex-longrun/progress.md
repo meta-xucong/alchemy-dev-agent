@@ -325,3 +325,17 @@ PY"`
 - Checked GitHub Actions on `master`: the latest five runs are successful, including commit `705af9b`.
 - Added `docs/28_representative_delivery_probe.md` as the formalized artifact from the successful V2.19 representative real worker run.
 - Marked the long-running objective as acceptance ready / done.
+
+
+## 2026-06-19 V2.21 Post-Acceptance Quality Gate Hardening
+
+- Audited the recent real delivery, worker decoding, document planning, deterministic verification, and async job persistence changes.
+- Fixed release execution so `failed`, `pending`, or `unknown` CI status blocks real GitHub release completion instead of counting as delivery evidence.
+- Fixed the controlled real delivery validation harness so unhealthy or missing CI status records `B-REAL-DELIVERY-CI`; explicit `--no-ci` remains available for PR-plumbing-only validation.
+- Wired configurable CI wait/poll settings through runtime CLI, document-run CLI, ProjectService/API payloads, and the browser console.
+- Hardened static document verification so missing target files fail instead of passing with empty evidence.
+- Hardened async `JobStore.save()` with unique temp files and retry-on-transient Windows `PermissionError` during atomic replacement.
+- Updated README and V2.18 docs to reflect the stricter CI quality gate.
+
+- Finalized V2.21 with explicit GitHub CI collection controls so repositories without PR checks can opt out while normal real GitHub delivery still treats failed, pending, or missing CI as a quality gate blocker.
+- Re-ran full unit suite, acceptance harness, JSON spec parsing, diff hygiene, and state validation after the final CI collection control pass.

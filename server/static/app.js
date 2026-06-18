@@ -157,6 +157,9 @@ function runPayload() {
     real_codex: el("realCodex").checked,
     real_github: el("realGithub").checked,
     codex_executable: el("codexExecutable").value.trim() || "codex",
+    github_collect_ci: el("githubCollectCi").checked,
+    github_ci_wait_seconds: Number(el("githubCiWaitSeconds").value || 0),
+    github_ci_poll_interval_seconds: Number(el("githubCiPollSeconds").value || 10),
     isolate_real_run: el("isolateRealRun").checked,
     keep_worktree: el("keepWorktree").checked,
   };
