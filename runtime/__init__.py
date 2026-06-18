@@ -6,6 +6,7 @@ from .evaluator import EvaluationResult, Evaluator
 from .github_flow import GitHubExecutionResult, GitHubFlow
 from .handoff import RuntimeHandoff
 from .orchestrator import Orchestrator
+from .recovery import RecoveryResult, RecoverySource, RuntimeRecovery
 from .state_manager import StateManager
 from .task_graph_engine import TaskGraphEngine
 from .worktree import RealRunWorkspace, WorktreeSession
@@ -22,6 +23,9 @@ __all__ = [
     "GitHubFlow",
     "Orchestrator",
     "RealRunWorkspace",
+    "RecoveryResult",
+    "RecoverySource",
+    "RuntimeRecovery",
     "RuntimeHandoff",
     "StateManager",
     "TaskGraphEngine",

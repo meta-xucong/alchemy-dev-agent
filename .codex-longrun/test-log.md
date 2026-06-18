@@ -646,3 +646,45 @@
 - Result: passed.
 - Summary: Acceptance report status passed with 8/8 checks after UI run payload controls were added.
 - Next verification command: long-running state validation and git diff audit.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime_recovery tests.test_document_run_pipeline.DocumentRunPipelineTests.test_pipeline_can_resume_from_stopped_run_state tests.test_api_server.ApiServerTests.test_project_service_resume_paused_run_starts_recovery_run`
+- Result: passed.
+- Summary: 4 focused V2.17 recovery tests passed for runtime recovery, document-run resume, and API paused-run resume.
+- Next verification command: full test suite.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 84 tests passed after V2.17 recovery implementation and documentation alignment.
+- Next verification command: acceptance harness.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_17_final2`
+- Result: passed.
+- Summary: Acceptance report status passed with 8/8 checks after V2.17 changes.
+- Next verification command: real Codex recovery smoke and state validation.
+
+## 2026-06-19
+
+- Command: `Bounded real Codex recovery smoke with explicit standalone CLI`
+- Result: passed.
+- Summary: Recovered active read-only task T002 from B-RUN-STOPPED, real Codex completed it, and source git status stayed clean.
+- Next verification command: long-running state validation and git diff audit.
+
+## 2026-06-19
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after adding recovery schema fields.
+- Next verification command: git diff --check.
+
+## 2026-06-19
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported after V2.17 changes.
+- Next verification command: long-running state validation.

@@ -252,6 +252,14 @@ V2.10 adds task-boundary semantics for those controls:
 - pause stops before the next worker dispatch and records `run_paused`.
 - stop prevents the next worker dispatch and records blocker `B-RUN-STOPPED`.
 
+V2.17 adds recovery resume semantics:
+
+- resume clears `pause_requested`.
+- when the source job is already paused, resume starts a new recovery run from
+  the prior persisted state and returns `resumed_run_id`.
+- recovery runs can also be started directly with `resume_from_run_id` or
+  `resume_from` in the run payload.
+
 Still not implemented:
 
 - `PATCH /projects/{project_id}/files/{file_id}`

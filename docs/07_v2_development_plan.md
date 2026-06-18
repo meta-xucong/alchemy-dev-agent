@@ -33,9 +33,14 @@ The repository currently contains:
 - A v2.10 task-boundary pause/stop hook and optional private GitHub CLI auth preflight.
 - A v2.11 private GitHub source adapter using local `gh` authentication.
 - A v2.12 local acceptance harness for document intake, planning, async execution, events, and delivery reports.
+- A v2.13 real environment validation report for local tool readiness.
+- A v2.14 standalone Codex CLI integration path for real worker execution.
+- A v2.15 real Codex worker hardening layer with allowed-file enforcement.
+- A v2.16 isolated real-run worktree lifecycle.
+- A v2.17 recovery controller for resumable worker execution.
 - Tests that protect the runtime contract.
 
-V2 must continue extending this baseline with deeper document parsing, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
+V2 must continue extending this baseline with deeper document parsing, richer UI/API observability, representative real GitHub delivery validation, and safer live execution controls. It must not bypass the existing task graph, worker, state, and evaluation contracts.
 
 ## V2 Objective
 
@@ -142,7 +147,7 @@ Delivery
 
 ## Planned Module Boundaries
 
-These are current and planned implementation module boundaries. Some modules are implemented as deterministic local runtimes; UI/API and authenticated private repository modules remain planned.
+These are current and planned implementation module boundaries. Most modules below now have a deterministic local implementation; production-grade UI, streaming, hard worker cancellation, and representative external delivery validation remain future work.
 
 ```text
 intake/
@@ -166,6 +171,7 @@ runtime/
   control.py                Task-boundary execution controls.
   handoff.py                Convert ProjectBrief, ContextBundle, and TaskGraph into RuntimeState and worker packages.
   orchestrator.py           Execute task graphs through worker, retry, evaluation, and delivery gates.
+  recovery.py               Resume paused, stopped, failed, or blocked runs from persisted state.
 
 autodev/
   acceptance_run.py         Run local end-to-end acceptance checks and write an acceptance report.
@@ -252,7 +258,7 @@ The v2 product surface must support:
 - Live execution event stream.
 - Final delivery evidence review.
 
-The UI is a planned v2 implementation target. It is not part of the current v1 CLI runtime.
+The current browser console covers the document-driven workflow at an operational level. Richer graph visualization, delivery evidence screens, and true live streaming remain product-hardening work.
 
 ## One-Line Fallback
 
@@ -310,9 +316,9 @@ DONE requires:
 - Implement local repository indexing. Status: done in V2.2.
 - Implement test profile detection. Status: done in V2.2.
 - Implement blockers for missing local repository paths. Status: done in V2.2.
-- Implement `gh auth status` checks. Status: pending.
-- Implement public/private clone or fetch. Status: public path moved to V2.3; private path pending.
-- Add blocker handling for missing remote access. Status: public path moved to V2.3; private path pending.
+- Implement `gh auth status` checks. Status: done in V2.10.
+- Implement public/private clone or fetch. Status: public path done in V2.3; private path done in V2.11.
+- Add blocker handling for missing remote access. Status: done.
 
 ### V2.3: Public GitHub Source Runtime
 
@@ -356,10 +362,10 @@ DONE requires:
 ### V2.8: UI And API Runtime
 
 - Implement project intake API. Status: done for local JSON API.
-- Implement upload and repository inspection API. Status: partial; local file references and repository metadata are supported, real browser multipart upload is pending.
+- Implement upload and repository inspection API. Status: done for local JSON API, multipart browser upload, public source preparation, and optional private source preparation through local `gh`.
 - Implement task graph preview API. Status: done.
-- Implement execution event stream. Status: partial; completed run event retrieval is available, live async streaming is pending.
-- Implement UI screens for the document-driven flow. Status: pending.
+- Implement execution event stream. Status: partial; persisted async events are available, live SSE/WebSocket streaming is pending.
+- Implement UI screens for the document-driven flow. Status: partial; one operational browser console covers the flow, richer graph and delivery views remain pending.
 
 ### V2.9: Browser UI And Async Execution Runtime
 
@@ -388,7 +394,41 @@ DONE requires:
 - Persist `acceptance_report.json`. Status: done.
 - Use deterministic dry-run mode as the final local gate before external validation. Status: done.
 
-### V2.13: End-To-End Delivery Runtime
+### V2.13: Real Environment Validation
+
+- Check local `git`, `gh`, `gh auth status`, and Codex CLI readiness. Status: done.
+- Emit a machine-readable real environment readiness report. Status: done.
+- Identify WindowsApps Codex launch failure and explicit standalone CLI workaround. Status: done.
+
+### V2.14: Standalone Codex CLI API Integration
+
+- Install and verify a standalone Codex CLI path outside the WindowsApps desktop package. Status: done.
+- Add configurable `codex_executable` support to CLI/API real runs. Status: done.
+- Verify a real Codex worker smoke through the runtime adapter. Status: done.
+
+### V2.15: Real Codex Worker Hardening
+
+- Persist allowed-file boundaries in worker packages. Status: done.
+- Enforce dirty-diff auditing before and after real worker execution. Status: done.
+- Roll back out-of-scope changes and timeout-local changes. Status: done.
+- Verify a real Codex boundary smoke. Status: done.
+
+### V2.16: Isolated Real-Run Worktree Lifecycle
+
+- Create isolated git worktrees for real Codex document runs by default. Status: done.
+- Rebuild context, graph, state, and worker packages against the worktree. Status: done.
+- Expose API/UI controls for real Codex, real GitHub, worktree isolation, and retained worktrees. Status: done.
+- Verify a real Codex isolated worktree smoke. Status: done.
+
+### V2.17: Resumable Worker Execution
+
+- Resume from persisted `run.json`, `document_run_report.json`, or `state.json`. Status: done.
+- Reset active, retryable failed, and retryable blocked tasks. Status: done.
+- Clear operator stop blockers and record recovery checkpoints. Status: done.
+- Add CLI/API/UI resume wiring. Status: done.
+- Verify dry-run recovery and bounded real Codex recovery. Status: done.
+
+### V2.18: End-To-End Delivery Runtime
 
 - Run against a real repository with a real development document.
 - Execute Codex worker tasks.

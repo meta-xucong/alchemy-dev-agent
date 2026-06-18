@@ -12,7 +12,7 @@ from context import ContextBundleBuilder
 from intake import Blocker, GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
 from planner import TaskGraphBuilder
 from runtime.control import ExecutionController
-from runtime import CodexWorkerAdapter, GitHubFlow, Orchestrator, RealRunWorkspace, RuntimeHandoff, StateManager
+from runtime import CodexWorkerAdapter, GitHubFlow, Orchestrator, RealRunWorkspace, RuntimeHandoff, RuntimeRecovery, StateManager
 
 from .preflight import ExecutionPreflight
 
@@ -27,6 +27,7 @@ class DocumentRunResult:
     runtime_state: dict = field(default_factory=dict)
     preflight: dict = field(default_factory=dict)
     workspace: dict = field(default_factory=dict)
+    recovery: dict = field(default_factory=dict)
     output_dir: str = ""
     validation_errors: list[str] = field(default_factory=list)
 
@@ -40,6 +41,7 @@ class DocumentRunResult:
             "runtime_state": self.runtime_state,
             "preflight": self.preflight,
             "workspace": self.workspace,
+            "recovery": self.recovery,
             "output_dir": self.output_dir,
             "validation_errors": list(self.validation_errors),
         }
@@ -67,10 +69,27 @@ class DocumentRunPipeline:
         isolate_real_run: bool = True,
         keep_worktree: bool = True,
         worktree_branch_prefix: str = "agent/alchemy-real-run",
+        resume_from: str | Path | None = None,
+        resume_tasks: Sequence[str] = (),
         controller: ExecutionController | None = None,
     ) -> DocumentRunResult:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
+
+        recovery_payload: dict = {}
+        if resume_from:
+            return self._run_resumed(
+                resume_from=resume_from,
+                resume_tasks=resume_tasks,
+                output=output,
+                objective=objective,
+                real_codex=real_codex,
+                real_github=real_github,
+                codex_executable=codex_executable,
+                max_worker_seconds=max_worker_seconds,
+                max_iterations=max_iterations,
+                controller=controller,
+            )
 
         brief = ProjectBriefBuilder().build(
             objective=objective,
@@ -203,6 +222,98 @@ class DocumentRunPipeline:
             runtime_state=final_state.to_dict(),
             preflight=preflight.to_dict(),
             workspace=workspace_session.to_dict(),
+            recovery=recovery_payload,
+            output_dir=str(output),
+        )
+        (output / "document_run_report.json").write_text(
+            json.dumps(result.to_dict(), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return result
+
+    def _run_resumed(
+        self,
+        *,
+        resume_from: str | Path,
+        resume_tasks: Sequence[str],
+        output: Path,
+        objective: str,
+        real_codex: bool,
+        real_github: bool,
+        codex_executable: str,
+        max_worker_seconds: int,
+        max_iterations: int,
+        controller: ExecutionController | None,
+    ) -> DocumentRunResult:
+        recovery = RuntimeRecovery()
+        source = recovery.load_source(resume_from)
+        recovery_result = recovery.prepare(source, task_ids=resume_tasks)
+        state = recovery_result.state
+        repository_path = state.repository.get("path", ".")
+        workspace = dict(source.workspace)
+        preflight = ExecutionPreflight().check(
+            repository_path=repository_path,
+            real_codex=real_codex,
+            real_github=real_github,
+            codex_executable=codex_executable,
+            private_repository=False,
+        )
+        if recovery_result.blockers:
+            state.blockers.append(
+                {
+                    "id": "B-RECOVERY",
+                    "type": "technical_limit",
+                    "description": "; ".join(recovery_result.blockers),
+                    "required_resolution": "Select retryable failed, blocked, or active tasks from the source run.",
+                    "task_ids": [],
+                    "can_continue_partially": False,
+                }
+            )
+            final_state = state
+        elif preflight.status == "blocked":
+            state.blockers.append(
+                {
+                    "id": "B-PREFLIGHT",
+                    "type": "environment",
+                    "description": "Execution preflight failed during resumed run.",
+                    "required_resolution": "Install or configure required local tools or use dry-run mode.",
+                    "task_ids": [],
+                    "can_continue_partially": False,
+                }
+            )
+            final_state = state
+        else:
+            worker = CodexWorkerAdapter(
+                executable=codex_executable,
+                dry_run=not real_codex,
+                timeout_seconds=max_worker_seconds,
+            )
+            orchestrator = Orchestrator(
+                StateManager(output / "state.json"),
+                repository_path=repository_path,
+                worker=worker,
+                github_flow=GitHubFlow(dry_run=not real_github),
+                controller=controller,
+            )
+            final_state = orchestrator.run(
+                state.objective or objective,
+                max_iterations=max_iterations,
+                reset=True,
+                initial_state=state,
+            )
+
+        StateManager(output / "state.json").save(final_state)
+        status = "done" if final_state.done else "blocked" if final_state.blockers else "in_progress"
+        result = DocumentRunResult(
+            status=status,
+            project_brief=source.project_brief,
+            context_bundle=source.context_bundle,
+            task_graph=final_state.task_graph.to_dict(),
+            worker_packages=[],
+            runtime_state=final_state.to_dict(),
+            preflight=preflight.to_dict(),
+            workspace=workspace,
+            recovery=recovery_result.to_dict(),
             output_dir=str(output),
         )
         (output / "document_run_report.json").write_text(
@@ -230,6 +341,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-isolated-worktree", action="store_true", help="Run real Codex directly in the repository path instead of an isolated git worktree.")
     parser.add_argument("--cleanup-worktree", action="store_true", help="Remove the isolated real-run worktree and branch after the run.")
     parser.add_argument("--worktree-branch-prefix", default="agent/alchemy-real-run")
+    parser.add_argument("--resume-from", default="", help="Path to a prior run directory, run.json, document_run_report.json, or state.json.")
+    parser.add_argument("--resume-task", action="append", default=[], help="Specific task ID to reset and retry from the prior run.")
     return parser
 
 
@@ -252,6 +365,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         isolate_real_run=not args.no_isolated_worktree,
         keep_worktree=not args.cleanup_worktree,
         worktree_branch_prefix=args.worktree_branch_prefix,
+        resume_from=args.resume_from or None,
+        resume_tasks=args.resume_task,
     )
     print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
     return 0 if result.status == "done" else 1

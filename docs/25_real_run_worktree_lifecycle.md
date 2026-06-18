@@ -111,9 +111,8 @@ auditor:
 - Timeout and out-of-scope rollback still operate inside the execution
   worktree.
 
-## Remaining Gap
+## V2.17 Update
 
-V2.16 does not yet implement full resumable task execution after a real worker
-failure or timeout. The retained worktree and persisted state make that path
-possible, but V2.17 should add explicit resume commands and task retry recovery
-for real worker runs.
+V2.17 adds explicit resume/retry recovery from retained runtime state. The
+remaining work is hard cancellation of an already-running Codex subprocess and
+full real GitHub PR/CI validation.

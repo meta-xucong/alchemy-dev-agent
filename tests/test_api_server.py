@@ -187,6 +187,42 @@ class ApiServerTests(unittest.TestCase):
         event_types = {str(event.get("type", "")) for event in events["events"]}
         self.assertIn("stop_boundary", event_types)
 
+    def test_project_service_resume_paused_run_starts_recovery_run(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository": "https://github.com/example/saas-dashboard",
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        service.build_plan(project_id)
+        record = service.load_project(project_id)
+        run_id = service.next_run_id(project_id)
+        store = service.job_store(project_id)
+        job = store.create(project_id, run_id)
+        store.update_control(run_id, "stop_requested", True, "Stop before execution.")
+        result = service._execute_run(record, run_id, {}, controller=JobExecutionController(store, run_id))
+        store.set_result(run_id, service.project_dir(project_id) / "runs" / run_id / "run.json", "paused")
+
+        resumed = service.resume_run(project_id, run_id, {})
+        resumed_run_id = str(resumed["resumed_run_id"])
+        resumed_job = wait_for_job(service, project_id, resumed_run_id)
+        resumed_run = service.get_run(project_id, resumed_run_id)
+
+        self.assertEqual(resumed_job["status"], "done")
+        self.assertEqual(resumed_run["status"], "done")
+        self.assertEqual(resumed_run["recovery"]["checkpoint"]["source_run_id"], run_id)
+        self.assertTrue(resumed_run["runtime_state"]["done"])
+
     def test_http_api_create_plan_run_and_fetch_report(self) -> None:
         root = temp_root()
         repo = root / "repo"

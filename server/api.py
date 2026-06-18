@@ -191,7 +191,7 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
         return service.pause_run(project_id, run_id), HTTPStatus.OK
     if method == "POST" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "resume":
         run_id = safe_identifier(tail[1], "run_id")
-        return service.resume_run(project_id, run_id), HTTPStatus.OK
+        return service.resume_run(project_id, run_id, payload), HTTPStatus.OK
     if method == "POST" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "stop":
         run_id = safe_identifier(tail[1], "run_id")
         return service.stop_run(project_id, run_id), HTTPStatus.OK

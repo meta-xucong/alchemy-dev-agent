@@ -284,3 +284,14 @@ PY"`
 - Verified focused tests, full tests, acceptance harness, and a real Codex isolated worktree smoke.
 
 - Browser console now exposes real Codex, real GitHub, isolated worktree, and keep-worktree run controls so UI/API/CLI real-run contracts are aligned.
+
+## 2026-06-19 V2.17 Resumable Worker Execution
+
+- Added `runtime/recovery.py` for explicit resume/retry preparation from `run.json`, `document_run_report.json`, or `state.json`.
+- Recovery now resets active tasks, retryable failed tasks, and retryable blocked tasks, clears recoverable blockers including `B-RUN-STOPPED`, and records a persisted recovery checkpoint.
+- Extended RuntimeState and `specs/state_schema_v2.json` with the `recovery` contract.
+- Added document-run CLI resume flags `--resume-from` and `--resume-task`.
+- Added API/UI resume wiring so a paused run starts a new recovery run and the browser switches to `resumed_run_id`.
+- Updated README and V2 docs/audits so current capabilities match runtime behavior.
+- Verified focused recovery tests, full suite, JSON specs, acceptance harness, and a bounded real Codex recovery smoke.
+- Advanced the long-running phase to V2.18 controlled real GitHub PR and CI delivery validation.

@@ -93,15 +93,21 @@ POST /projects/{project_id}/runs/{run_id}/stop
 
 ## Control Semantics
 
-The current execution engine still runs a synchronous document pipeline inside a background thread.
+The current execution engine runs a document pipeline inside a background
+thread and checks controls at task boundaries.
 
-Pause, resume, and stop are therefore request controls:
+Pause, resume, and stop use these semantics:
 
-- `pause` records `pause_requested=true`.
-- `resume` clears `pause_requested`.
-- `stop` records `stop_requested=true`.
+- `pause` records `pause_requested=true`; the runtime pauses before the next
+  worker dispatch and records `run_paused`.
+- `resume` clears `pause_requested`; if the source job is already paused, the
+  API starts a new recovery run from the prior `state.json` and returns
+  `resumed_run_id`.
+- `stop` records `stop_requested=true`; the runtime stops before the next
+  worker dispatch and records blocker `B-RUN-STOPPED`.
 
-These controls are persisted and visible to the UI. Hard worker interruption is not yet implemented because the current Codex worker execution contract does not expose safe task-boundary cancellation.
+These controls are persisted and visible to the UI. Hard interruption of an
+already-running real Codex subprocess is not yet implemented.
 
 ## Verification
 
@@ -119,10 +125,12 @@ V2.16 extends the browser console run payload with real-execution controls that
 match the CLI/API contract. Real Codex mode remains opt-in and uses isolated
 worktrees by default.
 
+V2.17 adds recovery-run resume for paused, stopped, failed, or blocked run
+state. The browser console switches monitoring to the returned resumed run when
+the API returns `resumed_run_id`.
+
 Still planned:
 
-- True task-boundary pause before dispatching the next worker.
 - Safe cancellation for real Codex subprocesses.
 - Live server-sent events or WebSocket streaming.
 - More polished visual graph rendering.
-- Private GitHub repository retrieval through local `gh` authentication.

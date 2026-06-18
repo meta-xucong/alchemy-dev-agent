@@ -287,6 +287,52 @@
         "$ref": "#/$defs/history_event"
       }
     },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "recovery_id": {
+          "type": "string"
+        },
+        "source_path": {
+          "type": "string"
+        },
+        "source_run_id": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "reset_task_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "skipped_task_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cleared_blocker_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "workspace": {
+          "type": "object"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "done": {
       "type": "boolean",
       "description": "True when the latest evaluation passed and the runtime terminated successfully."

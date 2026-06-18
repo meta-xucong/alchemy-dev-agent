@@ -11,7 +11,7 @@ The system is designed primarily for workflows where a user provides a complete 
 - A development objective, such as a feature, product, system, or migration.
 - A detailed development document, requirements brief, or acceptance specification.
 - Supporting files such as API specs, database schemas, design notes, test plans, logs, or reference material.
-- An optional public GitHub repository link, with private repositories treated as an explicit future/authenticated path.
+- An optional public GitHub repository link, with private repositories supported as an explicit local `gh`-authenticated path.
 
 The autonomous development system should then:
 
@@ -84,6 +84,8 @@ docs/
                               V2.15 real Codex worker file-boundary hardening.
   25_real_run_worktree_lifecycle.md
                               V2.16 isolated worktree lifecycle for real Codex runs.
+  26_resumable_real_worker_execution.md
+                              V2.17 explicit resume/retry recovery controls.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -105,6 +107,7 @@ runtime/
   evaluator.py               DONE gate scoring.
   github_flow.py             Dry-run and real git/gh execution flow adapter.
   handoff.py                 ProjectBrief/ContextBundle/TaskGraph to RuntimeState bridge.
+  recovery.py                Resume/retry recovery from persisted run state.
   state_manager.py           JSON state persistence.
   run_loop.py                CLI loop entry point.
 
@@ -167,6 +170,7 @@ Implemented runtime capabilities:
 - Isolated git worktree lifecycle for real Codex document-runs.
 - Deterministic dry-run worker for tests and demos.
 - Retry/debug loop with generated debug tasks.
+- Explicit resume/retry recovery from prior run state.
 - Weighted evaluation gate across test health, spec alignment, graph completion, reviewer approval, and risk quality.
 - GitHub execution evidence through dry-run records or real `git`/`gh` commands.
 - Persistent JSON runtime state under `.alchemy/state.json`.
@@ -263,7 +267,11 @@ python -m intake.github_runtime \
   --target-branch main
 ```
 
-Private repositories are still represented in the schema, but they are not the primary path. When `visibility=private` is selected, the current public source runtime returns an explicit blocker instead of attempting to collect tokens or silently falling back to unauthenticated clone.
+Private repositories are still not the primary path for public-source runtime.
+When `visibility=private` is selected on the public source runtime it returns
+an explicit blocker instead of collecting tokens. Use
+`intake.private_github_runtime` or document-run/API private preparation to
+clone or fetch through the locally authenticated GitHub CLI.
 
 ## V2.4 Document-To-Plan Runtime
 
@@ -343,7 +351,11 @@ POST /projects/{project_id}/plan
 GET  /projects/{project_id}/task-graph
 POST /projects/{project_id}/runs
 GET  /projects/{project_id}/runs/{run_id}
+GET  /projects/{project_id}/runs/{run_id}/job
 GET  /projects/{project_id}/runs/{run_id}/events
+POST /projects/{project_id}/runs/{run_id}/pause
+POST /projects/{project_id}/runs/{run_id}/resume
+POST /projects/{project_id}/runs/{run_id}/stop
 GET  /projects/{project_id}/delivery
 ```
 
@@ -509,6 +521,37 @@ API run payloads can pass `isolate_real_run`, `keep_worktree`, and `worktree_bra
 
 See `docs/25_real_run_worktree_lifecycle.md`.
 
+## V2.17 Resumable Worker Execution
+
+Document-run and API execution can now resume from a prior run state:
+
+```powershell
+python -m autodev.document_run `
+  --objective "Implement the requested feature" `
+  --document feature_spec.md `
+  --repository-path D:\path\to\repo `
+  --output .alchemy\document_run_resume `
+  --resume-from .alchemy\document_run_previous
+```
+
+The recovery controller loads the old state, clears operator stop blockers,
+resets retryable failed/blocked/active tasks, records a recovery checkpoint, and
+then hands the recovered state back to the normal orchestrator.
+
+API runs can pass:
+
+```json
+{
+  "async": true,
+  "resume_from_run_id": "run_001"
+}
+```
+
+The browser `Resume` control starts a new recovery run when the source run is
+paused and switches monitoring to the returned `resumed_run_id`.
+
+See `docs/26_resumable_real_worker_execution.md`.
+
 Run a smoke execution:
 
 ```bash
@@ -552,7 +595,7 @@ This repository does not yet implement:
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.
-- Explicit resume command for failed or timed-out real worker runs.
+- Hard cancellation of an already-running Codex subprocess.
 - Production database, asynchronous worker daemon process, hard already-running worker cancellation, or multi-user access control.
 
 Those systems should be implemented against the protocols defined here.

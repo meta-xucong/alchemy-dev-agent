@@ -116,11 +116,7 @@ async function startRun() {
     method: "POST",
     body: {
       async: true,
-      real_codex: el("realCodex").checked,
-      real_github: el("realGithub").checked,
-      codex_executable: el("codexExecutable").value.trim() || "codex",
-      isolate_real_run: el("isolateRealRun").checked,
-      keep_worktree: el("keepWorktree").checked,
+      ...runPayload(),
     },
   });
   state.runId = result.run_id;
@@ -141,12 +137,29 @@ async function checkEnvironment() {
 
 async function controlRun(action) {
   if (!state.projectId || !state.runId) return;
+  const body = action === "resume" ? runPayload() : {};
   const result = await api(`/projects/${state.projectId}/runs/${state.runId}/${action}`, {
     method: "POST",
-    body: {},
+    body,
   });
+  if (result.resumed_run_id) {
+    state.runId = result.resumed_run_id;
+    setSummary({}, result.resumed_job || {});
+    startPolling();
+    return;
+  }
   setSummary({}, result.job);
   await refreshEvents();
+}
+
+function runPayload() {
+  return {
+    real_codex: el("realCodex").checked,
+    real_github: el("realGithub").checked,
+    codex_executable: el("codexExecutable").value.trim() || "codex",
+    isolate_real_run: el("isolateRealRun").checked,
+    keep_worktree: el("keepWorktree").checked,
+  };
 }
 
 function startPolling() {

@@ -97,5 +97,10 @@ V2.5 is verified by:
 
 - Real Codex mutation of arbitrary repositories is still gated behind the existing `real_codex` adapter.
 - Live GitHub PR and CI evidence are still handled by the existing optional `real_github` adapter, not by a product API.
-- UI/API project creation, upload, and execution monitoring remain future work.
 - Deep semantic requirement validation and contradiction detection remain future work.
+
+Later phases add local API project creation, browser upload, execution
+monitoring, real Codex configuration, isolated worktrees, and recovery-run
+resume. See `docs/17_v2_local_api_runtime.md`,
+`docs/18_v2_browser_ui_async_runtime.md`, `docs/25_real_run_worktree_lifecycle.md`,
+and `docs/26_resumable_real_worker_execution.md`.

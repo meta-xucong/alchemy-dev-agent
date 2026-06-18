@@ -4,9 +4,11 @@
 
 V2.8 adds a local JSON API and persistent project service around the document-driven runtime.
 
-This is the backend foundation for the future UI console. It does not yet implement browser file upload widgets, asynchronous workers, or a production database.
+This began as the backend foundation for the UI console. The local runtime now
+has browser file upload widgets and async run jobs; production database support
+remains out of scope.
 
-Update: V2.9 adds the first browser console, multipart upload path, async run job records, and persisted pause/resume/stop requests on top of this API foundation. See `docs/18_v2_browser_ui_async_runtime.md`.
+Update: V2.9 adds the first browser console, multipart upload path, async run job records, and persisted pause/resume/stop requests on top of this API foundation. V2.17 adds recovery-run resume from prior persisted run state. See `docs/18_v2_browser_ui_async_runtime.md` and `docs/26_resumable_real_worker_execution.md`.
 
 ## Implemented Scope
 
@@ -51,11 +53,15 @@ POST /projects/{project_id}/plan
 GET  /projects/{project_id}/task-graph
 POST /projects/{project_id}/runs
 GET  /projects/{project_id}/runs/{run_id}
+GET  /projects/{project_id}/runs/{run_id}/job
 GET  /projects/{project_id}/runs/{run_id}/events
+POST /projects/{project_id}/runs/{run_id}/pause
+POST /projects/{project_id}/runs/{run_id}/resume
+POST /projects/{project_id}/runs/{run_id}/stop
 GET  /projects/{project_id}/delivery
 ```
 
-The endpoint names match the V2 UI/API contract where possible. Mutation endpoints for file patch/delete and run pause/resume/stop remain planned because the current run model is synchronous.
+The endpoint names match the V2 UI/API contract where possible. Mutation endpoints for file patch/delete remain planned.
 
 ## Create Project Payload
 
@@ -137,14 +143,14 @@ Planning is blocked when intake has hard blockers. Execution automatically build
 
 ## Boundary
 
-V2.8 is a local API runtime, not the final product UI.
+V2.8 began as a local API runtime. Later phases add the browser console,
+async job model, task-boundary controls, private GitHub preparation, real Codex
+configuration, isolated worktrees, and recovery-run resume.
 
-V2.9 implements the first browser console and async job layer. The remaining boundaries below are historical V2.8 boundaries plus current production-readiness gaps.
+The remaining boundaries below are current production-readiness gaps.
 
 Still planned:
 
 - Richer browser UI screens and visual graph rendering.
-- Hard task-boundary run pause/stop behavior.
 - A separate asynchronous worker daemon process.
-- Private GitHub retrieval through local `gh` authentication.
 - Production database or multi-user access control.

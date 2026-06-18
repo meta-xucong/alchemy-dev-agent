@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Iterator
 
 from autodev import DocumentRunPipeline
+from runtime.control import ControlDecision
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
@@ -154,6 +155,52 @@ class DocumentRunPipelineTests(unittest.TestCase):
             self.assertFalse(payload["runtime_state"]["done"])
             self.assertEqual(payload["runtime_state"]["blockers"][0]["id"], "B-PREFLIGHT")
             self.assertTrue((output / "state.json").exists())
+
+    def test_pipeline_can_resume_from_stopped_run_state(self) -> None:
+        class StopAfterFirstTask:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def before_task(self, task_id: str) -> ControlDecision:
+                self.calls += 1
+                if self.calls > 1:
+                    return ControlDecision("stop", f"stop before {task_id}")
+                return ControlDecision()
+
+        with temp_document_run_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            write_repo(repo)
+            spec = root / "workspace_feature_spec.md"
+            write_spec(spec)
+            first_output = root / "run-001"
+            resumed_output = root / "run-002"
+
+            first = DocumentRunPipeline().run(
+                objective="Add workspace support",
+                documents=[spec],
+                repository_url="https://github.com/example/saas-dashboard",
+                repository_path=repo,
+                output_dir=first_output,
+                controller=StopAfterFirstTask(),
+            )
+            self.assertEqual(first.status, "blocked")
+            self.assertIn("B-RUN-STOPPED", [blocker["id"] for blocker in first.runtime_state["blockers"]])
+
+            resumed = DocumentRunPipeline().run(
+                objective="Add workspace support",
+                documents=[spec],
+                repository_url="https://github.com/example/saas-dashboard",
+                repository_path=repo,
+                output_dir=resumed_output,
+                resume_from=first_output,
+            )
+
+            self.assertEqual(resumed.status, "done")
+            self.assertTrue(resumed.runtime_state["done"])
+            self.assertIn("recovery", resumed.to_dict())
+            self.assertTrue(resumed.recovery["checkpoint"]["continued_task_ids"])
+            self.assertTrue((resumed_output / "state.json").exists())
 
 
 if __name__ == "__main__":

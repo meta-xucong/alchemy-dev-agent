@@ -2,7 +2,7 @@
 
 ## Audit Result
 
-Status: `V2_PLAN_READY_FOR_IMPLEMENTATION`
+Status: `V2_RUNTIME_READY_FOR_CONTROLLED_REAL_DELIVERY_VALIDATION`
 
 This audit checks whether the v2 development plan matches the user's intended workflow:
 
@@ -16,10 +16,10 @@ This audit checks whether the v2 development plan matches the user's intended wo
 | Multiple supporting files are supported. | `docs/08_intake_and_context.md`, `docs/09_ui_and_api_requirements.md`, `specs/project_brief_schema.json` | Pass |
 | GitHub repository links are supported. | `docs/07_v2_development_plan.md`, `docs/08_intake_and_context.md` | Pass |
 | Public repositories are the primary GitHub path. | `docs/08_intake_and_context.md`, `docs/09_ui_and_api_requirements.md`, `docs/12_v2_public_github_source_runtime.md` | Pass |
-| Private repositories remain an optional GitHub CLI authentication path. | `docs/08_intake_and_context.md`, `docs/09_ui_and_api_requirements.md` | Pass |
+| Private repositories remain an optional GitHub CLI authentication path. | `docs/08_intake_and_context.md`, `docs/09_ui_and_api_requirements.md`, `docs/20_v2_private_github_source_adapter.md` | Pass |
 | One-line prompt is only a fallback. | `docs/07_v2_development_plan.md`, `specs/project_brief_schema.json` | Pass |
 | Agent cluster remains the execution mechanism. | `docs/07_v2_development_plan.md` | Pass |
-| Document-driven plans can enter runtime execution. | `runtime/handoff.py`, `docs/14_v2_plan_to_execution_handoff.md` | Pass |
+| Document-driven plans can enter runtime execution. | `runtime/handoff.py`, `autodev/document_run.py`, `docs/14_v2_plan_to_execution_handoff.md`, `docs/15_v2_document_run_cli.md` | Pass |
 
 ## Audit 2: Contract Fit
 
@@ -58,14 +58,18 @@ Current runtime capabilities:
 - V2.10 task-boundary pause/stop controls and optional private GitHub CLI auth preflight.
 - V2.11 private GitHub clone/fetch adapter through local `gh` authentication.
 - V2.12 local acceptance harness that verifies intake, planning, async execution, events, and delivery reports.
+- V2.13 real environment validation for local `git`, `gh`, GitHub auth, and Codex readiness.
+- V2.14 standalone Codex CLI integration through an explicit executable path.
+- V2.15 real Codex allowed-file and dirty-diff boundary hardening.
+- V2.16 isolated real-run worktree lifecycle.
+- V2.17 resumable worker execution with persisted recovery checkpoints.
 
 Planned v2 capabilities:
 
-- Document parsing and role classification.
-- GitHub repository inspection before planning.
+- Deep PDF/DOCX parsing beyond current text/Markdown/JSON/YAML/local file cataloging.
 - Private repository end-to-end delivery validation through optional `gh` authentication.
 - Deep document parser pipeline and semantic code summarization.
-- Controlled real Codex/GitHub validation against representative repositories.
+- Controlled real GitHub PR/CI validation against representative repositories.
 - Richer browser UI for graph visualization and delivery evidence review.
 - Hard worker cancellation and true live event streaming.
 
@@ -75,13 +79,12 @@ The v2 plan clearly separates implemented runtime capabilities from planned prod
 
 ## Audit 4: Missing Capability Inventory
 
-The current codebase does not yet implement:
+The current codebase does not yet implement or prove:
 
 - Deep PDF/DOCX document parser pipeline.
-- Proven private GitHub source preparation and delivery against a representative private repository.
+- Proven private GitHub end-to-end delivery against a representative private repository.
 - Semantic requirement contradiction detection.
 - Semantic code summarization beyond deterministic file/path matching.
-- Proven real Codex worker execution across representative target repositories.
 - Proven real GitHub PR and CI execution across representative target repositories.
 - Safe real Codex subprocess cancellation after dispatch.
 - Server-sent events or WebSocket live event streaming.
@@ -106,7 +109,7 @@ No step depends on unstructured user files after the context bundle is created. 
 | --- | --- | --- |
 | Ambiguous or contradictory documents. | Known | Requirement traceability and reviewer gate. |
 | Public repository clone or fetch failure. | Known | Git command blocker before planning. |
-| Missing optional private repository access. | Known | `gh auth status` blocker before planning once private mode is implemented. |
+| Missing optional private repository access. | Controlled | `gh auth status` blocker before planning; private clone/fetch uses local `gh` when enabled. |
 | Unsupported file type. | Known | File parser blocker before planning. |
 | Weak one-line fallback requirements. | Known | Mark as generated and lower confidence. |
 | UI starts execution too early. | Known | Require intake review and graph preview. |
@@ -114,6 +117,10 @@ No step depends on unstructured user files after the context bundle is created. 
 
 ## Final Determination
 
-The v2 development package is logically ready for implementation.
+The v2 runtime is logically ready for controlled real delivery validation.
 
-It does not mean the current application already performs the full document-driven workflow. It means the repository now contains the correct next-phase development contract to build that workflow without changing the established runtime architecture.
+The current application performs the local document-driven workflow and has
+bounded real Codex worker validation. It still needs representative real
+GitHub PR/CI delivery validation, deeper parsing, richer UI observability, and
+hard subprocess cancellation before it should be described as a production
+autonomous development system.

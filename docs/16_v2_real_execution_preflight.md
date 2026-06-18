@@ -43,7 +43,9 @@ If a required check fails, the run is marked `blocked` before worker execution b
 
 When `--prepare-repository` is used with a public GitHub URL and no local repository path, the CLI uses the V2.3 public GitHub source runtime to clone or fetch the repository before context indexing.
 
-Private repositories remain an explicit future/authenticated path. The current public source runtime returns a blocker for private repository requests.
+Private repositories are handled by the later V2.11 private GitHub source
+adapter through local `gh` authentication. The public source runtime still
+returns a blocker for private repository requests instead of collecting tokens.
 
 ## Report Contract
 

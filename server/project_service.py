@@ -417,12 +417,27 @@ class ProjectService:
         )
         return {"project_id": project_id, "run_id": run_id, "job": job.to_dict()}
 
-    def resume_run(self, project_id: str, run_id: str) -> dict[str, object]:
+    def resume_run(self, project_id: str, run_id: str, payload: dict[str, Any] | None = None) -> dict[str, object]:
+        payload = payload or {}
         store = self.job_store(project_id)
         job = store.update_control(run_id, "pause_requested", False, "Resume requested.")
         if job.status == "paused":
-            job.status = "running"
+            record = self.load_project(project_id)
+            run_payload = dict(payload)
+            run_payload["resume_from_run_id"] = run_id
+            job.status = "resumed"
             store.save(job)
+            store.append_event(job, "resumed", "api", "Source run handed off to a new recovery run.")
+            resumed = self.start_run(project_id, run_payload)
+            store.append_event(job, "resume_started", "api", f"Started resumed run {resumed['run_id']} from {run_id}.")
+            self._update_project_status(record, "running")
+            return {
+                "project_id": project_id,
+                "run_id": run_id,
+                "job": job.to_dict(),
+                "resumed_run_id": resumed["run_id"],
+                "resumed_job": resumed["job"],
+            }
         return {"project_id": project_id, "run_id": run_id, "job": job.to_dict()}
 
     def stop_run(self, project_id: str, run_id: str) -> dict[str, object]:
@@ -510,6 +525,8 @@ class ProjectService:
             isolate_real_run=bool(run_payload.get("isolate_real_run", True)),
             keep_worktree=bool(run_payload.get("keep_worktree", True)),
             worktree_branch_prefix=str(run_payload.get("worktree_branch_prefix", "agent/alchemy-real-run")),
+            resume_from=self._resume_source_path(record.project_id, run_payload),
+            resume_tasks=[str(task_id) for task_id in run_payload.get("resume_tasks", [])],
             controller=controller,
         )
         result_payload = result.to_dict()
@@ -517,6 +534,18 @@ class ProjectService:
         result_payload["project_id"] = record.project_id
         self._write_json(output_dir / "run.json", result_payload)
         return result_payload
+
+    def _resume_source_path(self, project_id: str, run_payload: dict[str, Any]) -> str | None:
+        resume_from_run_id = str(run_payload.get("resume_from_run_id", "") or "")
+        resume_from = str(run_payload.get("resume_from", "") or "")
+        if resume_from_run_id:
+            source_dir = self.project_dir(project_id) / "runs" / safe_identifier(resume_from_run_id, "resume_from_run_id")
+            if not source_dir.exists():
+                raise ApiError(404, "run_not_found", f"Resume source run not found: {resume_from_run_id}")
+            return str(source_dir)
+        if resume_from:
+            return resume_from
+        return None
 
     def _build_brief(self, payload: dict[str, Any]) -> ProjectBrief:
         project_id_override = str(payload.get("project_id", ""))
