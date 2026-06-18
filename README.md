@@ -80,6 +80,8 @@ docs/
                               V2.13 real environment validation and current blocker.
   23_codex_cli_api_integration.md
                               V2.14 standalone Codex CLI installation and API integration.
+  24_real_codex_worker_hardening.md
+                              V2.15 real Codex worker file-boundary hardening.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -456,6 +458,19 @@ Run payloads can pass:
 ```
 
 The browser console includes the same Codex CLI executable field. Dry-run mode remains the default; real Codex and real GitHub execution require explicit flags.
+
+## V2.15 Real Codex Worker Hardening
+
+Real Codex worker execution now carries a machine-enforced file boundary:
+
+- Worker packages include `allowed_files`.
+- Architecture, review, and test tasks are read-only by default.
+- Implementation tasks may edit only task `relevant_files`.
+- The adapter audits `git status --porcelain` before and after `codex exec`.
+- Out-of-scope file changes are rolled back and the task is marked failed.
+- Timeout cleanup rolls back task-local changes.
+
+See `docs/24_real_codex_worker_hardening.md`.
 
 Run a smoke execution:
 

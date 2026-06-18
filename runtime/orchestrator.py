@@ -193,10 +193,25 @@ class Orchestrator:
                 "upstream_tasks": upstream,
             },
             relevant_files=list(task.relevant_files),
-            constraints=[],
+            allowed_files=self._allowed_files_for_task(task),
+            constraints=self._constraints_for_task(task),
             commands_to_run=list(task.commands_to_run),
             retry_context=retry_context,
         )
+
+    def _allowed_files_for_task(self, task: TaskNode) -> list[str]:
+        if task.type in {"architecture", "review", "test"}:
+            return []
+        return list(task.relevant_files)
+
+    def _constraints_for_task(self, task: TaskNode) -> list[str]:
+        constraints = [
+            "Do not edit files outside allowed_files.",
+            "If allowed_files is empty, do not edit repository files.",
+        ]
+        if not self._allowed_files_for_task(task):
+            constraints.append("Return partial or blocked if the task requires repository edits.")
+        return constraints
 
     def _worker_evidence(self, task: TaskNode, result: CodexWorkerResult, iteration: int) -> dict:
         return {

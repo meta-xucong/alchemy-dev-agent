@@ -112,7 +112,7 @@ class CodexWorkerTests(unittest.TestCase):
         worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
         result = worker.execute(CodexWorkerInput(task_id="T010", goal="do work", repository_path="."))
 
-        self.assertEqual(calls[0], ["codex", "exec", "--json", "--sandbox", "workspace-write"])
+        self.assertIn(["codex", "exec", "--json", "--sandbox", "workspace-write"], calls)
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.files_changed, ["runtime/example.py"])
         self.assertEqual(result.commands_run[0].exit_code, 0)
@@ -168,6 +168,51 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.summary, "done from event stream")
         self.assertEqual(result.tests_passed, ["worker parsing"])
+
+    def test_real_worker_rolls_back_out_of_scope_changes(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            subprocess.run(["git", "init"], cwd=tmp_dir, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_dir, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_dir, check=True)
+            allowed = Path(tmp_dir) / "allowed.md"
+            allowed.write_text("before\n", encoding="utf-8")
+            subprocess.run(["git", "add", "allowed.md"], cwd=tmp_dir, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_dir, check=True, capture_output=True, text=True)
+
+            real_run = subprocess.run
+
+            def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+                if args and args[0] == "codex":
+                    Path(cwd, "unexpected.md").write_text("out of scope\n", encoding="utf-8")
+                    payload = {
+                        "task_id": "T013",
+                        "status": "completed",
+                        "summary": "changed file",
+                        "files_changed": ["unexpected.md"],
+                        "commands_run": [],
+                        "tests_passed": [],
+                        "tests_failed": [],
+                        "evidence": [],
+                        "known_issues": [],
+                        "follow_up_tasks": [],
+                        "confidence": 1.0,
+                    }
+                    return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+                return real_run(args, cwd=cwd, input=input, capture_output=capture_output, text=text, timeout=timeout, check=check)
+
+            worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+            result = worker.execute(
+                CodexWorkerInput(
+                    task_id="T013",
+                    goal="only edit allowed file",
+                    repository_path=tmp_dir,
+                    allowed_files=["allowed.md"],
+                )
+            )
+
+            self.assertEqual(result.status, "failed")
+            self.assertIn("outside the task boundary", result.summary)
+            self.assertFalse((Path(tmp_dir) / "unexpected.md").exists())
 
 
 class GitHubFlowTests(unittest.TestCase):
@@ -363,6 +408,31 @@ class OrchestratorTests(unittest.TestCase):
             self.assertFalse(state.done)
             self.assertEqual(state.iteration_history[-1]["type"], "run_paused")
             self.assertFalse(state.blockers)
+
+    def test_worker_inputs_include_file_boundaries(self) -> None:
+        class CaptureWorker:
+            def __init__(self) -> None:
+                self.inputs: list[CodexWorkerInput] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.inputs.append(worker_input)
+                return CodexWorkerResult(task_id=worker_input.task_id, status="completed", summary="done")
+
+        with temp_project_dir() as tmp_dir:
+            graph = TaskGraphEngine().create_default_graph("objective")
+            implementation = next(node for node in graph.nodes if node.type == "backend")
+            implementation.relevant_files = ["src/app.py"]
+            worker = CaptureWorker()
+            Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run("objective", reset=True, task_graph=graph, max_iterations=2)
+
+        inputs = {item.task_id: item for item in worker.inputs}
+        self.assertEqual(inputs["T001"].allowed_files, [])
+        self.assertIn("If allowed_files is empty", " ".join(inputs["T001"].constraints))
+        self.assertEqual(inputs[implementation.id].allowed_files, ["src/app.py"])
 
     def test_cli_smoke_run(self) -> None:
         with temp_project_dir() as tmp_dir:

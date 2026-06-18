@@ -1,6 +1,6 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.15 controlled real repository delivery validation",
+  "current_phase": "V2.16 real worker worktree lifecycle and resumable delivery validation",
   "phase_status": "advancing",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -10,12 +10,13 @@
     "V2.11 private GitHub source adapter",
     "V2.12 local acceptance harness",
     "V2.13 real environment validation report",
-    "V2.14 standalone Codex CLI API integration"
+    "V2.14 standalone Codex CLI API integration",
+    "V2.15 real Codex worker file-boundary hardening"
   ],
   "next_actions": [
-    "Run a controlled real repository delivery on a disposable public repository or dedicated test branch.",
-    "Validate real code mutation, tests, delivery evidence, and optional GitHub PR flow with real_codex=true.",
-    "Keep dry-run as default and require explicit real_github=true before remote mutation."
+    "Implement first-class isolated worktree lifecycle for real_codex runs.",
+    "Add resumable real worker execution after failed, blocked, or timed-out tasks.",
+    "Run controlled alchemy-dev-agent real_codex validation with file boundaries and no real_github push."
   ],
   "tests_run": [
     {
@@ -72,6 +73,26 @@
       "command": "HTTP API real_codex smoke with max_iterations=1 and explicit Codex CLI path",
       "result": "passed",
       "summary": "POST /projects/{id}/runs preflight passed, codex check passed, and one real worker task completed; run intentionally stopped in_progress after one iteration."
+    },
+    {
+      "command": "python -B -m unittest tests.test_runtime.CodexWorkerTests tests.test_runtime.OrchestratorTests.test_worker_inputs_include_file_boundaries tests.test_document_run_pipeline tests.test_runtime_handoff",
+      "result": "passed",
+      "summary": "12 focused tests passed for worker boundaries, orchestrator package constraints, document-run, and handoff."
+    },
+    {
+      "command": "python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "72 tests passed after V2.15 real Codex worker boundary hardening."
+    },
+    {
+      "command": "python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_15",
+      "result": "passed",
+      "summary": "Acceptance report status passed with 8/8 checks after boundary fields were added to worker packages."
+    },
+    {
+      "command": "Real Codex allowed_files boundary smoke in temporary git repository",
+      "result": "passed",
+      "summary": "Real Codex returned blocked for an out-of-scope requested edit; git status remained clean and outside file was not created."
     }
   ],
   "known_bugs": [
@@ -96,7 +117,7 @@
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-18T13:56:11.204024+08:00",
+  "last_verified_at": "2026-06-18T23:04:05.025887+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-18T13:56:11.204024+08:00"
+  "updated_at": "2026-06-18T23:04:05.025887+08:00"
 }

@@ -576,3 +576,31 @@
 - Result: passed.
 - Summary: `POST /projects/{id}/runs` preflight passed, Codex check passed, and one real worker task completed; run intentionally remained `in_progress` after one bounded iteration.
 - Next verification command: controlled real repository delivery validation.
+
+## 2026-06-18
+
+- Command: `python -B -m unittest tests.test_runtime.CodexWorkerTests tests.test_runtime.OrchestratorTests.test_worker_inputs_include_file_boundaries tests.test_document_run_pipeline tests.test_runtime_handoff`
+- Result: passed.
+- Summary: 12 focused tests passed for worker boundaries, orchestrator package constraints, document-run, and handoff.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 72 tests passed after V2.15 real Codex worker boundary hardening.
+- Next verification command: acceptance harness.
+
+## 2026-06-18
+
+- Command: `python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_15`
+- Result: passed.
+- Summary: Acceptance report status `passed` with 8/8 checks after boundary fields were added to worker packages.
+- Next verification command: real Codex boundary smoke.
+
+## 2026-06-18
+
+- Command: `Real Codex allowed_files boundary smoke in temporary git repository`
+- Result: passed.
+- Summary: Real Codex returned `blocked` for an out-of-scope requested edit; git status remained clean and outside file was not created.
+- Next verification command: V2.16 isolated worktree lifecycle implementation.

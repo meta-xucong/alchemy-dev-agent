@@ -258,3 +258,14 @@ PY"`
 - Updated real worker invocation to use `codex exec --json --sandbox workspace-write` for implementation-capable real runs.
 - Added `docs/23_codex_cli_api_integration.md` and updated README/V2.13 docs.
 - Verified API-to-real-Codex-worker smoke with `max_iterations=1`; the run completed one real task and intentionally remained `in_progress` because the smoke was bounded to one iteration.
+
+## 2026-06-18 V2.15 Real Codex Worker File-Boundary Hardening
+
+- Added `allowed_files` to `CodexWorkerInput` and persisted worker package payloads.
+- Updated real worker prompts to require edits only inside `allowed_files`.
+- Added machine-enforced git diff auditing before and after real `codex exec`.
+- Out-of-scope changed files are rolled back and the task is marked failed with boundary evidence.
+- Timeout cleanup rolls back task-local changes after a real worker timeout.
+- Architecture, review, and test tasks are read-only by default; implementation-style tasks may edit only task `relevant_files`.
+- Added `docs/24_real_codex_worker_hardening.md` and README coverage.
+- Verified a real Codex boundary smoke in a temporary git repository: the worker returned `blocked` for an out-of-scope requested file and left git status clean.

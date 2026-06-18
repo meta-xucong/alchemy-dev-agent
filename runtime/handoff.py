@@ -79,7 +79,8 @@ class RuntimeHandoff:
                 "source": "document_to_plan_handoff",
             },
             relevant_files=list(task.relevant_files),
-            constraints=list(constraints or []),
+            allowed_files=allowed_files_for_task(task),
+            constraints=[*boundary_constraints_for_task(task), *list(constraints or [])],
             commands_to_run=list(task.commands_to_run),
         )
 
@@ -107,6 +108,22 @@ def default_branch_for_task(task: TaskNode) -> str:
     while "--" in slug:
         slug = slug.replace("--", "-")
     return f"agent/{task.id.lower()}-{slug[:40]}"
+
+
+def allowed_files_for_task(task: TaskNode) -> list[str]:
+    if task.type in {"architecture", "review", "test"}:
+        return []
+    return list(task.relevant_files)
+
+
+def boundary_constraints_for_task(task: TaskNode) -> list[str]:
+    constraints = [
+        "Do not edit files outside allowed_files.",
+        "If allowed_files is empty, do not edit repository files.",
+    ]
+    if not allowed_files_for_task(task):
+        constraints.append("Return partial or blocked if the task requires repository edits.")
+    return constraints
 
 
 def ensure_release_task(task_graph: TaskGraph) -> TaskGraph:

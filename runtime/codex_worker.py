@@ -11,6 +11,7 @@ The runtime supports two execution modes:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -58,6 +59,7 @@ class CodexWorkerInput:
     branch: str = ""
     agent_context: dict[str, Any] = field(default_factory=dict)
     relevant_files: list[str] = field(default_factory=list)
+    allowed_files: list[str] = field(default_factory=list)
     constraints: list[str] = field(default_factory=list)
     commands_to_run: list[str] = field(default_factory=list)
     expected_output_format: str = "codex_worker_result_v1"
@@ -74,6 +76,7 @@ class CodexWorkerInput:
             "branch": self.branch,
             "agent_context": dict(self.agent_context),
             "relevant_files": list(self.relevant_files),
+            "allowed_files": list(self.allowed_files),
             "constraints": list(self.constraints),
             "commands_to_run": list(self.commands_to_run),
             "expected_output_format": self.expected_output_format,
@@ -177,9 +180,11 @@ class CodexWorkerAdapter:
         package_json = json.dumps(worker_input.to_dict(), indent=2, sort_keys=True)
         return (
             "You are a Codex execution worker inside the Alchemy Dev Agent System.\n"
-            "Complete only the bounded task package below. Inspect files, edit within scope, "
-            "run requested verification commands, fix task-local failures, and return only "
+            "Complete only the bounded task package below. Inspect files, edit only files listed "
+            "in allowed_files, run requested verification commands, fix task-local failures, and return only "
             "valid JSON matching codex_worker_result_v1.\n\n"
+            "If allowed_files is empty, do not edit repository files. Return blocked or partial if the task "
+            "cannot be completed without edits.\n\n"
             "Required JSON fields: task_id, status, summary, files_changed, commands_run, "
             "tests_passed, tests_failed, evidence, known_issues, follow_up_tasks, confidence.\n"
             "Allowed status values: completed, partial, failed, blocked.\n\n"
@@ -189,6 +194,7 @@ class CodexWorkerAdapter:
     def _execute_codex(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         prompt = self.build_prompt(worker_input)
         args = [self.executable, "exec", "--json", "--sandbox", self.sandbox]
+        before_changes = self._git_changed_files(worker_input.repository_path)
         try:
             completed = self.runner(
                 args,
@@ -204,16 +210,33 @@ class CodexWorkerAdapter:
         except PermissionError as exc:
             return self._blocked(worker_input, f"Codex executable is not launchable: {exc}")
         except subprocess.TimeoutExpired as exc:
+            self._rollback_task_changes(worker_input.repository_path, before_changes)
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
                 status="failed",
                 summary=f"Codex worker timed out after {self.timeout_seconds} seconds.",
-                known_issues=[str(exc)],
+                known_issues=[str(exc), "Task-local repository changes were rolled back after timeout."],
                 confidence=0.0,
                 raw_output=str(exc),
             )
 
         raw_output = "\n".join(part for part in [completed.stdout, completed.stderr] if part)
+        changed_files = self._new_or_modified_files(worker_input.repository_path, before_changes)
+        boundary_violation = self._audit_file_boundaries(worker_input, changed_files)
+        if boundary_violation:
+            self._rollback_files(worker_input.repository_path, boundary_violation)
+            return CodexWorkerResult(
+                task_id=worker_input.task_id,
+                status="failed",
+                summary="Codex worker modified files outside the task boundary; offending changes were rolled back.",
+                files_changed=changed_files,
+                known_issues=[
+                    "Out-of-scope files changed: " + ", ".join(boundary_violation),
+                    "Allowed files: " + (", ".join(worker_input.allowed_files) if worker_input.allowed_files else "(none)"),
+                ],
+                confidence=0.0,
+                raw_output=raw_output,
+            )
         parsed = self._parse_worker_json(completed.stdout) or self._parse_worker_json(raw_output)
         if parsed is None:
             status: WorkerStatus = "failed" if completed.returncode else "partial"
@@ -238,6 +261,7 @@ class CodexWorkerAdapter:
         result = CodexWorkerResult.from_dict(parsed)
         if not result.task_id:
             result.task_id = worker_input.task_id
+        result.files_changed = changed_files or result.files_changed
         result.raw_output = raw_output
         if completed.returncode != 0 and result.status == "completed":
             result.status = "partial"
@@ -246,9 +270,9 @@ class CodexWorkerAdapter:
 
     def _execute_dry_run(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         goal = worker_input.goal.lower()
-        constraints = " ".join(worker_input.constraints).lower()
+        constraint_values = {constraint.strip().lower() for constraint in worker_input.constraints}
 
-        if "block" in constraints or "blocked" in goal:
+        if {"block", "blocked", "dry-run:block", "dry-run:blocked"} & constraint_values or "blocked" in goal:
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
                 status="blocked",
@@ -257,7 +281,7 @@ class CodexWorkerAdapter:
                 confidence=0.0,
             )
 
-        if "fail" in constraints:
+        if {"fail", "dry-run:fail", "dry-run:failed"} & constraint_values:
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
                 status="failed",
@@ -332,6 +356,89 @@ class CodexWorkerAdapter:
             start = close_index + len(fence)
         return candidates
 
+    def _git_changed_files(self, repository_path: str | Path) -> set[str]:
+        path = Path(repository_path)
+        if not (path / ".git").exists():
+            return set()
+        try:
+            result = self.runner(
+                ["git", "status", "--porcelain"],
+                cwd=path,
+                input="",
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return set()
+        if result.returncode != 0:
+            return set()
+        return set(self._parse_porcelain_paths(result.stdout))
+
+    def _new_or_modified_files(self, repository_path: str | Path, before: set[str]) -> list[str]:
+        after = self._git_changed_files(repository_path)
+        return sorted(after - before)
+
+    def _parse_porcelain_paths(self, output: str) -> list[str]:
+        paths: list[str] = []
+        for line in output.splitlines():
+            if not line:
+                continue
+            raw_path = line[3:].strip()
+            if " -> " in raw_path:
+                raw_path = raw_path.split(" -> ", 1)[1]
+            paths.append(_normalize_repo_path(raw_path.strip('"')))
+        return [path for path in paths if path]
+
+    def _audit_file_boundaries(self, worker_input: CodexWorkerInput, changed_files: list[str]) -> list[str]:
+        allowed = {_normalize_repo_path(path) for path in worker_input.allowed_files}
+        allowed = {path for path in allowed if path}
+        return [path for path in changed_files if path not in allowed]
+
+    def _rollback_task_changes(self, repository_path: str | Path, before: set[str]) -> None:
+        self._rollback_files(repository_path, self._new_or_modified_files(repository_path, before))
+
+    def _rollback_files(self, repository_path: str | Path, files: list[str]) -> None:
+        if not files:
+            return
+        repo = Path(repository_path)
+        tracked: list[str] = []
+        untracked: list[str] = []
+        for file_path in files:
+            result = self.runner(
+                ["git", "ls-files", "--error-unmatch", "--", file_path],
+                cwd=repo,
+                input="",
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            if result.returncode == 0:
+                tracked.append(file_path)
+            else:
+                untracked.append(file_path)
+        if tracked:
+            self.runner(
+                ["git", "checkout", "--", *tracked],
+                cwd=repo,
+                input="",
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        repo_root = repo.resolve()
+        for file_path in untracked:
+            target = (repo / file_path).resolve()
+            try:
+                target.relative_to(repo_root)
+            except ValueError:
+                continue
+            if target.is_file():
+                target.unlink()
+
     def _find_worker_result(self, payload: Any) -> dict[str, Any] | None:
         if isinstance(payload, dict):
             if "status" in payload:
@@ -368,3 +475,7 @@ def _normalize_status(status: str) -> WorkerStatus:
         "error": "failed",
     }
     return legacy_map.get(status, "failed")
+
+
+def _normalize_repo_path(path: str) -> str:
+    return path.replace(os.sep, "/").replace("\\", "/").strip("/")
