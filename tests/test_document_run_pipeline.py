@@ -88,7 +88,8 @@ class DocumentRunPipelineTests(unittest.TestCase):
             self.assertGreaterEqual(len(payload["worker_packages"]), 5)
             self.assertEqual(payload["project_brief"]["repository"]["visibility"], "public")
             self.assertEqual(payload["context_bundle"]["requirement_map"]["requirements"][0]["planned_task_ids"][0], "T002")
-            self.assertIn("pull_request_url", payload["runtime_state"]["github"])
+        self.assertIn("pull_request_url", payload["runtime_state"]["github"])
+        self.assertEqual(payload["preflight"]["status"], "passed")
 
     def test_cli_outputs_done_report(self) -> None:
         with temp_document_run_dir() as root:
@@ -126,6 +127,33 @@ class DocumentRunPipelineTests(unittest.TestCase):
             self.assertEqual(payload["status"], "done")
             self.assertTrue((output / "document_run_report.json").exists())
             self.assertEqual(payload["runtime_state"]["done"], True)
+            self.assertEqual(payload["preflight"]["status"], "passed")
+
+    def test_real_codex_missing_executable_blocks_before_execution(self) -> None:
+        with temp_document_run_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            write_repo(repo)
+            spec = root / "workspace_feature_spec.md"
+            write_spec(spec)
+            output = root / "run"
+
+            result = DocumentRunPipeline().run(
+                objective="Add workspace support",
+                documents=[spec],
+                repository_url="https://github.com/example/saas-dashboard",
+                repository_path=repo,
+                output_dir=output,
+                real_codex=True,
+                codex_executable="definitely-missing-codex-for-test",
+            )
+            payload = result.to_dict()
+
+            self.assertEqual(payload["status"], "blocked")
+            self.assertEqual(payload["preflight"]["status"], "blocked")
+            self.assertFalse(payload["runtime_state"]["done"])
+            self.assertEqual(payload["runtime_state"]["blockers"][0]["id"], "B-PREFLIGHT")
+            self.assertTrue((output / "state.json").exists())
 
 
 if __name__ == "__main__":

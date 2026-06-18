@@ -1,26 +1,26 @@
 # Long-Running Roadmap
 
-Objective: Implement V2.6 document-driven end-to-end dry-run CLI.
+Objective: Implement V2.7 real execution preflight and configurable document-run adapters.
 
-## Phase 1: Document Run Pipeline
+## Phase 1: Execution Preflight
 
-- Add a CLI that accepts objective, primary document, attachments, repository URL, and optional local repository path.
-- Build ProjectBrief, ContextBundle, TaskGraph, RuntimeState, worker packages, and orchestrator dry-run result.
-- Emit a deterministic JSON report with every major contract payload.
+- Add deterministic preflight checks for repository path, git, Codex executable, and gh availability.
+- Report preflight results in document-run output.
+- Block real execution when required local tools are unavailable.
 
-## Phase 2: CLI Verification
+## Phase 2: Configurable Execution Adapters
 
-- Add tests for document-driven CLI execution against a synthetic local repository.
-- Verify generated report includes ProjectBrief, ContextBundle, TaskGraph, RuntimeState, worker packages, and DONE result.
-- Preserve existing runtime and one-line demo behavior.
+- Add document-run options for real Codex and real GitHub execution.
+- Wire options into Orchestrator and Codex/GitHub adapters.
+- Keep dry-run as the default safe path.
 
-## Phase 3: Documentation And Audit
+## Phase 3: Repository Source Preparation
 
-- Add V2.6 documentation.
-- Update README, V2 plan, and alignment audit to distinguish dry-run end-to-end from real Codex execution.
+- Optionally prepare public GitHub repositories before context indexing when a repository URL is provided without a local path.
+- Preserve public-first behavior and explicit blockers for private repositories.
 
-## Phase 4: Delivery
+## Phase 4: Verification And Continuous Delivery
 
-- Run focused and full test suites.
-- Validate JSON specs and long-running state.
-- Commit, push, and notify.
+- Add tests for preflight, adapter flags, source preparation, and report fields.
+- Update docs and audit.
+- Run full verification, commit, push, and continue to the next phase unless blocked.

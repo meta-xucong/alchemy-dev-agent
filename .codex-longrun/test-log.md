@@ -345,3 +345,24 @@
 - Result: passed.
 - Summary: All JSON specs parse after V2.6 document-run CLI changes.
 - Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_execution_preflight tests.test_document_run_pipeline`
+- Result: passed.
+- Summary: 6 focused tests passed, covering dry-run preflight, missing real Codex executable blocking, document-run report preflight evidence, and blocked preflight state persistence.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 45 tests passed across runtime, intake, GitHub source, repository context, document-to-plan, handoff, document-run CLI, preflight, planner, and autodev modules.
+- Next verification command: JSON spec parsing.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.7 real execution preflight changes.
+- Next verification command: long-running state validation.

@@ -168,3 +168,14 @@ PY"`
   status: failed
   output_tail: [31;1mParserError: [0m [31;1m[36;1mLine |[0m [31;1m[36;1m[36;1m 2 | [0m $env:PYTHONDONTWRITEBYTECODE='1'; python -B - <[36;1m<[0m'PY'[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m | [31;1m ~[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m | [31;1mMissing file specification after redirection operator.[0m
 
+## 2026-06-18 V2.7 Real Execution Preflight
+
+- Added `autodev/preflight.py` for deterministic repository path, git, Codex CLI, and GitHub CLI checks.
+- Added document-run flags for `--prepare-repository`, `--real-codex`, `--real-github`, `--codex-executable`, and `--max-worker-seconds`.
+- Kept dry-run execution as the default safe path and block real execution before workers run when required tools are unavailable.
+- Integrated optional public repository source preparation into `DocumentRunPipeline`.
+- Added `preflight` evidence to `document_run_report.json`.
+- Ensured blocked preflight runs still persist `state.json` for audit and recovery.
+- Added `docs/16_v2_real_execution_preflight.md`.
+- Updated README, V2 plan, and V2 alignment audit for V2.7 status and remaining real-environment validation boundary.
+- Added preflight and document-run regression tests.

@@ -65,6 +65,8 @@ docs/
                               V2.5 runtime handoff and worker package bridge.
   15_v2_document_run_cli.md
                               V2.6 document-driven dry-run CLI.
+  16_v2_real_execution_preflight.md
+                              V2.7 real execution flags and preflight checks.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -105,6 +107,7 @@ planner/
 
 autodev/
   document_run.py            Document-driven end-to-end dry-run CLI.
+  preflight.py               Real execution environment preflight checks.
   demo_run.py                One-line local app generation demo.
   agents.py                  Deterministic local agent cluster for demo delivery.
   game_generator.py          Original retro platformer artifact generator.
@@ -118,6 +121,8 @@ tests/
   test_runtime_handoff.py    Plan-to-execution handoff tests.
   test_document_run_pipeline.py
                               Document-driven dry-run CLI tests.
+  test_execution_preflight.py
+                              Real execution preflight tests.
 ```
 
 ## Runtime
@@ -271,6 +276,20 @@ python -m autodev.document_run \
 ```
 
 The command emits a JSON report containing ProjectBrief, ContextBundle, TaskGraph, worker packages, RuntimeState, and final dry-run status. It proves the contract path can execute end to end without requiring credentials or mutating a remote repository.
+
+V2.7 adds controlled real-execution switches:
+
+```bash
+python -m autodev.document_run \
+  --objective "Add workspace support" \
+  --document workspace_feature_spec.md \
+  --repository https://github.com/example/saas-dashboard \
+  --repository-path .alchemy/projects/proj_workspace_support/repo \
+  --real-codex \
+  --real-github
+```
+
+The CLI records preflight checks for repository path, `git`, Codex, and `gh`. Missing required tools block real execution before worker tasks start.
 
 Run a smoke execution:
 

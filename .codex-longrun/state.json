@@ -1,30 +1,44 @@
 {
-  "objective": "Implement V2.6 document-driven end-to-end dry-run CLI",
-  "current_phase": "V2.6 document-driven dry-run CLI",
-  "phase_status": "done",
+  "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
+  "current_phase": "V2.8 local API and project service runtime",
+  "phase_status": "advancing",
   "completed_phases": [
-    "Document run pipeline",
-    "CLI verification",
-    "Documentation and audit",
-    "Delivery"
+    "V2.7 real execution preflight and configurable document-run adapters"
   ],
-  "next_actions": [],
+  "next_actions": [
+    "Commit and push verified V2.7 preflight changes",
+    "Implement a local API/project service runtime for document-driven project intake and runs",
+    "Add tests for project creation and run retrieval",
+    "Update docs and roadmap for the local API runtime"
+  ],
   "tests_run": [
-    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_run_pipeline",
-    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_to_plan tests.test_document_run_pipeline",
-    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
-    "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\""
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_execution_preflight tests.test_document_run_pipeline",
+      "result": "passed",
+      "summary": "6 focused tests passed for preflight and document-run behavior."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "45 tests passed across the repository."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
+      "result": "passed",
+      "summary": "All JSON specs parse after V2.7 changes."
+    }
   ],
   "known_bugs": [],
   "blockers": [],
   "done_criteria": [
-    "A single CLI command runs the document-driven dry-run pipeline",
-    "The report includes ProjectBrief, ContextBundle, TaskGraph, worker packages, RuntimeState, and final status",
-    "The generated runtime reaches DONE in deterministic dry-run mode",
-    "Relevant tests and contract checks pass",
-    "Progress and verification are recorded"
+    "Document-driven intake accepts objective, documents, supporting files, and public GitHub repository context",
+    "Task graph and runtime handoff are generated from development documents",
+    "Dry-run execution, real-execution preflight, and audit artifacts are persisted",
+    "Local service/API path supports project creation and execution runs",
+    "Relevant tests, JSON schema checks, and long-running state validation pass",
+    "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-18T11:01:35+08:00",
-  "created_at": "2026-06-18T10:49:00+08:00",
-  "updated_at": "2026-06-18T11:01:35+08:00"
+  "last_verified_at": "2026-06-18T11:22:00.0989149+08:00",
+  "created_at": "2026-06-18T11:10:41+08:00",
+  "updated_at": "2026-06-18T11:22:00.0989149+08:00"
 }

@@ -52,6 +52,7 @@ Current runtime capabilities:
 - V2.4 deterministic requirement extraction, traceability, and task graph generation from ContextBundle.
 - V2.5 plan-to-execution handoff from ProjectBrief/ContextBundle/TaskGraph to RuntimeState, worker packages, and orchestrator dry-run completion.
 - V2.6 document-driven dry-run CLI that writes a complete integration report.
+- V2.7 real execution flags, preflight checks, and optional public source preparation in the document-run CLI.
 
 Planned v2 capabilities:
 
@@ -60,7 +61,7 @@ Planned v2 capabilities:
 - GitHub repository inspection before planning.
 - Private repository retrieval through optional `gh` authentication.
 - Deep document parser pipeline and semantic code summarization.
-- Real Codex mutation against arbitrary repositories.
+- Controlled real Codex/GitHub validation against representative repositories.
 - UI/API for intake, planning, execution monitoring, and delivery review.
 
 Result: Pass.
@@ -78,8 +79,8 @@ The current codebase does not yet implement:
 - Private GitHub source retrieval before planning.
 - Semantic requirement contradiction detection.
 - Semantic code summarization beyond deterministic file/path matching.
-- Real Codex worker execution validation against arbitrary target repositories.
-- Real GitHub PR and CI execution validation.
+- Proven real Codex worker execution across representative target repositories.
+- Proven real GitHub PR and CI execution across representative target repositories.
 - Execution event streaming.
 
 It does include a deterministic local demo for one-line game generation, but that path is intentionally narrow and should not be treated as proof of general autonomous software delivery.

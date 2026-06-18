@@ -27,6 +27,7 @@ The repository currently contains:
 - A v2.4 document-to-plan runtime for deterministic requirement extraction, traceability, and task graph generation.
 - A v2.5 plan-to-execution handoff runtime for RuntimeState creation, worker package generation, and orchestrator dry-run execution.
 - A v2.6 document-driven dry-run CLI that emits a complete integration report.
+- A v2.7 real execution preflight layer and configurable document-run adapters.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -161,6 +162,7 @@ runtime/
 
 autodev/
   document_run.py           Run document-driven intake, context, planning, handoff, and dry-run execution.
+  preflight.py              Check local readiness for real Codex and GitHub execution.
 
 server/
   api.py                    Project, file upload, GitHub inspect, plan, run, and state endpoints.
@@ -334,7 +336,15 @@ DONE requires:
 - Persist `document_run_report.json` and runtime `state.json`. Status: done.
 - Add CLI and pipeline tests. Status: done.
 
-### V2.7: UI And API Runtime
+### V2.7: Real Execution Preflight And Adapter Configuration
+
+- Add document-run flags for real Codex and real GitHub execution. Status: done.
+- Add preflight checks for repository path, git, Codex executable, and gh. Status: done.
+- Block real execution before worker tasks when required local tools are missing. Status: done.
+- Add optional public repository preparation from GitHub URL. Status: done.
+- Add preflight and document-run report tests. Status: done.
+
+### V2.8: UI And API Runtime
 
 - Implement project intake API.
 - Implement upload and repository inspection API.
@@ -342,7 +352,7 @@ DONE requires:
 - Implement execution event stream.
 - Implement UI screens for the document-driven flow.
 
-### V2.8: End-To-End Delivery Runtime
+### V2.9: End-To-End Delivery Runtime
 
 - Run against a real repository with a real development document.
 - Execute Codex worker tasks.
