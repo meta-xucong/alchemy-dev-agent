@@ -9,10 +9,10 @@ from pathlib import Path
 from typing import Sequence
 
 from context import ContextBundleBuilder
-from intake import GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
+from intake import Blocker, GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
 from planner import TaskGraphBuilder
 from runtime.control import ExecutionController
-from runtime import CodexWorkerAdapter, GitHubFlow, Orchestrator, RuntimeHandoff, StateManager
+from runtime import CodexWorkerAdapter, GitHubFlow, Orchestrator, RealRunWorkspace, RuntimeHandoff, StateManager
 
 from .preflight import ExecutionPreflight
 
@@ -26,6 +26,7 @@ class DocumentRunResult:
     worker_packages: list[dict] = field(default_factory=list)
     runtime_state: dict = field(default_factory=dict)
     preflight: dict = field(default_factory=dict)
+    workspace: dict = field(default_factory=dict)
     output_dir: str = ""
     validation_errors: list[str] = field(default_factory=list)
 
@@ -38,6 +39,7 @@ class DocumentRunResult:
             "worker_packages": list(self.worker_packages),
             "runtime_state": self.runtime_state,
             "preflight": self.preflight,
+            "workspace": self.workspace,
             "output_dir": self.output_dir,
             "validation_errors": list(self.validation_errors),
         }
@@ -62,6 +64,9 @@ class DocumentRunPipeline:
         real_github: bool = False,
         codex_executable: str = "codex",
         max_worker_seconds: int = 1800,
+        isolate_real_run: bool = True,
+        keep_worktree: bool = True,
+        worktree_branch_prefix: str = "agent/alchemy-real-run",
         controller: ExecutionController | None = None,
     ) -> DocumentRunResult:
         output = Path(output_dir)
@@ -87,6 +92,13 @@ class DocumentRunPipeline:
                 brief.blockers.extend(source_result.blockers)
             repository_path = brief.repository.local_path
 
+        source_repository_path = repository_path or (brief.repository.local_path if brief.repository else ".")
+        workspace_session = RealRunWorkspace().prepare(
+            source_path=source_repository_path,
+            output_dir=output / "workspaces",
+            enabled=False,
+        )
+
         bundle = ContextBundleBuilder().build(brief)
         graph = TaskGraphBuilder().build(bundle)
         handoff = RuntimeHandoff()
@@ -96,7 +108,6 @@ class DocumentRunPipeline:
             task_graph=graph,
             repository_path=repository_path or (brief.repository.local_path if brief.repository else "."),
         )
-        worker_packages = [package.to_dict() for package in handoff.build_worker_inputs(state=state)]
         preflight = ExecutionPreflight().check(
             repository_path=state.repository.get("path", "."),
             real_codex=real_codex,
@@ -104,6 +115,35 @@ class DocumentRunPipeline:
             codex_executable=codex_executable,
             private_repository=bool(brief.repository and (brief.repository.visibility == "private" or brief.repository.gh_auth_required)),
         )
+        if preflight.status != "blocked" and real_codex and isolate_real_run:
+            workspace_session = RealRunWorkspace().prepare(
+                source_path=source_repository_path,
+                output_dir=output / "workspaces",
+                enabled=True,
+                keep=keep_worktree,
+                branch_prefix=worktree_branch_prefix,
+            )
+            if workspace_session.blockers:
+                brief.blockers.extend(
+                    [
+                        Blocker(code="WORKTREE_PREPARE_FAILED", message=blocker, severity="hard")
+                        for blocker in workspace_session.blockers
+                    ]
+                )
+            if workspace_session.status == "ready":
+                repository_path = workspace_session.execution_path
+                if brief.repository:
+                    brief.repository.local_path = workspace_session.execution_path
+                bundle = ContextBundleBuilder().build(brief)
+                graph = TaskGraphBuilder().build(bundle)
+                state = handoff.build_state(
+                    project_brief=brief,
+                    context_bundle=bundle,
+                    task_graph=graph,
+                    repository_path=repository_path,
+                )
+                state.repository["path"] = workspace_session.execution_path
+        worker_packages = [package.to_dict() for package in handoff.build_worker_inputs(state=state)]
         if preflight.status == "blocked":
             state.blockers.append(
                 {
@@ -111,6 +151,18 @@ class DocumentRunPipeline:
                     "type": "environment",
                     "description": "Execution preflight failed.",
                     "required_resolution": "Install or configure required local tools or use dry-run mode.",
+                    "task_ids": [],
+                    "can_continue_partially": False,
+                }
+            )
+            final_state = state
+        elif workspace_session.blockers:
+            state.blockers.append(
+                {
+                    "id": "B-WORKTREE",
+                    "type": "environment",
+                    "description": "Real-run worktree preparation failed.",
+                    "required_resolution": "Inspect worktree blockers and retry after repository or git state is corrected.",
                     "task_ids": [],
                     "can_continue_partially": False,
                 }
@@ -137,6 +189,9 @@ class DocumentRunPipeline:
                 initial_state=state,
             )
 
+        if real_codex and isolate_real_run and not keep_worktree:
+            workspace_session = RealRunWorkspace().cleanup(workspace_session)
+
         StateManager(output / "state.json").save(final_state)
         status = "done" if final_state.done else "blocked" if final_state.blockers else "in_progress"
         result = DocumentRunResult(
@@ -147,6 +202,7 @@ class DocumentRunPipeline:
             worker_packages=worker_packages,
             runtime_state=final_state.to_dict(),
             preflight=preflight.to_dict(),
+            workspace=workspace_session.to_dict(),
             output_dir=str(output),
         )
         (output / "document_run_report.json").write_text(
@@ -171,6 +227,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--real-github", action="store_true", help="Run real git/gh delivery evidence instead of dry-run GitHub mode.")
     parser.add_argument("--codex-executable", default="codex")
     parser.add_argument("--max-worker-seconds", type=int, default=1800)
+    parser.add_argument("--no-isolated-worktree", action="store_true", help="Run real Codex directly in the repository path instead of an isolated git worktree.")
+    parser.add_argument("--cleanup-worktree", action="store_true", help="Remove the isolated real-run worktree and branch after the run.")
+    parser.add_argument("--worktree-branch-prefix", default="agent/alchemy-real-run")
     return parser
 
 
@@ -190,6 +249,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         real_github=args.real_github,
         codex_executable=args.codex_executable,
         max_worker_seconds=args.max_worker_seconds,
+        isolate_real_run=not args.no_isolated_worktree,
+        keep_worktree=not args.cleanup_worktree,
+        worktree_branch_prefix=args.worktree_branch_prefix,
     )
     print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
     return 0 if result.status == "done" else 1

@@ -269,3 +269,18 @@ PY"`
 - Architecture, review, and test tasks are read-only by default; implementation-style tasks may edit only task `relevant_files`.
 - Added `docs/24_real_codex_worker_hardening.md` and README coverage.
 - Verified a real Codex boundary smoke in a temporary git repository: the worker returned `blocked` for an out-of-scope requested file and left git status clean.
+
+
+## 2026-06-18 V2.16 Real-Run Worktree Lifecycle
+
+- Added first-class isolated git worktree lifecycle for `real_codex` document-runs.
+- Real Codex runs now require a clean git repository root and default to a run-local worktree under the output directory.
+- Rebuilt ContextBundle, TaskGraph, RuntimeState, and worker packages against the worktree path after creation so planning and execution share one repository target.
+- Added API run payload support for `isolate_real_run`, `keep_worktree`, and `worktree_branch_prefix`.
+- Persisted `workspace` evidence in document-run reports.
+- Hardened real worker result parsing for string/list/non-dict fields observed during a real Codex smoke.
+- Tightened dirty-source checks with `git status --porcelain -uall` and exact output-directory exclusion.
+- Added V2.16 documentation and README coverage.
+- Verified focused tests, full tests, acceptance harness, and a real Codex isolated worktree smoke.
+
+- Browser console now exposes real Codex, real GitHub, isolated worktree, and keep-worktree run controls so UI/API/CLI real-run contracts are aligned.

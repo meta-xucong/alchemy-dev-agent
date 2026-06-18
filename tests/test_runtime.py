@@ -169,6 +169,29 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.summary, "done from event stream")
         self.assertEqual(result.tests_passed, ["worker parsing"])
 
+    def test_worker_result_coerces_non_dict_command_entries(self) -> None:
+        payload = {
+            "task_id": "T012B",
+            "status": "completed",
+            "summary": "done",
+            "files_changed": "README.md",
+            "commands_run": ["python -m unittest"],
+            "tests_passed": "unit tests",
+            "tests_failed": None,
+            "evidence": "verified",
+            "known_issues": None,
+            "follow_up_tasks": None,
+            "confidence": "0.8",
+        }
+
+        result = CodexWorkerResult.from_dict(payload)
+
+        self.assertEqual(result.files_changed, ["README.md"])
+        self.assertEqual(result.commands_run[0].command, "python -m unittest")
+        self.assertEqual(result.tests_passed, ["unit tests"])
+        self.assertEqual(result.evidence, ["verified"])
+        self.assertEqual(result.confidence, 0.8)
+
     def test_real_worker_rolls_back_out_of_scope_changes(self) -> None:
         with temp_project_dir() as tmp_dir:
             subprocess.run(["git", "init"], cwd=tmp_dir, check=True, capture_output=True, text=True)

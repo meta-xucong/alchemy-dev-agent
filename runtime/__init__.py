@@ -8,6 +8,7 @@ from .handoff import RuntimeHandoff
 from .orchestrator import Orchestrator
 from .state_manager import StateManager
 from .task_graph_engine import TaskGraphEngine
+from .worktree import RealRunWorkspace, WorktreeSession
 
 __all__ = [
     "AgentRouter",
@@ -20,7 +21,9 @@ __all__ = [
     "GitHubExecutionResult",
     "GitHubFlow",
     "Orchestrator",
+    "RealRunWorkspace",
     "RuntimeHandoff",
     "StateManager",
     "TaskGraphEngine",
+    "WorktreeSession",
 ]

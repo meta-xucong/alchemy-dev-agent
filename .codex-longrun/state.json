@@ -1,6 +1,6 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.16 real worker worktree lifecycle and resumable delivery validation",
+  "current_phase": "V2.17 resumable real worker execution and recovery controls",
   "phase_status": "advancing",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -11,12 +11,13 @@
     "V2.12 local acceptance harness",
     "V2.13 real environment validation report",
     "V2.14 standalone Codex CLI API integration",
-    "V2.15 real Codex worker file-boundary hardening"
+    "V2.15 real Codex worker file-boundary hardening",
+    "V2.16 isolated real-run worktree lifecycle"
   ],
   "next_actions": [
-    "Implement first-class isolated worktree lifecycle for real_codex runs.",
-    "Add resumable real worker execution after failed, blocked, or timed-out tasks.",
-    "Run controlled alchemy-dev-agent real_codex validation with file boundaries and no real_github push."
+    "Add explicit resume/retry command support for failed, blocked, or timed-out real worker tasks.",
+    "Persist resumable real worker checkpoints that reference retained worktrees and task boundaries.",
+    "Run a bounded real_codex recovery validation without real_github push."
   ],
   "tests_run": [
     {
@@ -93,6 +94,36 @@
       "command": "Real Codex allowed_files boundary smoke in temporary git repository",
       "result": "passed",
       "summary": "Real Codex returned blocked for an out-of-scope requested edit; git status remained clean and outside file was not created."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_worktree_runtime tests.test_document_run_pipeline tests.test_api_server.ApiServerTests.test_project_service_run_payload_records_workspace_contract tests.test_api_server.ApiServerTests.test_project_service_creates_plans_runs_and_reads_delivery",
+      "result": "passed",
+      "summary": "10 focused tests passed for isolated worktree lifecycle, document-run reporting, and API workspace contract propagation."
+    },
+    {
+      "command": "Real Codex isolated worktree smoke with explicit standalone CLI",
+      "result": "passed",
+      "summary": "A temporary git repository was copied into an isolated worktree, real Codex inspected README without edits, source and worktree stayed clean, and cleanup removed the worktree branch."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "80 tests passed after V2.16 worktree lifecycle and real worker parser hardening."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_16_final2",
+      "result": "passed",
+      "summary": "Acceptance report status passed with 8/8 checks after V2.16 changes."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_api_server.ApiServerTests.test_project_service_run_payload_records_workspace_contract tests.test_worktree_runtime tests.test_runtime.CodexWorkerTests",
+      "result": "passed",
+      "summary": "15 focused tests passed after exposing real Codex, real GitHub, isolate worktree, and keep worktree controls in the browser console."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_16_ui",
+      "result": "passed",
+      "summary": "Acceptance report status passed with 8/8 checks after UI run payload controls were added."
     }
   ],
   "known_bugs": [
@@ -117,7 +148,7 @@
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-18T23:04:05.025887+08:00",
+  "last_verified_at": "2026-06-18T23:43:25.948204+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-18T23:04:05.025887+08:00"
+  "updated_at": "2026-06-18T23:43:25.948204+08:00"
 }

@@ -79,15 +79,15 @@ Rollback is path-scoped:
 - Untracked out-of-scope files are removed only when their resolved path stays
   inside the repository root.
 
-The runtime should still execute real Codex in an isolated worktree for
-additional safety.
+V2.16 adds first-class isolated worktree lifecycle management so real Codex
+document-runs no longer need to target the source repository directly.
 
 ## Remaining Gap
 
-V2.15 prevents uncontrolled file drift, but it does not yet guarantee full real
-repository delivery. The next required improvements are:
+V2.15 prevents uncontrolled file drift, and V2.16 protects the source
+repository through isolated worktree execution. The next required improvements
+are:
 
-- first-class worktree lifecycle management
 - resumable real worker runs
 - smaller task packages for real Codex
 - real test command execution and Debug Agent repair loops

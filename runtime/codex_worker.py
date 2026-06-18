@@ -102,22 +102,19 @@ class CodexWorkerResult:
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "CodexWorkerResult":
         status = _normalize_status(str(payload.get("status", "failed")))
-        commands = [
-            item if isinstance(item, CommandResult) else CommandResult.from_dict(dict(item))
-            for item in payload.get("commands_run", [])
-        ]
+        commands = [_coerce_command_result(item) for item in _coerce_list(payload.get("commands_run", []))]
         return cls(
             task_id=str(payload.get("task_id", "")),
             status=status,
             summary=str(payload.get("summary", "")),
-            files_changed=[str(item) for item in payload.get("files_changed", [])],
+            files_changed=[str(item) for item in _coerce_list(payload.get("files_changed", []))],
             commands_run=commands,
-            tests_passed=[str(item) for item in payload.get("tests_passed", [])],
-            tests_failed=[str(item) for item in payload.get("tests_failed", [])],
-            evidence=[str(item) for item in payload.get("evidence", [])],
-            known_issues=[str(item) for item in payload.get("known_issues", [])],
-            follow_up_tasks=[str(item) for item in payload.get("follow_up_tasks", [])],
-            confidence=float(payload.get("confidence", 0.0)),
+            tests_passed=[str(item) for item in _coerce_list(payload.get("tests_passed", []))],
+            tests_failed=[str(item) for item in _coerce_list(payload.get("tests_failed", []))],
+            evidence=[str(item) for item in _coerce_list(payload.get("evidence", []))],
+            known_issues=[str(item) for item in _coerce_list(payload.get("known_issues", []))],
+            follow_up_tasks=[str(item) for item in _coerce_list(payload.get("follow_up_tasks", []))],
+            confidence=_coerce_float(payload.get("confidence", 0.0)),
             raw_output=str(payload.get("raw_output", "")),
         )
 
@@ -475,6 +472,33 @@ def _normalize_status(status: str) -> WorkerStatus:
         "error": "failed",
     }
     return legacy_map.get(status, "failed")
+
+
+def _coerce_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [value]
+
+
+def _coerce_command_result(value: Any) -> CommandResult:
+    if isinstance(value, CommandResult):
+        return value
+    if isinstance(value, dict):
+        return CommandResult.from_dict(value)
+    if isinstance(value, str):
+        return CommandResult(command=value, exit_code=0)
+    return CommandResult(command=str(value), exit_code=0)
+
+
+def _coerce_float(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _normalize_repo_path(path: str) -> str:

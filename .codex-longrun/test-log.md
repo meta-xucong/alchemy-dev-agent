@@ -604,3 +604,45 @@
 - Result: passed.
 - Summary: Real Codex returned `blocked` for an out-of-scope requested edit; git status remained clean and outside file was not created.
 - Next verification command: V2.16 isolated worktree lifecycle implementation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_worktree_runtime tests.test_document_run_pipeline tests.test_api_server.ApiServerTests.test_project_service_run_payload_records_workspace_contract tests.test_api_server.ApiServerTests.test_project_service_creates_plans_runs_and_reads_delivery`
+- Result: passed.
+- Summary: 10 focused tests passed for isolated worktree lifecycle, document-run reporting, and API workspace contract propagation.
+- Next verification command: real Codex isolated worktree smoke.
+
+## 2026-06-18
+
+- Command: `Real Codex isolated worktree smoke with explicit standalone CLI`
+- Result: failed, then passed after parser hardening.
+- Summary: Initial run exposed a real worker parsing bug when `commands_run` contained a non-dict entry. Fixed `CodexWorkerResult.from_dict` coercion, reran the smoke, and verified real Codex completed a read-only task inside an isolated worktree with clean source/worktree status and cleanup.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 80 tests passed after V2.16 worktree lifecycle, exact dirty-checking, API payload propagation, and worker parser hardening.
+- Next verification command: acceptance harness.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_16_final2`
+- Result: passed.
+- Summary: Acceptance report status passed with 8/8 checks after V2.16 changes.
+- Next verification command: long-running state validation and git diff audit.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_api_server.ApiServerTests.test_project_service_run_payload_records_workspace_contract tests.test_worktree_runtime tests.test_runtime.CodexWorkerTests`
+- Result: passed.
+- Summary: 15 focused tests passed after exposing real Codex, real GitHub, isolate worktree, and keep worktree controls in the browser console.
+- Next verification command: full suite and acceptance harness.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_16_ui`
+- Result: passed.
+- Summary: Acceptance report status passed with 8/8 checks after UI run payload controls were added.
+- Next verification command: long-running state validation and git diff audit.

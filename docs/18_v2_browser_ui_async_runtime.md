@@ -28,6 +28,8 @@ The console supports:
 - Browser file selection and upload.
 - GitHub repository URL input.
 - Local repository path input.
+- Codex CLI executable input.
+- Real Codex, real GitHub, isolated worktree, and keep-worktree run controls.
 - Project creation.
 - Task graph planning.
 - Async run start.
@@ -112,6 +114,10 @@ V2.9 adds tests for:
 - Browser console static asset serving.
 
 ## Boundary
+
+V2.16 extends the browser console run payload with real-execution controls that
+match the CLI/API contract. Real Codex mode remains opt-in and uses isolated
+worktrees by default.
 
 Still planned:
 

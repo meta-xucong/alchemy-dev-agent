@@ -82,6 +82,8 @@ docs/
                               V2.14 standalone Codex CLI installation and API integration.
   24_real_codex_worker_hardening.md
                               V2.15 real Codex worker file-boundary hardening.
+  25_real_run_worktree_lifecycle.md
+                              V2.16 isolated worktree lifecycle for real Codex runs.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -162,6 +164,7 @@ Implemented runtime capabilities:
 - Task-to-agent routing.
 - Bounded Codex worker task packages.
 - Real Codex subprocess adapter with structured JSON parsing.
+- Isolated git worktree lifecycle for real Codex document-runs.
 - Deterministic dry-run worker for tests and demos.
 - Retry/debug loop with generated debug tasks.
 - Weighted evaluation gate across test health, spec alignment, graph completion, reviewer approval, and risk quality.
@@ -472,6 +475,40 @@ Real Codex worker execution now carries a machine-enforced file boundary:
 
 See `docs/24_real_codex_worker_hardening.md`.
 
+## V2.16 Real-Run Worktree Lifecycle
+
+Document-driven real Codex runs now default to an isolated git worktree:
+
+- The source repository must be a clean git repository root.
+- Preflight runs before worktree creation.
+- The runtime creates a run-local branch and worktree under the output directory.
+- Context indexing, task graph planning, worker packages, and orchestrator execution all use the worktree path.
+- The source repository is not the direct mutation target.
+- The worktree is kept by default for audit.
+
+Example:
+
+```powershell
+python -m autodev.document_run `
+  --objective "Implement the requested feature" `
+  --document feature_spec.md `
+  --repository-path D:\path\to\repo `
+  --real-codex `
+  --codex-executable "D:\AI\Tools\CodexCLI\bin\codex.exe"
+```
+
+Optional controls:
+
+```text
+--no-isolated-worktree   Run directly in the repository path.
+--cleanup-worktree       Remove the worktree and branch after the run.
+--worktree-branch-prefix Branch prefix for isolated real runs.
+```
+
+API run payloads can pass `isolate_real_run`, `keep_worktree`, and `worktree_branch_prefix`.
+
+See `docs/25_real_run_worktree_lifecycle.md`.
+
 Run a smoke execution:
 
 ```bash
@@ -515,6 +552,7 @@ This repository does not yet implement:
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.
+- Explicit resume command for failed or timed-out real worker runs.
 - Production database, asynchronous worker daemon process, hard already-running worker cancellation, or multi-user access control.
 
 Those systems should be implemented against the protocols defined here.

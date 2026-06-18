@@ -507,6 +507,9 @@ class ProjectService:
             real_github=bool(run_payload.get("real_github", False)),
             codex_executable=str(run_payload.get("codex_executable", "codex")),
             max_worker_seconds=int(run_payload.get("max_worker_seconds", 1800)),
+            isolate_real_run=bool(run_payload.get("isolate_real_run", True)),
+            keep_worktree=bool(run_payload.get("keep_worktree", True)),
+            worktree_branch_prefix=str(run_payload.get("worktree_branch_prefix", "agent/alchemy-real-run")),
             controller=controller,
         )
         result_payload = result.to_dict()

@@ -48,6 +48,22 @@
               Codex CLI executable
               <input id="codexExecutable" type="text" value="codex" placeholder="D:\AI\Tools\CodexCLI\bin\codex.exe">
             </label>
+            <label class="check">
+              <input id="realCodex" type="checkbox">
+              <span>Real Codex worker</span>
+            </label>
+            <label class="check">
+              <input id="realGithub" type="checkbox">
+              <span>Real GitHub flow</span>
+            </label>
+            <label class="check">
+              <input id="isolateRealRun" type="checkbox" checked>
+              <span>Isolated worktree</span>
+            </label>
+            <label class="check">
+              <input id="keepWorktree" type="checkbox" checked>
+              <span>Keep worktree</span>
+            </label>
             <div class="buttonRow">
               <button id="createProject">Create</button>
               <button id="uploadSelected" disabled>Upload</button>

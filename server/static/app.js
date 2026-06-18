@@ -116,7 +116,11 @@ async function startRun() {
     method: "POST",
     body: {
       async: true,
+      real_codex: el("realCodex").checked,
+      real_github: el("realGithub").checked,
       codex_executable: el("codexExecutable").value.trim() || "codex",
+      isolate_real_run: el("isolateRealRun").checked,
+      keep_worktree: el("keepWorktree").checked,
     },
   });
   state.runId = result.run_id;

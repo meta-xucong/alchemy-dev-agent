@@ -100,6 +100,30 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(events["run_id"], "run_001")
         self.assertGreater(len(events["events"]), 0)
 
+    def test_project_service_run_payload_records_workspace_contract(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository": "https://github.com/example/saas-dashboard",
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+
+        run = service.run_project(project_id, {"isolate_real_run": False, "keep_worktree": False})
+
+        self.assertEqual(run["status"], "done")
+        self.assertEqual(run["workspace"]["status"], "skipped")
+        self.assertEqual(run["workspace"]["enabled"], False)
+
     def test_project_service_async_run_records_job_controls_and_events(self) -> None:
         root = temp_root()
         repo = root / "repo"
@@ -330,6 +354,10 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("Alchemy Dev Agent", html)
             self.assertIn("grid-template-areas", css)
             self.assertIn("startRun", js)
+            self.assertIn("realCodex", html)
+            self.assertIn("isolateRealRun", html)
+            self.assertIn("real_codex", js)
+            self.assertIn("isolate_real_run", js)
         finally:
             conn.close()
             server.shutdown()
