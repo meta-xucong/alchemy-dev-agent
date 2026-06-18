@@ -81,6 +81,16 @@
 - Added `docs/12_v2_public_github_source_runtime.md`.
 - Updated README, architecture, V2 plan, intake/context contract, UI/API requirements, V2 audit, V2.2 context notes, and examples to reflect public repositories as the primary path.
 - Updated tests to cover public-first defaults, public clone/fetch, and private optional blocker behavior.
+## 2026-06-18 V2.4 Document-To-Plan Runtime
+
+- Added `context/requirement_extractor.py` for deterministic requirement extraction from structured development documents.
+- Extracted requirement priority, acceptance criteria, source document IDs, and related repository files.
+- Integrated requirement extraction into `ContextBundleBuilder` while preserving the one-line generated-game safety path.
+- Rebuilt `planner/task_graph_builder.py` to create document-driven architecture, implementation, verification, and review tasks.
+- Added traceability from each requirement to implementation, verification, and review task IDs.
+- Added `docs/13_v2_document_to_plan_runtime.md`.
+- Updated README, V2 plan, intake/context contract, V2 audit, and document-driven example for V2.4 status.
+- Added `tests/test_document_to_plan.py` covering document requirements, related-file mapping, task graph generation, and legacy one-line demo graph preservation.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0

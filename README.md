@@ -59,6 +59,8 @@ docs/
                               V2.2 local repository context runtime.
   12_v2_public_github_source_runtime.md
                               V2.3 public GitHub clone/fetch runtime.
+  13_v2_document_to_plan_runtime.md
+                              V2.4 requirement extraction and task planning runtime.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -89,11 +91,12 @@ intake/
   schema_validation.py       Local contract validation for intake payloads.
 
 context/
-  builder.py                 V2.2 minimal ContextBundle builder.
+  builder.py                 ContextBundle builder.
   repository_indexer.py      Local repository indexing and test profile detection.
+  requirement_extractor.py   Deterministic requirement extraction and traceability.
 
 planner/
-  task_graph_builder.py      ContextBundle-to-task-graph planning for local demos.
+  task_graph_builder.py      ContextBundle-to-task-graph planning.
 
 autodev/
   demo_run.py                One-line local app generation demo.
@@ -105,6 +108,7 @@ tests/
   test_intake.py             Unit and CLI tests for v2.1 intake.
   test_autodev_pipeline.py   End-to-end local demo generation tests.
   test_repository_context.py Repository context runtime tests.
+  test_document_to_plan.py   Requirement extraction and task graph planning tests.
 ```
 
 ## Runtime
@@ -217,6 +221,20 @@ python -m intake.github_runtime \
 
 Private repositories are still represented in the schema, but they are not the primary path. When `visibility=private` is selected, the current public source runtime returns an explicit blocker instead of attempting to collect tokens or silently falling back to unauthenticated clone.
 
+## V2.4 Document-To-Plan Runtime
+
+The document-to-plan runtime can turn parsed development documents and repository evidence into requirements and a task graph.
+
+Implemented document-to-plan capabilities:
+
+- Deterministic requirement extraction from structured Markdown, text, JSON, YAML, and YML inputs.
+- Priority inference for `must`, `should`, and `could` requirements.
+- Acceptance criteria extraction from document sections and explicit ProjectBrief criteria.
+- Traceability from requirement to source document, related repository files, implementation task, verification task, and review task.
+- Task graph generation with architecture, implementation, verification, and review nodes.
+- Implementation task assignment to backend, frontend, test, documentation, or integration work based on requirement and repository-file signals.
+- Preservation of the existing one-line generated-app demo graph.
+
 Run a smoke execution:
 
 ```bash
@@ -255,9 +273,8 @@ PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 This repository does not yet implement:
 
 - Multi-file upload or full document parser pipeline.
-- Full ContextBundle runtime generation for remote repositories.
 - Private GitHub retrieval through `gh auth status`.
-- Deep code summarization and semantic requirement-to-file mapping.
+- Deep code summarization and semantic requirement-to-file mapping beyond deterministic file/path signals.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.

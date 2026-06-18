@@ -1,25 +1,31 @@
 # Long-Running Roadmap
 
-Objective: Implement V2.3 public GitHub source runtime and make public repositories the primary path.
+Objective: Implement V2.4 document-to-plan runtime for requirement extraction, traceability, and task graph generation.
 
-## Phase 1: Public GitHub Source Runtime
+## Phase 1: Requirement Extraction Runtime
 
-- Add a source runtime that clones public GitHub repositories into `RepositorySource.local_path`.
-- Fetch and deterministically check out the requested target branch when a local git checkout already exists.
-- Return structured blockers for clone, fetch, checkout, invalid path, and explicit private repository requests.
-- Provide a CLI entry point for public source preparation.
+- Extract deterministic requirements from parsed development documents and supporting files.
+- Preserve document source IDs for traceability.
+- Attach acceptance criteria from explicit user criteria and document sections.
+- Infer requirement priority from must/should/could wording.
+- Link requirements to repository files when document text or filename signals match indexed files.
 
-## Phase 2: Public-First Contract Alignment
+## Phase 2: Task Graph Planning Runtime
 
-- Make ProjectBrief and CLI repository visibility default to `public`.
-- Keep private repository metadata as an explicit optional path.
-- Update README, V2 plan, intake/context contract, UI/API contract, audit docs, and examples.
-- Add a V2.3 public GitHub source runtime design document.
+- Generate architecture, implementation, verification, and review tasks from ContextBundle requirements.
+- Assign implementation tasks to backend/frontend/documentation/integration agents using requirement and repository-file signals.
+- Attach requirement acceptance criteria, related files, and detected verification commands to tasks.
+- Preserve the existing generated-game demo behavior.
 
-## Phase 3: Verification And Delivery
+## Phase 3: Documentation And Examples
 
-- Add tests for public clone, fetch, and private optional blocker behavior.
-- Update existing intake tests to assert public-first defaults.
-- Run full test suite.
+- Add V2.4 document-to-plan runtime documentation.
+- Update README, V2 plan, alignment audit, and document-driven example.
+- Keep public GitHub repositories as the primary source path.
+
+## Phase 4: Verification And Delivery
+
+- Add tests for requirement extraction, traceability, and task graph generation.
+- Run focused and full test suites.
 - Validate JSON specs and long-running state.
-- Commit, push, and notify.
+- Commit, push, notify, and stop only when the phase is ready for review.

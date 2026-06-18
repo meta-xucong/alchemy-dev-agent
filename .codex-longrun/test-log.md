@@ -264,3 +264,30 @@
 - Result: passed.
 - Summary: All JSON specs parse after V2.3 public source changes.
 - Next verification command: long-running state validation.
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_to_plan`
+- Result: failed, then passed after fixes.
+- Summary: Initial task classification treated a test requirement as backend because filename stem matching pulled in source files first. Fixed planner classification to prioritize test and CI signals. The test also now serializes ContextBundle after graph generation so `planned_task_ids` reflects planner traceability updates.
+- Next verification command: focused V2.4 regression group.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_to_plan tests.test_repository_context tests.test_autodev_pipeline`
+- Result: passed.
+- Summary: 7 tests passed across document-to-plan, repository context, and one-line demo compatibility.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 37 tests passed across runtime, intake, GitHub source, repository context, document-to-plan, planner, and autodev modules.
+- Next verification command: JSON spec parsing.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.4 changes.
+- Next verification command: long-running state validation.

@@ -139,8 +139,9 @@ The context builder indexes documents and repository evidence.
         "key_requirements": [
           "Create workspace data model.",
           "Invite members by email.",
-          "Switch active workspace in dashboard.",
-          "Enforce workspace permissions on API requests."
+          "Must add workspace API support in src/api/workspaces.ts.",
+          "Must add dashboard workspace switching in src/pages/dashboard.tsx.",
+          "Should add workspace permission tests in tests/workspaces.test.ts."
         ],
         "confidence": "high"
       }
@@ -180,19 +181,57 @@ The context builder indexes documents and repository evidence.
       {
         "id": "REQ-001",
         "source_document_id": "doc_primary_requirements",
-        "text": "Users can create a workspace.",
+        "text": "Must add workspace API support in src/api/workspaces.ts.",
         "priority": "must",
         "acceptance_criteria": [
-          "Workspace creation API exists.",
-          "Workspace appears in dashboard after creation."
+          "Users can create a workspace.",
+          "Users can invite members by email.",
+          "Users can switch active workspace.",
+          "Workspace permissions are enforced on backend APIs.",
+          "Existing dashboard tests still pass."
         ],
         "related_files": [
-          "src/api/workspaces.ts",
-          "src/pages/dashboard.tsx"
+          "src/api/workspaces.ts"
         ],
         "planned_task_ids": [
           "T002",
-          "T004"
+          "T005",
+          "T006"
+        ]
+      },
+      {
+        "id": "REQ-002",
+        "source_document_id": "doc_primary_requirements",
+        "text": "Must add dashboard workspace switching in src/pages/dashboard.tsx.",
+        "priority": "must",
+        "acceptance_criteria": [
+          "Users can switch active workspace.",
+          "Existing dashboard tests still pass."
+        ],
+        "related_files": [
+          "src/pages/dashboard.tsx"
+        ],
+        "planned_task_ids": [
+          "T003",
+          "T005",
+          "T006"
+        ]
+      },
+      {
+        "id": "REQ-003",
+        "source_document_id": "doc_primary_requirements",
+        "text": "Should add workspace permission tests in tests/workspaces.test.ts.",
+        "priority": "should",
+        "acceptance_criteria": [
+          "Existing dashboard tests still pass."
+        ],
+        "related_files": [
+          "tests/workspaces.test.ts"
+        ],
+        "planned_task_ids": [
+          "T004",
+          "T005",
+          "T006"
         ]
       }
     ]
@@ -238,72 +277,90 @@ The context builder indexes documents and repository evidence.
   "nodes": [
     {
       "id": "T001",
-      "title": "Design workspace implementation plan",
+      "title": "Plan implementation from requirements",
       "type": "architecture",
-      "agent": "architect",
+      "assigned_agent": "architect",
       "dependencies": [],
       "completion_criteria": [
-        "Data model, API, UI, tests, and migration approach are mapped to requirements."
+        "All requirements are assigned to implementation tasks.",
+        "Known blockers and risks are reflected in task scope."
       ]
     },
     {
       "id": "T002",
-      "title": "Implement workspace backend model and APIs",
+      "title": "Implement backend requirement: Must add workspace API support in src/api/workspaces.ts.",
       "type": "backend",
-      "agent": "backend",
+      "assigned_agent": "backend",
       "dependencies": [
         "T001"
       ],
       "completion_criteria": [
-        "Workspace create, invite, member list, and switch endpoints exist.",
-        "Workspace permission checks are enforced."
+        "Users can create a workspace.",
+        "Users can invite members by email.",
+        "Users can switch active workspace.",
+        "Workspace permissions are enforced on backend APIs.",
+        "Existing dashboard tests still pass."
+      ],
+      "relevant_files": [
+        "src/api/workspaces.ts"
       ]
     },
     {
       "id": "T003",
-      "title": "Add database migration for workspace tables",
-      "type": "backend",
-      "agent": "backend",
+      "title": "Implement frontend requirement: Must add dashboard workspace switching in src/pages/dashboard.tsx.",
+      "type": "frontend",
+      "assigned_agent": "frontend",
       "dependencies": [
         "T001"
       ],
       "completion_criteria": [
-        "Migration creates workspace, membership, and invitation records."
+        "Users can switch active workspace.",
+        "Existing dashboard tests still pass."
+      ],
+      "relevant_files": [
+        "src/pages/dashboard.tsx"
       ]
     },
     {
       "id": "T004",
-      "title": "Implement workspace dashboard UI",
-      "type": "frontend",
-      "agent": "frontend",
+      "title": "Implement verification requirement: Should add workspace permission tests in tests/workspaces.test.ts.",
+      "type": "test",
+      "assigned_agent": "test",
       "dependencies": [
-        "T002",
-        "T003"
+        "T001"
       ],
       "completion_criteria": [
-        "Users can create, invite, and switch workspaces from the dashboard."
+        "Existing dashboard tests still pass."
+      ],
+      "relevant_files": [
+        "tests/workspaces.test.ts"
       ]
     },
     {
       "id": "T005",
-      "title": "Add workspace tests",
+      "title": "Verify implementation against project checks",
       "type": "test",
-      "agent": "test",
+      "assigned_agent": "test",
       "dependencies": [
         "T002",
         "T003",
         "T004"
       ],
       "completion_criteria": [
-        "Backend permission tests pass.",
-        "Frontend workspace workflow tests pass."
+        "Detected verification commands pass or produce documented blockers.",
+        "Every must requirement has implementation evidence."
+      ],
+      "commands_to_run": [
+        "npm test",
+        "npm run build",
+        "npm run lint"
       ]
     },
     {
       "id": "T006",
-      "title": "Review workspace delivery",
+      "title": "Review delivery readiness",
       "type": "review",
-      "agent": "reviewer",
+      "assigned_agent": "reviewer",
       "dependencies": [
         "T005"
       ],

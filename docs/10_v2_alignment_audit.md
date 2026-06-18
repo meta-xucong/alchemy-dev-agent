@@ -48,6 +48,7 @@ Current runtime capabilities:
 - A narrow local one-line demo pipeline that generates an original retro platformer artifact through ProjectBrief, ContextBundle, TaskGraph, deterministic local agents, static verification, and reviewer evidence.
 - V2.2 local repository indexing and ContextBundle repository/test-profile enrichment.
 - V2.3 public GitHub clone/fetch/checkout source runtime.
+- V2.4 deterministic requirement extraction, traceability, and task graph generation from ContextBundle.
 
 Planned v2 capabilities:
 
@@ -55,7 +56,7 @@ Planned v2 capabilities:
 - Document parsing and role classification.
 - GitHub repository inspection before planning.
 - Private repository retrieval through optional `gh` authentication.
-- Full ContextBundle generation from real documents and repositories.
+- Deep document parser pipeline and semantic code summarization.
 - UI/API for intake, planning, execution monitoring, and delivery review.
 
 Result: Pass.
@@ -69,11 +70,10 @@ The current codebase does not yet implement:
 - Multi-file upload.
 - UI project creation flow.
 - API server.
-- Full ContextBundle generation for real repositories.
-- Document parser pipeline.
+- Deep PDF/DOCX document parser pipeline.
 - Private GitHub source retrieval before planning.
-- Requirement extraction and traceability.
-- Task graph generation from uploaded documents.
+- Semantic requirement contradiction detection.
+- Semantic code summarization beyond deterministic file/path matching.
 - Execution event streaming.
 
 It does include a deterministic local demo for one-line game generation, but that path is intentionally narrow and should not be treated as proof of general autonomous software delivery.

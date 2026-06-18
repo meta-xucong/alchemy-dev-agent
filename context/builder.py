@@ -8,6 +8,7 @@ from intake.models import Blocker, ProjectBrief
 
 from .models import ContextBundle, DocumentSummary, Requirement, Risk
 from .repository_indexer import RepositoryIndexer
+from .requirement_extractor import RequirementExtractor
 
 PROTECTED_GAME_TERMS = ("超级玛丽", "super mario", "mario", "mushroom kingdom", "goomba", "koopa")
 
@@ -15,17 +16,17 @@ PROTECTED_GAME_TERMS = ("超级玛丽", "super mario", "mario", "mushroom kingdo
 class ContextBundleBuilder:
     """Create deterministic planner context from a ProjectBrief."""
 
-    def __init__(self, repository_indexer: RepositoryIndexer | None = None) -> None:
+    def __init__(
+        self,
+        repository_indexer: RepositoryIndexer | None = None,
+        requirement_extractor: RequirementExtractor | None = None,
+    ) -> None:
         self.repository_indexer = repository_indexer or RepositoryIndexer()
+        self.requirement_extractor = requirement_extractor or RequirementExtractor()
 
     def build(self, project_brief: ProjectBrief | dict[str, Any]) -> ContextBundle:
         payload = project_brief.to_dict() if isinstance(project_brief, ProjectBrief) else project_brief
         objective = str(payload["objective"])
-        documents = [self._document_summary(document) for document in payload.get("documents", [])]
-        documents.extend(self._document_summary(attachment) for attachment in payload.get("attachments", []))
-
-        requirements = self._requirements_from_payload(payload, objective)
-        risks = self._risks_for_objective(objective)
         blockers = [
             Blocker(code=str(blocker["code"]), message=str(blocker["message"]), severity=blocker.get("severity", "hard"))
             for blocker in payload.get("blockers", [])
@@ -36,12 +37,32 @@ class ContextBundleBuilder:
         repository_index = self.repository_indexer.index(root_path) if root_path else None
         if repository_index:
             blockers.extend(repository_index.blockers)
+        repository_files = repository_index.files if repository_index else []
+
+        documents = [self._document_summary(document) for document in payload.get("documents", [])]
+        documents.extend(self._document_summary(attachment) for attachment in payload.get("attachments", []))
+
+        if self._is_retro_platformer_request(objective):
+            requirements = self._requirements_from_payload(payload, objective)
+        else:
+            extraction = self.requirement_extractor.extract(payload, repository_files)
+            key_requirements_by_doc = extraction.document_key_requirements
+            documents = [
+                self._document_summary(document, key_requirements_by_doc=key_requirements_by_doc)
+                for document in payload.get("documents", [])
+            ]
+            documents.extend(
+                self._document_summary(attachment, key_requirements_by_doc=key_requirements_by_doc)
+                for attachment in payload.get("attachments", [])
+            )
+            requirements = extraction.requirements
+        risks = self._risks_for_objective(objective)
 
         return ContextBundle(
             project_id=str(payload["project_id"]),
             objective=objective,
             documents=documents,
-            repository_files=repository_index.files if repository_index else [],
+            repository_files=repository_files,
             package_files=repository_index.package_files if repository_index else [],
             ci_files=repository_index.ci_files if repository_index else [],
             requirements=requirements,
@@ -55,9 +76,16 @@ class ContextBundleBuilder:
             coverage_unknown=repository_index.coverage_unknown if repository_index else True,
         )
 
-    def _document_summary(self, payload: dict[str, Any]) -> DocumentSummary:
+    def _document_summary(
+        self,
+        payload: dict[str, Any],
+        *,
+        key_requirements_by_doc: dict[str, list[str]] | None = None,
+    ) -> DocumentSummary:
         summary = str(payload.get("summary", ""))
-        key_requirements = [summary] if summary else []
+        key_requirements = (key_requirements_by_doc or {}).get(str(payload["id"]), [])
+        if not key_requirements and summary:
+            key_requirements = [summary]
         return DocumentSummary(
             id=str(payload["id"]),
             path=str(payload["path"]),

@@ -24,9 +24,10 @@ The repository currently contains:
 - A v2.1 intake runtime for local ProjectBrief generation from documents, attachments, and GitHub URL metadata.
 - A v2.2 repository context runtime for local repository indexing and test profile detection.
 - A v2.3 public GitHub source runtime for clone, fetch, and deterministic branch checkout.
+- A v2.4 document-to-plan runtime for deterministic requirement extraction, traceability, and task graph generation.
 - Tests that protect the runtime contract.
 
-V2 must continue extending this baseline with document parsing, full ContextBundle generation, planning, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
+V2 must continue extending this baseline with deeper document parsing, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
 
 ## V2 Objective
 
@@ -133,7 +134,7 @@ Delivery
 
 ## Planned Module Boundaries
 
-These are planned implementation modules for the next phase. They are contracts, not current files.
+These are current and planned implementation module boundaries. Some modules are implemented as deterministic local runtimes; UI/API and authenticated private repository modules remain planned.
 
 ```text
 intake/
@@ -146,14 +147,11 @@ intake/
 
 context/
   repository_indexer.py     Build file tree, language, package, test, and CI metadata.
-  context_builder.py        Create the ContextBundle contract.
-  requirement_mapper.py     Extract requirements, acceptance criteria, and traceability links.
-  test_profile.py           Detect test commands, CI workflows, and verification gaps.
+  builder.py                Create the ContextBundle contract.
+  requirement_extractor.py  Extract requirements, acceptance criteria, and traceability links.
 
 planner/
-  document_planner.py       Convert ProjectBrief and ContextBundle into planning inputs.
   task_graph_builder.py     Build task graph nodes using the existing task graph schema.
-  acceptance_mapper.py      Attach acceptance criteria to task completion criteria.
 
 server/
   api.py                    Project, file upload, GitHub inspect, plan, run, and state endpoints.
@@ -307,10 +305,10 @@ DONE requires:
 
 ### V2.4: Context And Planning Runtime
 
-- Implement `ContextBundle` generation.
-- Implement requirement extraction and traceability.
-- Implement task graph generation from context bundle.
-- Add tests for requirement-to-task mapping.
+- Implement `ContextBundle` generation. Status: done for deterministic local documents and repository evidence.
+- Implement requirement extraction and traceability. Status: done.
+- Implement task graph generation from context bundle. Status: done.
+- Add tests for requirement-to-task mapping. Status: done.
 
 ### V2.5: UI And API Runtime
 

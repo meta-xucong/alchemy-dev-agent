@@ -239,6 +239,9 @@ Rules:
 - Requirements from the primary development document default to `must` unless marked otherwise.
 - Requirements from supporting files default to `should` unless they are explicit acceptance criteria.
 - Generated fallback requirements default to `should`.
+- V2.4 extracts requirements deterministically from structured document sections and priority markers.
+- V2.4 links requirements to repository files through explicit file paths, filenames, and file-stem matches.
+- V2.4 fills `planned_task_ids` after task graph generation.
 
 ## Test Profile
 

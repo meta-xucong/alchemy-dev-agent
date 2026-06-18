@@ -1,31 +1,31 @@
 {
-  "objective": "Implement V2.3 public GitHub source runtime and make public repositories the primary path",
-  "current_phase": "V2.3 public GitHub source runtime",
+  "objective": "Implement V2.4 document-to-plan runtime for requirement extraction, traceability, and task graph generation",
+  "current_phase": "V2.4 document-to-plan runtime",
   "phase_status": "done",
   "completed_phases": [
-    "Public GitHub source runtime",
-    "Public-first contract alignment",
+    "Requirement extraction runtime",
+    "Task graph planning runtime",
+    "Documentation and examples",
     "Verification and delivery"
   ],
   "next_actions": [],
   "tests_run": [
-    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_github_runtime",
-    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_intake",
-    "python -B -m intake.github_runtime --repository https://github.com/example/private-repo --project-id proj_test --visibility private",
-    "python -B -m intake.github_runtime --repository https://gitlab.com/example/repo --project-id proj_test",
+    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_to_plan",
+    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_to_plan tests.test_repository_context tests.test_autodev_pipeline",
     "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
     "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\""
   ],
   "known_bugs": [],
   "blockers": [],
   "done_criteria": [
-    "Public GitHub source runtime can clone/fetch public repositories",
-    "Public repositories are the primary documented and tested path",
-    "Private repositories remain an explicit optional/authenticated path",
+    "Parsed development documents produce traceable requirements",
+    "Requirements link to source documents, acceptance criteria, and related repository files",
+    "ContextBundle requirements map to implementation, verification, and review task IDs",
+    "TaskGraphBuilder generates document-driven task graphs without breaking the one-line demo path",
     "Relevant tests and contract checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-18T06:23:30+08:00",
-  "created_at": "2026-06-18T06:04:55+08:00",
-  "updated_at": "2026-06-18T06:23:30+08:00"
+  "last_verified_at": "2026-06-18T09:52:58+08:00",
+  "created_at": "2026-06-18T09:40:00+08:00",
+  "updated_at": "2026-06-18T09:52:58+08:00"
 }
