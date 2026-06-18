@@ -346,6 +346,36 @@ class GitHubFlowTests(unittest.TestCase):
         self.assertEqual(status, "failed")
         self.assertEqual(details[0]["name"], "ci")
 
+    def test_wait_for_ci_status_polls_until_terminal_status(self) -> None:
+        calls = 0
+
+        def fake_runner(args, *, cwd, capture_output, text, check):
+            nonlocal calls
+            if args == [
+                "gh",
+                "pr",
+                "checks",
+                "agent/test",
+                "--json",
+                "name,state,bucket,workflow,link,completedAt,startedAt",
+            ]:
+                calls += 1
+                if calls == 1:
+                    return subprocess.CompletedProcess(args, 8, '[{"name":"ci","bucket":"pending"}]\n', "")
+                return subprocess.CompletedProcess(args, 0, '[{"name":"ci","bucket":"pass"}]\n', "")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        status, details = GitHubFlow(dry_run=False, runner=fake_runner).wait_for_ci_status(
+            repository_path=".",
+            branch="agent/test",
+            timeout_seconds=1,
+            poll_interval_seconds=0.01,
+        )
+
+        self.assertEqual(status, "passed")
+        self.assertEqual(details[0]["bucket"], "pass")
+        self.assertEqual(calls, 2)
+
 
 class EvaluatorTests(unittest.TestCase):
     def test_evaluator_requires_completed_graph(self) -> None:

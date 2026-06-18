@@ -79,6 +79,8 @@ class RealDeliveryValidation:
         marker_path: str = ".alchemy-real-delivery-validation.md",
         draft: bool = True,
         collect_ci: bool = True,
+        ci_wait_seconds: float = 0,
+        ci_poll_interval_seconds: float = 5,
         isolate: bool = True,
         keep_worktree: bool = True,
     ) -> DeliveryValidationReport:
@@ -161,6 +163,8 @@ class RealDeliveryValidation:
             base_branch=base_branch,
             draft=draft,
             collect_ci=collect_ci,
+            ci_wait_seconds=ci_wait_seconds,
+            ci_poll_interval_seconds=ci_poll_interval_seconds,
         )
         checks.extend(result.commands_run)
         if result.status != "pushed":
@@ -256,6 +260,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--marker-path", default=".alchemy-real-delivery-validation.md")
     parser.add_argument("--ready-pr", action="store_true", help="Create a ready-for-review PR instead of a draft PR.")
     parser.add_argument("--no-ci", action="store_true", help="Skip PR check collection.")
+    parser.add_argument("--ci-wait-seconds", type=float, default=120, help="Wait this long for PR checks to finish.")
+    parser.add_argument("--ci-poll-interval-seconds", type=float, default=10, help="PR check polling interval.")
     parser.add_argument("--no-isolated-worktree", action="store_true", help="Run validation directly in the repository path.")
     parser.add_argument("--cleanup-worktree", action="store_true", help="Remove the validation worktree and branch after setup cleanup is possible.")
     return parser
@@ -271,6 +277,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         marker_path=args.marker_path,
         draft=not args.ready_pr,
         collect_ci=not args.no_ci,
+        ci_wait_seconds=0 if args.no_ci else args.ci_wait_seconds,
+        ci_poll_interval_seconds=args.ci_poll_interval_seconds,
         isolate=not args.no_isolated_worktree,
         keep_worktree=not args.cleanup_worktree,
     )

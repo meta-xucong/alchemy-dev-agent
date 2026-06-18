@@ -295,3 +295,14 @@ PY"`
 - Updated README and V2 docs/audits so current capabilities match runtime behavior.
 - Verified focused recovery tests, full suite, JSON specs, acceptance harness, and a bounded real Codex recovery smoke.
 - Advanced the long-running phase to V2.18 controlled real GitHub PR and CI delivery validation.
+
+## 2026-06-19 V2.18 Real GitHub Delivery Validation
+
+- Added `.github/workflows/ci.yml` so pull requests produce concrete CI evidence.
+- Added `autodev.real_delivery_validation` for controlled real branch, commit, push, draft PR, and CI collection.
+- Ran the harness against the public repository and created draft PR #2.
+- Initial CI failed and exposed a real async job-state race where `JobStore.load()` could read an incomplete `job.json`.
+- Fixed job persistence with atomic temp-file replacement and short load retries for transient incomplete reads.
+- Rebasing the validation PR branch onto the fix produced GitHub Actions `CI / tests` success.
+- Added configurable CI wait polling so future validation reports can wait for terminal PR check status.
+- Advanced the long-running phase to V2.19 representative real document-driven delivery run.

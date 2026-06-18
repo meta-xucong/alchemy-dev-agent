@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
@@ -76,6 +77,8 @@ class GitHubFlow:
         base_branch: str = "",
         draft: bool = False,
         collect_ci: bool = True,
+        ci_wait_seconds: float = 0,
+        ci_poll_interval_seconds: float = 5,
     ) -> GitHubExecutionResult:
         if self.dry_run:
             commit = f"dry-run:{'-'.join(task_ids) or 'runtime'}"
@@ -188,11 +191,20 @@ class GitHubFlow:
         ci_status = "unknown"
         ci_details: list[dict] = []
         if collect_ci:
-            ci_status, ci_details = self.collect_ci_status(
-                repository_path=repository_path,
-                branch=branch,
-                command_results=command_results,
-            )
+            if ci_wait_seconds > 0:
+                ci_status, ci_details = self.wait_for_ci_status(
+                    repository_path=repository_path,
+                    branch=branch,
+                    timeout_seconds=ci_wait_seconds,
+                    poll_interval_seconds=ci_poll_interval_seconds,
+                    command_results=command_results,
+                )
+            else:
+                ci_status, ci_details = self.collect_ci_status(
+                    repository_path=repository_path,
+                    branch=branch,
+                    command_results=command_results,
+                )
 
         return GitHubExecutionResult(
             status="pushed",
@@ -236,6 +248,34 @@ class GitHubFlow:
         if buckets <= {"pass", "skipping"}:
             return "passed", checks
         return "unknown", checks
+
+    def wait_for_ci_status(
+        self,
+        *,
+        repository_path: str | Path,
+        branch: str,
+        timeout_seconds: float,
+        poll_interval_seconds: float = 5,
+        command_results: list[dict] | None = None,
+    ) -> tuple[str, list[dict]]:
+        deadline = time.monotonic() + max(0, timeout_seconds)
+        interval = max(0.1, poll_interval_seconds)
+        latest_status = "unknown"
+        latest_details: list[dict] = []
+
+        while True:
+            latest_status, latest_details = self.collect_ci_status(
+                repository_path=repository_path,
+                branch=branch,
+                command_results=command_results,
+            )
+            if latest_status in {"passed", "failed"}:
+                return latest_status, latest_details
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return latest_status, latest_details
+            time.sleep(min(interval, remaining))
 
     def _ensure_pull_request(
         self,

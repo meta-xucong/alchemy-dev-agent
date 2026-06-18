@@ -35,6 +35,7 @@ class RealDeliveryValidationTests(unittest.TestCase):
         repo.mkdir()
         calls: list[list[str]] = []
         captured_branch = {"name": ""}
+        check_calls = {"count": 0}
 
         def fake_runner(args, *, cwd, capture_output, text, check):
             calls.append(args)
@@ -86,6 +87,9 @@ class RealDeliveryValidationTests(unittest.TestCase):
                 "--json",
                 "name,state,bucket,workflow,link,completedAt,startedAt",
             ]:
+                check_calls["count"] += 1
+                if check_calls["count"] == 1:
+                    return subprocess.CompletedProcess(args, 8, '[{"name":"CI","bucket":"pending","workflow":"CI"}]\n', "")
                 return subprocess.CompletedProcess(args, 0, '[{"name":"CI","bucket":"pass","workflow":"CI"}]\n', "")
             return subprocess.CompletedProcess(args, 0, "", "")
 
@@ -94,6 +98,8 @@ class RealDeliveryValidationTests(unittest.TestCase):
             output_dir=root / "out",
             branch="agent/validation",
             base_branch="master",
+            ci_wait_seconds=1,
+            ci_poll_interval_seconds=0.01,
             keep_worktree=True,
         )
         payload = report.to_dict()
@@ -101,6 +107,7 @@ class RealDeliveryValidationTests(unittest.TestCase):
         self.assertEqual(payload["status"], "passed")
         self.assertEqual(payload["github"]["pull_request_url"], "https://example.test/pr/3")
         self.assertEqual(payload["github"]["ci_status"], "passed")
+        self.assertEqual(check_calls["count"], 2)
         self.assertTrue((root / "out" / "real_delivery_validation_report.json").exists())
         self.assertTrue(str(payload["branch"]).startswith("agent/validation-"))
         self.assertIn(["git", "push", "-u", "origin", captured_branch["name"]], calls)

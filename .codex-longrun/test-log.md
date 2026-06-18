@@ -688,3 +688,38 @@
 - Result: passed.
 - Summary: No whitespace errors reported after V2.17 changes.
 - Next verification command: long-running state validation.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 88 tests passed after fixing atomic async job-state persistence.
+- Next verification command: acceptance harness and real PR CI checks.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_18_fix2`
+- Result: passed.
+- Summary: Acceptance report status passed with 8/8 checks after the job-state race fix.
+- Next verification command: GitHub PR #2 checks.
+
+## 2026-06-19
+
+- Command: `gh pr checks 2 --json name,state,bucket,workflow,link,completedAt,startedAt`
+- Result: passed.
+- Summary: GitHub Actions `CI / tests` passed on draft PR #2 after the validation branch was rebased to include commit `de84d74`; PR head is `3a2dbeb0705b037998ad6612325bbb9c8668b4ab`.
+- Next verification command: focused CI polling tests.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.GitHubFlowTests tests.test_real_delivery_validation tests.test_api_server.ApiServerTests.test_job_store_save_uses_complete_json_payload`
+- Result: passed.
+- Summary: 7 focused tests passed for CI wait polling, real delivery validation polling, and atomic job state writes.
+- Next verification command: full test suite.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 89 tests passed after adding configurable CI wait polling to V2.18 delivery validation.
+- Next verification command: JSON specs, diff check, and long-running state validation.

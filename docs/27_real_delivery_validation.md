@@ -72,6 +72,24 @@ It runs:
 This gives real PR validation a concrete CI signal instead of leaving
 `ci_status` permanently `unknown`.
 
+### CI Waiting
+
+The validation CLI waits for PR checks by default:
+
+```bash
+python -m autodev.real_delivery_validation \
+  --repository-path . \
+  --output .alchemy/real_delivery_validation \
+  --branch agent/alchemy-real-delivery-validation \
+  --base-branch master \
+  --ci-wait-seconds 120 \
+  --ci-poll-interval-seconds 10
+```
+
+This prevents the common race where GitHub Actions has accepted the PR but has
+not yet reported any checks. The final report records a terminal CI state when
+checks finish within the configured timeout.
+
 ## Boundaries
 
 This phase validates GitHub branch/PR/CI plumbing. It does not merge PRs, delete
@@ -90,3 +108,17 @@ V2.18 is verified by:
 - local acceptance harness
 - a controlled real GitHub validation run when credentials and repository access
   are available
+
+## Validation Evidence
+
+The current public repository was validated with a controlled draft PR:
+
+- PR: https://github.com/meta-xucong/alchemy-dev-agent/pull/2
+- Branch: `agent/alchemy-real-delivery-validation-20260618170706128436`
+- Head commit: `3a2dbeb0705b037998ad6612325bbb9c8668b4ab`
+- CI workflow: `CI / tests`
+- CI result: `SUCCESS`
+
+The first CI run exposed an async job-state race in `server/jobs.py`; the fix
+was committed to `master` and the validation PR branch was rebased onto the
+fixed commit before CI passed.

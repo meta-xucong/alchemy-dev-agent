@@ -570,7 +570,8 @@ python -m autodev.real_delivery_validation \
 ```
 
 The harness defaults to an isolated git worktree, creates or reuses a validation
-PR, and records CI status through `gh pr checks`. It writes:
+PR, waits for PR checks by default, and records CI status through `gh pr checks`.
+Use `--ci-wait-seconds` and `--ci-poll-interval-seconds` to tune that wait. It writes:
 
 ```text
 .alchemy/real_delivery_validation/real_delivery_validation_report.json

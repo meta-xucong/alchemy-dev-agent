@@ -1,6 +1,6 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.18 controlled real GitHub PR and CI delivery validation",
+  "current_phase": "V2.19 representative real document-driven delivery run",
   "phase_status": "advancing",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -13,12 +13,13 @@
     "V2.14 standalone Codex CLI API integration",
     "V2.15 real Codex worker file-boundary hardening",
     "V2.16 isolated real-run worktree lifecycle",
-    "V2.17 resumable real worker execution and recovery controls"
+    "V2.17 resumable real worker execution and recovery controls",
+    "V2.18 controlled real GitHub PR and CI delivery validation"
   ],
   "next_actions": [
-    "Run a controlled real_github delivery validation on a dedicated branch without unsafe source mutations.",
-    "Validate PR creation or update and collect CI evidence where repository workflows exist.",
-    "Document successful validation or exact external blockers in acceptance and audit docs."
+    "Run a representative document-driven real Codex execution on a controlled target repository using the current repository as the source of truth.",
+    "Validate that real worker output, isolated worktree behavior, GitHub PR evidence, and CI evidence remain coherent across the full pipeline.",
+    "Tighten any remaining planner, worker-boundary, or delivery-report gaps found by the representative run."
   ],
   "tests_run": [
     {
@@ -155,6 +156,46 @@
       "command": "git diff --check",
       "result": "passed",
       "summary": "No whitespace errors reported after V2.17 changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.GitHubFlowTests tests.test_real_delivery_validation tests.test_worktree_runtime",
+      "result": "passed",
+      "summary": "11 focused V2.18 tests passed for GitHub flow, CI status parsing, real delivery validation harness, and isolated worktree behavior."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "87 tests passed after adding the V2.18 real delivery validation harness and CI workflow."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_delivery_validation --repository-path . --output .alchemy\\real_delivery_validation_v2_18 --branch agent/alchemy-real-delivery-validation --base-branch master",
+      "result": "failed_then_passed_after_fix",
+      "summary": "Created draft PR #2 and real validation branch; initial GitHub Actions CI exposed an async job-state race in JobStore load/save."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "88 tests passed after making JobStore saves atomic and load tolerant of short-lived incomplete reads."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_18_fix2",
+      "result": "passed",
+      "summary": "Acceptance report status passed with 8/8 checks after the async job-state race fix."
+    },
+    {
+      "command": "gh pr checks 2 --json name,state,bucket,workflow,link,completedAt,startedAt",
+      "result": "passed",
+      "summary": "Draft PR #2 on branch agent/alchemy-real-delivery-validation-20260618170706128436 passed GitHub Actions CI/tests after rebasing onto master commit de84d74; PR head is 3a2dbeb0705b037998ad6612325bbb9c8668b4ab."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.GitHubFlowTests tests.test_real_delivery_validation tests.test_api_server.ApiServerTests.test_job_store_save_uses_complete_json_payload",
+      "result": "passed",
+      "summary": "7 focused tests passed for CI wait polling, real delivery validation polling, and atomic job state writes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "89 tests passed after adding configurable CI wait polling to the real delivery validation path."
     }
   ],
   "known_bugs": [
@@ -179,7 +220,7 @@
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-19T00:40:46.9856682+08:00",
+  "last_verified_at": "2026-06-19T01:24:20.006471+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T00:40:46.9856682+08:00"
+  "updated_at": "2026-06-19T01:24:20.006471+08:00"
 }
