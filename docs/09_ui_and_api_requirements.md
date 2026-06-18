@@ -211,6 +211,34 @@ POST   /projects/{project_id}/runs/{run_id}/stop
 GET    /projects/{project_id}/delivery
 ```
 
+V2.8 implements a local JSON API subset with synchronous execution:
+
+```text
+GET    /health
+POST   /projects
+GET    /projects/{project_id}
+POST   /projects/{project_id}/files
+GET    /projects/{project_id}/files
+POST   /projects/{project_id}/github/inspect
+POST   /projects/{project_id}/intake/build
+GET    /projects/{project_id}/brief
+GET    /projects/{project_id}/context
+POST   /projects/{project_id}/plan
+GET    /projects/{project_id}/task-graph
+POST   /projects/{project_id}/runs
+GET    /projects/{project_id}/runs/{run_id}
+GET    /projects/{project_id}/runs/{run_id}/events
+GET    /projects/{project_id}/delivery
+```
+
+Not yet implemented:
+
+- `PATCH /projects/{project_id}/files/{file_id}`
+- `DELETE /projects/{project_id}/files/{file_id}`
+- run `pause`, `resume`, and `stop`
+- live asynchronous event streaming
+- browser multipart file upload
+
 ## Data Objects
 
 ### Project

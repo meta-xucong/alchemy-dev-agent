@@ -179,3 +179,15 @@ PY"`
 - Added `docs/16_v2_real_execution_preflight.md`.
 - Updated README, V2 plan, and V2 alignment audit for V2.7 status and remaining real-environment validation boundary.
 - Added preflight and document-run regression tests.
+
+## 2026-06-18 V2.8 Local API Runtime
+
+- Added `server/project_service.py` with persistent project creation, file references, intake rebuild, planning, execution runs, event retrieval, and delivery summaries.
+- Added `server/api.py` with a standard-library local JSON API server.
+- Implemented API-compatible project creation from `documents`/`attachments` arrays or a UI-oriented `files` list.
+- Persisted project metadata, ProjectBrief, ContextBundle, TaskGraph, run state, document-run report, and run summary under `.alchemy/server/projects/{project_id}`.
+- Added synchronous run execution through the existing `DocumentRunPipeline` with dry-run defaults and real-execution flags passed through.
+- Added completed-run event retrieval for the execution monitor path.
+- Added `docs/17_v2_local_api_runtime.md`.
+- Updated README, UI/API requirements, V2 plan, and V2 alignment audit for the implemented local API boundary.
+- Added service-level and HTTP smoke tests.

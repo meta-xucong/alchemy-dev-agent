@@ -67,6 +67,7 @@ docs/
                               V2.6 document-driven dry-run CLI.
   16_v2_real_execution_preflight.md
                               V2.7 real execution flags and preflight checks.
+  17_v2_local_api_runtime.md  V2.8 local JSON API and project service runtime.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -112,6 +113,10 @@ autodev/
   agents.py                  Deterministic local agent cluster for demo delivery.
   game_generator.py          Original retro platformer artifact generator.
 
+server/
+  project_service.py         Persistent project service for intake, planning, runs, and delivery reports.
+  api.py                     Standard-library local JSON API server.
+
 tests/
   test_runtime.py            Unit and smoke tests for the runtime contract.
   test_intake.py             Unit and CLI tests for v2.1 intake.
@@ -123,6 +128,7 @@ tests/
                               Document-driven dry-run CLI tests.
   test_execution_preflight.py
                               Real execution preflight tests.
+  test_api_server.py         Local API and project service tests.
 ```
 
 ## Runtime
@@ -291,6 +297,34 @@ python -m autodev.document_run \
 
 The CLI records preflight checks for repository path, `git`, Codex, and `gh`. Missing required tools block real execution before worker tasks start.
 
+## V2.8 Local API Runtime
+
+The local API wraps the document-driven runtime with project persistence and HTTP endpoints:
+
+```bash
+python -m server.api --host 127.0.0.1 --port 8765 --storage-root .alchemy/server
+```
+
+Core implemented endpoints include:
+
+```text
+POST /projects
+GET  /projects/{project_id}
+POST /projects/{project_id}/files
+GET  /projects/{project_id}/files
+POST /projects/{project_id}/intake/build
+GET  /projects/{project_id}/brief
+GET  /projects/{project_id}/context
+POST /projects/{project_id}/plan
+GET  /projects/{project_id}/task-graph
+POST /projects/{project_id}/runs
+GET  /projects/{project_id}/runs/{run_id}
+GET  /projects/{project_id}/runs/{run_id}/events
+GET  /projects/{project_id}/delivery
+```
+
+The API accepts local file paths through `documents`, `attachments`, or a UI-oriented `files` list. Real browser upload, asynchronous run control, and UI screens remain planned next steps.
+
 Run a smoke execution:
 
 ```bash
@@ -328,12 +362,12 @@ PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests
 
 This repository does not yet implement:
 
-- Multi-file upload or full document parser pipeline.
+- Browser-based multi-file upload or full document parser pipeline.
 - Private GitHub retrieval through `gh auth status`.
 - Deep code summarization and semantic requirement-to-file mapping beyond deterministic file/path signals.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.
-- UI, API server, database, or worker daemon.
+- Browser UI, production database, asynchronous worker daemon, or multi-user access control.
 
 Those systems should be implemented against the protocols defined here.

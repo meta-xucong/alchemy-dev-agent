@@ -53,16 +53,18 @@ Current runtime capabilities:
 - V2.5 plan-to-execution handoff from ProjectBrief/ContextBundle/TaskGraph to RuntimeState, worker packages, and orchestrator dry-run completion.
 - V2.6 document-driven dry-run CLI that writes a complete integration report.
 - V2.7 real execution flags, preflight checks, and optional public source preparation in the document-run CLI.
+- V2.8 local JSON API and persistent project service for project creation, file references, intake, planning, execution runs, run events, and delivery summaries.
 
 Planned v2 capabilities:
 
-- Multi-file project intake.
+- Browser multi-file upload.
 - Document parsing and role classification.
 - GitHub repository inspection before planning.
 - Private repository retrieval through optional `gh` authentication.
 - Deep document parser pipeline and semantic code summarization.
 - Controlled real Codex/GitHub validation against representative repositories.
-- UI/API for intake, planning, execution monitoring, and delivery review.
+- Browser UI for intake, planning, execution monitoring, and delivery review.
+- Asynchronous execution control and live event streaming.
 
 Result: Pass.
 
@@ -72,16 +74,15 @@ The v2 plan clearly separates implemented runtime capabilities from planned prod
 
 The current codebase does not yet implement:
 
-- Multi-file upload.
+- Browser-based multi-file upload.
 - UI project creation flow.
-- API server.
 - Deep PDF/DOCX document parser pipeline.
 - Private GitHub source retrieval before planning.
 - Semantic requirement contradiction detection.
 - Semantic code summarization beyond deterministic file/path matching.
 - Proven real Codex worker execution across representative target repositories.
 - Proven real GitHub PR and CI execution across representative target repositories.
-- Execution event streaming.
+- Asynchronous execution event streaming and pause/resume/stop controls.
 
 It does include a deterministic local demo for one-line game generation, but that path is intentionally narrow and should not be treated as proof of general autonomous software delivery.
 

@@ -1,31 +1,33 @@
 {
   "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.8 local API and project service runtime",
+  "current_phase": "V2.9 browser UI and async run control",
   "phase_status": "advancing",
   "completed_phases": [
-    "V2.7 real execution preflight and configurable document-run adapters"
+    "V2.7 real execution preflight and configurable document-run adapters",
+    "V2.8 local API and project service runtime"
   ],
   "next_actions": [
-    "Commit and push verified V2.7 preflight changes",
-    "Implement a local API/project service runtime for document-driven project intake and runs",
-    "Add tests for project creation and run retrieval",
-    "Update docs and roadmap for the local API runtime"
+    "Commit and push verified V2.8 local API changes",
+    "Design a minimal operational browser UI backed by the local API",
+    "Implement browser upload handling into per-project storage",
+    "Add asynchronous run job control and live event retrieval",
+    "Verify UI flows with automated tests or browser smoke checks"
   ],
   "tests_run": [
     {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_execution_preflight tests.test_document_run_pipeline",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_api_server tests.test_execution_preflight tests.test_document_run_pipeline",
       "result": "passed",
-      "summary": "6 focused tests passed for preflight and document-run behavior."
+      "summary": "8 focused tests passed across local API, preflight, and document-run behavior."
     },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
       "result": "passed",
-      "summary": "45 tests passed across the repository."
+      "summary": "47 tests passed across the repository."
     },
     {
       "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
       "result": "passed",
-      "summary": "All JSON specs parse after V2.7 changes."
+      "summary": "All JSON specs parse after V2.8 changes."
     }
   ],
   "known_bugs": [],
@@ -35,10 +37,12 @@
     "Task graph and runtime handoff are generated from development documents",
     "Dry-run execution, real-execution preflight, and audit artifacts are persisted",
     "Local service/API path supports project creation and execution runs",
+    "Browser UI supports the document-driven workflow or a documented blocker prevents implementation",
+    "Asynchronous execution control is implemented or a documented blocker prevents implementation",
     "Relevant tests, JSON schema checks, and long-running state validation pass",
     "Progress is committed and pushed to GitHub"
   ],
-  "last_verified_at": "2026-06-18T11:22:00.0989149+08:00",
+  "last_verified_at": "2026-06-18T11:37:00.9184579+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-18T11:22:00.0989149+08:00"
+  "updated_at": "2026-06-18T11:37:00.9184579+08:00"
 }

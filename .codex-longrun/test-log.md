@@ -366,3 +366,31 @@
 - Result: passed.
 - Summary: All JSON specs parse after V2.7 real execution preflight changes.
 - Next verification command: long-running state validation.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_api_server tests.test_document_run_pipeline`
+- Result: passed.
+- Summary: 5 focused tests passed for local project service, HTTP API create/plan/run/report retrieval, event retrieval, and existing document-run behavior.
+- Next verification command: broader focused group.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_api_server tests.test_execution_preflight tests.test_document_run_pipeline`
+- Result: passed.
+- Summary: 8 focused tests passed across local API, preflight, and document-run pipeline behavior.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 47 tests passed across runtime, intake, GitHub source, repository context, document-to-plan, handoff, document-run CLI, preflight, local API, planner, and autodev modules.
+- Next verification command: JSON spec parsing.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.8 local API runtime changes.
+- Next verification command: long-running state validation.

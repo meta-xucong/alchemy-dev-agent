@@ -28,6 +28,7 @@ The repository currently contains:
 - A v2.5 plan-to-execution handoff runtime for RuntimeState creation, worker package generation, and orchestrator dry-run execution.
 - A v2.6 document-driven dry-run CLI that emits a complete integration report.
 - A v2.7 real execution preflight layer and configurable document-run adapters.
+- A v2.8 local API/project service runtime for project intake, planning, execution runs, event retrieval, and delivery summaries.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, UI/API, authenticated private repository support, and live execution features. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -166,8 +167,8 @@ autodev/
 
 server/
   api.py                    Project, file upload, GitHub inspect, plan, run, and state endpoints.
-  storage.py                Project files, metadata, context bundles, and run records.
-  events.py                 Execution event stream for UI monitoring.
+  project_service.py        Project metadata, context bundles, task graphs, run records, and delivery summaries.
+  events.py                 Planned asynchronous execution event stream for UI monitoring.
 
 ui/
   project_create            Objective, document upload, GitHub URL, branch, and auth status.
@@ -346,13 +347,20 @@ DONE requires:
 
 ### V2.8: UI And API Runtime
 
-- Implement project intake API.
-- Implement upload and repository inspection API.
-- Implement task graph preview API.
-- Implement execution event stream.
-- Implement UI screens for the document-driven flow.
+- Implement project intake API. Status: done for local JSON API.
+- Implement upload and repository inspection API. Status: partial; local file references and repository metadata are supported, real browser multipart upload is pending.
+- Implement task graph preview API. Status: done.
+- Implement execution event stream. Status: partial; completed run event retrieval is available, live async streaming is pending.
+- Implement UI screens for the document-driven flow. Status: pending.
 
-### V2.9: End-To-End Delivery Runtime
+### V2.9: Browser UI And Async Execution Runtime
+
+- Implement browser screens for project create, file intake, GitHub source, intake review, task graph preview, execution monitor, and delivery review.
+- Implement real multipart upload into per-project storage.
+- Implement asynchronous run control with pause, resume, stop, and live events.
+- Keep the current local API contract as the backend interface.
+
+### V2.10: End-To-End Delivery Runtime
 
 - Run against a real repository with a real development document.
 - Execute Codex worker tasks.

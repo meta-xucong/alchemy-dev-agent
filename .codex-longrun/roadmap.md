@@ -1,26 +1,34 @@
 # Long-Running Roadmap
 
-Objective: Implement V2.7 real execution preflight and configurable document-run adapters.
+Objective: Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement.
 
-## Phase 1: Execution Preflight
+## Completed Phase: V2.7 Real Execution Preflight
 
-- Add deterministic preflight checks for repository path, git, Codex executable, and gh availability.
-- Report preflight results in document-run output.
-- Block real execution when required local tools are unavailable.
+- Added real Codex/GitHub execution flags to the document-run CLI.
+- Added deterministic repository path, git, Codex, and gh preflight checks.
+- Added optional public repository preparation.
+- Persisted preflight evidence and blocked-state runtime state.
+- Verified focused tests, full suite, JSON specs, and state validation.
+- Committed and pushed as `3cba763`.
 
-## Phase 2: Configurable Execution Adapters
+## Current Phase: V2.8 Local API And Project Service Runtime
 
-- Add document-run options for real Codex and real GitHub execution.
-- Wire options into Orchestrator and Codex/GitHub adapters.
-- Keep dry-run as the default safe path.
+- Implement local project creation and persistence.
+- Support multi-file project input through local file paths and UI-oriented file metadata.
+- Build intake, context, task graph, runs, run events, and delivery summaries through API/service calls.
+- Keep synchronous dry-run execution as the default.
+- Update docs and tests for implemented API boundaries.
 
-## Phase 3: Repository Source Preparation
+## Next Phase: V2.9 Browser UI And Async Run Control
 
-- Optionally prepare public GitHub repositories before context indexing when a repository URL is provided without a local path.
-- Preserve public-first behavior and explicit blockers for private repositories.
+- Add a small operational UI for project create, file intake, GitHub source, plan preview, execution monitor, and delivery review.
+- Add real browser upload handling into per-project storage.
+- Add asynchronous run jobs with pause/resume/stop state and live event retrieval.
+- Verify the UI through browser smoke tests.
 
-## Phase 4: Verification And Continuous Delivery
+## Later Phase: V2.10 Controlled Real Repository Validation
 
-- Add tests for preflight, adapter flags, source preparation, and report fields.
-- Update docs and audit.
-- Run full verification, commit, push, and continue to the next phase unless blocked.
+- Run the system against a representative public repository and detailed development document.
+- Validate real Codex worker preflight and, when environment permits, real worker execution.
+- Validate real GitHub PR/CI flow or record exact environment blockers.
+- Produce final acceptance report.
