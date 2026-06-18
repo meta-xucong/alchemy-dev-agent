@@ -37,10 +37,24 @@ class TaskGraphBuilder:
         implementation_nodes, requirement_task_ids = self._implementation_nodes(requirements, test_commands)
         nodes.extend(implementation_nodes)
         implementation_ids = [node.id for node in implementation_nodes]
+        documentation_only = bool(implementation_nodes) and all(node.type == "documentation" for node in implementation_nodes)
         verification_commands = (
             ["static document inspection"]
-            if implementation_nodes and all(node.type == "documentation" for node in implementation_nodes)
+            if documentation_only
             else test_commands + context_bundle.build_commands + context_bundle.lint_commands
+        )
+        verification_files = (
+            dedupe([file for node in implementation_nodes for file in node.relevant_files])
+            if documentation_only
+            else self._test_relevant_files(context_bundle)
+        )
+        verification_criteria = (
+            dedupe([criterion for node in implementation_nodes for criterion in node.completion_criteria])
+            if documentation_only
+            else [
+                "Detected verification commands pass or produce documented blockers.",
+                "Every must requirement has implementation evidence.",
+            ]
         )
 
         verify_id = f"T{len(nodes) + 1:03d}"
@@ -52,12 +66,9 @@ class TaskGraphBuilder:
                 type="test",
                 assigned_agent="test",
                 dependencies=implementation_ids or ["T001"],
-                completion_criteria=[
-                    "Detected verification commands pass or produce documented blockers.",
-                    "Every must requirement has implementation evidence.",
-                ],
+                completion_criteria=verification_criteria,
                 commands_to_run=verification_commands,
-                relevant_files=self._test_relevant_files(context_bundle),
+                relevant_files=verification_files,
                 priority=85,
             )
         )

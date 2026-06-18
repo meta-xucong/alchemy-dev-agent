@@ -16,7 +16,7 @@ from runtime.codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWork
 from runtime.evaluator import Evaluator
 from runtime.github_flow import GitHubFlow
 from runtime.orchestrator import Orchestrator
-from runtime.models import RuntimeState
+from runtime.models import Dependency, RuntimeState, TaskGraph, TaskNode
 from runtime.state_manager import StateManager
 from runtime.task_graph_engine import TaskGraphEngine
 
@@ -582,6 +582,91 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(inputs["T001"].allowed_files, [])
         self.assertIn("If allowed_files is empty", " ".join(inputs["T001"].constraints))
         self.assertEqual(inputs[implementation.id].allowed_files, ["src/app.py"])
+
+    def test_static_document_verification_and_review_do_not_call_worker(self) -> None:
+        class DocWorker:
+            def __init__(self, repo: Path) -> None:
+                self.repo = repo
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                target = self.repo / "docs" / "probe.md"
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("probe\n", encoding="utf-8")
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="created probe",
+                    files_changed=["docs/probe.md"],
+                    tests_passed=["static document inspection"],
+                    evidence=["created docs/probe.md"],
+                    confidence=1.0,
+                )
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            graph = TaskGraph(
+                graph_id="doc-only",
+                version=1,
+                nodes=[
+                    TaskNode(
+                        id="T001",
+                        title="Create probe",
+                        description="Create docs/probe.md",
+                        type="documentation",
+                        assigned_agent="architect",
+                        completion_criteria=["`docs/probe.md` exists."],
+                        relevant_files=["docs/probe.md"],
+                        commands_to_run=["static document inspection"],
+                    ),
+                    TaskNode(
+                        id="T002",
+                        title="Verify probe",
+                        description="Verify docs/probe.md",
+                        type="test",
+                        assigned_agent="test",
+                        dependencies=["T001"],
+                        completion_criteria=["`docs/probe.md` exists."],
+                        relevant_files=["docs/probe.md"],
+                        commands_to_run=["static document inspection"],
+                    ),
+                    TaskNode(
+                        id="T003",
+                        title="Review probe",
+                        description="Review probe",
+                        type="review",
+                        assigned_agent="reviewer",
+                        dependencies=["T002"],
+                        completion_criteria=["Reviewer approval is recorded."],
+                    ),
+                    TaskNode(
+                        id="T004",
+                        title="Release probe",
+                        description="Record evidence",
+                        type="release",
+                        assigned_agent="reviewer",
+                        dependencies=["T003"],
+                    ),
+                ],
+                dependencies=[
+                    Dependency(source="T001", target="T002", type="requires_test_pass"),
+                    Dependency(source="T002", target="T003", type="requires_review"),
+                    Dependency(source="T003", target="T004", type="requires_review"),
+                ],
+            )
+            worker = DocWorker(repo)
+            state = Orchestrator(
+                StateManager(repo / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=repo,
+            ).run("doc probe", reset=True, task_graph=graph, max_iterations=6)
+
+        self.assertTrue(state.done)
+        self.assertEqual(worker.calls, ["T001"])
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(nodes["T002"].evidence[-1]["result"]["commands_run"][0]["command"], "static document inspection")
+        self.assertEqual(nodes["T003"].evidence[-1]["result"]["status"], "completed")
 
     def test_cli_smoke_run(self) -> None:
         with temp_project_dir() as tmp_dir:
