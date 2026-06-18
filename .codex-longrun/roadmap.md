@@ -1,31 +1,28 @@
 # Long-Running Roadmap
 
-Objective: Implement V2.4 document-to-plan runtime for requirement extraction, traceability, and task graph generation.
+Objective: Implement V2.5 plan-to-execution handoff runtime for document-driven task graphs.
 
-## Phase 1: Requirement Extraction Runtime
+## Phase 1: Runtime Handoff Contract
 
-- Extract deterministic requirements from parsed development documents and supporting files.
-- Preserve document source IDs for traceability.
-- Attach acceptance criteria from explicit user criteria and document sections.
-- Infer requirement priority from must/should/could wording.
-- Link requirements to repository files when document text or filename signals match indexed files.
+- Convert `ProjectBrief`, `ContextBundle`, and generated `TaskGraph` into a `RuntimeState`.
+- Preserve repository metadata, blockers, objective, task graph, and done criteria.
+- Avoid creating a second runtime state model.
 
-## Phase 2: Task Graph Planning Runtime
+## Phase 2: Worker Package Preparation
 
-- Generate architecture, implementation, verification, and review tasks from ContextBundle requirements.
-- Assign implementation tasks to backend/frontend/documentation/integration agents using requirement and repository-file signals.
-- Attach requirement acceptance criteria, related files, and detected verification commands to tasks.
-- Preserve the existing generated-game demo behavior.
+- Build `CodexWorkerInput` packages from generated task nodes.
+- Include objective, task description, acceptance criteria, repository path, agent context, relevant files, commands, and constraints.
+- Support deterministic inspection before task execution.
 
-## Phase 3: Documentation And Examples
+## Phase 3: Dry-Run Execution Bridge
 
-- Add V2.4 document-to-plan runtime documentation.
-- Update README, V2 plan, alignment audit, and document-driven example.
-- Keep public GitHub repositories as the primary source path.
+- Run document-driven generated graphs through the existing `Orchestrator` in dry-run mode.
+- Persist state to `.alchemy/state.json`.
+- Verify DONE gate behavior with generated graph tasks and GitHub dry-run evidence.
 
-## Phase 4: Verification And Delivery
+## Phase 4: Documentation And Verification
 
-- Add tests for requirement extraction, traceability, and task graph generation.
-- Run focused and full test suites.
-- Validate JSON specs and long-running state.
-- Commit, push, notify, and stop only when the phase is ready for review.
+- Add V2.5 handoff documentation.
+- Update README, V2 plan, and audit docs.
+- Add tests for handoff state, worker packages, and dry-run execution.
+- Run full verification, commit, push, and notify.

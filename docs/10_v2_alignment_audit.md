@@ -19,6 +19,7 @@ This audit checks whether the v2 development plan matches the user's intended wo
 | Private repositories remain an optional GitHub CLI authentication path. | `docs/08_intake_and_context.md`, `docs/09_ui_and_api_requirements.md` | Pass |
 | One-line prompt is only a fallback. | `docs/07_v2_development_plan.md`, `specs/project_brief_schema.json` | Pass |
 | Agent cluster remains the execution mechanism. | `docs/07_v2_development_plan.md` | Pass |
+| Document-driven plans can enter runtime execution. | `runtime/handoff.py`, `docs/14_v2_plan_to_execution_handoff.md` | Pass |
 
 ## Audit 2: Contract Fit
 
@@ -49,6 +50,7 @@ Current runtime capabilities:
 - V2.2 local repository indexing and ContextBundle repository/test-profile enrichment.
 - V2.3 public GitHub clone/fetch/checkout source runtime.
 - V2.4 deterministic requirement extraction, traceability, and task graph generation from ContextBundle.
+- V2.5 plan-to-execution handoff from ProjectBrief/ContextBundle/TaskGraph to RuntimeState, worker packages, and orchestrator dry-run completion.
 
 Planned v2 capabilities:
 
@@ -57,6 +59,7 @@ Planned v2 capabilities:
 - GitHub repository inspection before planning.
 - Private repository retrieval through optional `gh` authentication.
 - Deep document parser pipeline and semantic code summarization.
+- Real Codex mutation against arbitrary repositories.
 - UI/API for intake, planning, execution monitoring, and delivery review.
 
 Result: Pass.
@@ -74,6 +77,7 @@ The current codebase does not yet implement:
 - Private GitHub source retrieval before planning.
 - Semantic requirement contradiction detection.
 - Semantic code summarization beyond deterministic file/path matching.
+- Real Codex worker execution validation against arbitrary target repositories.
 - Execution event streaming.
 
 It does include a deterministic local demo for one-line game generation, but that path is intentionally narrow and should not be treated as proof of general autonomous software delivery.

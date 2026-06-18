@@ -4,6 +4,7 @@ from .agent_router import AgentRouter
 from .codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult, CommandResult
 from .evaluator import EvaluationResult, Evaluator
 from .github_flow import GitHubExecutionResult, GitHubFlow
+from .handoff import RuntimeHandoff
 from .orchestrator import Orchestrator
 from .state_manager import StateManager
 from .task_graph_engine import TaskGraphEngine
@@ -19,6 +20,7 @@ __all__ = [
     "GitHubExecutionResult",
     "GitHubFlow",
     "Orchestrator",
+    "RuntimeHandoff",
     "StateManager",
     "TaskGraphEngine",
 ]

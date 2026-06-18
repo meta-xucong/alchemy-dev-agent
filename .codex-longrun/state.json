@@ -1,31 +1,30 @@
 {
-  "objective": "Implement V2.4 document-to-plan runtime for requirement extraction, traceability, and task graph generation",
-  "current_phase": "V2.4 document-to-plan runtime",
+  "objective": "Implement V2.5 plan-to-execution handoff runtime for document-driven task graphs",
+  "current_phase": "V2.5 plan-to-execution handoff runtime",
   "phase_status": "done",
   "completed_phases": [
-    "Requirement extraction runtime",
-    "Task graph planning runtime",
-    "Documentation and examples",
-    "Verification and delivery"
+    "Runtime handoff contract",
+    "Worker package preparation",
+    "Dry-run execution bridge",
+    "Documentation and verification"
   ],
   "next_actions": [],
   "tests_run": [
-    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_to_plan",
-    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_document_to_plan tests.test_repository_context tests.test_autodev_pipeline",
+    "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_runtime_handoff",
     "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests",
     "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\""
   ],
   "known_bugs": [],
   "blockers": [],
   "done_criteria": [
-    "Parsed development documents produce traceable requirements",
-    "Requirements link to source documents, acceptance criteria, and related repository files",
-    "ContextBundle requirements map to implementation, verification, and review task IDs",
-    "TaskGraphBuilder generates document-driven task graphs without breaking the one-line demo path",
+    "ProjectBrief, ContextBundle, and TaskGraph convert into RuntimeState",
+    "Generated task nodes convert into CodexWorkerInput packages",
+    "Document-driven graphs can run through Orchestrator dry-run execution",
+    "Release/GitHub evidence is recorded for the existing DONE gate",
     "Relevant tests and contract checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-18T09:52:58+08:00",
-  "created_at": "2026-06-18T09:40:00+08:00",
-  "updated_at": "2026-06-18T09:52:58+08:00"
+  "last_verified_at": "2026-06-18T10:44:58+08:00",
+  "created_at": "2026-06-18T10:04:44+08:00",
+  "updated_at": "2026-06-18T10:44:58+08:00"
 }

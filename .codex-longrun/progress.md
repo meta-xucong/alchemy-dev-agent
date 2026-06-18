@@ -91,6 +91,16 @@
 - Added `docs/13_v2_document_to_plan_runtime.md`.
 - Updated README, V2 plan, intake/context contract, V2 audit, and document-driven example for V2.4 status.
 - Added `tests/test_document_to_plan.py` covering document requirements, related-file mapping, task graph generation, and legacy one-line demo graph preservation.
+## 2026-06-18 V2.5 Plan-To-Execution Handoff Runtime
+
+- Added `runtime/handoff.py` to convert ProjectBrief, ContextBundle, and TaskGraph into executable RuntimeState.
+- Added worker package generation from document-driven task nodes into `CodexWorkerInput`.
+- Preserved repository metadata, blockers, objective, generated graph, and document-aware done criteria during handoff.
+- Extended `Orchestrator.initialize` and `Orchestrator.run` to accept an external initial RuntimeState or TaskGraph.
+- Added release task insertion during handoff so generated document-driven graphs satisfy the existing GitHub evidence DONE gate.
+- Added `docs/14_v2_plan_to_execution_handoff.md`.
+- Updated README, V2 plan, and V2 audit for V2.5 status.
+- Added `tests/test_runtime_handoff.py` covering state handoff, worker packages, and dry-run orchestrator execution to DONE.
 ## Supervisor Run 20260617-215941-iter-001
 
 - returncode: 0

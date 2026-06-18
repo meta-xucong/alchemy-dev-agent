@@ -8,7 +8,7 @@ from .agent_router import AgentRouter
 from .codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult
 from .evaluator import EvaluationResult, Evaluator
 from .github_flow import GitHubFlow
-from .models import RuntimeState, TaskNode, utc_now_iso
+from .models import RuntimeState, TaskGraph, TaskNode, utc_now_iso
 from .state_manager import StateManager
 from .task_graph_engine import TaskGraphEngine
 
@@ -57,17 +57,43 @@ class Orchestrator:
             repository_path=project_path,
         )
 
-    def initialize(self, objective: str, reset: bool = False) -> RuntimeState:
+    def initialize(
+        self,
+        objective: str,
+        reset: bool = False,
+        *,
+        initial_state: RuntimeState | None = None,
+        task_graph: TaskGraph | None = None,
+    ) -> RuntimeState:
         if reset and self.state_manager.state_path.exists():
             self.state_manager.state_path.unlink()
+        if initial_state is not None:
+            state = initial_state
+            if not state.repository:
+                state.repository = {"provider": "local", "path": str(self.repository_path)}
+            self.state_manager.save(state)
+            return state
+        if task_graph is not None and not self.state_manager.state_path.exists():
+            state = RuntimeState(objective=objective, task_graph=task_graph)
+            state.repository = {"provider": "local", "path": str(self.repository_path)}
+            self.state_manager.save(state)
+            return state
         state = self.state_manager.load_or_initialize(objective, self.graph_engine)
         if not state.repository:
             state.repository = {"provider": "local", "path": str(self.repository_path)}
         self.state_manager.save(state)
         return state
 
-    def run(self, objective: str, max_iterations: int = 20, reset: bool = False) -> RuntimeState:
-        state = self.initialize(objective, reset=reset)
+    def run(
+        self,
+        objective: str,
+        max_iterations: int = 20,
+        reset: bool = False,
+        *,
+        initial_state: RuntimeState | None = None,
+        task_graph: TaskGraph | None = None,
+    ) -> RuntimeState:
+        state = self.initialize(objective, reset=reset, initial_state=initial_state, task_graph=task_graph)
         for iteration in range(1, max_iterations + 1):
             evaluation = self.evaluator.evaluate(state)
             self._record_evaluation(state, evaluation)

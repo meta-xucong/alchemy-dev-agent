@@ -61,6 +61,8 @@ docs/
                               V2.3 public GitHub clone/fetch runtime.
   13_v2_document_to_plan_runtime.md
                               V2.4 requirement extraction and task planning runtime.
+  14_v2_plan_to_execution_handoff.md
+                              V2.5 runtime handoff and worker package bridge.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -80,6 +82,7 @@ runtime/
   codex_worker.py            Dry-run and real Codex subprocess worker adapter.
   evaluator.py               DONE gate scoring.
   github_flow.py             Dry-run and real git/gh execution flow adapter.
+  handoff.py                 ProjectBrief/ContextBundle/TaskGraph to RuntimeState bridge.
   state_manager.py           JSON state persistence.
   run_loop.py                CLI loop entry point.
 
@@ -109,6 +112,7 @@ tests/
   test_autodev_pipeline.py   End-to-end local demo generation tests.
   test_repository_context.py Repository context runtime tests.
   test_document_to_plan.py   Requirement extraction and task graph planning tests.
+  test_runtime_handoff.py    Plan-to-execution handoff tests.
 ```
 
 ## Runtime
@@ -234,6 +238,19 @@ Implemented document-to-plan capabilities:
 - Task graph generation with architecture, implementation, verification, and review nodes.
 - Implementation task assignment to backend, frontend, test, documentation, or integration work based on requirement and repository-file signals.
 - Preservation of the existing one-line generated-app demo graph.
+
+## V2.5 Plan-To-Execution Handoff
+
+The handoff runtime connects document-driven planning to the existing orchestrator loop.
+
+Implemented handoff capabilities:
+
+- Convert `ProjectBrief`, `ContextBundle`, and generated `TaskGraph` into `RuntimeState`.
+- Preserve repository metadata, blockers, objective, task graph, and document-aware done criteria.
+- Build `CodexWorkerInput` packages from generated task nodes.
+- Include objective, assigned agent, upstream task IDs, acceptance criteria, related files, and verification commands in worker packages.
+- Append a release task when needed so the existing DONE gate can record GitHub or dry-run delivery evidence.
+- Run generated document-driven graphs through the `Orchestrator` dry-run loop to DONE.
 
 Run a smoke execution:
 

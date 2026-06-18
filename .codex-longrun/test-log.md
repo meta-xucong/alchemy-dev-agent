@@ -291,3 +291,30 @@
 - Result: passed.
 - Summary: All JSON specs parse after V2.4 changes.
 - Next verification command: long-running state validation.
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_runtime_handoff`
+- Result: failed, then passed after fixes.
+- Summary: Initial dry-run handoff did not reach DONE because V2.4 generated graphs ended at review and lacked release/GitHub evidence required by the existing evaluator. Fixed `RuntimeHandoff` to append a release task when needed.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest tests.test_runtime_handoff`
+- Result: passed.
+- Summary: 2 V2.5 handoff tests passed, covering RuntimeState creation, CodexWorkerInput packages, and orchestrator dry-run DONE.
+- Next verification command: full test suite.
+
+## 2026-06-18
+
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 39 tests passed across runtime, intake, GitHub source, repository context, document-to-plan, planner, handoff, and autodev modules.
+- Next verification command: JSON spec parsing and state validation.
+
+## 2026-06-18
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.5 handoff changes.
+- Next verification command: long-running state validation.
