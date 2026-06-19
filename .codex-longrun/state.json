@@ -1,6 +1,6 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.31 delivery evidence console",
+  "current_phase": "V2.32 feedback recovery comparison",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -42,12 +42,13 @@
     "V2.28 feedback reopen loop",
     "V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness",
     "V2.30 native UI acceptance-test generation and report integration",
-    "V2.31 delivery evidence API and browser console reviewability"
+    "V2.31 delivery evidence API and browser console reviewability",
+    "V2.32 feedback recovery comparison"
   ],
   "next_actions": [
-    "Add recovery-run comparison reports that show source run evidence versus feedback repair run evidence.",
+    "Add artifact file serving so evidence console can preview screenshots and generated native UI test drafts.",
     "Add a controlled repository-write switch for native UI tests once dependency and CI setup checks can prevent generated tests from breaking target projects.",
-    "Polish evidence console with screenshot previews and native UI test file preview once artifact file serving is available."
+    "Add optional comparison-driven repair suggestions that turn recovery_comparison regressions into next Debug Agent tasks."
   ],
   "tests_run": [
     {
@@ -664,6 +665,36 @@
       "command": "gh run watch 27832406533 --exit-status",
       "result": "passed",
       "summary": "GitHub Actions CI run 27832406533 passed on master commit 1db8afb after V2.31 delivery evidence console changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_recovery_comparison tests.test_delivery_evidence tests.test_api_server.ApiServerTests.test_project_service_reopens_delivered_run_with_feedback tests.test_api_server.ApiServerTests.test_http_api_reopens_with_feedback tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_local_repository_acceptance.LocalRepositoryAcceptanceTests.test_harness_passes_local_import_and_feedback_reopen",
+      "result": "passed",
+      "summary": "9 focused tests passed for recovery comparison logic, delivery evidence, feedback reopen API, static console hooks, and local feedback acceptance."
+    },
+    {
+      "command": "Playwright UI smoke against local API console with injected recovery_comparison fixture",
+      "result": "passed",
+      "summary": "Headless Chromium rendered the Repair Comparison detail section and wrote .alchemy/ui_smoke_v2_32/repair-comparison-console.png."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.local_repository_acceptance --output .alchemy\\local_repository_acceptance_v2_32_fix --auto-browser-verify",
+      "result": "passed",
+      "summary": "Local feedback reopen acceptance passed and recovery_comparison status was improved with covered new feedback must requirements REQ-004 and REQ-005."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "182 tests passed after V2.32 feedback recovery comparison changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_32_final",
+      "result": "passed",
+      "summary": "Main acceptance harness passed after V2.32 changes with delivery done and development_cycle score 1.0."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"; git diff --check; validate_state.py --project .",
+      "result": "passed",
+      "summary": "JSON specs parsed, diff hygiene passed, and long-running state validated before V2.32 commit."
     }
   ],
   "known_bugs": [
@@ -765,9 +796,10 @@
     "A local-only acceptance harness verifies initial delivery and feedback reopen without creating a GitHub repository.",
     "Dry-run workers do not misinterpret natural-language words like blocked as explicit blocker constraints.",
     "Generated acceptance scenarios can be converted into Playwright/Cypress native UI test drafts and surfaced in document-run, delivery, runtime state, and requirement coverage evidence.",
-    "Delivery evidence is summarized into a human-reviewable API/UI contract covering final gate, requirements, probes, native tests, GitHub, blockers, next actions, and development-cycle status."
+    "Delivery evidence is summarized into a human-reviewable API/UI contract covering final gate, requirements, probes, native tests, GitHub, blockers, next actions, and development-cycle status.",
+    "Feedback repair runs produce source-vs-current recovery_comparison evidence covering score, coverage, must gaps, blockers, probes, and CI."
   ],
-  "last_verified_at": "2026-06-19T22:45:56+08:00",
+  "last_verified_at": "2026-06-19T23:24:48+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T22:45:56+08:00"
+  "updated_at": "2026-06-19T23:24:48+08:00"
 }

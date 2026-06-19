@@ -110,6 +110,8 @@ docs/
                               V2.30 repository-native Playwright/Cypress acceptance test generation.
   38_v2_31_delivery_evidence_console.md
                               V2.31 human-reviewable delivery evidence console.
+  39_v2_32_feedback_recovery_comparison.md
+                              V2.32 source-vs-repair run comparison evidence.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -160,6 +162,7 @@ autodev/
   acceptance_run.py          Local end-to-end acceptance harness.
   local_repository_acceptance.py
                              Local repository import and feedback-reopen acceptance harness.
+  recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
   real_delivery_validation.py
                               Controlled real GitHub delivery validation harness.
@@ -744,6 +747,9 @@ Current V2.23 implementation status:
 - API delivery responses now include `delivery_evidence`, a display-ready
   summary for final gate, requirements, browser probes, native UI tests,
   GitHub/CI, blockers, next actions, and development-cycle status.
+- Feedback reopen delivery responses now include `recovery_comparison`, showing
+  source-vs-repair deltas for score, coverage, must gaps, blockers, probes, and
+  CI.
 - Real GitHub document-runs can generate a lightweight static web CI workflow
   for docs-only canvas/static artifacts immediately before release, so the
   workflow is included in the branch/PR instead of only appearing in the final
@@ -772,6 +778,8 @@ See `docs/37_v2_30_native_ui_acceptance_tests.md` for converting generated
 acceptance scenarios into repository-native Playwright/Cypress test drafts.
 See `docs/38_v2_31_delivery_evidence_console.md` for the browser-console
 delivery evidence view that makes run completion human-reviewable.
+See `docs/39_v2_32_feedback_recovery_comparison.md` for feedback repair
+comparison evidence.
 
 Run a smoke execution:
 
@@ -822,6 +830,7 @@ This repository does not yet implement:
 - Proven real external rerun that combines generated static CI, automatic
   browser verification, and terminal GitHub check collection in one PR.
 - Browser-console visualization for every development-cycle checklist step.
+- Artifact file serving for screenshot and generated native UI test previews.
 - Domain-specific semantic probes for every app category beyond the current
   canvas-game and generic static-web probes.
 - Agent SDK runtime code.

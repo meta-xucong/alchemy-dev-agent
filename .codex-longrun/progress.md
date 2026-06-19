@@ -535,3 +535,14 @@ PY"`
 
 - Pushed commit `1db8afb` to `master`.
 - GitHub Actions CI run `27832406533` completed successfully for `Add delivery evidence console`.
+
+
+## 2026-06-19 V2.32 Feedback Recovery Comparison
+
+- Added `docs/39_v2_32_feedback_recovery_comparison.md` and linked V2.32 from README and the V2 development plan.
+- Added `autodev.recovery_comparison` to compare feedback/recovery runs with their source run.
+- Comparison evidence covers run status, final gate score, requirement coverage, missing/partial must gaps, newly covered feedback must requirements, blocker deltas, browser probe deltas, native UI test status, and CI status.
+- Persisted `recovery_comparison` on feedback reopen runs and derived it during delivery lookup when a run references a source run.
+- Added `Repair Comparison` cards/details to delivery evidence and the browser console.
+- Hardened comparison logic so a feedback run that adds and covers new must requirements is classified as improved rather than unchanged.
+- Verified focused tests, full suite, local feedback acceptance with browser verification, main acceptance harness, UI smoke, JSON specs, diff hygiene, and long-running state validation.

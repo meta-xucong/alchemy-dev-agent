@@ -10,6 +10,7 @@ from typing import Any
 from autodev import DocumentRunPipeline
 from autodev.delivery_evidence import build_delivery_evidence
 from autodev.real_env_check import RealEnvironmentCheck
+from autodev.recovery_comparison import build_recovery_comparison
 from context import ContextBundleBuilder
 from intake import GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
 from intake.models import FileRole, ProjectBrief, utc_now_iso
@@ -489,6 +490,7 @@ class ProjectService:
             "run_id": run.get("run_id", ""),
             "worktree_branch_prefix": run_payload["worktree_branch_prefix"],
         }
+        run["recovery_comparison"] = build_recovery_comparison(source_run=source_run, current_run=run)
         self._write_json(self.project_dir(project_id) / "runs" / str(run["run_id"]) / "run.json", run)
         return run
 
@@ -515,6 +517,7 @@ class ProjectService:
         requirement_coverage = run.get("requirement_coverage", {})
         generated_ci = run.get("generated_ci", {})
         development_cycle = run.get("development_cycle", {})
+        recovery_comparison = self._recovery_comparison_for_run(project_id, run)
         delivery_evidence = build_delivery_evidence(
             status=str(run.get("status", "")),
             delivery_report=delivery_report if isinstance(delivery_report, dict) else {},
@@ -522,6 +525,7 @@ class ProjectService:
             requirement_coverage=requirement_coverage if isinstance(requirement_coverage, dict) else {},
             generated_ci=generated_ci if isinstance(generated_ci, dict) else {},
             development_cycle=development_cycle if isinstance(development_cycle, dict) else {},
+            recovery_comparison=recovery_comparison,
         )
         return {
             "project_id": project_id,
@@ -535,6 +539,7 @@ class ProjectService:
             "delivery_report": delivery_report,
             "delivery_evidence": delivery_evidence,
             "development_cycle": development_cycle,
+            "recovery_comparison": recovery_comparison,
             "output_dir": run.get("output_dir", ""),
         }
 
@@ -632,6 +637,19 @@ class ProjectService:
         if resume_from:
             return resume_from
         return None
+
+    def _recovery_comparison_for_run(self, project_id: str, run: dict[str, object]) -> dict[str, object]:
+        stored = run.get("recovery_comparison", {})
+        if isinstance(stored, dict) and stored:
+            return stored
+        source_run_id = comparison_source_run_id(run)
+        if not source_run_id:
+            return {}
+        try:
+            source_run = self.get_run(project_id, source_run_id)
+        except ApiError:
+            return {}
+        return build_recovery_comparison(source_run=source_run, current_run=run)
 
     def _build_brief(self, payload: dict[str, Any]) -> ProjectBrief:
         project_id_override = str(payload.get("project_id", ""))
@@ -773,3 +791,19 @@ def has_history_type(result: dict[str, object], event_type: str) -> bool:
     if not isinstance(history, list):
         return False
     return any(isinstance(item, dict) and item.get("type") == event_type for item in history)
+
+
+def comparison_source_run_id(run: dict[str, object]) -> str:
+    feedback = run.get("feedback_reopen", {})
+    if isinstance(feedback, dict):
+        source_run_id = str(feedback.get("source_run_id", "") or "")
+        if source_run_id:
+            return source_run_id
+    recovery = run.get("recovery", {})
+    if isinstance(recovery, dict):
+        checkpoint = recovery.get("checkpoint", {})
+        if isinstance(checkpoint, dict):
+            source_run_id = str(checkpoint.get("source_run_id", "") or "")
+            if source_run_id:
+                return source_run_id
+    return ""

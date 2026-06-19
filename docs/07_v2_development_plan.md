@@ -45,6 +45,7 @@ The repository currently contains:
 - A V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness.
 - A V2.30 native UI acceptance-test generator that converts inferred acceptance scenarios into Playwright/Cypress drafts.
 - A V2.31 delivery evidence console that turns machine evidence into human-reviewable summaries.
+- A V2.32 feedback recovery comparison report that shows whether repair runs improved or regressed against their source runs.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, richer UI/API observability, representative real GitHub delivery validation, external docs-only delivery closure, and safer live execution controls. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -549,6 +550,14 @@ DONE requires:
 - Summarize final gate, requirement coverage, static/browser probes, native UI tests, GitHub/CI/merge evidence, blockers, next actions, and development-cycle steps. Status: implemented.
 - Render evidence cards and detailed evidence sections in the browser console while preserving raw JSON audit output. Status: implemented.
 - Keep execution, evaluator, and task graph behavior unchanged. Status: implemented.
+
+### V2.32: Feedback Recovery Comparison
+
+- Add a `recovery_comparison` report for feedback reopen and recovery delivery review. Status: implemented.
+- Compare source and repair run status, final gate score, coverage score, blocker count, must-requirement gaps, browser probe evidence, native UI test evidence, and CI status. Status: implemented.
+- Persist comparison evidence on feedback reopen runs and derive it during delivery lookup when a run references a source run. Status: implemented.
+- Surface comparison evidence in `delivery_evidence` and the browser console as a `Repair Comparison` card and detail section. Status: implemented.
+- Keep execution, evaluator, task graph, and worker behavior unchanged. Status: implemented.
 
 ## Risks And Mitigations
 

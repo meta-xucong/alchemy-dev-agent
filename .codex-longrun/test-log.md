@@ -1349,3 +1349,36 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27832406533` passed on `master` commit `1db8afb` after V2.31 delivery evidence console changes.
 - Next verification command: none.
+
+
+## 2026-06-19 V2.32 Feedback Recovery Comparison
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_recovery_comparison tests.test_delivery_evidence tests.test_api_server.ApiServerTests.test_project_service_reopens_delivered_run_with_feedback tests.test_api_server.ApiServerTests.test_http_api_reopens_with_feedback tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_local_repository_acceptance.LocalRepositoryAcceptanceTests.test_harness_passes_local_import_and_feedback_reopen`
+- Result: passed.
+- Summary: 9 focused tests passed for recovery comparison logic, delivery evidence, feedback reopen API, static console hooks, and local feedback acceptance.
+- Next verification command: local feedback acceptance with browser verification.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.local_repository_acceptance --output .alchemy\local_repository_acceptance_v2_32_fix --auto-browser-verify`
+- Result: passed.
+- Summary: Local feedback reopen acceptance passed; `recovery_comparison.status` was `improved` and `covered_new_must_requirement_ids` contained `REQ-004` and `REQ-005`.
+- Next verification command: full unit suite.
+
+- Command: `Playwright UI smoke against local API console with injected recovery_comparison fixture`
+- Result: passed.
+- Summary: Headless Chromium rendered the `Repair Comparison` section and wrote `.alchemy/ui_smoke_v2_32/repair-comparison-console.png`.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 182 tests passed after V2.32 feedback recovery comparison changes.
+- Next verification command: acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_32_final`
+- Result: passed.
+- Summary: Main acceptance harness passed after V2.32 changes with delivery done and development_cycle score 1.0.
+- Next verification command: JSON specs, diff hygiene, and state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`; `git diff --check`; `validate_state.py --project .`
+- Result: passed.
+- Summary: JSON specs parsed, diff hygiene passed, and long-running state validated before V2.32 commit.
+- Next verification command: commit, push, and GitHub Actions.

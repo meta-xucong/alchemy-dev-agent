@@ -136,6 +136,7 @@ def build_checks(
     ]
     debug_nodes = [node for node in nodes if isinstance(node, dict) and node.get("type") == "debug"]
     reopen = reopened_run.get("feedback_reopen", {}) if isinstance(reopened_run.get("feedback_reopen"), dict) else {}
+    comparison = delivery.get("recovery_comparison", {}) if isinstance(delivery.get("recovery_comparison"), dict) else {}
     return [
         check("local_repository_source", repository.get("provider") == "local", repository),
         check("repository_path_preserved", Path(str(created_project.get("repository_path", ""))) == repo, created_project.get("repository_path", "")),
@@ -145,6 +146,7 @@ def build_checks(
         check("feedback_role_preserved", bool(feedback_requirements), feedback_requirements),
         check("debug_task_created", bool(debug_nodes), debug_nodes),
         check("feedback_reopen_metadata", reopen.get("source_run_id") == "run_001", reopen),
+        check("recovery_comparison_recorded", comparison.get("source_run_id") == "run_001", comparison),
         check("feedback_file_attached", str(feedback) in project.get("attachments", []), project.get("attachments", [])),
         check("dry_run_github_only", dry_run_github_evidence(reopened_run), reopened_run.get("runtime_state", {}).get("github", {})),
         check("delivery_done", delivery.get("status") == "done", delivery.get("status", "")),

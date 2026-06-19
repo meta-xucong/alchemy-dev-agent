@@ -236,11 +236,17 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(reopened["run_id"], "run_002")
         self.assertEqual(reopened["feedback_reopen"]["source_run_id"], "run_001")
         self.assertEqual(reopened["feedback_reopen"]["worktree_branch_prefix"], "agent/feedback-recovery")
+        self.assertEqual(reopened["recovery_comparison"]["source_run_id"], "run_001")
+        self.assertEqual(reopened["recovery_comparison"]["current_run_id"], "run_002")
+        self.assertIn(reopened["recovery_comparison"]["status"], {"improved", "same_passed", "unchanged", "mixed"})
         graph = reopened["task_graph"]
         debug_nodes = [node for node in graph["nodes"] if node["type"] == "debug"]
         self.assertGreaterEqual(len(debug_nodes), 1)
         self.assertEqual(debug_nodes[0]["assigned_agent"], "debug")
         self.assertIn(str(feedback), service.load_project(project_id).attachments)
+        delivery = service.get_delivery(project_id)
+        self.assertEqual(delivery["recovery_comparison"]["source_run_id"], "run_001")
+        self.assertEqual(delivery["delivery_evidence"]["recovery_comparison"]["current_run_id"], "run_002")
 
     def test_project_service_async_run_records_job_controls_and_events(self) -> None:
         root = temp_root()
@@ -461,6 +467,7 @@ class ApiServerTests(unittest.TestCase):
 
             self.assertEqual(reopened["run_id"], "run_002")
             self.assertEqual(reopened["feedback_reopen"]["source_run_id"], "run_001")
+            self.assertEqual(reopened["recovery_comparison"]["current_run_id"], "run_002")
         finally:
             conn.close()
             server.shutdown()
@@ -620,6 +627,8 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("renderEvidence", js)
             self.assertIn("renderEvidenceDetails", js)
             self.assertIn("reopenWithFeedback", js)
+            self.assertIn("Repair Comparison", js)
+            self.assertIn("recovery_comparison", js)
             self.assertIn("deliverySummary", css)
             self.assertIn("evidenceCards", css)
             self.assertIn("evidenceDetails", css)

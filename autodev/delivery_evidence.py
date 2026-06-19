@@ -13,6 +13,7 @@ def build_delivery_evidence(
     requirement_coverage: dict[str, Any],
     generated_ci: dict[str, Any],
     development_cycle: dict[str, Any],
+    recovery_comparison: dict[str, Any] | None = None,
 ) -> dict[str, object]:
     artifact = delivery_report.get("artifact", {}) if isinstance(delivery_report.get("artifact", {}), dict) else {}
     final_gate = delivery_report.get("final_gate", {}) if isinstance(delivery_report.get("final_gate", {}), dict) else {}
@@ -24,6 +25,7 @@ def build_delivery_evidence(
     native_tests = native_ui_summary(artifact)
     github_summary = github_evidence(github, generated_ci)
     cycle = development_cycle_summary(development_cycle)
+    comparison = recovery_comparison_summary(recovery_comparison or {})
     ready = bool(delivery_report.get("ready_for_review", False))
     score = _number(final_gate.get("score"))
     evidence_status = "ready" if ready else "blocked" if blockers else status or "unknown"
@@ -72,6 +74,15 @@ def build_delivery_evidence(
             f"score={cycle.get('score', 0)}",
         ),
     ]
+    if comparison:
+        cards.append(
+            evidence_card(
+                "Repair Comparison",
+                comparison_status_for_card(str(comparison.get("status", ""))),
+                f"score delta {format_delta(comparison.get('score_delta', 0))}",
+                str(comparison.get("summary", "")),
+            )
+        )
 
     return {
         "status": evidence_status,
@@ -84,6 +95,7 @@ def build_delivery_evidence(
         "native_ui_tests": native_tests,
         "github": github_summary,
         "development_cycle": cycle,
+        "recovery_comparison": comparison,
         "blockers": blockers,
         "next_actions": next_actions,
     }
@@ -225,6 +237,58 @@ def development_cycle_summary(development_cycle: dict[str, Any]) -> dict[str, ob
     }
 
 
+def recovery_comparison_summary(recovery_comparison: dict[str, Any]) -> dict[str, object]:
+    if not recovery_comparison:
+        return {}
+    return {
+        "status": str(recovery_comparison.get("status", "")),
+        "summary": str(recovery_comparison.get("summary", "")),
+        "source_run_id": str(recovery_comparison.get("source_run_id", "")),
+        "current_run_id": str(recovery_comparison.get("current_run_id", "")),
+        "score_delta": recovery_comparison.get("score_delta", 0),
+        "coverage_delta": recovery_comparison.get("coverage_delta", 0),
+        "blocker_delta": recovery_comparison.get("blocker_delta", 0),
+        "resolved_missing_must_requirement_ids": list(
+            recovery_comparison.get("resolved_missing_must_requirement_ids", [])
+        )
+        if isinstance(recovery_comparison.get("resolved_missing_must_requirement_ids", []), list)
+        else [],
+        "new_missing_must_requirement_ids": list(recovery_comparison.get("new_missing_must_requirement_ids", []))
+        if isinstance(recovery_comparison.get("new_missing_must_requirement_ids", []), list)
+        else [],
+        "resolved_partial_must_requirement_ids": list(
+            recovery_comparison.get("resolved_partial_must_requirement_ids", [])
+        )
+        if isinstance(recovery_comparison.get("resolved_partial_must_requirement_ids", []), list)
+        else [],
+        "new_partial_must_requirement_ids": list(recovery_comparison.get("new_partial_must_requirement_ids", []))
+        if isinstance(recovery_comparison.get("new_partial_must_requirement_ids", []), list)
+        else [],
+        "new_must_requirement_ids": list(recovery_comparison.get("new_must_requirement_ids", []))
+        if isinstance(recovery_comparison.get("new_must_requirement_ids", []), list)
+        else [],
+        "covered_new_must_requirement_ids": list(recovery_comparison.get("covered_new_must_requirement_ids", []))
+        if isinstance(recovery_comparison.get("covered_new_must_requirement_ids", []), list)
+        else [],
+        "uncovered_new_must_requirement_ids": list(recovery_comparison.get("uncovered_new_must_requirement_ids", []))
+        if isinstance(recovery_comparison.get("uncovered_new_must_requirement_ids", []), list)
+        else [],
+        "probe_changes": list(recovery_comparison.get("probe_changes", []))
+        if isinstance(recovery_comparison.get("probe_changes", []), list)
+        else [],
+    }
+
+
+def comparison_status_for_card(status: str) -> str:
+    if status in {"improved", "same_passed"}:
+        return "passed"
+    if status == "mixed":
+        return "partial"
+    if status == "regressed":
+        return "failed"
+    return "skipped"
+
+
 def _probe_detail(label: str, payload: object) -> dict[str, object]:
     data = payload if isinstance(payload, dict) else {}
     return {
@@ -266,3 +330,8 @@ def _number(value: object) -> float:
 
 def _format_score(score: float) -> str:
     return f"{score:.2f}" if score else "-"
+
+
+def format_delta(value: object) -> str:
+    delta = _number(value)
+    return f"{delta:+.2f}"

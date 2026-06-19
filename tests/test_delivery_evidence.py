@@ -54,6 +54,24 @@ class DeliveryEvidenceTests(unittest.TestCase):
                     {"name": "iteration", "status": "waived"},
                 ],
             },
+            recovery_comparison={
+                "status": "improved",
+                "summary": "Repair run improved the source run evidence.",
+                "source_run_id": "run_001",
+                "current_run_id": "run_002",
+                "score_delta": 0.1,
+                "coverage_delta": 0.2,
+                "resolved_missing_must_requirement_ids": ["REQ-1"],
+                "new_missing_must_requirement_ids": [],
+                "probe_changes": [
+                    {
+                        "name": "scenario",
+                        "source_status": "failed",
+                        "current_status": "passed",
+                        "direction": "improved",
+                    }
+                ],
+            },
         )
 
         self.assertEqual(evidence["status"], "ready")
@@ -64,7 +82,10 @@ class DeliveryEvidenceTests(unittest.TestCase):
         self.assertEqual(evidence["native_ui_tests"]["framework"], "playwright")
         self.assertEqual(evidence["github"]["merge_status"], "merged")
         self.assertEqual(evidence["development_cycle"]["passed_steps"], 2)
-        self.assertGreaterEqual(len(evidence["cards"]), 7)
+        self.assertEqual(evidence["recovery_comparison"]["status"], "improved")
+        self.assertEqual(evidence["recovery_comparison"]["resolved_missing_must_requirement_ids"], ["REQ-1"])
+        self.assertIn("Repair Comparison", [card["label"] for card in evidence["cards"]])
+        self.assertGreaterEqual(len(evidence["cards"]), 8)
 
     def test_blocked_delivery_evidence_surfaces_blockers(self) -> None:
         evidence = build_delivery_evidence(

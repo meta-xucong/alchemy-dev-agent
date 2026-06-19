@@ -82,6 +82,7 @@ function renderEvidenceDetails(evidence) {
   const nativeTests = evidence.native_ui_tests || {};
   const github = evidence.github || {};
   const cycle = evidence.development_cycle || {};
+  const comparison = evidence.recovery_comparison || {};
   const blockers = Array.isArray(evidence.blockers) ? evidence.blockers : [];
   const nextActions = Array.isArray(evidence.next_actions) ? evidence.next_actions : [];
   const probeRows = ["semantic", "scenario", "gameplay"]
@@ -89,6 +90,7 @@ function renderEvidenceDetails(evidence) {
     .map((probe) => `<li><strong>${escapeHtml(String(probe.label || "-"))}</strong><span>${escapeHtml(String(probe.status || "-"))}</span></li>`)
     .join("");
   const cycleSteps = Array.isArray(cycle.steps) ? cycle.steps.slice(0, 8) : [];
+  const probeChanges = Array.isArray(comparison.probe_changes) ? comparison.probe_changes.slice(0, 8) : [];
   el("evidenceDetails").innerHTML = `
     <section>
       <h3>Requirements</h3>
@@ -115,6 +117,12 @@ function renderEvidenceDetails(evidence) {
       <ul>${cycleSteps.map((step) => `<li><strong>${escapeHtml(String(step.name || "-"))}</strong><span>${escapeHtml(String(step.status || "-"))}</span></li>`).join("")}</ul>
     </section>
     <section>
+      <h3>Repair Comparison</h3>
+      <p>${escapeHtml(String(comparison.status || "-"))} · source ${escapeHtml(String(comparison.source_run_id || "-"))} · current ${escapeHtml(String(comparison.current_run_id || "-"))}</p>
+      <p>Score ${formatDelta(comparison.score_delta)} · Coverage ${formatDelta(comparison.coverage_delta)} · Blockers ${formatDelta(comparison.blocker_delta)}</p>
+      <ul>${repairRows(comparison, probeChanges)}</ul>
+    </section>
+    <section>
       <h3>Blockers</h3>
       <ul>${blockers.length ? blockers.map((item) => `<li><strong>${escapeHtml(String(item.id || item.type || "blocker"))}</strong><span>${escapeHtml(String(item.description || item.message || item))}</span></li>`).join("") : "<li><strong>None</strong><span>No blockers</span></li>"}</ul>
     </section>
@@ -129,12 +137,22 @@ function fallbackEvidence(delivery) {
   const report = delivery.delivery_report || {};
   const artifact = report.artifact || {};
   const requirements = report.requirements || {};
+  const comparison = delivery.recovery_comparison || report.recovery_comparison || {};
+  const cards = [
+    { label: "Final Gate", status: report.ready_for_review ? "passed" : "unknown", value: String(report.final_gate?.score ?? "-"), detail: report.summary || "" },
+    { label: "Requirements", status: requirements.status || "unknown", value: String(requirements.coverage_score ?? "-"), detail: "coverage" },
+    { label: "Artifact", status: artifact.static_status || "unknown", value: artifact.profile || "-", detail: "artifact evidence" },
+  ];
+  if (comparison.status) {
+    cards.push({
+      label: "Repair Comparison",
+      status: comparisonCardStatus(comparison.status),
+      value: `score delta ${formatDelta(comparison.score_delta)}`,
+      detail: comparison.summary || "",
+    });
+  }
   return {
-    cards: [
-      { label: "Final Gate", status: report.ready_for_review ? "passed" : "unknown", value: String(report.final_gate?.score ?? "-"), detail: report.summary || "" },
-      { label: "Requirements", status: requirements.status || "unknown", value: String(requirements.coverage_score ?? "-"), detail: "coverage" },
-      { label: "Artifact", status: artifact.static_status || "unknown", value: artifact.profile || "-", detail: "artifact evidence" },
-    ],
+    cards,
     requirements,
     probes: {
       semantic: artifact.semantic_probe || {},
@@ -144,9 +162,49 @@ function fallbackEvidence(delivery) {
     native_ui_tests: artifact.native_ui_tests || {},
     github: report.github || {},
     development_cycle: delivery.development_cycle || {},
+    recovery_comparison: comparison,
     blockers: report.blockers || [],
     next_actions: report.next_actions || [],
   };
+}
+
+function comparisonCardStatus(status) {
+  if (["improved", "same_passed"].includes(String(status))) return "passed";
+  if (status === "mixed") return "partial";
+  if (status === "regressed") return "failed";
+  return "skipped";
+}
+
+function repairRows(comparison, probeChanges) {
+  if (!comparison || !comparison.status) {
+    return "<li><strong>None</strong><span>No repair comparison</span></li>";
+  }
+  const rows = [
+    ["Resolved must gaps", listValue(comparison.resolved_missing_must_requirement_ids)],
+    ["New must gaps", listValue(comparison.new_missing_must_requirement_ids)],
+    ["Resolved partial must", listValue(comparison.resolved_partial_must_requirement_ids)],
+    ["New partial must", listValue(comparison.new_partial_must_requirement_ids)],
+    ["Covered new must", listValue(comparison.covered_new_must_requirement_ids)],
+    ["Uncovered new must", listValue(comparison.uncovered_new_must_requirement_ids)],
+  ];
+  probeChanges.forEach((change) => {
+    rows.push([
+      `Probe ${change.name || "-"}`,
+      `${change.source_status || "-"} -> ${change.current_status || "-"} (${change.direction || "-"})`,
+    ]);
+  });
+  return rows
+    .map(([label, value]) => `<li><strong>${escapeHtml(String(label))}</strong><span>${escapeHtml(String(value))}</span></li>`)
+    .join("");
+}
+
+function listValue(items) {
+  return Array.isArray(items) && items.length ? items.join(", ") : "-";
+}
+
+function formatDelta(value) {
+  const number = Number(value || 0);
+  return `${number >= 0 ? "+" : ""}${number.toFixed(2)}`;
 }
 
 function escapeHtml(value) {
