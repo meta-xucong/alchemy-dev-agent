@@ -503,3 +503,14 @@ PY"`
 
 - Pushed commit `0c97999` to `master`.
 - GitHub Actions CI run `27829089780` completed successfully for `Add local repository source acceptance`.
+
+
+## 2026-06-19 V2.30 Native UI Acceptance Tests
+
+- Added `docs/37_v2_30_native_ui_acceptance_tests.md` and linked V2.30 from README and the V2 development plan.
+- Added `runtime/native_ui_tests.py` to convert generated CRUD/auth/upload/dashboard acceptance scenarios into Playwright or Cypress test drafts.
+- Detects Playwright/Cypress from config files, package metadata, scripts, or Cypress directories.
+- Generates report-only Playwright drafts for static browser artifacts without mutating arbitrary repositories.
+- Wired `native_ui_tests` into document-run output, artifact reports, delivery reports, runtime repository evidence, and requirement coverage evidence.
+- Hardened generated Playwright output with explicit TypeScript types and script-value framework detection.
+- Verified focused tests before final full-suite and acceptance checks.

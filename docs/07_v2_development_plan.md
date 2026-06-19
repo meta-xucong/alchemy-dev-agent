@@ -43,6 +43,7 @@ The repository currently contains:
 - V2.20 and V2.21 acceptance closure and post-acceptance quality gate hardening.
 - A V2.22 supplemental plan for external docs-only repository delivery closure.
 - A V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness.
+- A V2.30 native UI acceptance-test generator that converts inferred acceptance scenarios into Playwright/Cypress drafts.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, richer UI/API observability, representative real GitHub delivery validation, external docs-only delivery closure, and safer live execution controls. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -176,6 +177,7 @@ planner/
 runtime/
   control.py                Task-boundary execution controls.
   handoff.py                Convert ProjectBrief, ContextBundle, and TaskGraph into RuntimeState and worker packages.
+  native_ui_tests.py        Convert generated browser acceptance scenarios into Playwright/Cypress test drafts.
   orchestrator.py           Execute task graphs through worker, retry, evaluation, and delivery gates.
   recovery.py               Resume paused, stopped, failed, or blocked runs from persisted state.
 
@@ -530,6 +532,14 @@ DONE requires:
 - Keep GitHub and local import modes on the same ProjectBrief -> ContextBundle -> TaskGraph -> RuntimeState contract. Status: implemented.
 - Add a local repository acceptance harness that runs initial delivery and feedback reopen without creating a GitHub repository. Status: implemented.
 - Keep optional browser verification as a local acceptance flag, not a mandatory unit-test dependency. Status: implemented.
+
+### V2.30: Native UI Acceptance Tests
+
+- Convert generated CRUD/auth/upload/dashboard acceptance scenarios into repository-native UI test drafts. Status: implemented.
+- Detect existing Playwright and Cypress projects from config, package metadata, scripts, or directories. Status: implemented.
+- Generate report-only Playwright drafts for local static browser artifacts without mutating arbitrary repositories. Status: implemented.
+- Surface native UI test generation in `document_run`, `artifact_report`, `delivery_report`, runtime repository evidence, and requirement coverage. Status: implemented.
+- Keep generated browser probes as the delivery gate while native tests provide reusable post-delivery regression artifacts. Status: implemented.
 
 ## Risks And Mitigations
 

@@ -187,6 +187,9 @@ def _verification_evidence(nodes: dict[str, dict[str, Any]], task_ids: list[str]
     scenario_status = artifact_report.get("browser_verification", {}).get("scenario_probe", {}).get("status")
     if scenario_status and scenario_status != "skipped":
         evidence.append(f"Acceptance scenario probe: {scenario_status}.")
+    native_ui_status = artifact_report.get("native_ui_tests", {}).get("status")
+    if native_ui_status == "generated":
+        evidence.append("Native UI acceptance tests: generated.")
     return _dedupe(evidence)
 
 

@@ -1282,3 +1282,26 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27829089780` passed on `master` commit `0c97999` after V2.29 local repository source acceptance changes.
 - Next verification command: none.
+
+
+## 2026-06-19 V2.30 Native UI Acceptance Tests
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_native_ui_tests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_document_run_generates_native_ui_acceptance_tests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_delivery_report_summarizes_native_ui_tests`
+- Result: passed.
+- Summary: 7 focused tests passed for native UI test generation, Playwright/Cypress detection, document-run wiring, delivery report evidence, and strict Playwright template output.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 177 tests passed after V2.30 native UI acceptance test generation and report integration.
+- Next verification command: acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_30_final`
+- Result: passed.
+- Summary: Acceptance harness passed after V2.30 changes with delivery done and development_cycle score 1.0.
+- Next verification command: JSON specs, diff hygiene, and state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`; `git diff --check`; `validate_state.py --project .`
+- Result: passed.
+- Summary: JSON specs parsed, diff hygiene passed with only CRLF normalization warnings on long-running logs, and long-running state validated before V2.30 commit.
+- Next verification command: commit, push, and GitHub Actions.

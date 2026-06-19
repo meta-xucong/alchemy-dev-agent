@@ -106,6 +106,8 @@ docs/
                               V2.28 feedback-driven reopen and repair loop.
   36_v2_29_local_and_github_source_modes.md
                               V2.29 local and GitHub source-mode unification.
+  37_v2_30_native_ui_acceptance_tests.md
+                              V2.30 repository-native Playwright/Cypress acceptance test generation.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -130,6 +132,7 @@ runtime/
   evaluator.py               DONE gate scoring.
   github_flow.py             Dry-run and real git/gh execution flow adapter.
   handoff.py                 ProjectBrief/ContextBundle/TaskGraph to RuntimeState bridge.
+  native_ui_tests.py         Playwright/Cypress acceptance test draft generator.
   recovery.py                Resume/retry recovery from persisted run state.
   state_manager.py           JSON state persistence.
   run_loop.py                CLI loop entry point.
@@ -733,6 +736,9 @@ Current V2.23 implementation status:
 - Document-run reports now include `requirement_coverage`, mapping each
   extracted requirement to planned tasks, implementation files, verification
   evidence, and missing/partial/covered status.
+- Document-run reports now include `native_ui_tests`, converting generated
+  CRUD/auth/upload/dashboard acceptance scenarios into Playwright or Cypress
+  test drafts when a browser artifact or native UI test framework is detected.
 - Real GitHub document-runs can generate a lightweight static web CI workflow
   for docs-only canvas/static artifacts immediately before release, so the
   workflow is included in the branch/PR instead of only appearing in the final
@@ -757,6 +763,8 @@ See `docs/34_v2_27_acceptance_scenario_browser_probes.md` for deterministic
 browser scenarios generated from detailed acceptance documents.
 See `docs/35_v2_28_feedback_reopen_loop.md` for reopening delivered runs from
 playtest or acceptance feedback and routing fixes through Debug Agent tasks.
+See `docs/37_v2_30_native_ui_acceptance_tests.md` for converting generated
+acceptance scenarios into repository-native Playwright/Cypress test drafts.
 
 Run a smoke execution:
 

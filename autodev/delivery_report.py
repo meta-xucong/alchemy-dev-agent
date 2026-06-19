@@ -12,6 +12,7 @@ def build_delivery_report(
     artifact_report: dict[str, Any],
     requirement_coverage: dict[str, Any],
     generated_ci: dict[str, Any],
+    native_ui_tests: dict[str, Any] | None = None,
     workspace: dict[str, Any] | None = None,
     preflight: dict[str, Any] | None = None,
 ) -> dict[str, object]:
@@ -25,6 +26,7 @@ def build_delivery_report(
     semantic_probe = browser.get("semantic_probe", {}) if isinstance(browser, dict) else {}
     scenario_probe = browser.get("scenario_probe", {}) if isinstance(browser, dict) else {}
     scenario_plan = artifact_report.get("acceptance_scenarios", {})
+    native_tests = native_ui_tests or artifact_report.get("native_ui_tests", {})
     coverage_entries = requirement_coverage.get("entries", [])
     report = {
         "status": status,
@@ -53,6 +55,7 @@ def build_delivery_report(
             "scenario_status": scenario_probe.get("status", "") if isinstance(scenario_probe, dict) else "",
             "scenario_probe": dict(scenario_probe) if isinstance(scenario_probe, dict) else {},
             "acceptance_scenarios": dict(scenario_plan) if isinstance(scenario_plan, dict) else {},
+            "native_ui_tests": dict(native_tests) if isinstance(native_tests, dict) else {},
             "gameplay_status": gameplay_probe.get("status", "") if isinstance(gameplay_probe, dict) else "",
             "gameplay_probe": dict(gameplay_probe) if isinstance(gameplay_probe, dict) else {},
             "screenshots": browser.get("screenshots", {}),

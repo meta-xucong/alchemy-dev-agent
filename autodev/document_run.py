@@ -18,6 +18,7 @@ from runtime import (
     BrowserArtifactRunner,
     CodexWorkerAdapter,
     GitHubFlow,
+    NativeUITestGenerator,
     Orchestrator,
     RealRunWorkspace,
     RuntimeHandoff,
@@ -48,6 +49,7 @@ class DocumentRunResult:
     recovery: dict = field(default_factory=dict)
     artifact_report: dict = field(default_factory=dict)
     generated_ci: dict = field(default_factory=dict)
+    native_ui_tests: dict = field(default_factory=dict)
     requirement_coverage: dict = field(default_factory=dict)
     delivery_report: dict = field(default_factory=dict)
     development_cycle: dict = field(default_factory=dict)
@@ -67,6 +69,7 @@ class DocumentRunResult:
             "recovery": self.recovery,
             "artifact_report": self.artifact_report,
             "generated_ci": self.generated_ci,
+            "native_ui_tests": self.native_ui_tests,
             "requirement_coverage": self.requirement_coverage,
             "delivery_report": self.delivery_report,
             "development_cycle": self.development_cycle,
@@ -301,6 +304,13 @@ class DocumentRunPipeline:
             auto_browser_verify=auto_browser_verify,
         )
         final_state.repository["artifact_profile"] = str(artifact_report.get("artifact_profile", {}).get("name", "unknown"))
+        native_ui_tests = build_native_ui_tests_report(
+            repository_path=state.repository.get("path", "."),
+            output_dir=output,
+            artifact_report=artifact_report,
+        )
+        artifact_report["native_ui_tests"] = native_ui_tests
+        final_state.repository["native_ui_tests"] = native_ui_tests
         requirement_coverage = build_requirement_coverage(
             repository_path=state.repository.get("path", "."),
             context_bundle=bundle.to_dict(),
@@ -327,6 +337,7 @@ class DocumentRunPipeline:
             artifact_report=artifact_report,
             requirement_coverage=requirement_coverage,
             generated_ci=generated_ci,
+            native_ui_tests=native_ui_tests,
             workspace=workspace_session.to_dict(),
             preflight=preflight.to_dict(),
         )
@@ -351,6 +362,7 @@ class DocumentRunPipeline:
             recovery=recovery_payload,
             artifact_report=artifact_report,
             generated_ci=generated_ci,
+            native_ui_tests=native_ui_tests,
             requirement_coverage=requirement_coverage,
             delivery_report=delivery_report,
             development_cycle=development_cycle,
@@ -483,6 +495,13 @@ class DocumentRunPipeline:
             auto_browser_verify=auto_browser_verify,
         )
         final_state.repository["artifact_profile"] = str(artifact_report.get("artifact_profile", {}).get("name", "unknown"))
+        native_ui_tests = build_native_ui_tests_report(
+            repository_path=repository_path,
+            output_dir=output,
+            artifact_report=artifact_report,
+        )
+        artifact_report["native_ui_tests"] = native_ui_tests
+        final_state.repository["native_ui_tests"] = native_ui_tests
         requirement_coverage = build_requirement_coverage(
             repository_path=repository_path,
             context_bundle=source.context_bundle,
@@ -509,6 +528,7 @@ class DocumentRunPipeline:
             artifact_report=artifact_report,
             requirement_coverage=requirement_coverage,
             generated_ci=generated_ci,
+            native_ui_tests=native_ui_tests,
             workspace=workspace,
             preflight=preflight.to_dict(),
         )
@@ -533,6 +553,7 @@ class DocumentRunPipeline:
             recovery=recovery_result.to_dict(),
             artifact_report=artifact_report,
             generated_ci=generated_ci,
+            native_ui_tests=native_ui_tests,
             requirement_coverage=requirement_coverage,
             delivery_report=delivery_report,
             development_cycle=development_cycle,
@@ -655,6 +676,24 @@ def build_requirement_coverage(
         task_graph=task_graph,
         runtime_state=runtime_state,
         artifact_report=artifact_report,
+    ).to_dict()
+
+
+def build_native_ui_tests_report(
+    *,
+    repository_path: str | Path,
+    output_dir: str | Path,
+    artifact_report: dict,
+    write_to_repository: bool = False,
+) -> dict[str, object]:
+    profile = str(artifact_report.get("artifact_profile", {}).get("name", "unknown"))
+    scenarios = artifact_report.get("acceptance_scenarios", {})
+    return NativeUITestGenerator().generate(
+        repository_path=repository_path,
+        output_dir=output_dir,
+        acceptance_scenarios=scenarios if isinstance(scenarios, dict) else {},
+        artifact_profile=profile,
+        write_to_repository=write_to_repository,
     ).to_dict()
 
 

@@ -1,6 +1,6 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.29 local and GitHub source modes",
+  "current_phase": "V2.30 native UI acceptance tests",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -40,12 +40,13 @@
     "V2.26 semantic web probes and feedback intake loop",
     "V2.27 acceptance scenario browser probes",
     "V2.28 feedback reopen loop",
-    "V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness"
+    "V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness",
+    "V2.30 native UI acceptance-test generation and report integration"
   ],
   "next_actions": [
-    "Polish browser-console evidence views for semantic probe snapshots, scenario probe details, failed interactions, and development_cycle checklist details.",
-    "Extend generated acceptance scenarios beyond static web apps into repository-native Playwright/Cypress test generation when a project already has a UI test framework.",
-    "Add recovery-run comparison reports that show source run evidence versus feedback repair run evidence."
+    "Polish browser-console evidence views for semantic probe snapshots, scenario probe details, native UI test drafts, failed interactions, and development_cycle checklist details.",
+    "Add recovery-run comparison reports that show source run evidence versus feedback repair run evidence.",
+    "Add a controlled repository-write switch for native UI tests once dependency and CI setup checks can prevent generated tests from breaking target projects."
   ],
   "tests_run": [
     {
@@ -607,6 +608,26 @@
       "command": "gh run watch 27829089780 --exit-status",
       "result": "passed",
       "summary": "GitHub Actions CI run 27829089780 passed on master commit 0c97999 after V2.29 local repository source acceptance changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_native_ui_tests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_document_run_generates_native_ui_acceptance_tests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_delivery_report_summarizes_native_ui_tests",
+      "result": "passed",
+      "summary": "7 focused tests passed for native UI test generation, Playwright/Cypress detection, document-run report wiring, delivery report evidence, and strict Playwright template output."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "177 tests passed after V2.30 native UI acceptance test generation and report integration."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_30_final",
+      "result": "passed",
+      "summary": "Acceptance harness passed after V2.30 changes with delivery done and development_cycle score 1.0."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"; git diff --check; validate_state.py --project .",
+      "result": "passed",
+      "summary": "JSON specs parsed, diff hygiene passed with only CRLF normalization warnings on long-running logs, and long-running state validated before V2.30 commit."
     }
   ],
   "known_bugs": [
@@ -706,9 +727,10 @@
     "Local repository paths are first-class ProjectBrief repository providers without requiring a GitHub URL.",
     "Local and GitHub source modes converge into the same ProjectBrief -> ContextBundle -> TaskGraph -> RuntimeState contract.",
     "A local-only acceptance harness verifies initial delivery and feedback reopen without creating a GitHub repository.",
-    "Dry-run workers do not misinterpret natural-language words like blocked as explicit blocker constraints."
+    "Dry-run workers do not misinterpret natural-language words like blocked as explicit blocker constraints.",
+    "Generated acceptance scenarios can be converted into Playwright/Cypress native UI test drafts and surfaced in document-run, delivery, runtime state, and requirement coverage evidence."
   ],
-  "last_verified_at": "2026-06-19T21:39:35+08:00",
+  "last_verified_at": "2026-06-19T22:21:02+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T21:39:35+08:00"
+  "updated_at": "2026-06-19T22:21:02+08:00"
 }

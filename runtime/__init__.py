@@ -9,6 +9,7 @@ from .evaluator import EvaluationResult, Evaluator
 from .github_flow import GitHubExecutionResult, GitHubFlow
 from .generated_ci import GeneratedCIResult, StaticWebCIGenerator
 from .handoff import RuntimeHandoff
+from .native_ui_tests import NativeUITestGeneration, NativeUITestGenerator
 from .orchestrator import Orchestrator
 from .recovery import RecoveryResult, RecoverySource, RuntimeRecovery
 from .requirement_coverage import RequirementCoverageBuilder, RequirementCoverageEntry, RequirementCoverageReport
@@ -37,6 +38,8 @@ __all__ = [
     "GitHubFlow",
     "GeneratedCIResult",
     "Orchestrator",
+    "NativeUITestGeneration",
+    "NativeUITestGenerator",
     "RealRunWorkspace",
     "RecoveryResult",
     "RecoverySource",

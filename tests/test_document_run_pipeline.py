@@ -473,6 +473,46 @@ class DocumentRunPipelineTests(unittest.TestCase):
         self.assertEqual(seen_scenarios[0]["kind"], "crud")
         self.assertEqual(report["browser_verification"]["scenario_probe"]["status"], "completed")
 
+    def test_document_run_generates_native_ui_acceptance_tests(self) -> None:
+        with temp_document_run_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "index.html").write_text(
+                "<!doctype html><main id='app'><form><input name='todo'><button>Add Todo</button></form><ul><li>Seed task</li></ul></main>",
+                encoding="utf-8",
+            )
+            spec = root / "todo_spec.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Todo App",
+                        "## Requirements",
+                        "- Must deliver todo creation in index.html.",
+                        "## Acceptance Criteria",
+                        "- CRUD create updates the visible todo list.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            output = root / "run"
+
+            result = DocumentRunPipeline().run(
+                objective="Deliver todo app",
+                documents=[spec],
+                repository_path=repo,
+                output_dir=output,
+            )
+            payload = result.to_dict()
+            target = output / "generated_tests" / "playwright" / "alchemy_acceptance.spec.ts"
+            self.assertTrue(target.exists())
+
+        self.assertEqual(payload["native_ui_tests"]["status"], "generated")
+        self.assertEqual(payload["native_ui_tests"]["framework"], "playwright")
+        self.assertEqual(payload["artifact_report"]["native_ui_tests"]["status"], "generated")
+        self.assertEqual(payload["runtime_state"]["repository"]["native_ui_tests"]["status"], "generated")
+        self.assertEqual(payload["delivery_report"]["artifact"]["native_ui_tests"]["status"], "generated")
+        self.assertIn("Native UI acceptance tests: generated.", payload["requirement_coverage"]["entries"][0]["verification_evidence"])
+
     def test_development_cycle_report_marks_manual_engineering_loop_evidence(self) -> None:
         report = build_development_cycle_report(
             project_brief={
@@ -665,6 +705,25 @@ class DocumentRunPipelineTests(unittest.TestCase):
         self.assertEqual(report["artifact"]["scenario_status"], "completed")
         self.assertEqual(report["artifact"]["acceptance_scenarios"]["status"], "generated")
         self.assertEqual(report["artifact"]["scenario_probe"]["tests_passed"], ["SCN-001: CRUD create controls are present."])
+
+    def test_delivery_report_summarizes_native_ui_tests(self) -> None:
+        report = build_delivery_report(
+            status="done",
+            runtime_state={
+                "evaluation": {"done": True, "reason": "DONE condition met.", "final_gate_score": 0.9},
+                "github": {"ci_status": "passed"},
+                "blockers": [],
+            },
+            artifact_report={
+                "artifact_profile": {"name": "static_web_app"},
+                "native_ui_tests": {"status": "generated", "framework": "playwright"},
+            },
+            requirement_coverage={"status": "passed", "entries": []},
+            generated_ci={"status": "generated"},
+        )
+
+        self.assertEqual(report["artifact"]["native_ui_tests"]["status"], "generated")
+        self.assertEqual(report["artifact"]["native_ui_tests"]["framework"], "playwright")
 
     def test_assign_release_branch_binds_real_worktree_branch_to_release_task(self) -> None:
         state = RuntimeState(
