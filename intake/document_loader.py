@@ -79,6 +79,8 @@ class DocumentLoader:
             return "database_schema"
         if "design" in name or "wireframe" in name or "ui" in name or "ux" in name:
             return "design"
+        if any(marker in name for marker in ("feedback", "bug", "issue", "playtest", "验收反馈", "反馈", "问题")):
+            return "feedback"
         if "test" in name or "qa" in name or "verification" in name:
             return "test_plan"
         if "sample" in name or "fixture" in name or "data" in name:

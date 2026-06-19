@@ -50,6 +50,7 @@ function renderDelivery(delivery) {
     ["CI", github.ci_status || "-"],
     ["Merge", merge.status || "-"],
     ["Artifact", artifact.profile || "-"],
+    ["Semantic", artifact.semantic_status || artifact.semantic_probe?.status || "-"],
     ["Gameplay", artifact.gameplay_status || artifact.gameplay_probe?.status || "-"],
     ["Coverage", requirements.coverage_score ?? "-"],
   ];

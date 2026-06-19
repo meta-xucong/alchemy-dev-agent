@@ -14,6 +14,7 @@ FileRole = Literal[
     "database_schema",
     "design",
     "test_plan",
+    "feedback",
     "reference_code",
     "data_sample",
     "other",

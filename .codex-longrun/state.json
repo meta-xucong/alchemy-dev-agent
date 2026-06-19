@@ -1,6 +1,6 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.25 playability feedback loop and semantic gameplay gate",
+  "current_phase": "V2.26 semantic web probes and feedback intake loop",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -36,12 +36,13 @@
     "V2.24.2 explicit auto-merge contract and GitHub merge-state hardening",
     "V2.24.3 browser automation readiness preflight and screenshot path fix",
     "V2.24.4 fresh external docs-only repository rerun with generated CI, browser evidence, PR merge",
-    "V2.25 playability feedback loop and semantic gameplay gate"
+    "V2.25 playability feedback loop and semantic gameplay gate",
+    "V2.26 semantic web probes and feedback intake loop"
   ],
   "next_actions": [
-    "Generalize semantic browser probes beyond canvas games to CRUD apps, dashboards, forms, and API-backed workflows.",
-    "Add structured user-feedback intake that converts manual bug reports into requirement deltas, debug tasks, and acceptance probes.",
-    "Polish browser-console evidence views for development_cycle steps, gameplay probe snapshots, and failed interaction traces."
+    "Generate domain-specific Playwright scenarios from detailed acceptance documents for CRUD, dashboards, auth, and file-upload flows.",
+    "Allow feedback intake to reopen a delivered run and automatically create a recovery/debug branch with targeted worker packages.",
+    "Polish browser-console evidence views for semantic probe snapshots, failed interactions, and development_cycle checklist details."
   ],
   "tests_run": [
     {
@@ -513,6 +514,41 @@
       "command": "GitHub Actions CI run 27822953044 on master e5e653d",
       "result": "passed",
       "summary": "Remote CI completed successfully after V2.25 semantic gameplay gate changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_intake tests.test_document_to_plan tests.test_runtime.OrchestratorTests tests.test_runtime.RequirementCoverageTests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_delivery_report_summarizes_semantic_probe_status",
+      "result": "passed",
+      "summary": "50 focused tests passed for feedback role intake, feedback-to-requirement planning, static-web verification, browser semantic probe evidence, requirement coverage, and delivery report summary."
+    },
+    {
+      "command": "BrowserArtifactRunner Playwright semantic probe against a static todo form fixture",
+      "result": "passed",
+      "summary": "Real browser semantic probe filled a todo input, clicked Add Todo, detected visible DOM state change, and returned completed semantic_probe evidence."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "157 tests passed after V2.26 semantic web and feedback intake changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_26",
+      "result": "passed",
+      "summary": "Acceptance harness passed with delivery done and development_cycle score 1.0 after V2.26 changes."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"",
+      "result": "passed",
+      "summary": "All JSON specs parse after adding the feedback role to ProjectBrief schema."
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "summary": "No whitespace errors reported after V2.26 changes."
+    },
+    {
+      "command": "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
+      "result": "passed",
+      "summary": "Long-running state schema validated after V2.26 changes."
     }
   ],
   "known_bugs": [
@@ -555,6 +591,16 @@
       "id": "STATIC_WEB_VERIFIER_MISAPPLIED_TO_NODE_PROJECTS",
       "status": "fixed",
       "summary": "Acceptance harness exposed that non-web Node projects were being marked partial by static web artifact checks; fixed by skipping static web verification for node/python/docs profiles."
+    },
+    {
+      "id": "STATIC_WEB_APP_EVALUATED_WITH_GAME_RULES",
+      "status": "fixed",
+      "summary": "Ordinary static web apps were previously checked with canvas-game style assumptions; fixed by splitting static web checks from canvas-game rules and adding a semantic web interaction probe."
+    },
+    {
+      "id": "MANUAL_FEEDBACK_NOT_STRUCTURED_AS_WORK",
+      "status": "fixed",
+      "summary": "Manual playtest and acceptance feedback could be uploaded but was not first-class work; fixed by adding feedback file role inference and must-priority feedback requirement extraction."
     }
   ],
   "blockers": [],
@@ -568,9 +614,12 @@
     "Full repository unit test suite, JSON spec parsing, diff hygiene, and long-running state validation pass.",
     "Canvas-game artifacts expose a deterministic gameplay hook and fail delivery when semantic gameplay evidence is missing or failed.",
     "Gameplay probe status is surfaced in artifact_report, delivery_report, requirement_coverage, development_cycle, and the browser console summary.",
-    "Non-web project profiles skip static web artifact verification instead of producing false partial development-cycle results."
+    "Non-web project profiles skip static web artifact verification instead of producing false partial development-cycle results.",
+    "Static-web artifacts are verified with generic app-root/control rules instead of canvas-game-only rules.",
+    "Automatic browser verification records semantic_probe evidence for ordinary static web apps.",
+    "Feedback files are recognized as first-class intake and converted into must-priority requirement deltas."
   ],
-  "last_verified_at": "2026-06-19T19:27:56+08:00",
+  "last_verified_at": "2026-06-19T20:16:44+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T19:27:56+08:00"
+  "updated_at": "2026-06-19T20:16:44+08:00"
 }

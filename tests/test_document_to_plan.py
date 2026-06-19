@@ -185,6 +185,56 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual([node["id"] for node in graph["nodes"]], ["T001", "T002", "T003", "T004"])
         self.assertEqual(graph["nodes"][1]["relevant_files"], ["index.html"])
 
+    def test_feedback_document_becomes_must_fix_requirement(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "src").mkdir()
+            (repo / "src" / "todo.js").write_text("export function addTodo() {}\n", encoding="utf-8")
+            (repo / "index.html").write_text("<main id='app'></main>\n", encoding="utf-8")
+            primary = root / "spec.md"
+            primary.write_text("# Todo\n## Requirements\n- Must add todo creation in src/todo.js.\n", encoding="utf-8")
+            feedback = root / "playtest_notes.md"
+            feedback.write_text(
+                "\n".join(
+                    [
+                        "# Playtest Notes",
+                        "",
+                        "## Feedback",
+                        "- Bug: clicking Add Todo does not update src/todo.js state.",
+                        "- Issue: empty todos can still be submitted.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Fix todo feedback",
+                documents=[primary],
+                attachments=[feedback],
+                repository_url="https://github.com/example/todo",
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+            brief.repository.local_path = str(repo)
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+            payload = bundle.to_dict()
+
+        feedback_requirements = [
+            requirement
+            for requirement in payload["requirement_map"]["requirements"]
+            if requirement["source_document_id"] == payload["document_index"]["documents"][1]["id"]
+        ]
+        self.assertEqual(len(feedback_requirements), 2)
+        self.assertTrue(all(requirement["priority"] == "must" for requirement in feedback_requirements))
+        self.assertIn("src/todo.js", feedback_requirements[0]["related_files"])
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertGreaterEqual(len(implementation_nodes), 1)
+
     def test_document_driven_platformer_spec_does_not_use_generated_fallback(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

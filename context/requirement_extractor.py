@@ -51,6 +51,17 @@ REQUIREMENT_HEADINGS = (
     "milestones",
     "next steps",
     "file structure",
+    "feedback",
+    "bug",
+    "bugs",
+    "bug report",
+    "issues",
+    "playtest",
+    "playtest notes",
+    "manual feedback",
+    "验收反馈",
+    "反馈",
+    "问题",
 )
 
 PATH_PATTERN = re.compile(
@@ -267,6 +278,8 @@ def infer_priority(text: str, role: str) -> str:
         if any(marker in lowered or marker in text for marker in markers):
             return priority
     if role == "primary_requirements":
+        return "must"
+    if role == "feedback":
         return "must"
     if role == "test_plan":
         return "should"

@@ -559,6 +559,28 @@ class DocumentRunPipelineTests(unittest.TestCase):
         self.assertEqual(report["artifact"]["gameplay_status"], "completed")
         self.assertEqual(report["artifact"]["gameplay_probe"]["tests_passed"], ["Victory path can be reached."])
 
+    def test_delivery_report_summarizes_semantic_probe_status(self) -> None:
+        report = build_delivery_report(
+            status="done",
+            runtime_state={
+                "evaluation": {"done": True, "reason": "DONE condition met.", "final_gate_score": 0.9},
+                "github": {"ci_status": "passed"},
+                "blockers": [],
+            },
+            artifact_report={
+                "artifact_profile": {"name": "static_web_app"},
+                "browser_verification": {
+                    "status": "completed",
+                    "semantic_probe": {"status": "completed", "tests_passed": ["Static web controls are discoverable."]},
+                },
+            },
+            requirement_coverage={"status": "passed", "entries": []},
+            generated_ci={"status": "generated"},
+        )
+
+        self.assertEqual(report["artifact"]["semantic_status"], "completed")
+        self.assertEqual(report["artifact"]["semantic_probe"]["tests_passed"], ["Static web controls are discoverable."])
+
     def test_assign_release_branch_binds_real_worktree_branch_to_release_task(self) -> None:
         state = RuntimeState(
             objective="Deliver generated app",

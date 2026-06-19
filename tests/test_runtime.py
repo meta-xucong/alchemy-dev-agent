@@ -1145,6 +1145,29 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result.profile["name"], "node_project")
         self.assertFalse(result.tests_failed)
 
+    def test_static_artifact_verifier_accepts_form_based_static_web_app(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text(
+                """
+                <!doctype html>
+                <main id="app">
+                  <form>
+                    <label>Todo <input name="todo"></label>
+                    <button type="button">Add Todo</button>
+                  </form>
+                  <section id="todos"></section>
+                </main>
+                """,
+                encoding="utf-8",
+            )
+
+            result = StaticWebArtifactVerifier().verify(repo, ["index.html"], requirements=["Build a todo form app"])
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.profile["name"], "static_web_app")
+        self.assertIn("Static web app interactive controls are present.", result.evidence)
+
     def test_artifact_profile_detector_classifies_common_projects(self) -> None:
         with temp_project_dir() as tmp_dir:
             repo = Path(tmp_dir)
@@ -1353,6 +1376,69 @@ class OrchestratorTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
         self.assertIn("boom", result.tests_failed[0])
+
+    def test_browser_artifact_runner_records_static_web_semantic_probe(self) -> None:
+        from PIL import Image
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text("<!doctype html><main id='app'><input><button>Add</button></main>", encoding="utf-8")
+
+            def fake_browser(request: dict[str, object]) -> dict[str, object]:
+                first = Path(str(request["initial_screenshot"]))
+                second = Path(str(request["after_interaction_screenshot"]))
+                image = Image.new("RGB", (6, 6), "white")
+                image.putpixel((1, 1), (0, 0, 0))
+                image.save(first)
+                changed = Image.new("RGB", (6, 6), "white")
+                changed.putpixel((2, 2), (0, 0, 0))
+                changed.save(second)
+                return {
+                    "status": "completed",
+                    "semantic_probe": {
+                        "status": "completed",
+                        "kind": "static_web_app",
+                        "tests_passed": ["Static web controls are discoverable."],
+                        "tests_failed": [],
+                    },
+                }
+
+            result = BrowserArtifactRunner(fake_browser).verify(
+                repo,
+                ["index.html"],
+                output_dir=repo / "evidence",
+                profile_name="static_web_app",
+            )
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.semantic_probe["status"], "completed")
+        self.assertIn("Static web controls are discoverable.", result.tests_passed)
+
+    def test_browser_artifact_runner_fails_when_static_web_semantic_probe_fails(self) -> None:
+        from PIL import Image
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text("<!doctype html><main id='app'><button>Add</button></main>", encoding="utf-8")
+
+            def fake_browser(request: dict[str, object]) -> dict[str, object]:
+                first = Path(str(request["initial_screenshot"]))
+                second = Path(str(request["after_interaction_screenshot"]))
+                image = Image.new("RGB", (6, 6), "white")
+                image.putpixel((1, 1), (0, 0, 0))
+                image.save(first)
+                image.save(second)
+                return {"status": "completed", "semantic_probe": {"status": "failed"}}
+
+            result = BrowserArtifactRunner(fake_browser).verify(
+                repo,
+                ["index.html"],
+                output_dir=repo / "evidence",
+                profile_name="static_web_app",
+            )
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("Semantic probe failed.", result.tests_failed)
 
     def test_orchestrator_runs_static_artifact_inspection_deterministically(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -1961,6 +2047,45 @@ class RequirementCoverageTests(unittest.TestCase):
 
         evidence = report.to_dict()["entries"][0]["verification_evidence"]
         self.assertIn("Gameplay probe: completed.", evidence)
+
+    def test_requirement_coverage_records_semantic_probe_evidence(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text("<!doctype html><main id='app'><button>Add</button></main>", encoding="utf-8")
+
+            report = RequirementCoverageBuilder().build(
+                repository_path=repo,
+                context_bundle={
+                    "requirement_map": {
+                        "requirements": [
+                            {
+                                "id": "REQ-001",
+                                "priority": "must",
+                                "text": "Implement todo form",
+                                "related_files": ["index.html"],
+                                "planned_task_ids": ["T002", "T003"],
+                            }
+                        ]
+                    }
+                },
+                task_graph={
+                    "nodes": [
+                        {"id": "T002", "type": "frontend", "status": "completed", "relevant_files": ["index.html"]},
+                        {"id": "T003", "type": "test", "status": "completed", "relevant_files": ["index.html"]},
+                    ]
+                },
+                runtime_state={"completed_tasks": ["T002", "T003"]},
+                artifact_report={
+                    "static_verification": {"status": "completed"},
+                    "browser_verification": {
+                        "status": "completed",
+                        "semantic_probe": {"status": "completed"},
+                    },
+                },
+            )
+
+        evidence = report.to_dict()["entries"][0]["verification_evidence"]
+        self.assertIn("Semantic probe: completed.", evidence)
 
     def test_requirement_coverage_marks_missing_files_missing(self) -> None:
         with temp_project_dir() as tmp_dir:

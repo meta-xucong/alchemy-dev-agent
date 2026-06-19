@@ -497,6 +497,14 @@ DONE requires:
 - Treat canvas-game delivery as incomplete when gameplay probe evidence is missing or failed. Status: implemented in browser verification and development-cycle testing.
 - Generalize semantic probes to non-game apps and turn structured user feedback into requirement deltas/debug tasks. Status: planned.
 
+### V2.26: Semantic Web And Feedback Loop
+
+- Split ordinary `static_web_app` verification from canvas-game verification so forms, dashboards, and static product pages are not evaluated with game-specific rules. Status: implemented.
+- Add a browser `semantic_probe` for static web apps that inspects controls, fills inputs, clicks safe controls, and records DOM/state-change evidence. Status: implemented.
+- Surface semantic probe evidence in artifact reports, delivery reports, requirement coverage, development-cycle testing, and browser-console summaries. Status: implemented.
+- Add `feedback` role intake so playtest notes, bug reports, and acceptance feedback become requirement-like deltas for the next debug/fix loop. Status: implemented for deterministic file-role inference and requirement extraction.
+- Generate domain-specific Playwright scenarios from detailed acceptance documents. Status: planned.
+
 ## Risks And Mitigations
 
 | Risk | Impact | Mitigation |

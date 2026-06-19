@@ -22,6 +22,7 @@ def build_delivery_report(
     static = artifact_report.get("static_verification", {})
     profile = artifact_report.get("artifact_profile", {})
     gameplay_probe = browser.get("gameplay_probe", {}) if isinstance(browser, dict) else {}
+    semantic_probe = browser.get("semantic_probe", {}) if isinstance(browser, dict) else {}
     coverage_entries = requirement_coverage.get("entries", [])
     report = {
         "status": status,
@@ -45,6 +46,8 @@ def build_delivery_report(
             "profile": profile.get("name", "unknown"),
             "static_status": static.get("status", ""),
             "browser_status": browser.get("status", ""),
+            "semantic_status": semantic_probe.get("status", "") if isinstance(semantic_probe, dict) else "",
+            "semantic_probe": dict(semantic_probe) if isinstance(semantic_probe, dict) else {},
             "gameplay_status": gameplay_probe.get("status", "") if isinstance(gameplay_probe, dict) else "",
             "gameplay_probe": dict(gameplay_probe) if isinstance(gameplay_probe, dict) else {},
             "screenshots": browser.get("screenshots", {}),

@@ -57,6 +57,7 @@ class BrowserArtifactEvidence:
     url: str = ""
     screenshots: dict[str, str] = field(default_factory=dict)
     pixel_diff: dict[str, object] = field(default_factory=dict)
+    semantic_probe: dict[str, object] = field(default_factory=dict)
     gameplay_probe: dict[str, object] = field(default_factory=dict)
     console_errors: list[str] = field(default_factory=list)
     evidence: list[str] = field(default_factory=list)
@@ -70,6 +71,7 @@ class BrowserArtifactEvidence:
             "url": self.url,
             "screenshots": dict(self.screenshots),
             "pixel_diff": dict(self.pixel_diff),
+            "semantic_probe": dict(self.semantic_probe),
             "gameplay_probe": dict(self.gameplay_probe),
             "console_errors": list(self.console_errors),
             "evidence": list(self.evidence),
@@ -131,28 +133,40 @@ class StaticWebArtifactVerifier:
         if any(path.endswith(".html") for path in selected_files):
             if not html:
                 failures.append("No HTML entrypoint content was available.")
-            elif "<canvas" not in html.lower() and "game" not in html.lower():
+            elif profile.name == "canvas_game" and "<canvas" not in html.lower() and "game" not in html.lower():
                 failures.append("HTML entrypoint does not expose a canvas or game root.")
+            elif profile.name == "static_web_app" and not static_web_root_present(html):
+                failures.append("HTML entrypoint does not expose a static web app root.")
             else:
-                evidence.append("HTML entrypoint exposes a canvas or game root.")
+                evidence.append("HTML entrypoint exposes an app root.")
 
-        if "requestanimationframe" in lowered or re.search(r"\bsetinterval\s*\(", lowered):
-            evidence.append("Animation or render loop is present.")
+        if profile.name == "canvas_game":
+            if "requestanimationframe" in lowered or re.search(r"\bsetinterval\s*\(", lowered):
+                evidence.append("Animation or render loop is present.")
+            else:
+                failures.append("No animation or render loop was detected.")
+        elif profile.name == "static_web_app":
+            if static_web_controls_present(combined):
+                evidence.append("Static web app interactive controls are present.")
+            else:
+                evidence.append("Static web app has no detected interactive controls.")
         else:
-            failures.append("No animation or render loop was detected.")
+            if "requestanimationframe" in lowered or re.search(r"\bsetinterval\s*\(", lowered):
+                evidence.append("Animation or render loop is present.")
 
-        control_markers = ("keydown", "keyup", "arrowleft", "arrowright", "space", "keya", "keyd", "pointerdown", "touch")
-        if any(marker in lowered for marker in control_markers):
-            evidence.append("Keyboard or touch controls are present.")
-        else:
-            failures.append("No keyboard or touch controls were detected.")
+        if profile.name == "canvas_game":
+            control_markers = ("keydown", "keyup", "arrowleft", "arrowright", "space", "keya", "keyd", "pointerdown", "touch")
+            if any(marker in lowered for marker in control_markers):
+                evidence.append("Keyboard or touch controls are present.")
+            else:
+                failures.append("No keyboard or touch controls were detected.")
 
-        gameplay_markers = ("tile", "level", "player", "enemy", "coin", "flag", "score", "timer", "collision", "physics")
-        found_gameplay = [marker for marker in gameplay_markers if marker in lowered]
-        if len(found_gameplay) >= 5:
-            evidence.append("Gameplay markers present: " + ", ".join(found_gameplay[:8]))
-        else:
-            failures.append("Insufficient gameplay markers for platformer artifact.")
+            gameplay_markers = ("tile", "level", "player", "enemy", "coin", "flag", "score", "timer", "collision", "physics")
+            found_gameplay = [marker for marker in gameplay_markers if marker in lowered]
+            if len(found_gameplay) >= 5:
+                evidence.append("Gameplay markers present: " + ", ".join(found_gameplay[:8]))
+            else:
+                failures.append("Insufficient gameplay markers for platformer artifact.")
 
         if profile.name == "canvas_game":
             if "__ALCHEMY_GAME_TEST__" not in combined:
@@ -323,8 +337,10 @@ class BrowserArtifactRunner:
             require_nonblank=profile_name in {"canvas_game", "static_web_app"},
         )
         gameplay_probe = runner_result.get("gameplay_probe")
+        semantic_probe = runner_result.get("semantic_probe")
         if isinstance(gameplay_probe, dict) and gameplay_probe:
             browser.gameplay_probe = dict(gameplay_probe)
+            browser.semantic_probe = dict(gameplay_probe)
             gameplay_status = str(gameplay_probe.get("status", ""))
             if gameplay_status:
                 browser.evidence.append(f"Gameplay probe: {gameplay_status}.")
@@ -338,6 +354,17 @@ class BrowserArtifactRunner:
                 browser.tests_failed.append(failed)
         elif profile_name == "canvas_game":
             browser.tests_failed.append("Canvas game browser run did not return gameplay probe evidence.")
+        if isinstance(semantic_probe, dict) and semantic_probe:
+            browser.semantic_probe = dict(semantic_probe)
+            semantic_status = str(semantic_probe.get("status", ""))
+            if semantic_status:
+                browser.evidence.append(f"Semantic probe: {semantic_status}.")
+            if semantic_status == "failed" and not _string_list(semantic_probe.get("tests_failed")):
+                browser.tests_failed.append("Semantic probe failed.")
+            for passed in _string_list(semantic_probe.get("tests_passed")):
+                browser.tests_passed.append(passed)
+            for failed in _string_list(semantic_probe.get("tests_failed")):
+                browser.tests_failed.append(failed)
         browser.evidence.extend(_string_list(runner_result.get("evidence")))
         browser.tests_failed.extend(_string_list(runner_result.get("tests_failed")))
         if runner_result.get("status") not in {None, "", "completed"}:
@@ -404,6 +431,7 @@ def playwright_browser_runner(request: dict[str, object]) -> dict[str, object]:
     console_errors: list[str] = []
     evidence: list[str] = []
     gameplay_probe: dict[str, object] = {}
+    semantic_probe: dict[str, object] = {}
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
@@ -415,6 +443,8 @@ def playwright_browser_runner(request: dict[str, object]) -> dict[str, object]:
             _perform_browser_interactions(page, profile)
             if profile == "canvas_game":
                 gameplay_probe = run_canvas_gameplay_probe(page)
+            elif profile == "static_web_app":
+                semantic_probe = run_static_web_semantic_probe(page)
             page.screenshot(path=after, full_page=True)
             browser.close()
         evidence.append("Playwright browser smoke completed.")
@@ -422,6 +452,7 @@ def playwright_browser_runner(request: dict[str, object]) -> dict[str, object]:
             "status": "completed",
             "console_errors": console_errors,
             "evidence": evidence,
+            "semantic_probe": gameplay_probe or semantic_probe,
             "gameplay_probe": gameplay_probe,
         }
     except Exception as exc:  # pragma: no cover - depends on local browser installation
@@ -431,6 +462,7 @@ def playwright_browser_runner(request: dict[str, object]) -> dict[str, object]:
             "console_errors": console_errors,
             "tests_failed": [str(exc)],
             "evidence": evidence,
+            "semantic_probe": gameplay_probe or semantic_probe,
             "gameplay_probe": gameplay_probe,
         }
 
@@ -577,6 +609,150 @@ def run_canvas_gameplay_probe(page: object) -> dict[str, object]:
     }
 
 
+def run_static_web_semantic_probe(page: object) -> dict[str, object]:
+    """Exercise generic static web controls without domain-specific assumptions."""
+
+    result = page.evaluate(
+        """async () => {
+            const visibleText = () => (document.body?.innerText || "").replace(/\\s+/g, " ").trim();
+            const before = {
+              title: document.title || "",
+              url: location.href,
+              text: visibleText(),
+              htmlLength: document.body ? document.body.innerHTML.length : 0
+            };
+            const controls = Array.from(document.querySelectorAll(
+              "input, textarea, select, button, a[href], [role='button'], [data-action], [onclick]"
+            )).filter((node) => {
+              const style = window.getComputedStyle(node);
+              return style.visibility !== "hidden" && style.display !== "none" && !node.disabled;
+            });
+            const inputs = Array.from(document.querySelectorAll("input, textarea, select")).filter((node) => !node.disabled);
+            const filled = [];
+            for (const node of inputs.slice(0, 3)) {
+              const tag = node.tagName.toLowerCase();
+              const type = (node.getAttribute("type") || "text").toLowerCase();
+              if (tag === "select") {
+                if (node.options && node.options.length > 1) {
+                  node.selectedIndex = 1;
+                  node.dispatchEvent(new Event("change", { bubbles: true }));
+                  filled.push(node.name || node.id || "select");
+                }
+                continue;
+              }
+              if (type === "checkbox" || type === "radio") {
+                node.checked = true;
+                node.dispatchEvent(new Event("change", { bubbles: true }));
+                filled.push(node.name || node.id || type);
+                continue;
+              }
+              if (["text", "search", "email", "password", "url", "tel", "number", ""].includes(type) || tag === "textarea") {
+                node.focus();
+                node.value = type === "number" ? "42" : "alchemy semantic probe";
+                node.dispatchEvent(new InputEvent("input", { bubbles: true, data: node.value }));
+                node.dispatchEvent(new Event("change", { bubbles: true }));
+                filled.push(node.name || node.id || type || tag);
+              }
+            }
+            const button = controls.find((node) => {
+              const tag = node.tagName.toLowerCase();
+              const type = (node.getAttribute("type") || "").toLowerCase();
+              const role = (node.getAttribute("role") || "").toLowerCase();
+              const isClickable =
+                tag === "button" ||
+                tag === "a" ||
+                (tag === "input" && ["button", "submit"].includes(type)) ||
+                role === "button" ||
+                node.hasAttribute("data-action") ||
+                node.hasAttribute("onclick");
+              if (!isClickable) return false;
+              const text = (node.innerText || node.value || node.getAttribute("aria-label") || "").toLowerCase();
+              if (tag === "a" && node.getAttribute("href") && !node.getAttribute("href").startsWith("#")) return false;
+              return !/(delete|remove|logout|sign out|reset|清空|删除|退出)/i.test(text);
+            });
+            let clicked = "";
+            if (button) {
+              clicked = button.innerText || button.value || button.getAttribute("aria-label") || button.tagName.toLowerCase();
+              button.click();
+              await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+            const after = {
+              title: document.title || "",
+              url: location.href,
+              text: visibleText(),
+              htmlLength: document.body ? document.body.innerHTML.length : 0
+            };
+            return {
+              before,
+              after,
+              counts: {
+                controls: controls.length,
+                inputs: inputs.length,
+                filled: filled.length
+              },
+              filled,
+              clicked,
+              changed: before.text !== after.text || before.htmlLength !== after.htmlLength || before.url !== after.url
+            };
+        }"""
+    )
+    failures: list[str] = []
+    passed: list[str] = []
+    evidence: list[str] = []
+    if not isinstance(result, dict):
+        return {
+            "status": "failed",
+            "kind": "static_web_app",
+            "summary": "Static web semantic probe did not return structured evidence.",
+            "tests_passed": [],
+            "tests_failed": ["Static web semantic probe did not return structured evidence."],
+            "evidence": [],
+            "snapshots": {},
+        }
+    counts = result.get("counts", {}) if isinstance(result.get("counts"), dict) else {}
+    controls = int(counts.get("controls", 0) or 0)
+    filled = int(counts.get("filled", 0) or 0)
+    clicked = str(result.get("clicked", "") or "")
+    changed = bool(result.get("changed"))
+    if controls:
+        passed.append("Static web controls are discoverable.")
+        evidence.append(f"{controls} visible control(s) discovered.")
+    else:
+        passed.append("Static web page has no visible interactive controls.")
+        evidence.append("No visible interactive controls were discovered.")
+    if filled:
+        passed.append("Static web form inputs accept deterministic values.")
+        evidence.append(f"{filled} input control(s) filled.")
+    if clicked:
+        passed.append("Static web clickable control can be activated.")
+        evidence.append(f"Clicked control: {clicked}.")
+    if controls and (filled or clicked):
+        if changed:
+            passed.append("Static web interaction changed visible page state.")
+            evidence.append("DOM text, HTML length, or URL changed after interaction.")
+        else:
+            evidence.append("Interaction completed without a visible DOM state change.")
+    elif controls and not (filled or clicked):
+        failures.append("Static web controls were discovered but none could be safely exercised.")
+
+    return {
+        "status": "failed" if failures else "completed",
+        "kind": "static_web_app",
+        "summary": "Static web semantic probe passed." if not failures else "Static web semantic probe failed.",
+        "tests_passed": passed,
+        "tests_failed": failures,
+        "evidence": evidence,
+        "snapshots": {
+            "before": result.get("before", {}),
+            "after": result.get("after", {}),
+            "counts": counts,
+            "filled": result.get("filled", []),
+            "clicked": clicked,
+            "changed": changed,
+        },
+    }
+
+
 def _perform_browser_interactions(page: object, profile_name: str) -> None:
     if profile_name == "canvas_game":
         try:
@@ -596,6 +772,28 @@ def _number(value: object) -> float | None:
         return float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
+
+
+def static_web_root_present(html: str) -> bool:
+    lowered = html.lower()
+    return any(marker in lowered for marker in ("<main", "<form", "<section", "<article", "id=\"app\"", "id='app'", "role=\"main\"", "role='main'"))
+
+
+def static_web_controls_present(text: str) -> bool:
+    lowered = text.lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "<button",
+            "<input",
+            "<textarea",
+            "<select",
+            "role=\"button\"",
+            "role='button'",
+            "onclick",
+            "data-action",
+        )
+    )
 
 
 def _start_static_server(repo: Path) -> ThreadingHTTPServer:

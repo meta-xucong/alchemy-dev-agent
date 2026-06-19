@@ -1117,3 +1117,40 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27822953044` passed on `master` commit `e5e653d` after the semantic gameplay gate changes.
 - Next verification command: none.
+
+## 2026-06-19 V2.26 Semantic Web And Feedback Loop
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_intake tests.test_document_to_plan tests.test_runtime.OrchestratorTests tests.test_runtime.RequirementCoverageTests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_delivery_report_summarizes_semantic_probe_status`
+- Result: passed.
+- Summary: 50 focused tests passed for feedback role intake, feedback-to-requirement planning, static-web verification, browser semantic probe evidence, requirement coverage, and delivery report summary.
+- Next verification command: real Playwright semantic probe.
+
+- Command: `BrowserArtifactRunner` Playwright semantic probe against a static todo form fixture.
+- Result: passed.
+- Summary: The real browser probe filled a todo input, clicked Add Todo, detected visible DOM state change, and returned completed `semantic_probe` evidence.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 157 tests passed after V2.26 semantic web and feedback intake changes.
+- Next verification command: acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_26`
+- Result: passed.
+- Summary: Acceptance harness passed with delivery done and development_cycle score 1.0.
+- Next verification command: JSON specs, diff hygiene, and state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`
+- Result: passed.
+- Summary: All JSON specs parse after adding the feedback role to ProjectBrief schema.
+- Next verification command: `git diff --check`.
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported.
+- Next verification command: state validation.
+
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed.
+- Summary: Long-running state schema validated.
+- Next verification command: commit, push, and remote CI.

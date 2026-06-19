@@ -437,3 +437,15 @@ PY"`
 
 - Pushed commit `e5e653d` to `master`.
 - GitHub Actions CI run `27822953044` completed successfully for `Add semantic gameplay verification gate`.
+
+## 2026-06-19 V2.26 Semantic Web And Feedback Loop
+
+- Added `docs/33_v2_26_semantic_web_and_feedback.md` and linked it from README and the V2 development plan.
+- Split ordinary `static_web_app` verification from canvas-game-only rules so forms, dashboards, and static product pages are not evaluated as games.
+- Added browser `semantic_probe` evidence for static web apps: visible controls, deterministic input filling, safe button clicks, and DOM/state-change summaries.
+- Preserved `gameplay_probe` compatibility while surfacing unified `semantic_probe` evidence in browser verification results.
+- Surfaced semantic probe status in delivery reports, requirement coverage, development-cycle testing, and the browser console summary.
+- Added `feedback` as a first-class intake role for bug reports, playtest notes, and acceptance feedback files.
+- Updated requirement extraction so feedback items become must-priority requirement deltas and feed the normal task graph.
+- Verified a real Playwright semantic probe on a static todo form fixture: it filled an input, clicked Add Todo, and detected visible DOM state change.
+- Verified focused tests, full suite, acceptance harness, JSON specs, diff hygiene, and long-running state validation.

@@ -181,6 +181,9 @@ def _verification_evidence(nodes: dict[str, dict[str, Any]], task_ids: list[str]
     gameplay_status = artifact_report.get("browser_verification", {}).get("gameplay_probe", {}).get("status")
     if gameplay_status:
         evidence.append(f"Gameplay probe: {gameplay_status}.")
+    semantic_status = artifact_report.get("browser_verification", {}).get("semantic_probe", {}).get("status")
+    if semantic_status and semantic_status != gameplay_status:
+        evidence.append(f"Semantic probe: {semantic_status}.")
     return _dedupe(evidence)
 
 

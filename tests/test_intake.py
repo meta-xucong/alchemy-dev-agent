@@ -68,6 +68,24 @@ class ProjectBriefBuilderTests(unittest.TestCase):
         self.assertEqual(payload["blockers"], [])
         self.assertEqual(validate_project_brief_contract(payload), [])
 
+    def test_feedback_files_are_first_class_intake_role(self) -> None:
+        with temp_intake_dir() as tmp_dir:
+            primary = tmp_dir / "spec.md"
+            primary.write_text("# Spec\nBuild the app.\n", encoding="utf-8")
+            feedback = tmp_dir / "playtest_notes.md"
+            feedback.write_text("- Bug: submit button does not update the todo list.\n", encoding="utf-8")
+
+            brief = ProjectBriefBuilder().build(
+                objective="Fix todo app feedback",
+                documents=[primary],
+                attachments=[feedback],
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+            payload = brief.to_dict()
+
+        self.assertEqual(payload["attachments"][0]["role"], "feedback")
+        self.assertEqual(validate_project_brief_contract(payload), [])
+
     def test_private_repository_metadata_is_explicit_optional_path(self) -> None:
         brief = ProjectBriefBuilder().build(
             objective="Add workspace support",
