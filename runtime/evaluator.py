@@ -84,6 +84,9 @@ class Evaluator:
 
         test_health = self._test_health(nodes)
         spec_alignment = self._spec_alignment(nodes)
+        coverage_score = self._requirement_coverage_score(state)
+        if coverage_score is not None:
+            spec_alignment = min(spec_alignment, coverage_score)
         graph_completion = self._graph_completion(nodes)
         reviewer_decision = self._reviewer_decision(nodes)
         reviewer_approval = 1.0 if reviewer_decision == "approved" else 0.0
@@ -102,6 +105,14 @@ class Evaluator:
             hard_failures.append("GitHub execution evidence is not recorded.")
         if state.blockers:
             hard_failures.append("Unresolved blockers exist.")
+        coverage = state.repository.get("requirement_coverage", {})
+        if isinstance(coverage, dict):
+            missing_must = [str(item) for item in coverage.get("missing_must_requirement_ids", [])]
+            partial_must = [str(item) for item in coverage.get("partial_must_requirement_ids", [])]
+            if missing_must:
+                hard_failures.append("Must requirements are missing coverage: " + ", ".join(missing_must) + ".")
+            if partial_must:
+                required_changes.append("Improve partial must requirement coverage: " + ", ".join(partial_must) + ".")
 
         for node in nodes:
             if node.status == "completed":
@@ -184,6 +195,18 @@ class Evaluator:
         if issues == 0:
             return 1.0
         return max(0.0, 1.0 - issues * 0.2)
+
+    def _requirement_coverage_score(self, state: RuntimeState) -> float | None:
+        coverage = state.repository.get("requirement_coverage", {})
+        if not isinstance(coverage, dict):
+            return None
+        score = coverage.get("coverage_score")
+        if score is None:
+            return None
+        try:
+            return max(0.0, min(1.0, float(score)))
+        except (TypeError, ValueError):
+            return None
 
     def _ratio_with_passing_worker_results(self, nodes: list[TaskNode]) -> float:
         if not nodes:

@@ -36,6 +36,38 @@ function show(id, payload) {
   el(id).textContent = JSON.stringify(payload, null, 2);
 }
 
+function renderDelivery(delivery) {
+  const report = delivery.delivery_report || {};
+  const gate = report.final_gate || {};
+  const github = report.github || {};
+  const merge = github.merge || {};
+  const artifact = report.artifact || {};
+  const requirements = report.requirements || {};
+  const parts = [
+    ["Status", report.status || delivery.status || "-"],
+    ["Gate", gate.score ?? "-"],
+    ["PR", github.pull_request_url || "-"],
+    ["CI", github.ci_status || "-"],
+    ["Merge", merge.status || "-"],
+    ["Artifact", artifact.profile || "-"],
+    ["Coverage", requirements.coverage_score ?? "-"],
+  ];
+  el("deliverySummary").innerHTML = parts
+    .map(([label, value]) => `<div><strong>${label}</strong><span>${escapeHtml(String(value))}</span></div>`)
+    .join("");
+  show("deliveryOutput", delivery);
+}
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[char]);
+}
+
 function setSummary(project = {}, run = {}) {
   el("projectId").textContent = state.projectId || "-";
   el("projectStatus").textContent = project.status || "-";
@@ -80,6 +112,7 @@ async function createProject() {
   show("graphOutput", {});
   show("eventOutput", []);
   show("deliveryOutput", {});
+  el("deliverySummary").innerHTML = "";
   setSummary(result.project, {});
   setControls();
 }
@@ -130,6 +163,7 @@ async function checkEnvironment() {
     method: "POST",
     body: {
       codex_executable: el("codexExecutable").value.trim() || "codex",
+      require_browser: el("autoBrowserVerify").checked,
     },
   });
   show("eventOutput", result);
@@ -162,6 +196,9 @@ function runPayload() {
     github_ci_poll_interval_seconds: Number(el("githubCiPollSeconds").value || 10),
     isolate_real_run: el("isolateRealRun").checked,
     keep_worktree: el("keepWorktree").checked,
+    auto_browser_verify: el("autoBrowserVerify").checked,
+    generate_static_ci: el("generateStaticCi").checked,
+    auto_merge: el("autoMerge").checked,
   };
 }
 
@@ -183,7 +220,7 @@ async function refreshRun() {
     state.pollTimer = 0;
     try {
       const delivery = await api(`/projects/${state.projectId}/delivery`);
-      show("deliveryOutput", delivery);
+      renderDelivery(delivery);
     } catch (error) {
       show("deliveryOutput", { error: error.message });
     }

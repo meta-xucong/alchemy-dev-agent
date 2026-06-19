@@ -195,7 +195,8 @@ class RealDeliveryValidationTests(unittest.TestCase):
 
         payload = report.to_dict()
         self.assertEqual(payload["status"], "passed")
-        self.assertEqual(payload["github"]["ci_status"], "unknown")
+        self.assertEqual(payload["github"]["ci_status"], "waived")
+        self.assertEqual(payload["github"]["ci_details"][0]["bucket"], "waived")
         self.assertFalse(payload["blockers"])
 
     def _run_with_single_ci_response(self, ci_stdout: str, *, collect_ci: bool = True):

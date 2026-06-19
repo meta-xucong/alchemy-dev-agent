@@ -120,6 +120,7 @@ class RuntimeRecovery:
             ],
             "skipped_task_ids": skipped_task_ids,
             "cleared_blocker_ids": cleared_blockers,
+            "worker_lifecycle": self._worker_lifecycle_recovery_evidence(state, reset_set),
             "workspace": dict(source.workspace),
             "created_at": utc_now_iso(),
         }
@@ -162,6 +163,27 @@ class RuntimeRecovery:
 
     def _can_retry(self, task: TaskNode) -> bool:
         return task.retry_count < task.max_attempts
+
+    def _worker_lifecycle_recovery_evidence(self, state: RuntimeState, reset_set: set[str]) -> list[dict[str, Any]]:
+        evidence: list[dict[str, Any]] = []
+        for record in state.worker_lifecycle:
+            task_id = str(record.get("task_id", ""))
+            if task_id not in reset_set:
+                continue
+            evidence.append(
+                {
+                    "task_id": task_id,
+                    "previous_status": str(record.get("status", "")),
+                    "worker_pid": record.get("worker_pid"),
+                    "cleanup_required": bool(record.get("cleanup_required", False)),
+                    "retry_instruction": (
+                        "Clean up the recorded worker process before retrying."
+                        if record.get("cleanup_required")
+                        else "Worker lifecycle evidence allows retry."
+                    ),
+                }
+            )
+        return evidence
 
     def _clear_recoverable_blockers(
         self,

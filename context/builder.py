@@ -42,7 +42,7 @@ class ContextBundleBuilder:
         documents = [self._document_summary(document) for document in payload.get("documents", [])]
         documents.extend(self._document_summary(attachment) for attachment in payload.get("attachments", []))
 
-        if self._is_retro_platformer_request(objective):
+        if self._should_use_generated_artifact_fallback(payload):
             requirements = self._requirements_from_payload(payload, objective)
         else:
             extraction = self.requirement_extractor.extract(payload, repository_files)
@@ -55,7 +55,7 @@ class ContextBundleBuilder:
                 self._document_summary(attachment, key_requirements_by_doc=key_requirements_by_doc)
                 for attachment in payload.get("attachments", [])
             )
-            requirements = extraction.requirements
+            requirements = enrich_requirements_with_scaffold_hints(extraction.requirements, objective, repository_files)
         risks = self._risks_for_objective(objective)
 
         return ContextBundle(
@@ -153,3 +153,83 @@ class ContextBundleBuilder:
         lowered = objective.lower()
         platform_terms = ("platform", "platformer", "横版", "闯关", "关卡", "游戏", "game")
         return any(term in lowered or term in objective for term in platform_terms)
+
+    def _should_use_generated_artifact_fallback(self, payload: dict[str, Any]) -> bool:
+        if not payload.get("generated_from_one_liner"):
+            return False
+        documents = [*payload.get("documents", []), *payload.get("attachments", [])]
+        parsed_primary = [
+            document
+            for document in documents
+            if document.get("required") and document.get("role") == "primary_requirements" and document.get("parse_status") == "parsed"
+        ]
+        return not parsed_primary
+
+
+WEB_GAME_SCAFFOLD_FILES = [
+    "index.html",
+    "src/main.js",
+    "src/engine.js",
+    "src/input.js",
+    "src/physics.js",
+    "src/tilemap.js",
+    "src/entities.js",
+    "src/renderer.js",
+    "tests/static_checks.js",
+]
+
+
+SCAFFOLD_HINTS = {
+    "index.html": ("canvas", "html", "browser", "页面", "入口", "可运行", "60 fps"),
+    "src/main.js": ("game engine", "初始化", "完整跑通", "level 1", "第一关", "main"),
+    "src/engine.js": ("engine", "game engine", "游戏核心", "状态机", "关卡"),
+    "src/input.js": ("input", "输入", "键盘", "控制"),
+    "src/physics.js": ("physics", "物理", "跳跃", "碰撞", "aabb", "tile collision"),
+    "src/tilemap.js": ("tilemap", "tile map", "关卡定义", "关卡系统", "level"),
+    "src/entities.js": ("entity", "entities", "player", "enemy", "金币", "敌人", "旗帜", "goomba"),
+    "src/renderer.js": ("renderer", "render", "渲染", "canvas", "60 fps"),
+    "tests/static_checks.js": ("test", "测试", "验收", "验证", "完成标准"),
+}
+
+
+def enrich_requirements_with_scaffold_hints(
+    requirements: list[Requirement],
+    objective: str,
+    repository_files: list[Any],
+) -> list[Requirement]:
+    if not should_apply_web_game_scaffold(requirements, objective, repository_files):
+        return requirements
+    for requirement in requirements:
+        related = list(requirement.related_files)
+        text = requirement.text.lower()
+        if "文件结构" in requirement.text or "file structure" in text or "project structure" in text:
+            related.extend(WEB_GAME_SCAFFOLD_FILES)
+        for file_path, markers in SCAFFOLD_HINTS.items():
+            if any(marker in text or marker in requirement.text for marker in markers):
+                related.append(file_path)
+        if not related:
+            related.append("index.html")
+        requirement.related_files = dedupe_preserve_order(related)
+    return requirements
+
+
+def should_apply_web_game_scaffold(requirements: list[Requirement], objective: str, repository_files: list[Any]) -> bool:
+    if not requirements:
+        return False
+    source_files = [file for file in repository_files if getattr(file, "kind", "") == "source"]
+    if source_files:
+        return False
+    combined = "\n".join([objective, *[requirement.text for requirement in requirements]]).lower()
+    platform_markers = ("platform", "platformer", "横版", "关卡", "游戏", "game", "tilemap", "canvas", "player")
+    return any(marker in combined or marker in objective for marker in platform_markers)
+
+
+def dedupe_preserve_order(values: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        clean = str(value).strip()
+        if clean and clean not in seen:
+            seen.add(clean)
+            result.append(clean)
+    return result

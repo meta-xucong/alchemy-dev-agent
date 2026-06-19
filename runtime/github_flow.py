@@ -20,6 +20,7 @@ class GitHubExecutionResult:
     pull_request_url: str = ""
     ci_status: str = "unknown"
     ci_details: list[dict] = field(default_factory=list)
+    merge: dict = field(default_factory=dict)
     commands_run: list[dict] = field(default_factory=list)
     summary: str = ""
 
@@ -31,6 +32,7 @@ class GitHubExecutionResult:
             "pull_request_url": self.pull_request_url,
             "ci_status": self.ci_status,
             "ci_details": list(self.ci_details),
+            "merge": dict(self.merge),
             "commands_run": list(self.commands_run),
             "summary": self.summary,
             "created_at": utc_now_iso(),
@@ -79,6 +81,7 @@ class GitHubFlow:
         collect_ci: bool = True,
         ci_wait_seconds: float = 0,
         ci_poll_interval_seconds: float = 5,
+        auto_merge: bool = False,
     ) -> GitHubExecutionResult:
         if self.dry_run:
             commit = f"dry-run:{'-'.join(task_ids) or 'runtime'}"
@@ -89,6 +92,7 @@ class GitHubFlow:
                 pull_request_url=f"dry-run://pull-request/{branch}",
                 ci_status="passed",
                 ci_details=[],
+                merge=_merge_skipped("Auto-merge is unavailable in dry-run mode."),
                 commands_run=[],
                 summary="Dry-run GitHub execution evidence recorded.",
             )
@@ -124,6 +128,7 @@ class GitHubFlow:
                     summary=f"GitHub flow command failed: {' '.join(command)}",
                 )
 
+        self._ensure_commit_identity(repository_path, command_results)
         status_result = self._run([self.git_executable, "status", "--short"], repository_path, command_results)
         if status_result.returncode != 0:
             return GitHubExecutionResult(
@@ -205,6 +210,25 @@ class GitHubFlow:
                     branch=branch,
                     command_results=command_results,
                 )
+        else:
+            ci_status = "waived"
+            ci_details = [
+                {
+                    "name": "github-ci",
+                    "state": "skipped",
+                    "bucket": "waived",
+                    "summary": "PR check collection was explicitly disabled for this run.",
+                }
+            ]
+
+        merge_result = _merge_skipped("Auto-merge was not requested for this run.")
+        if auto_merge:
+            merge_result = self.merge_pull_request(
+                repository_path=repository_path,
+                branch=branch,
+                ci_status=ci_status,
+                command_results=command_results,
+            )
 
         return GitHubExecutionResult(
             status="pushed",
@@ -213,8 +237,9 @@ class GitHubFlow:
             pull_request_url=pull_request_url,
             ci_status=ci_status,
             ci_details=ci_details,
+            merge=merge_result,
             commands_run=command_results,
-            summary=f"GitHub branch, commit, push, PR flow, and CI collection completed with CI status {ci_status}.",
+            summary=f"GitHub branch, commit, push, PR flow, CI evidence, and merge policy completed with CI status {ci_status}.",
         )
 
     def collect_ci_status(
@@ -277,6 +302,68 @@ class GitHubFlow:
                 return latest_status, latest_details
             time.sleep(min(interval, remaining))
 
+    def merge_pull_request(
+        self,
+        *,
+        repository_path: str | Path,
+        branch: str,
+        ci_status: str,
+        command_results: list[dict],
+    ) -> dict[str, object]:
+        if ci_status != "passed":
+            return {
+                "status": "skipped",
+                "summary": f"Auto-merge skipped because CI status is {ci_status}.",
+            }
+        merged = self._run(
+            [self.gh_executable, "pr", "merge", branch, "--squash", "--delete-branch", "--auto"],
+            repository_path,
+            command_results,
+        )
+        if merged.returncode == 0:
+            merge_state = self._view_pull_request_merge_state(repository_path, branch, command_results)
+            if merge_state.get("state") == "MERGED" or merge_state.get("mergedAt"):
+                return {
+                    "status": "merged",
+                    "summary": "Pull request was merged.",
+                    "stdout": merged.stdout,
+                    "stderr": merged.stderr,
+                    "remote_state": merge_state,
+                }
+            return {
+                "status": "auto_merge_enabled",
+                "summary": "GitHub auto-merge was enabled for the pull request.",
+                "stdout": merged.stdout,
+                "stderr": merged.stderr,
+            }
+        direct = self._run(
+            [self.gh_executable, "pr", "merge", branch, "--squash", "--delete-branch"],
+            repository_path,
+            command_results,
+        )
+        if direct.returncode == 0:
+            return {
+                "status": "merged",
+                "summary": "Pull request was merged.",
+                "stdout": direct.stdout,
+                "stderr": direct.stderr,
+            }
+        merge_state = self._view_pull_request_merge_state(repository_path, branch, command_results)
+        if merge_state.get("state") == "MERGED" or merge_state.get("mergedAt"):
+            return {
+                "status": "merged",
+                "summary": "Pull request was merged, but the local gh merge command returned a cleanup error.",
+                "stdout": direct.stdout,
+                "stderr": direct.stderr,
+                "remote_state": merge_state,
+            }
+        return {
+            "status": "failed",
+            "summary": "Auto-merge and direct merge commands failed.",
+            "stdout": direct.stdout,
+            "stderr": direct.stderr,
+        }
+
     def _ensure_pull_request(
         self,
         *,
@@ -319,6 +406,21 @@ class GitHubFlow:
         payload = self._parse_json_object(viewed.stdout)
         return str(payload.get("url", ""))
 
+    def _view_pull_request_merge_state(
+        self,
+        repository_path: str | Path,
+        branch: str,
+        command_results: list[dict],
+    ) -> dict:
+        viewed = self._run(
+            [self.gh_executable, "pr", "view", branch, "--json", "url,number,state,mergedAt"],
+            repository_path,
+            command_results,
+        )
+        if viewed.returncode != 0:
+            return {}
+        return self._parse_json_object(viewed.stdout)
+
     def _parse_json_object(self, output: str) -> dict:
         try:
             payload = json.loads(output)
@@ -358,7 +460,23 @@ class GitHubFlow:
         )
         return completed
 
+    def _ensure_commit_identity(self, repository_path: str | Path, command_results: list[dict]) -> None:
+        name = self._config_value(repository_path, "user.name", command_results)
+        email = self._config_value(repository_path, "user.email", command_results)
+        if not name:
+            self._run([self.git_executable, "config", "user.name", "Alchemy Dev Agent"], repository_path, command_results)
+        if not email:
+            self._run([self.git_executable, "config", "user.email", "alchemy-dev-agent@users.noreply.github.com"], repository_path, command_results)
+
+    def _config_value(self, repository_path: str | Path, key: str, command_results: list[dict]) -> str:
+        completed = self._run([self.git_executable, "config", "--get", key], repository_path, command_results)
+        return completed.stdout.strip() if completed.returncode == 0 else ""
+
 
 def _last_nonempty_line(output: str) -> str:
     lines = [line.strip() for line in output.splitlines() if line.strip()]
     return lines[-1] if lines else ""
+
+
+def _merge_skipped(summary: str) -> dict[str, object]:
+    return {"status": "skipped", "summary": summary}

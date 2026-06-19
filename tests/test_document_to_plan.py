@@ -185,6 +185,124 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual([node["id"] for node in graph["nodes"]], ["T001", "T002", "T003", "T004"])
         self.assertEqual(graph["nodes"][1]["relevant_files"], ["index.html"])
 
+    def test_document_driven_platformer_spec_does_not_use_generated_fallback(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            spec = root / "super_mario_level1_spec.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "## 目的",
+                        "本 PR 添加《超级玛丽类横版游戏》第一关完整工程化开发文档。",
+                        "",
+                        "## 内容说明",
+                        "- 游戏核心系统拆分（Engine / Physics / Renderer / Input / Entity）",
+                        "- TileMap 关卡定义规范",
+                        "- 碰撞系统设计（AABB + Tile Collision）",
+                        "- 游戏状态机设计",
+                        "- 分数系统与通关条件",
+                        "- 文件结构规范",
+                        "",
+                        "## 技术目标",
+                        "- 可完整通关的第一关",
+                        "- 60 FPS Canvas 渲染",
+                        "- 基于 TileMap 的关卡系统",
+                        "- 基础敌人 AI（Goomba）",
+                        "- 玩家跳跃与物理系统",
+                        "- 胜利判定（旗帜触发）",
+                        "",
+                        "## 下一步计划",
+                        "1. Game Engine 初始化",
+                        "2. Player 移动与物理",
+                        "3. TileMap 渲染系统",
+                        "4. 碰撞系统",
+                        "5. Enemy AI",
+                        "6. Level 1 完整跑通",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective=(
+                    "Build an original retro platformer first level from the provided "
+                    "development document; do not copy protected Nintendo characters."
+                ),
+                documents=[spec],
+                repository_url="https://github.com/meta-xucong/-super-mario-test",
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+            brief.repository.local_path = str(repo)
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+            payload = bundle.to_dict()
+
+        requirements = payload["requirement_map"]["requirements"]
+        self.assertGreaterEqual(len(requirements), 10)
+        self.assertTrue(all(requirement["source_document_id"] != "generated_one_line" for requirement in requirements))
+        self.assertEqual(graph["graph_id"], f"{bundle.project_id}-document-plan")
+        requirement_text = "\n".join(requirement["text"] for requirement in requirements)
+        for expected in ["Engine", "Physics", "Renderer", "Input", "Entity", "TileMap", "AABB", "60 FPS", "旗帜"]:
+            self.assertIn(expected, requirement_text)
+        self.assertIn("basic walking enemy", requirement_text)
+        self.assertNotIn("Goomba", requirement_text)
+        self.assertNotIn("超级玛丽", requirement_text)
+        implementation_files = {
+            file
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+            for file in node.get("relevant_files", [])
+        }
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertEqual(len(implementation_nodes), 1)
+        for expected_file in [
+            "index.html",
+            "src/main.js",
+            "src/engine.js",
+            "src/input.js",
+            "src/physics.js",
+            "src/tilemap.js",
+            "src/entities.js",
+            "src/renderer.js",
+            "tests/static_checks.js",
+        ]:
+            self.assertIn(expected_file, implementation_files)
+
+    def test_real_world_chinese_platformer_document_guidance_lines_are_requirements(self) -> None:
+        text = "\n".join(
+            [
+                "## 内容说明",
+                "本次提交包含：",
+                "",
+                "- 第一关（Level 1）完整设计文档",
+                "- 游戏核心系统拆分（Engine / Physics / Renderer / Input / Entity）",
+                "",
+                "## 技术目标",
+                "该文档用于指导实现：",
+                "",
+                "- 可完整通关的第一关",
+                "- 基础敌人 AI（Goomba）",
+                "",
+                "## 下一步计划",
+                "建议下一阶段实现：",
+                "1. Game Engine 初始化",
+                "2. Level 1 完整跑通",
+            ]
+        )
+
+        from context.requirement_extractor import extract_requirement_lines
+
+        lines = extract_requirement_lines(text)
+
+        self.assertGreaterEqual(len(lines), 6)
+        self.assertIn("基础敌人 AI（Goomba）", lines)
+        self.assertIn("Game Engine 初始化", lines)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -39,9 +39,12 @@ The repository currently contains:
 - A v2.16 isolated real-run worktree lifecycle.
 - A v2.17 recovery controller for resumable worker execution.
 - A v2.18 controlled real GitHub delivery validation harness and CI workflow.
+- A v2.19 representative real worker probe for bounded document-driven execution.
+- V2.20 and V2.21 acceptance closure and post-acceptance quality gate hardening.
+- A V2.22 supplemental plan for external docs-only repository delivery closure.
 - Tests that protect the runtime contract.
 
-V2 must continue extending this baseline with deeper document parsing, richer UI/API observability, representative real GitHub delivery validation, and safer live execution controls. It must not bypass the existing task graph, worker, state, and evaluation contracts.
+V2 must continue extending this baseline with deeper document parsing, richer UI/API observability, representative real GitHub delivery validation, external docs-only delivery closure, and safer live execution controls. It must not bypass the existing task graph, worker, state, and evaluation contracts.
 
 ## V2 Objective
 
@@ -437,15 +440,54 @@ DONE requires:
 - Make `GitHubFlow` create or reuse PRs idempotently. Status: done.
 - Collect PR check evidence and normalize CI state. Status: done.
 - Add a controlled real delivery validation harness. Status: done.
-- Run the harness against the public repository and record results. Status: pending.
+- Run the harness against the public repository and record results. Status: done.
 
 ### V2.19: End-To-End Autonomous Delivery Runtime
 
-- Run against a representative real repository with a detailed development document.
-- Execute real Codex worker tasks through document-driven graph execution.
-- Run tests and collect CI evidence.
-- Open or update a GitHub pull request.
-- Produce a final delivery report.
+- Run against a representative real repository with a detailed development document. Status: partially done through a bounded representative documentation probe.
+- Execute real Codex worker tasks through document-driven graph execution. Status: done for bounded representative tasks.
+- Run tests and collect CI evidence. Status: done for repository CI validation; still pending for arbitrary external docs-only product repositories.
+- Open or update a GitHub pull request. Status: done in validation harness; external docs-only product delivery exposed V2.22 gaps.
+- Produce a final delivery report. Status: done for internal representative runs; external docs-only product reports need richer evidence.
+
+### V2.20: Delivery Stabilization And Acceptance Closure
+
+- Run final local acceptance, unit tests, JSON parsing, diff hygiene, state validation, and GitHub Actions checks. Status: done.
+- Mark the previous long-running objective acceptance-ready. Status: done.
+
+### V2.21: Post-Acceptance Quality Gate Hardening
+
+- Block real GitHub delivery when CI is failed, pending, or unknown and CI collection is enabled. Status: done.
+- Add explicit CI collection controls and no-CI opt-out behavior. Status: done.
+- Harden static verification and async job persistence. Status: done.
+
+### V2.22: External Docs-Only Repository Delivery Closure
+
+- Prevent parsed document-driven briefs from being downgraded to generated one-line fallback. Status: done.
+- Improve Chinese and outline-style technical requirement extraction. Status: done.
+- Preserve product scaffold and module structure for empty docs-only repositories. Status: done.
+- Group complete docs-only web game scaffold delivery into one implementation task to avoid slow serial worker chains. Status: done.
+- Add deterministic static artifact verification for HTML/canvas outputs. Status: done.
+- Make real GitHub delivery create the final branch, commit, and PR with explicit no-CI waiver evidence when selected. Status: done.
+- Add a representative external docs-only acceptance scenario. Status: done in `examples/external_docs_only_delivery_acceptance.md` and `autodev.external_docs_only_acceptance`.
+- Run a real public target delivery against `meta-xucong/-super-mario-test`. Status: done via PR `https://github.com/meta-xucong/-super-mario-test/pull/2`.
+
+### V2.23: Perfect Delivery Optimization
+
+- Convert manual browser smoke verification into a first-class runtime artifact verifier. Status: partial but executable; `artifact_report` can import screenshots or run `--auto-browser-verify` through the browser artifact runner when Playwright is available.
+- Add artifact profiles for `canvas_game`, `static_web_app`, `node_project`, `python_project`, and `documentation_only`. Status: done.
+- Add managed worker process lifecycle with PID tracking, timeout cleanup, and stale-worker recovery. Status: core runtime implemented; UI surfacing and real-environment preflight polish remain.
+- Add a requirement coverage matrix that maps each requirement to files, tests, browser evidence, and PR evidence. Status: done for runtime report and evaluator hard-gate integration.
+- Add optional generated CI workflows for docs-only static app repositories. Status: implemented for static web/canvas artifacts; the release task now generates the workflow before GitHub commit/PR execution when real GitHub CI collection is enabled and no workflow exists.
+- Productize final delivery reports with screenshots, PR, commit, CI/no-CI status, blockers, and retry guidance. Status: `delivery_report` summary implemented and exposed through document-run output and API delivery output.
+- Polish the browser console for multi-file upload, GitHub link intake, graph preview, live execution, and final evidence review. Status: partial; delivery evidence summary, auto browser verification toggle, and generated static CI toggle are exposed, broader graph/coverage UX remains.
+
+### V2.24: Development Cycle Brain
+
+- Convert the manual long-running engineering SOP into a machine-checkable `development_cycle` report. Status: implemented for document-run reports and API delivery output.
+- Track evidence for document reading, central-brain refinement, phase planning, implementation, audit, testing, iteration, full review, simulated acceptance, real delivery, and merge/waiver. Status: implemented.
+- Add explicit auto-merge support for trusted real GitHub runs after passing CI. Status: implemented and off by default.
+- Run a new external docs-only repository test to compare against the earlier `meta-xucong/-super-mario-test` run. Status: pending.
 
 ## Risks And Mitigations
 

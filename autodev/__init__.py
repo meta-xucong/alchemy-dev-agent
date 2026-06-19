@@ -8,6 +8,9 @@ __all__ = [
     "ExecutionPreflight",
     "RealDeliveryValidation",
     "DeliveryValidationReport",
+    "ExternalDocsOnlyAcceptance",
+    "ExternalDocsOnlyAcceptanceReport",
+    "build_development_cycle_report",
 ]
 
 
@@ -40,4 +43,16 @@ def __getattr__(name: str):
             "RealDeliveryValidation": RealDeliveryValidation,
         }
         return exports[name]
+    if name in {"ExternalDocsOnlyAcceptance", "ExternalDocsOnlyAcceptanceReport"}:
+        from .external_docs_only_acceptance import ExternalDocsOnlyAcceptance, ExternalDocsOnlyAcceptanceReport
+
+        exports = {
+            "ExternalDocsOnlyAcceptance": ExternalDocsOnlyAcceptance,
+            "ExternalDocsOnlyAcceptanceReport": ExternalDocsOnlyAcceptanceReport,
+        }
+        return exports[name]
+    if name == "build_development_cycle_report":
+        from .development_cycle import build_development_cycle_report
+
+        return build_development_cycle_report
     raise AttributeError(f"module 'autodev' has no attribute {name!r}")

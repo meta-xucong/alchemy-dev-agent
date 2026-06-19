@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from .models import WorkerStatus
+from .worker_lifecycle import ManagedSubprocessRunner, WorkerLifecycleRecorder
 
 
 @dataclass(slots=True)
@@ -98,6 +99,7 @@ class CodexWorkerResult:
     follow_up_tasks: list[str] = field(default_factory=list)
     confidence: float = 0.0
     raw_output: str = ""
+    worker_lifecycle: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "CodexWorkerResult":
@@ -116,6 +118,7 @@ class CodexWorkerResult:
             follow_up_tasks=[str(item) for item in _coerce_list(payload.get("follow_up_tasks", []))],
             confidence=_coerce_float(payload.get("confidence", 0.0)),
             raw_output=str(payload.get("raw_output", "")),
+            worker_lifecycle=dict(payload.get("worker_lifecycle", {})) if isinstance(payload.get("worker_lifecycle", {}), dict) else {},
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -132,6 +135,7 @@ class CodexWorkerResult:
             "follow_up_tasks": list(self.follow_up_tasks),
             "confidence": self.confidence,
             "raw_output": self.raw_output,
+            "worker_lifecycle": dict(self.worker_lifecycle),
         }
 
 
@@ -161,12 +165,14 @@ class CodexWorkerAdapter:
         sandbox: Literal["read-only", "workspace-write", "danger-full-access"] = "workspace-write",
         timeout_seconds: int = 1800,
         runner: SubprocessRunner = subprocess.run,
+        lifecycle_recorder: WorkerLifecycleRecorder | None = None,
     ) -> None:
         self.executable = executable
         self.dry_run = dry_run
         self.sandbox = sandbox
         self.timeout_seconds = timeout_seconds
         self.runner = runner
+        self.lifecycle_recorder = lifecycle_recorder
 
     def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         if self.dry_run:
@@ -182,6 +188,9 @@ class CodexWorkerAdapter:
             "valid JSON matching codex_worker_result_v1.\n\n"
             "If allowed_files is empty, do not edit repository files. Return blocked or partial if the task "
             "cannot be completed without edits.\n\n"
+            "When a task references a protected commercial game or franchise, preserve only broad genre mechanics. "
+            "Do not write protected names, character names, artwork names, exact layout names, or brand names into "
+            "generated repository files, even in safety notes. Use original names and neutral descriptions instead.\n\n"
             "Required JSON fields: task_id, status, summary, files_changed, commands_run, "
             "tests_passed, tests_failed, evidence, known_issues, follow_up_tasks, confidence.\n"
             "Allowed status values: completed, partial, failed, blocked.\n\n"
@@ -192,8 +201,13 @@ class CodexWorkerAdapter:
         prompt = self.build_prompt(worker_input)
         args = [self.executable, "exec", "--json", "--sandbox", self.sandbox]
         before_changes = self._git_changed_files(worker_input.repository_path)
+        lifecycle_record = None
+        runner = self.runner
+        if self.lifecycle_recorder is not None and self.runner is subprocess.run:
+            lifecycle_record = self.lifecycle_recorder.start(worker_input.task_id, self.timeout_seconds)
+            runner = ManagedSubprocessRunner(self.lifecycle_recorder, lifecycle_record)
         try:
-            completed = self.runner(
+            completed = runner(
                 args,
                 cwd=worker_input.repository_path,
                 input=prompt.encode("utf-8"),
@@ -203,11 +217,16 @@ class CodexWorkerAdapter:
                 check=False,
             )
         except FileNotFoundError as exc:
-            return self._blocked(worker_input, f"Codex executable not found: {exc}")
+            if lifecycle_record is not None:
+                self.lifecycle_recorder.fail(lifecycle_record, str(exc))
+            return self._blocked(worker_input, f"Codex executable not found: {exc}", lifecycle_record)
         except PermissionError as exc:
-            return self._blocked(worker_input, f"Codex executable is not launchable: {exc}")
+            if lifecycle_record is not None:
+                self.lifecycle_recorder.fail(lifecycle_record, str(exc))
+            return self._blocked(worker_input, f"Codex executable is not launchable: {exc}", lifecycle_record)
         except subprocess.TimeoutExpired as exc:
             self._rollback_task_changes(worker_input.repository_path, before_changes)
+            lifecycle_payload = lifecycle_record.to_dict() if lifecycle_record is not None else {}
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
                 status="failed",
@@ -215,6 +234,7 @@ class CodexWorkerAdapter:
                 known_issues=[str(exc), "Task-local repository changes were rolled back after timeout."],
                 confidence=0.0,
                 raw_output=str(exc),
+                worker_lifecycle=lifecycle_payload,
             )
 
         stdout = _decode_subprocess_output(completed.stdout)
@@ -235,6 +255,7 @@ class CodexWorkerAdapter:
                 ],
                 confidence=0.0,
                 raw_output=raw_output,
+                worker_lifecycle=lifecycle_record.to_dict() if lifecycle_record is not None else {},
             )
         parsed = self._parse_worker_json(stdout) or self._parse_worker_json(raw_output)
         if parsed is None:
@@ -255,6 +276,7 @@ class CodexWorkerAdapter:
                 known_issues=["Missing structured worker JSON."],
                 confidence=0.0,
                 raw_output=raw_output,
+                worker_lifecycle=lifecycle_record.to_dict() if lifecycle_record is not None else {},
             )
 
         result = CodexWorkerResult.from_dict(parsed)
@@ -262,6 +284,8 @@ class CodexWorkerAdapter:
             result.task_id = worker_input.task_id
         result.files_changed = changed_files or result.files_changed
         result.raw_output = raw_output
+        if lifecycle_record is not None:
+            result.worker_lifecycle = lifecycle_record.to_dict()
         if completed.returncode != 0 and result.status == "completed":
             result.status = "partial"
             result.known_issues.append(f"Codex subprocess exited {completed.returncode}.")
@@ -455,13 +479,19 @@ class CodexWorkerAdapter:
             return self._parse_worker_json(payload)
         return None
 
-    def _blocked(self, worker_input: CodexWorkerInput, summary: str) -> CodexWorkerResult:
+    def _blocked(
+        self,
+        worker_input: CodexWorkerInput,
+        summary: str,
+        lifecycle_record: object | None = None,
+    ) -> CodexWorkerResult:
         return CodexWorkerResult(
             task_id=worker_input.task_id,
             status="blocked",
             summary=summary,
             known_issues=[summary],
             confidence=0.0,
+            worker_lifecycle=lifecycle_record.to_dict() if lifecycle_record is not None else {},
         )
 
 

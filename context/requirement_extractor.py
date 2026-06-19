@@ -29,12 +29,49 @@ REQUIREMENT_HEADINGS = (
     "需求",
     "功能需求",
     "user stories",
+    "内容说明",
+    "本次提交包含",
+    "技术目标",
+    "该文档用于指导实现",
+    "适用范围",
+    "下一步计划",
+    "建议下一阶段实现",
+    "开发里程碑",
+    "里程碑",
+    "文件结构",
+    "架构",
+    "系统设计",
+    "实现计划",
+    "scope",
+    "technical goals",
+    "goals",
+    "contents",
+    "content",
+    "architecture",
+    "milestones",
+    "next steps",
+    "file structure",
 )
 
 PATH_PATTERN = re.compile(
     r"(?P<path>[\w./-]+\.(?:tsx|jsx|yaml|yml|py|js|ts|go|rs|java|cs|rb|php|html|css|sql|md|json))(?![\w.-])"
 )
 LEADING_MARKER_PATTERN = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
+PROTECTED_TERM_REWRITES = (
+    ("超级玛丽类横版游戏", "原创复古横版平台游戏"),
+    ("超级玛丽类", "原创复古平台类"),
+    ("超级玛丽", "原创复古平台游戏"),
+    ("mushroom kingdom", "original whimsical game world"),
+    ("super mario", "original retro platformer"),
+    ("nintendo", "protected commercial game reference"),
+    ("goomba", "basic walking enemy"),
+    ("koopa", "basic patrol enemy"),
+    ("luigi", "alternate original helper character"),
+    ("peach", "original goal character"),
+    ("bowser", "original boss obstacle"),
+    ("toad", "original helper character"),
+    ("mario", "original player hero"),
+)
 
 
 @dataclass(slots=True)
@@ -66,7 +103,7 @@ class RequirementExtractor:
             if not requirement_lines and document.get("summary"):
                 requirement_lines = [str(document["summary"])]
             acceptance_by_doc[doc_id] = acceptance_lines
-            document_key_requirements[doc_id] = requirement_lines
+            document_key_requirements[doc_id] = normalize_acceptance_lines(requirement_lines)
             for line in requirement_lines:
                 priority = infer_priority(line, role)
                 candidates.append((doc_id, role, line, priority))
@@ -94,6 +131,7 @@ class RequirementExtractor:
                 continue
             seen.add(dedupe_key)
             acceptance = acceptance_by_doc.get(doc_id, []) or explicit_acceptance
+            acceptance = normalize_acceptance_lines(acceptance)
             if not acceptance and role == "test_plan":
                 acceptance = [clean_text]
             if not acceptance:
@@ -174,6 +212,8 @@ def normalized_heading(line: str) -> str:
         return line.strip("# ").lower()
     if line.endswith(":") and len(line) <= 80:
         return line.rstrip(":").lower()
+    if line.endswith("：") and len(line) <= 80:
+        return line.rstrip("：").lower()
     return ""
 
 
@@ -181,21 +221,44 @@ def is_requirement_line(line: str, in_requirement_section: bool) -> bool:
     lowered = line.lower()
     if in_requirement_section and is_list_like(line):
         return True
+    if in_requirement_section and re.match(r"^\s*\d+[.、]\s+", line):
+        return True
     return any(marker in lowered for marker in [*PRIORITY_MARKERS["must"], *PRIORITY_MARKERS["should"], *PRIORITY_MARKERS["could"]])
 
 
 def is_list_like(line: str) -> bool:
-    return bool(LEADING_MARKER_PATTERN.match(line))
+    return bool(LEADING_MARKER_PATTERN.match(line) or re.match(r"^\s*\d+[.、]\s+", line))
 
 
 def strip_leading_marker(line: str) -> str:
-    return LEADING_MARKER_PATTERN.sub("", line).strip()
+    clean = LEADING_MARKER_PATTERN.sub("", line).strip()
+    return re.sub(r"^\s*\d+[.、]\s+", "", clean).strip()
 
 
 def normalize_requirement_text(text: str) -> str:
     clean = strip_leading_marker(text).strip()
     clean = re.sub(r"\s+", " ", clean)
+    clean = rewrite_protected_game_terms(clean)
     return clean.rstrip(".") + "." if clean and not clean.endswith((".", "!", "?", "。")) else clean
+
+
+def normalize_acceptance_lines(lines: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for line in lines:
+        clean = re.sub(r"\s+", " ", strip_leading_marker(str(line)).strip())
+        if clean:
+            normalized.append(rewrite_protected_game_terms(clean))
+    return dedupe_preserve_order(normalized)
+
+
+def rewrite_protected_game_terms(text: str) -> str:
+    clean = text
+    for source, replacement in PROTECTED_TERM_REWRITES:
+        if any("\u4e00" <= char <= "\u9fff" for char in source):
+            clean = clean.replace(source, replacement)
+        else:
+            clean = re.sub(rf"\b{re.escape(source)}\b", replacement, clean, flags=re.IGNORECASE)
+    return clean
 
 
 def infer_priority(text: str, role: str) -> str:

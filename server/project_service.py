@@ -143,12 +143,17 @@ class ProjectService:
     def check_environment(self, payload: dict[str, Any] | None = None) -> dict[str, object]:
         payload = payload or {}
         codex_executable = str(payload.get("codex_executable", "codex") or "codex")
+        require_browser = bool(payload.get("require_browser", False) or payload.get("auto_browser_verify", False))
         output_dir = payload.get("output_dir")
         if output_dir:
             output_path = Path(str(output_dir))
         else:
             output_path = self.storage_root / "environment"
-        report = RealEnvironmentCheck().run(output_dir=output_path, codex_executable=codex_executable)
+        report = RealEnvironmentCheck().run(
+            output_dir=output_path,
+            codex_executable=codex_executable,
+            require_browser=require_browser,
+        )
         return report.to_dict()
 
     def get_project(self, project_id: str) -> dict[str, object]:
@@ -458,12 +463,18 @@ class ProjectService:
             raise ApiError(404, "delivery_not_found", "No execution run has been recorded for this project.")
         latest = run_dirs[-1].name
         run = self.get_run(project_id, latest)
+        delivery_report = run.get("delivery_report", {})
         return {
             "project_id": project_id,
             "latest_run_id": latest,
             "status": run.get("status"),
             "runtime_state": run.get("runtime_state", {}),
             "preflight": run.get("preflight", {}),
+            "artifact_report": run.get("artifact_report", {}),
+            "requirement_coverage": run.get("requirement_coverage", {}),
+            "generated_ci": run.get("generated_ci", {}),
+            "delivery_report": delivery_report,
+            "development_cycle": run.get("development_cycle", {}),
             "output_dir": run.get("output_dir", ""),
         }
 
@@ -530,6 +541,9 @@ class ProjectService:
             worktree_branch_prefix=str(run_payload.get("worktree_branch_prefix", "agent/alchemy-real-run")),
             resume_from=self._resume_source_path(record.project_id, run_payload),
             resume_tasks=[str(task_id) for task_id in run_payload.get("resume_tasks", [])],
+            auto_browser_verify=bool(run_payload.get("auto_browser_verify", False)),
+            generate_static_ci=bool(run_payload.get("generate_static_ci", True)),
+            auto_merge=bool(run_payload.get("auto_merge", False)),
             controller=controller,
         )
         result_payload = result.to_dict()

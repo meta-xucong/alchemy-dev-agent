@@ -851,3 +851,180 @@
 - Result: passed.
 - Summary: Acceptance report status passed with 8/8 checks and final gate reason `DONE condition met.`
 - Next verification command: JSON specs, diff hygiene, state validation, commit, push, and GitHub Actions status.
+
+## 2026-06-19
+
+- Command: `Documentation consistency check for docs/29_v2_22_external_docs_only_delivery.md, examples/external_docs_only_delivery_acceptance.md, README.md, and docs/07_v2_development_plan.md`
+- Result: passed.
+- Summary: New V2.22 files exist, README references them, and the V2 development plan includes the V2.22 supplemental phase.
+- Next verification command: JSON spec parsing.
+
+## 2026-06-19
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after the V2.22 documentation supplement.
+- Next verification command: `git diff --check`.
+
+## 2026-06-19
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported after the V2.22 documentation supplement.
+- Next verification command: focused document planning and document-run tests.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_document_to_plan tests.test_document_run_pipeline tests.test_runtime_handoff`
+- Result: passed.
+- Summary: 9 focused tests passed for document planning, document-run pipeline, and runtime handoff after the V2.22 documentation supplement.
+- Next verification command: full unit suite.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 103 tests passed after the V2.22 documentation supplement.
+- Next verification command: JSON specs, diff hygiene, and long-running state validation.
+
+## 2026-06-19
+
+- Command: `python -c "import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]"`
+- Result: passed.
+- Summary: All JSON specs parse after final V2.22 documentation and state updates.
+- Next verification command: `git diff --check`.
+
+## 2026-06-19
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported; Git emitted CRLF normalization warnings for long-running state/progress logs only.
+- Next verification command: long-running state validation.
+
+## 2026-06-19
+
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed.
+- Summary: Long-running state schema validated after final V2.22 documentation and state updates.
+- Next verification command: none.
+
+
+## 2026-06-19
+
+- Command: `python -B -m unittest tests.test_document_to_plan tests.test_runtime.CodexWorkerTests tests.test_runtime.GitHubFlowTests`
+- Result: passed.
+- Summary: 21 focused tests passed for document extraction/planning, worker safety prompt, and GitHub identity/no-CI behavior.
+- Next verification command: target static artifact checks.
+
+## 2026-06-19
+
+- Command: `node tests/static_checks.js` in generated target worktree.
+- Result: passed.
+- Summary: Generated game file structure and requirement trace static inspection passed.
+- Next verification command: `StaticWebArtifactVerifier`.
+
+## 2026-06-19
+
+- Command: `StaticWebArtifactVerifier` against generated `index.html`, `src/*.js`, and `tests/static_checks.js`.
+- Result: passed.
+- Summary: Canvas/game root, render loop, controls, gameplay markers, required files, and protected-term scan all passed.
+- Next verification command: browser smoke test.
+
+## 2026-06-19
+
+- Command: Browser smoke test on local static server.
+- Result: passed.
+- Summary: Initial screenshot rendered the Level 1 scene; after keyboard input the player moved and screenshot diff showed 49,998 changed pixels.
+- Next verification command: real GitHub PR creation.
+
+## 2026-06-19
+
+- Command: `GitHubFlow.record_execution(... collect_ci=False ...)` for `meta-xucong/-super-mario-test`.
+- Result: passed.
+- Summary: Created PR #2, commit `72f2b6e27e972c43e135f3eec3ff0c5bc80b3bb8`, CI status `waived` because the target repo has no configured workflow.
+- Next verification command: full main repository suite.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 114 tests passed after all V2.22 implementation and delivery fixes.
+- Next verification command: long-running state validation and final audit.
+
+
+## 2026-06-19
+
+- Command: `Documentation consistency check for V2.23 optimization plan references`
+- Result: passed.
+- Summary: `docs/30_v2_23_perfect_delivery_optimization.md` exists and is linked from README and `docs/07_v2_development_plan.md`.
+- Next verification command: JSON specs, diff hygiene, and long-running state validation.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 132 tests passed after V2.23 implementation, including browser artifact contracts, worker lifecycle, requirement coverage, generated static CI, delivery report, and UI/API wiring.
+- Next verification command: external docs-only acceptance harness.
+
+## 2026-06-19
+
+- Command: `python -B -m autodev.external_docs_only_acceptance --output .alchemy\external_docs_only_acceptance_v2_23_final`
+- Result: passed.
+- Summary: External docs-only acceptance report status passed with 6/6 checks.
+- Next verification command: main acceptance harness.
+
+## 2026-06-19
+
+- Command: `python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_23_final`
+- Result: passed.
+- Summary: Main acceptance report status passed with 8/8 checks.
+- Next verification command: JSON specs, diff hygiene, and long-running state validation.
+
+## 2026-06-19
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.23 implementation.
+- Next verification command: `git diff --check`.
+
+## 2026-06-19
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported; Git emitted CRLF normalization warnings for long-running state logs only.
+- Next verification command: long-running state validation.
+
+## 2026-06-19
+
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed.
+- Summary: Long-running state schema validated after V2.23 implementation.
+- Next verification command: none.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime tests.test_real_env_check tests.test_api_server.ApiServerTests.test_project_service_environment_check_requires_browser_when_auto_verify_is_requested tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets`
+- Result: passed.
+- Summary: 68 related tests passed after merge-state hardening, browser automation preflight, and browser screenshot path fix.
+- Next verification command: full unit suite.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 143 tests passed after V2.24 development-cycle, auto-merge, browser-preflight, and auto-browser verification fixes.
+- Next verification command: JSON specs, diff hygiene, and long-running state validation.
+
+## 2026-06-19
+
+- Command: `python -B -m autodev.real_env_check --output .alchemy\real_env_check_v2_24_browser_ready --codex-executable "D:\AI\Tools\CodexCLI\bin\codex.exe" --require-browser`
+- Result: passed.
+- Summary: git, gh, gh auth, explicit Codex CLI, and Playwright browser automation all passed after installing Playwright.
+- Next verification command: automatic browser artifact verification.
+
+## 2026-06-19
+
+- Command: `build_artifact_report(... auto_browser_verify=True ...)` against the generated external game worktree.
+- Result: passed.
+- Summary: Playwright captured initial and post-interaction screenshots, detected non-uniform render output, measured pixel changes after interaction, and recorded no console errors.
+- Next verification command: final state validation and GitHub evidence check.

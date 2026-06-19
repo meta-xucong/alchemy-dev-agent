@@ -5,13 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 
 from .agent_router import AgentRouter
+from .artifact_verifier import StaticWebArtifactVerifier
 from .control import ExecutionController, NoopExecutionController
 from .codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult, CommandResult
 from .evaluator import EvaluationResult, Evaluator
+from .generated_ci import StaticWebCIGenerator
 from .github_flow import GitHubFlow
 from .models import RuntimeState, TaskGraph, TaskNode, utc_now_iso
 from .state_manager import StateManager
 from .task_graph_engine import TaskGraphEngine
+from .worker_lifecycle import WorkerLifecycleRecorder
 
 
 class Orchestrator:
@@ -30,6 +33,8 @@ class Orchestrator:
         github_collect_ci: bool = True,
         github_ci_wait_seconds: float = 0,
         github_ci_poll_interval_seconds: float = 5,
+        github_auto_merge: bool = False,
+        artifact_verifier: StaticWebArtifactVerifier | None = None,
     ) -> None:
         self.state_manager = state_manager
         self.graph_engine = graph_engine or TaskGraphEngine()
@@ -42,6 +47,8 @@ class Orchestrator:
         self.github_collect_ci = github_collect_ci
         self.github_ci_wait_seconds = github_ci_wait_seconds
         self.github_ci_poll_interval_seconds = github_ci_poll_interval_seconds
+        self.github_auto_merge = github_auto_merge
+        self.artifact_verifier = artifact_verifier or StaticWebArtifactVerifier()
 
     @classmethod
     def for_project(
@@ -56,6 +63,7 @@ class Orchestrator:
         github_collect_ci: bool = True,
         github_ci_wait_seconds: float = 0,
         github_ci_poll_interval_seconds: float = 5,
+        github_auto_merge: bool = False,
     ) -> "Orchestrator":
         project_path = Path(project_dir)
         return cls(
@@ -64,12 +72,14 @@ class Orchestrator:
                 executable=codex_executable,
                 dry_run=not real_codex,
                 timeout_seconds=max_worker_seconds,
+                lifecycle_recorder=WorkerLifecycleRecorder(project_path / ".alchemy" / "workers") if real_codex else None,
             ),
             github_flow=GitHubFlow(dry_run=not real_github),
             repository_path=project_path,
             github_collect_ci=github_collect_ci,
             github_ci_wait_seconds=github_ci_wait_seconds,
             github_ci_poll_interval_seconds=github_ci_poll_interval_seconds,
+            github_auto_merge=github_auto_merge,
         )
 
     def initialize(
@@ -163,6 +173,7 @@ class Orchestrator:
 
         worker_input = self._build_worker_input(state, task)
         result = self.worker.execute(worker_input)
+        self._record_worker_lifecycle(state, result)
         evidence = self._worker_evidence(task, result, iteration)
 
         state.active_tasks = [task_id for task_id in state.active_tasks if task_id != task.id]
@@ -188,7 +199,10 @@ class Orchestrator:
     def _can_execute_deterministically(self, task: TaskNode) -> bool:
         if task.type == "review":
             return True
-        return task.type == "test" and task.commands_to_run == ["static document inspection"]
+        return task.type == "test" and task.commands_to_run in (
+            ["static document inspection"],
+            ["static artifact inspection"],
+        )
 
     def _execute_deterministic_task(self, state: RuntimeState, task: TaskNode, iteration: int) -> None:
         self.graph_engine.mark_active(state.task_graph, task.id)
@@ -197,6 +211,8 @@ class Orchestrator:
 
         if task.type == "review":
             result = self._review_result(state, task)
+        elif task.commands_to_run == ["static artifact inspection"]:
+            result = self._static_artifact_result(task)
         else:
             result = self._static_document_result(task)
         evidence = self._worker_evidence(task, result, iteration)
@@ -251,6 +267,25 @@ class Orchestrator:
             tests_failed=tests_failed,
             evidence=evidence,
             confidence=1.0 if status == "completed" else 0.0,
+        )
+
+    def _static_artifact_result(self, task: TaskNode) -> CodexWorkerResult:
+        verification = self.artifact_verifier.verify(self.repository_path, task.relevant_files)
+        return CodexWorkerResult(
+            task_id=task.id,
+            status=verification.status,  # type: ignore[arg-type]
+            summary=verification.summary,
+            commands_run=[
+                CommandResult(
+                    command="static artifact inspection",
+                    exit_code=0 if verification.status == "completed" else 1,
+                    summary=verification.summary,
+                )
+            ],
+            tests_passed=verification.tests_passed,
+            tests_failed=verification.tests_failed,
+            evidence=verification.evidence,
+            confidence=1.0 if verification.status == "completed" else 0.0,
         )
 
     def _expected_document_phrases(self, criteria: list[str]) -> list[str]:
@@ -380,6 +415,8 @@ class Orchestrator:
         state.active_tasks = self._add_unique(state.active_tasks, task.id)
         self.state_manager.save(state)
 
+        self._generate_static_ci_before_release(state)
+
         result = self.github_flow.record_execution(
             repository_path=self.repository_path,
             branch=task.branch or "agent/alchemy-runtime",
@@ -389,6 +426,7 @@ class Orchestrator:
             collect_ci=self.github_collect_ci,
             ci_wait_seconds=self.github_ci_wait_seconds,
             ci_poll_interval_seconds=self.github_ci_poll_interval_seconds,
+            auto_merge=self.github_auto_merge,
         )
         state.github = result.to_dict()
         state.active_tasks = [task_id for task_id in state.active_tasks if task_id != task.id]
@@ -426,6 +464,25 @@ class Orchestrator:
         state.failed_tasks = self._add_unique(state.failed_tasks, task.id)
         self._record_history(state, "github_flow_failed", result.summary, task.id)
 
+    def _generate_static_ci_before_release(self, state: RuntimeState) -> None:
+        if not state.repository.get("generate_static_ci"):
+            return
+        existing_report = state.repository.get("generated_ci")
+        if isinstance(existing_report, dict) and existing_report.get("status") == "generated":
+            workflow_path = str(existing_report.get("workflow_path", ""))
+            if workflow_path and (self.repository_path / workflow_path).is_file():
+                return
+        profile = str(state.repository.get("artifact_profile", "unknown") or "unknown")
+        result = StaticWebCIGenerator().generate_if_needed(
+            self.repository_path,
+            artifact_profile=profile,
+            collect_ci=self.github_collect_ci,
+            explicit_no_ci=not self.github_collect_ci,
+        )
+        state.repository["generated_ci"] = result.to_dict()
+        if result.status == "generated":
+            self._record_history(state, "generated_static_ci", result.summary)
+
     def _build_release_body(self, state: RuntimeState) -> str:
         completed = ", ".join(state.completed_tasks) or "none"
         return (
@@ -437,6 +494,15 @@ class Orchestrator:
     def _record_evaluation(self, state: RuntimeState, evaluation: EvaluationResult) -> None:
         state.evaluation_result = evaluation.to_dict()
         self._record_history(state, "evaluation", evaluation.reason)
+
+    def _record_worker_lifecycle(self, state: RuntimeState, result: CodexWorkerResult) -> None:
+        if not result.worker_lifecycle:
+            return
+        task_id = str(result.worker_lifecycle.get("task_id", result.task_id))
+        state.worker_lifecycle = [
+            record for record in state.worker_lifecycle if str(record.get("task_id", "")) != task_id
+        ]
+        state.worker_lifecycle.append(dict(result.worker_lifecycle))
 
     def _record_history(self, state: RuntimeState, event_type: str, summary: str, task_id: str = "") -> None:
         payload = {

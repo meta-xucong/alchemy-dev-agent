@@ -1,6 +1,6 @@
 {
-  "objective": "Continue autonomous development until the document-driven agent system is ready for acceptance or blocked by an external requirement",
-  "current_phase": "V2.21 post-acceptance quality gate hardening",
+  "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
+  "current_phase": "V2.24 development-cycle brain and one-click external delivery rerun",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -17,11 +17,30 @@
     "V2.18 controlled real GitHub PR and CI delivery validation",
     "V2.19 representative real document-driven delivery run",
     "V2.20 delivery stabilization and acceptance closure",
-    "V2.21 post-acceptance quality gate hardening"
+    "V2.21 post-acceptance quality gate hardening",
+    "V2.22 external docs-only delivery plan supplement",
+    "V2.22.1 document-dominant planning and Chinese extraction",
+    "V2.22.2 web game scaffold planning and single-delivery grouping",
+    "V2.22.3 static artifact gate, no-CI waiver, and release branch binding",
+    "V2.22.4 real external docs-only game delivery to meta-xucong/-super-mario-test PR #2",
+    "V2.22.5 browser playability smoke test and final audit",
+    "V2.23 perfect delivery optimization planning document",
+    "V2.23.1 artifact profiles and browser artifact verification",
+    "V2.23.2 automatic browser verification runner",
+    "V2.23.3 managed worker lifecycle core",
+    "V2.23.4 requirement coverage matrix and evaluator gate",
+    "V2.23.5 generated static CI release hook",
+    "V2.23.6 delivery report productization",
+    "V2.23.7 UI evidence controls first pass",
+    "V2.24.1 development-cycle brain contract",
+    "V2.24.2 explicit auto-merge contract and GitHub merge-state hardening",
+    "V2.24.3 browser automation readiness preflight and screenshot path fix",
+    "V2.24.4 fresh external docs-only repository rerun with generated CI, browser evidence, PR merge"
   ],
   "next_actions": [
-    "User review and acceptance.",
-    "Optional future work: merge or close validation PR #2, then add production-grade scheduling and richer semantic requirement mapping."
+    "Install or verify Playwright browser binaries in any new execution environment before enabling --auto-browser-verify.",
+    "Polish the browser console with an interactive development_cycle checklist, task graph preview, and requirement coverage preview.",
+    "Reduce the remaining internal debug/retry frequency for docs-only canvas game tasks by strengthening preflight artifact instructions and worker self-check prompts."
   ],
   "tests_run": [
     {
@@ -308,31 +327,151 @@
       "command": "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
       "result": "passed",
       "summary": "Long-running state schema validated before commit."
+    },
+    {
+      "command": "Documentation consistency check for V2.22 docs, README, and V2 development plan",
+      "result": "passed",
+      "summary": "New V2.22 supplemental document and external docs-only acceptance material are referenced from README and V2 plan."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [print('OK ' + str(p)) for p in pathlib.Path('specs').glob('*.json') if json.loads(p.read_text(encoding='utf-8')) is not None]\"",
+      "result": "passed",
+      "summary": "All JSON specs parse after the V2.22 documentation supplement."
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "summary": "No whitespace errors reported after the V2.22 documentation supplement."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_document_to_plan tests.test_document_run_pipeline tests.test_runtime_handoff",
+      "result": "passed",
+      "summary": "9 focused tests passed for document planning, document-run pipeline, and runtime handoff."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "103 tests passed after the V2.22 documentation supplement."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "114 tests passed after V2.22 implementation fixes, including document dominance, scaffold grouping, no-CI waiver, worker safety prompt, and GitHub identity fallback."
+    },
+    {
+      "command": "python -B -m autodev.external_docs_only_acceptance --output .alchemy\\external_docs_only_acceptance_v2_22",
+      "result": "passed",
+      "summary": "External docs-only planning harness passed: document-driven mode, no one-line fallback, 21 requirements, artifact gate planned, and all scaffold files planned."
+    },
+    {
+      "command": "python -B -m autodev.document_run ... --real-codex --real-github --no-github-ci against meta-xucong/-super-mario-test",
+      "result": "partially_passed_then_recovered",
+      "summary": "Real run exposed serial game-task timeout and git identity gaps; generated worktree artifacts were recovered, fixed, statically verified, browser-smoked, and delivered via PR #2."
+    },
+    {
+      "command": "node tests/static_checks.js in generated target worktree",
+      "result": "passed",
+      "summary": "Generated target game static artifact inspection passed."
+    },
+    {
+      "command": "StaticWebArtifactVerifier against generated index.html/src/tests files",
+      "result": "passed",
+      "summary": "Generated target game has required files, canvas/game root, render loop, controls, gameplay markers, and no protected commercial game terms."
+    },
+    {
+      "command": "Browser smoke test via local server at http://127.0.0.1:53681/index.html",
+      "result": "passed",
+      "summary": "Canvas rendered nonblank Level 1 scene; keyboard interaction moved the player; screenshot diff recorded 49,998 changed pixels."
+    },
+    {
+      "command": "GitHubFlow real push/PR for target branch agent/super-mario-v2-22b-20260619033500199673",
+      "result": "passed",
+      "summary": "Created https://github.com/meta-xucong/-super-mario-test/pull/2 with commit 72f2b6e27e972c43e135f3eec3ff0c5bc80b3bb8; CI explicitly waived because target repo has no Actions workflow."
+    },
+    {
+      "command": "Documentation consistency check for docs/30_v2_23_perfect_delivery_optimization.md, README.md, and docs/07_v2_development_plan.md",
+      "result": "passed",
+      "summary": "V2.23 optimization plan added and linked from README and the V2 development plan."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "132 tests passed after V2.23 implementation, including release-time generated static CI coverage."
+    },
+    {
+      "command": "python -B -m autodev.external_docs_only_acceptance --output .alchemy\\external_docs_only_acceptance_v2_23_final",
+      "result": "passed",
+      "summary": "External docs-only acceptance report status passed with 6/6 checks."
+    },
+    {
+      "command": "python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_23_final",
+      "result": "passed",
+      "summary": "Main acceptance report status passed with 8/8 checks."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"",
+      "result": "passed",
+      "summary": "All JSON specs parse after V2.23 implementation."
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "summary": "No whitespace errors reported; Git emitted CRLF normalization warnings for long-running state logs only."
+    },
+    {
+      "command": "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
+      "result": "passed",
+      "summary": "Long-running state schema validated after V2.23 implementation."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime tests.test_real_env_check tests.test_api_server.ApiServerTests.test_project_service_environment_check_requires_browser_when_auto_verify_is_requested tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
+      "result": "passed",
+      "summary": "68 related tests passed after GitHub merge-state hardening, browser automation preflight, and browser screenshot path fix."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "143 tests passed after V2.24 development-cycle, auto-merge, browser-preflight, and auto-browser verification fixes."
+    },
+    {
+      "command": "python -B -m autodev.real_env_check --output .alchemy\\real_env_check_v2_24_browser_ready --codex-executable \"D:\\AI\\Tools\\CodexCLI\\bin\\codex.exe\" --require-browser",
+      "result": "passed",
+      "summary": "Real environment check passed for git, gh, gh auth, explicit Codex CLI, and Playwright browser automation after installing Playwright."
+    },
+    {
+      "command": "Real external docs-only run against meta-xucong/super-mario-agent-v2-24-test-20260619163034",
+      "result": "passed",
+      "summary": "Document-run reached done; generated static CI passed; automatic browser verification completed; PR #1 was merged; development_cycle score is 1.0."
     }
   ],
   "known_bugs": [
     {
-      "id": "BROWSER_SCREENSHOT_TIMEOUT",
-      "status": "environment_caveat",
-      "summary": "Browser screenshot capture timed out during V2.9 verification, while DOM and HTTP static tests passed."
+      "id": "DOCUMENT_RUN_SERIAL_GAME_TASK_TIMEOUT",
+      "status": "fixed",
+      "summary": "Real external game run split one docs-only web game into many serial Codex tasks and exceeded the outer timeout; fixed by grouping complete web-game scaffold delivery into one implementation task."
+    },
+    {
+      "id": "GH_MERGE_REMOTE_SUCCESS_LOCAL_CLEANUP_ERROR",
+      "status": "fixed",
+      "summary": "gh pr merge can merge a PR but return non-zero when local worktree cleanup conflicts; GitHubFlow now verifies remote PR state and records merged when GitHub reports MERGED."
+    },
+    {
+      "id": "AUTO_BROWSER_RELATIVE_SCREENSHOT_PATH",
+      "status": "fixed",
+      "summary": "Automatic browser verification generated screenshots but failed to find them when output_dir was relative; BrowserArtifactRunner now resolves output_dir before passing screenshot paths."
     }
   ],
   "blockers": [],
   "done_criteria": [
-    "Document-driven intake accepts objective, documents, supporting files, and public/private GitHub repository context",
-    "Task graph and runtime handoff are generated from development documents",
-    "Dry-run execution, real-execution preflight, and audit artifacts are persisted",
-    "Local service/API path supports project creation and execution runs",
-    "Browser UI supports the document-driven workflow or a documented blocker prevents implementation",
-    "Asynchronous execution control is implemented or a documented blocker prevents implementation",
-    "Task-boundary stop/pause semantics are implemented or a documented blocker prevents implementation",
-    "Optional private GitHub access has auth preflight and source adapter or a documented blocker prevents implementation",
-    "A local acceptance harness produces a machine-readable delivery-readiness report",
-    "Real external repository validation is completed or blocked with exact environmental requirements",
-    "Relevant tests, JSON schema checks, and long-running state validation pass",
-    "Progress is committed and pushed to GitHub"
+    "The manual long-running engineering SOP is represented by a machine-checkable development_cycle report.",
+    "Detailed documents and docs-only repositories drive task planning, Codex execution, static checks, browser verification, CI, review, and delivery.",
+    "Fresh public docs-only test repository delivery produced a playable original retro platformer artifact.",
+    "Generated static GitHub Actions CI passed on the external test PR.",
+    "Automatic browser artifact verification passed with screenshots, nonblank check, pixel diff, and no console errors.",
+    "External test PR was merged, and merge evidence is represented in delivery_report and development_cycle.",
+    "Full repository unit test suite, JSON spec parsing, diff hygiene, and long-running state validation pass."
   ],
-  "last_verified_at": "2026-06-19T03:18:56.779426+08:00",
+  "last_verified_at": "2026-06-19T17:21:01.114646+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T03:18:56.779426+08:00"
+  "updated_at": "2026-06-19T17:21:01.114646+08:00"
 }

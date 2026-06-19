@@ -339,3 +339,64 @@ PY"`
 
 - Finalized V2.21 with explicit GitHub CI collection controls so repositories without PR checks can opt out while normal real GitHub delivery still treats failed, pending, or missing CI as a quality gate blocker.
 - Re-ran full unit suite, acceptance harness, JSON spec parsing, diff hygiene, and state validation after the final CI collection control pass.
+
+## 2026-06-19 V2.22 External Docs-Only Delivery Plan Supplement
+
+- Ran a real external docs-only repository test against `https://github.com/meta-xucong/-super-mario-test`.
+- Confirmed the pipeline can clone the source, create an isolated worktree, invoke real Codex, generate a playable original retro platformer artifact, browser-smoke the artifact, and produce a real PR after manual GitHub delivery.
+- Identified the central gap: the ProjectBrief was correctly document-driven, but the context builder routed a game-like objective into the generated one-line artifact path, reducing the document to one generated fallback requirement.
+- Recorded required follow-up work for document-dominant planning, richer Chinese/outline-style requirement extraction, empty-repository scaffold planning, built-in browser artifact verification, productized real GitHub document-run delivery, no-CI evidence handling, and an external docs-only acceptance harness.
+- Added `docs/29_v2_22_external_docs_only_delivery.md` as the updated supplemental development document.
+- Added `examples/external_docs_only_delivery_acceptance.md` as the representative external docs-only acceptance material.
+- Updated README and `docs/07_v2_development_plan.md` so V2.22 complements the earlier versions without replacing their goals.
+
+
+## 2026-06-19 V2.22 External Docs-Only Implementation And Real Game Delivery
+
+- Implemented document-dominant planning so parsed primary documents no longer fall through to generated one-line fallback.
+- Improved Chinese and outline-style requirement extraction for docs with guidance lines such as `本次提交包含：`, `该文档用于指导实现：`, and `建议下一阶段实现：`.
+- Added protected-term rewriting for planning contracts and hardened Codex worker prompts so generated files do not include protected commercial game terms, even in safety notes.
+- Added docs-only web game scaffold planning and grouped full scaffold delivery into one implementation task to avoid long serial worker chains.
+- Added deterministic static web artifact verification, explicit no-CI waiver evidence, local git commit identity fallback, and release-branch binding to the isolated worktree branch.
+- Ran a real external target delivery against `https://github.com/meta-xucong/-super-mario-test`.
+- Recovered and completed the generated original retro platformer worktree after the first real run exceeded the outer timeout.
+- Verified the generated game with `node tests/static_checks.js`, `StaticWebArtifactVerifier`, browser screenshots, keyboard interaction, and screenshot pixel diff.
+- Created target PR https://github.com/meta-xucong/-super-mario-test/pull/2 on branch `agent/super-mario-v2-22b-20260619033500199673` with commit `72f2b6e27e972c43e135f3eec3ff0c5bc80b3bb8`.
+- Final main-repository test suite passed with 114 tests.
+
+
+## 2026-06-19 V2.23 Perfect Delivery Optimization Planning
+
+- Added `docs/30_v2_23_perfect_delivery_optimization.md`.
+- Kept the original autonomous development objective unchanged: detailed docs plus supporting files and GitHub repository should drive agent planning, execution, testing, debugging, evaluation, and PR delivery.
+- Captured practical gaps from the real external game delivery: browser evidence not first-class, worker timeout process supervision, artifact profiles, generated CI, requirement coverage, UI polish, and domain-specific worker guardrails.
+- Defined V2.23 implementation phases: browser artifact verifier, artifact profiles, managed worker lifecycle, requirement coverage matrix, generated CI, delivery report productization, and UI intake/evidence polish.
+- Updated README and `docs/07_v2_development_plan.md` to reference V2.23 as the next optimization phase.
+
+## 2026-06-19 V2.23 Perfect Delivery Optimization Implementation
+
+- Implemented artifact profile detection for `canvas_game`, `static_web_app`, `node_project`, `python_project`, `documentation_only`, and `unknown`.
+- Added `artifact_report` to document-run outputs with static artifact verification and optional browser evidence.
+- Added browser evidence import plus automatic local-server/browser-runner verification with screenshot, console-error, blank-screen, and pixel-diff checks.
+- Added managed real-worker lifecycle records with PID, process group, timeout, cleanup, and termination evidence.
+- Added requirement coverage reports and wired missing/partial must-requirement coverage into evaluator scoring and DONE gating.
+- Added generated static web CI support and moved generation into the release task before GitHub commit/PR execution.
+- Added stable `delivery_report` output and API delivery summary exposure.
+- Added browser console controls for automatic browser verification and generated static CI.
+- Re-ran full unit suite, external docs-only acceptance, main acceptance, JSON parsing, diff hygiene, and long-running state validation successfully.
+
+## 2026-06-19 V2.24 Development-Cycle Brain And One-Click External Delivery Rerun
+
+- Reviewed the user's manual engineering SOP and found the missing layer: the runtime had project-level mechanics, but not one machine-checkable top-level development-cycle contract.
+- Added `development_cycle` reports covering long-task state, document reading, central-brain refinement, phase planning, execution, audit, testing, iteration, full review, simulated acceptance, real delivery, and merge.
+- Added explicit auto-merge support and UI/API payload wiring.
+- Created a fresh public docs-only test repository: https://github.com/meta-xucong/super-mario-agent-v2-24-test-20260619163034.
+- Ran a real document-driven delivery with real Codex and real GitHub against the fresh repository; the run reached `done`, generated a playable original retro canvas platformer, generated static CI, and created PR #1.
+- GitHub Actions `Alchemy Static Checks / static-web` passed on the generated PR.
+- Merged PR #1 and updated the local delivery report so `github.merge.status = merged` and `development_cycle.score = 1.0`.
+- Found and fixed a real GitHub merge edge case where `gh pr merge` could merge remotely but return a local worktree cleanup error; runtime now verifies the remote PR state after merge command failures.
+- Added browser automation readiness to `real_env_check` and UI preflight payloads.
+- Installed Playwright in the local Python environment and confirmed `--require-browser` passes on this machine.
+- Found and fixed an automatic browser verification path bug: relative output directories caused screenshots to be generated but not found by the verifier. The runner now resolves output paths before invoking Playwright.
+- Re-ran automatic browser verification against the generated game; screenshots were captured, initial screenshot was non-uniform, interaction changed pixels, and console errors were empty.
+- Full suite now passes with 143 tests.

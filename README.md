@@ -88,6 +88,14 @@ docs/
                               V2.17 explicit resume/retry recovery controls.
   27_real_delivery_validation.md
                               V2.18 real GitHub branch, PR, and CI validation.
+  28_representative_delivery_probe.md
+                              V2.19 representative real worker probe.
+  29_v2_22_external_docs_only_delivery.md
+                              V2.22 external docs-only repository closure plan.
+  30_v2_23_perfect_delivery_optimization.md
+                              V2.23 optimization plan from proof to product-grade delivery.
+  31_v2_24_development_cycle_brain.md
+                              V2.24 machine-checkable long-running development-cycle contract.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -96,9 +104,12 @@ specs/
   task_graph_schema.json     Task graph schema.
 
 examples/
+  one_line_game_demo.md       Current one-line generated game demo boundary.
   full_autodev_example.md    Example autonomous development run.
   document_driven_project_example.md
                               Example with documents, attachments, and GitHub repository input.
+  external_docs_only_delivery_acceptance.md
+                              V2.22 external docs-only delivery acceptance scenario.
 
 runtime/
   control.py                 Task-boundary pause/stop control hook.
@@ -462,6 +473,21 @@ python -B -m autodev.real_env_check `
   --codex-executable "D:\AI\Tools\CodexCLI\bin\codex.exe"
 ```
 
+For one-click browser artifact acceptance, require browser automation during the
+same check:
+
+```powershell
+python -m pip install -e ".[browser]"
+python -m playwright install chromium
+```
+
+```powershell
+python -B -m autodev.real_env_check `
+  --output .alchemy\real_env_check `
+  --codex-executable "D:\AI\Tools\CodexCLI\bin\codex.exe" `
+  --require-browser
+```
+
 The API also exposes:
 
 ```text
@@ -473,11 +499,15 @@ Run payloads can pass:
 ```json
 {
   "real_codex": true,
-  "codex_executable": "D:\\AI\\Tools\\CodexCLI\\bin\\codex.exe"
+  "codex_executable": "D:\\AI\\Tools\\CodexCLI\\bin\\codex.exe",
+  "require_browser": true
 }
 ```
 
-The browser console includes the same Codex CLI executable field. Dry-run mode remains the default; real Codex and real GitHub execution require explicit flags.
+The browser console includes the same Codex CLI executable field. When
+`Auto browser verify` is checked, the environment check also treats browser
+automation readiness as required. Dry-run mode remains the default; real Codex
+and real GitHub execution require explicit flags.
 
 ## V2.15 Real Codex Worker Hardening
 
@@ -596,6 +626,82 @@ with a final gate score of `0.88` while the source checkout stayed clean.
 
 See `docs/28_representative_delivery_probe.md`.
 
+## V2.22 External Docs-Only Delivery Closure
+
+A real external test against
+`https://github.com/meta-xucong/-super-mario-test` proved that Alchemy can turn a
+repository containing only a development document into a playable browser game
+delivery. The V2.22 implementation now includes:
+
+- document-dominant planning so parsed primary docs cannot be downgraded to the
+  one-line generated-artifact fallback
+- richer Chinese and outline-style requirement extraction
+- scaffold-aware planning for empty web game repositories
+- single-task grouping for complete docs-only web game scaffold delivery
+- deterministic static HTML/canvas artifact verification
+- explicit no-CI waiver evidence when PR checks are intentionally unavailable
+- local git commit identity fallback for real GitHub delivery
+- release branch binding to the isolated worktree branch
+
+The latest real target delivery is
+[`meta-xucong/-super-mario-test#2`](https://github.com/meta-xucong/-super-mario-test/pull/2).
+It generated an original retro platformer Level 1 with modular files under
+`index.html`, `src/`, and `tests/static_checks.js`, then passed static artifact
+checks and browser playability smoke verification.
+
+See `docs/29_v2_22_external_docs_only_delivery.md` and
+`examples/external_docs_only_delivery_acceptance.md`.
+
+## V2.23 Perfect Delivery Optimization
+
+V2.23 captures the remaining work after the successful external docs-only game
+delivery. It keeps the original objective unchanged and focuses on moving the
+runtime from a successful proof to stable product-grade one-click delivery.
+
+Primary improvements:
+
+- built-in browser artifact verification with screenshots, keyboard/action
+  smoke checks, console-error capture, and pixel-diff evidence
+- artifact profiles such as `canvas_game`, `static_web_app`, `node_project`,
+  `python_project`, and `documentation_only`
+- managed real-worker process lifecycle with timeout cleanup and recovery
+- per-requirement coverage matrix tied to changed files and evidence
+- optional generated CI workflows for docs-only static app repositories
+- productized final delivery reports and browser-console evidence display
+- polished multi-file upload and GitHub intake workflow
+
+See `docs/30_v2_23_perfect_delivery_optimization.md`.
+
+Current V2.23 implementation status:
+
+- `artifact_report` now records the detected artifact profile and static
+  verification result for document-runs.
+- Browser evidence can be imported from externally captured screenshots, or
+  captured automatically with `--auto-browser-verify` when Playwright is
+  installed and browser binaries are available.
+- Automatic browser verification starts a local static server, captures initial
+  and post-interaction screenshots, computes pixel diff, and fails on console
+  errors or blank/static canvas-game evidence.
+- Real Codex worker runs now persist worker lifecycle records with task id, PID,
+  timeout, process-group, termination, and cleanup evidence under the run's
+  worker evidence directory.
+- Document-run reports now include `requirement_coverage`, mapping each
+  extracted requirement to planned tasks, implementation files, verification
+  evidence, and missing/partial/covered status.
+- Real GitHub document-runs can generate a lightweight static web CI workflow
+  for docs-only canvas/static artifacts immediately before release, so the
+  workflow is included in the branch/PR instead of only appearing in the final
+  report.
+- `delivery_report` summarizes final gate status, PR/branch/commit/CI,
+  artifact evidence, requirement coverage, generated CI, blockers, worker
+  lifecycle evidence, workspace, preflight, and next actions.
+- `development_cycle` now maps the manual engineering loop into machine
+  evidence: long task state, document reading, central-brain refinement, phase
+  planning, execution, audit, testing, iteration, full review, simulated
+  acceptance, real delivery, and merge/waiver.
+- Real GitHub delivery supports explicit `--auto-merge`; it remains off by
+  default and only attempts merge after passing CI.
+
 Run a smoke execution:
 
 ```bash
@@ -642,6 +748,9 @@ This repository does not yet implement:
 - Deep PDF/DOCX document parser pipeline.
 - Proven private GitHub end-to-end delivery against a real private repository.
 - Deep code summarization and semantic requirement-to-file mapping beyond deterministic file/path signals.
+- Proven real external rerun that combines generated static CI, automatic
+  browser verification, and terminal GitHub check collection in one PR.
+- Browser-console visualization for every development-cycle checklist step.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.

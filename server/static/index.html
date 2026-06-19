@@ -76,6 +76,18 @@
               <input id="keepWorktree" type="checkbox" checked>
               <span>Keep worktree</span>
             </label>
+            <label class="check">
+              <input id="autoBrowserVerify" type="checkbox">
+              <span>Auto browser verify</span>
+            </label>
+            <label class="check">
+              <input id="generateStaticCi" type="checkbox" checked>
+              <span>Generate static CI</span>
+            </label>
+            <label class="check">
+              <input id="autoMerge" type="checkbox">
+              <span>Auto merge after checks</span>
+            </label>
             <div class="buttonRow">
               <button id="createProject">Create</button>
               <button id="uploadSelected" disabled>Upload</button>
@@ -125,6 +137,7 @@
 
           <section class="panel output deliveryPanel">
             <h2>Delivery</h2>
+            <div id="deliverySummary" class="deliverySummary"></div>
             <pre id="deliveryOutput">{}</pre>
           </section>
         </div>

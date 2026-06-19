@@ -5,6 +5,18 @@ from __future__ import annotations
 from context.models import ContextBundle, Requirement
 from runtime.models import Dependency, TaskGraph, TaskNode
 
+WEB_GAME_SCAFFOLD_FILES = {
+    "index.html",
+    "src/main.js",
+    "src/engine.js",
+    "src/input.js",
+    "src/physics.js",
+    "src/tilemap.js",
+    "src/entities.js",
+    "src/renderer.js",
+    "tests/static_checks.js",
+}
+
 
 class TaskGraphBuilder:
     """Create deterministic task graphs from context bundles."""
@@ -43,9 +55,10 @@ class TaskGraphBuilder:
             if documentation_only
             else test_commands + context_bundle.build_commands + context_bundle.lint_commands
         )
+        implementation_files = dedupe([file for node in implementation_nodes for file in node.relevant_files])
         verification_files = (
-            dedupe([file for node in implementation_nodes for file in node.relevant_files])
-            if documentation_only
+            implementation_files
+            if documentation_only or test_commands == ["static artifact inspection"]
             else self._test_relevant_files(context_bundle)
         )
         verification_criteria = (
@@ -209,11 +222,39 @@ def classify_requirement_task(requirement: Requirement) -> tuple[str, str]:
     combined = f"{text} {files}"
     if any(file.endswith((".md", ".txt", ".rst")) for file in requirement.related_files):
         return "documentation", "architect"
-    if any(marker in combined for marker in ("test", "tests/", ".test.", ".spec.", "qa", "verification", "coverage", "ci")):
+    test_text = any(marker in text for marker in ("test", "测试", "qa", "verification", "验证", "验收", "coverage", "ci"))
+    all_test_files = bool(requirement.related_files) and all(
+        any(marker in file.lower() for marker in ("test", "tests/", ".test.", ".spec.", ".github/workflows"))
+        for file in requirement.related_files
+    )
+    if test_text or all_test_files:
         return "test", "test"
     if any(marker in combined for marker in ("api", "backend", "database", "schema", "migration", "auth", "server", "service")):
         return "backend", "backend"
-    if any(marker in combined for marker in ("ui", "frontend", "dashboard", "page", "screen", "component", ".tsx", ".jsx", ".css", ".html")):
+    if any(
+        marker in combined
+        for marker in (
+            "ui",
+            "frontend",
+            "dashboard",
+            "page",
+            "screen",
+            "component",
+            ".tsx",
+            ".jsx",
+            ".css",
+            ".html",
+            ".js",
+            "canvas",
+            "renderer",
+            "tilemap",
+            "platformer",
+            "game",
+            "游戏",
+            "渲染",
+            "关卡",
+        )
+    ):
         return "frontend", "frontend"
     if any(marker in combined for marker in ("readme", "docs", "documentation", ".md")):
         return "documentation", "architect"
@@ -248,6 +289,9 @@ def grouped_task_title(requirements: list[Requirement], task_type: str) -> str:
 
 
 def group_implementation_requirements(requirements: list[Requirement]) -> list[list[Requirement]]:
+    if should_group_as_single_web_game_delivery(requirements):
+        return [list(requirements)]
+
     groups: list[list[Requirement]] = []
     group_index: dict[tuple[str, tuple[str, ...]], int] = {}
     for requirement in requirements:
@@ -259,6 +303,17 @@ def group_implementation_requirements(requirements: list[Requirement]) -> list[l
         group_index[key] = len(groups)
         groups.append([requirement])
     return groups
+
+
+def should_group_as_single_web_game_delivery(requirements: list[Requirement]) -> bool:
+    if len(requirements) < 5:
+        return False
+    related = {file for requirement in requirements for file in requirement.related_files}
+    if not WEB_GAME_SCAFFOLD_FILES.issubset(related):
+        return False
+    text = "\n".join(requirement.text for requirement in requirements).lower()
+    game_markers = ("game", "platformer", "tilemap", "canvas", "level", "游戏", "关卡", "玩家", "敌人")
+    return any(marker in text for marker in game_markers)
 
 
 def priority_for_requirement(requirement: Requirement) -> int:

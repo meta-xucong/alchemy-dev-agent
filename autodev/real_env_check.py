@@ -72,6 +72,7 @@ class RealEnvironmentCheck:
         *,
         output_dir: str | Path = ".alchemy/real_env_check",
         codex_executable: str = "codex",
+        require_browser: bool = False,
     ) -> EnvironmentReport:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
@@ -81,6 +82,7 @@ class RealEnvironmentCheck:
             self._command_check("gh_auth", ["gh", "auth", "status"]),
             self._command_check("codex", [codex_executable, "--version"]),
         ]
+        checks.append(self._browser_check(required=require_browser))
         blockers = []
         for check in checks:
             if check.required and check.status != "passed":
@@ -110,6 +112,23 @@ class RealEnvironmentCheck:
         stderr = decode_output(result.stderr)
         summary = first_line(redact(stdout + "\n" + stderr)) or f"{name} exited {result.returncode}"
         return EnvironmentCheck(name, "passed" if result.returncode == 0 else "failed", summary)
+
+    def _browser_check(self, *, required: bool) -> EnvironmentCheck:
+        try:
+            import playwright.sync_api  # type: ignore[import-not-found]  # noqa: F401
+        except ImportError:
+            return EnvironmentCheck(
+                "browser_automation",
+                "failed" if required else "skipped",
+                "Playwright is not installed; automatic browser artifact verification is unavailable.",
+                required=required,
+            )
+        return EnvironmentCheck(
+            "browser_automation",
+            "passed",
+            "Playwright package is importable for automatic browser artifact verification.",
+            required=required,
+        )
 
 
 def first_line(text: str) -> str:
@@ -142,12 +161,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate local real-execution environment readiness.")
     parser.add_argument("--output", default=".alchemy/real_env_check")
     parser.add_argument("--codex-executable", default="codex")
+    parser.add_argument("--require-browser", action="store_true", help="Treat browser automation readiness as required.")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    report = RealEnvironmentCheck().run(output_dir=args.output, codex_executable=args.codex_executable)
+    report = RealEnvironmentCheck().run(
+        output_dir=args.output,
+        codex_executable=args.codex_executable,
+        require_browser=args.require_browser,
+    )
     print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
     return 0 if report.status == "ready" else 1
 

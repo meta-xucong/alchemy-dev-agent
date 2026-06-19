@@ -147,6 +147,7 @@ class RuntimeState:
     github: dict[str, Any] = field(default_factory=dict)
     repository: dict[str, Any] = field(default_factory=dict)
     recovery: dict[str, Any] = field(default_factory=dict)
+    worker_lifecycle: list[dict[str, Any]] = field(default_factory=list)
     done: bool = False
     created_at: str = field(default_factory=utc_now_iso)
     updated_at: str = field(default_factory=utc_now_iso)
@@ -172,6 +173,7 @@ class RuntimeState:
             github=dict(payload.get("github", {})),
             repository=dict(payload.get("repository", {})),
             recovery=dict(payload.get("recovery", {})),
+            worker_lifecycle=list(payload.get("worker_lifecycle", [])),
             done=bool(payload.get("done", False)),
             created_at=str(payload.get("created_at", utc_now_iso())),
             updated_at=str(payload.get("updated_at", utc_now_iso())),
@@ -197,6 +199,7 @@ class RuntimeState:
             "github": dict(self.github),
             "repository": dict(self.repository),
             "recovery": dict(self.recovery),
+            "worker_lifecycle": list(self.worker_lifecycle),
             "execution_history": list(self.iteration_history),
             "iteration_history": list(self.iteration_history),
             "done": self.done,

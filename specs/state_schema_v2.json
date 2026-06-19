@@ -273,12 +273,31 @@
         },
         "ci_status": {
           "type": "string",
-          "enum": ["unknown", "pending", "passed", "failed"]
+          "enum": ["unknown", "pending", "passed", "failed", "waived"]
         },
         "ci_details": {
           "type": "array",
           "items": {
             "type": "object"
+          }
+        },
+        "merge": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["skipped", "auto_merge_enabled", "merged", "failed"]
+            },
+            "summary": {
+              "type": "string"
+            },
+            "stdout": {
+              "type": "string"
+            },
+            "stderr": {
+              "type": "string"
+            }
           }
         },
         "created_at": {
@@ -333,10 +352,23 @@
         "workspace": {
           "type": "object"
         },
+        "worker_lifecycle": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
         "created_at": {
           "type": "string",
           "format": "date-time"
         }
+      }
+    },
+    "worker_lifecycle": {
+      "type": "array",
+      "description": "Managed real worker process lifecycle records for PID, timeout, cleanup, and termination evidence.",
+      "items": {
+        "$ref": "#/$defs/worker_lifecycle"
       }
     },
     "done": {
@@ -503,6 +535,55 @@
         },
         "metadata": {
           "type": "object"
+        }
+      }
+    },
+    "worker_lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "timeout_seconds", "status", "process_group", "cleanup_required"],
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "worker_pid": {
+          "type": ["integer", "null"]
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string"
+        },
+        "timed_out_at": {
+          "type": "string"
+        },
+        "terminated_at": {
+          "type": "string"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "status": {
+          "type": "string",
+          "enum": ["running", "completed", "failed", "timed_out", "terminated"]
+        },
+        "returncode": {
+          "type": ["integer", "null"]
+        },
+        "process_group": {
+          "type": "string"
+        },
+        "cleanup_required": {
+          "type": "boolean"
+        },
+        "termination": {
+          "type": "object"
+        },
+        "error": {
+          "type": "string"
         }
       }
     }

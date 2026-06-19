@@ -97,6 +97,8 @@ class ApiServerTests(unittest.TestCase):
         delivery = service.get_delivery(project_id)
         self.assertEqual(delivery["status"], "done")
         self.assertEqual(delivery["runtime_state"]["done"], True)
+        self.assertEqual(delivery["delivery_report"]["status"], "done")
+        self.assertTrue(delivery["delivery_report"]["ready_for_review"])
         events = service.get_run_events(project_id, "run_001")
         self.assertEqual(events["run_id"], "run_001")
         self.assertGreater(len(events["events"]), 0)
@@ -154,6 +156,9 @@ class ApiServerTests(unittest.TestCase):
                     "github_collect_ci": False,
                     "github_ci_wait_seconds": 33,
                     "github_ci_poll_interval_seconds": 4,
+                    "auto_browser_verify": True,
+                    "generate_static_ci": False,
+                    "auto_merge": True,
                 },
             )
 
@@ -161,6 +166,9 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(captured["kwargs"]["github_collect_ci"], False)
         self.assertEqual(captured["kwargs"]["github_ci_wait_seconds"], 33.0)
         self.assertEqual(captured["kwargs"]["github_ci_poll_interval_seconds"], 4.0)
+        self.assertEqual(captured["kwargs"]["auto_browser_verify"], True)
+        self.assertEqual(captured["kwargs"]["generate_static_ci"], False)
+        self.assertEqual(captured["kwargs"]["auto_merge"], True)
 
     def test_project_service_async_run_records_job_controls_and_events(self) -> None:
         root = temp_root()
@@ -465,10 +473,20 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("isolateRealRun", html)
             self.assertIn("githubCiWaitSeconds", html)
             self.assertIn("githubCollectCi", html)
+            self.assertIn("deliverySummary", html)
+            self.assertIn("autoBrowserVerify", html)
+            self.assertIn("generateStaticCi", html)
+            self.assertIn("autoMerge", html)
             self.assertIn("real_codex", js)
             self.assertIn("isolate_real_run", js)
             self.assertIn("github_ci_wait_seconds", js)
             self.assertIn("github_collect_ci", js)
+            self.assertIn("auto_browser_verify", js)
+            self.assertIn("require_browser", js)
+            self.assertIn("generate_static_ci", js)
+            self.assertIn("auto_merge", js)
+            self.assertIn("renderDelivery", js)
+            self.assertIn("deliverySummary", css)
         finally:
             conn.close()
             server.shutdown()
@@ -502,6 +520,31 @@ class ApiServerTests(unittest.TestCase):
             server.shutdown()
             thread.join(timeout=10)
             server.server_close()
+
+    def test_project_service_environment_check_requires_browser_when_auto_verify_is_requested(self) -> None:
+        root = temp_root()
+        service = ProjectService(storage_root=root / "server")
+        captured: dict[str, object] = {}
+
+        class FakeReport:
+            def to_dict(self) -> dict[str, object]:
+                return {"status": "ready", "checks": [], "blockers": []}
+
+        def fake_run(self, **kwargs):
+            captured.update(kwargs)
+            return FakeReport()
+
+        with mock.patch("server.project_service.RealEnvironmentCheck.run", fake_run):
+            report = service.check_environment(
+                {
+                    "codex_executable": "custom-codex",
+                    "auto_browser_verify": True,
+                }
+            )
+
+        self.assertEqual(report["status"], "ready")
+        self.assertEqual(captured["codex_executable"], "custom-codex")
+        self.assertEqual(captured["require_browser"], True)
 
 
 def request_json(

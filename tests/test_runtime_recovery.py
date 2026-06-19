@@ -42,6 +42,23 @@ class RuntimeRecoveryTests(unittest.TestCase):
             task_graph=graph,
             active_tasks=["T003"],
             failed_tasks=["T002", "T004"],
+            worker_lifecycle=[
+                {
+                    "task_id": "T003",
+                    "worker_pid": 123,
+                    "started_at": "2026-06-19T00:00:00+00:00",
+                    "completed_at": "",
+                    "timed_out_at": "2026-06-19T00:01:00+00:00",
+                    "terminated_at": "2026-06-19T00:01:01+00:00",
+                    "timeout_seconds": 60,
+                    "status": "timed_out",
+                    "returncode": None,
+                    "process_group": "alchemy-run-test",
+                    "cleanup_required": False,
+                    "termination": {"terminated": True},
+                    "error": "timeout",
+                }
+            ],
             blockers=[
                 {
                     "id": "B-T002-1",
@@ -70,6 +87,8 @@ class RuntimeRecoveryTests(unittest.TestCase):
         self.assertEqual(result.state.failed_tasks, [])
         self.assertFalse(result.state.blockers)
         self.assertEqual(set(result.checkpoint["reset_task_ids"]), {"T002", "T003", "T004"})
+        self.assertEqual(result.checkpoint["worker_lifecycle"][0]["task_id"], "T003")
+        self.assertEqual(result.checkpoint["worker_lifecycle"][0]["previous_status"], "timed_out")
         self.assertEqual(result.state.iteration_history[-1]["type"], "recovery_checkpoint")
 
     def test_prepare_blocks_when_no_retryable_tasks_exist(self) -> None:

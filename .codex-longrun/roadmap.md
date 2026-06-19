@@ -98,3 +98,79 @@ Planned actions:
 - Validate JSON specs, diff hygiene, and long-running state.
 - Confirm GitHub push status and inspect relevant CI/PR evidence.
 - Decide whether the current objective can be marked `done` or requires one more targeted stabilization phase.
+
+## Completed Follow-Up Phases
+
+### V2.21 Post-Acceptance Quality Gate Hardening
+
+- Tightened real GitHub release behavior so failed, pending, or unknown CI blocks delivery when CI collection is enabled.
+- Added explicit CI collection controls and no-CI opt-out behavior.
+- Hardened static document verification and async job persistence.
+- Verified full unit suite, acceptance harness, JSON specs, diff hygiene, and state validation.
+
+### V2.22 External Docs-Only Delivery Plan Supplement
+
+- Converted the `meta-xucong/-super-mario-test` external docs-only repository test findings into a supplemental development document.
+- Added `docs/29_v2_22_external_docs_only_delivery.md`.
+- Added `examples/external_docs_only_delivery_acceptance.md`.
+- Updated README and V2 development plan to keep the new requirements aligned with the existing v2 objective.
+
+## Next Recommended Development Phase: V2.22.1 And V2.22.2
+
+Goal: close the largest external docs-only delivery planning gap.
+
+Planned actions:
+
+- Enforce the document dominance rule so parsed primary documents cannot be routed through generated one-line fallback.
+- Improve Chinese and outline-style requirement extraction for technical specs.
+- Add regression tests using the external platformer spec shape.
+- Keep the existing one-line generated-game demo working as an explicit fallback path only.
+
+
+## Completed Follow-Up Phase: V2.22 Implementation And Real External Game Delivery
+
+- Document dominance, richer Chinese extraction, scaffold planning, static artifact gates, no-CI waiver evidence, worker safety prompt, local git identity fallback, and release branch binding are implemented and tested.
+- The external docs-only target repository was delivered through a real public PR: https://github.com/meta-xucong/-super-mario-test/pull/2.
+- The generated artifact is an original retro platformer Level 1 with canvas rendering, player movement/jump controls, enemies, coins, scoring, timer, lives, level completion, modular files, and static checks.
+- Browser smoke evidence is recorded in `.alchemy/super_mario_v2_22_real_run_retry/browser_smoke_initial.png` and `.alchemy/super_mario_v2_22_real_run_retry/browser_smoke_after_input.png`.
+
+## Optional Next Phase
+
+- Productize browser playability verification as a first-class automated document-run acceptance command instead of retaining it as manual audit evidence.
+
+
+## Next Planned Phase: V2.23 Perfect Delivery Optimization
+
+Goal: move from successful external proof to stable product-grade one-click delivery while preserving the original document-driven autonomous development objective.
+
+Planned order:
+
+1. V2.23.1 Browser Artifact Verifier.
+2. V2.23.2 Artifact Profiles.
+3. V2.23.3 Managed Worker Process Lifecycle.
+4. V2.23.4 Requirement Coverage Matrix.
+5. V2.23.5 Generated CI For Docs-Only Static Apps.
+6. V2.23.6 Delivery Report Productization.
+7. V2.23.7 UI Intake And Evidence Polish.
+
+## Completed Follow-Up Phase: V2.23 Perfect Delivery Optimization Implementation
+
+- Artifact profiles, artifact reports, browser evidence import, automatic browser runner contract, worker lifecycle records, requirement coverage, evaluator coverage gates, generated static CI, delivery reports, and UI evidence controls are implemented.
+- Static CI generation is now part of the release task before GitHub commit/PR execution, so generated workflows can be included in the delivery branch.
+- Full unit suite, external docs-only acceptance, main acceptance, JSON parsing, diff hygiene, and long-running state validation passed.
+
+## Next Recommended Phase
+
+- Run a real external docs-only target delivery with generated static CI and GitHub CI collection enabled.
+- Add Playwright/browser-binary readiness to real environment checks and UI preflight.
+- Add richer visual previews for task graph and requirement coverage before execution.
+
+## Completed Follow-Up Phase: V2.24 Development-Cycle Brain And One-Click External Delivery Rerun
+
+- The manual engineering SOP is now represented as `development_cycle` in document-run and API delivery reports.
+- Explicit auto-merge is implemented and merge evidence is included in runtime state, delivery reports, and development-cycle scoring.
+- A fresh external docs-only repository was delivered end-to-end: https://github.com/meta-xucong/super-mario-agent-v2-24-test-20260619163034.
+- The generated PR passed generated static GitHub Actions CI and was merged.
+- Browser automation readiness is part of real environment checks and UI preflight when auto browser verification is requested.
+- Automatic browser verification was validated with Playwright screenshots, nonblank rendering, pixel-change evidence, and no console errors.
+- Remaining optimization work is now product polish rather than core feasibility: richer UI checklist/graph/coverage views and reducing internal retry frequency for complex game tasks.
