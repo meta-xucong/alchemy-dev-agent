@@ -1199,3 +1199,11 @@
 - Result: passed.
 - Summary: Long-running state schema validated after V2.27 changes.
 - Next verification command: commit, push, and GitHub Actions.
+
+
+## 2026-06-19 V2.27 Remote CI Closure
+
+- Command: `gh run watch 27826225218 --exit-status`
+- Result: passed.
+- Summary: GitHub Actions CI run `27826225218` passed on `master` commit `a9fb340` after V2.27 acceptance scenario browser probe changes.
+- Next verification command: none.
