@@ -1426,3 +1426,32 @@
 - Result: passed.
 - Summary: JSON specs parsed, diff hygiene passed, and long-running state validated after V2.33/V2.34.
 - Next verification command: commit, push, and GitHub Actions.
+
+## 2026-06-20 V2.34 Remote CI Closure
+
+- Command: `gh run watch 27837563200 --exit-status`
+- Result: passed.
+- Summary: GitHub Actions CI run `27837563200` passed on `master` commit `f0942c1` after V2.33 artifact previews and V2.34 readiness gate changes.
+- Next verification command: choose next implementation phase.
+
+## 2026-06-20 V2.35 Native UI Test Repository Write
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_native_ui_tests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_document_run_generates_native_ui_acceptance_tests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_document_run_can_write_native_ui_tests_to_supported_repository tests.test_api_server.ApiServerTests.test_project_service_run_payload_records_github_ci_wait_contract tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets`
+- Result: passed.
+- Summary: 10 focused tests passed for native UI test report-only safety, repository write into Playwright-supported repositories, CLI/API/UI payload wiring, and static console hooks.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 192 tests passed after V2.35 native UI repository-write changes.
+- Next verification command: main acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_35`
+- Result: passed.
+- Summary: Main acceptance harness passed after V2.35 changes.
+- Next verification command: local repository acceptance with browser verification.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.local_repository_acceptance --output .alchemy\local_repository_acceptance_v2_35_final --auto-browser-verify`
+- Result: passed.
+- Summary: Local repository acceptance passed with 13/13 checks under browser verification.
+- Next verification command: JSON specs, diff hygiene, and state validation.

@@ -424,6 +424,7 @@ function runPayload() {
     keep_worktree: el("keepWorktree").checked,
     auto_browser_verify: el("autoBrowserVerify").checked,
     generate_static_ci: el("generateStaticCi").checked,
+    write_native_ui_tests: el("writeNativeUiTests").checked,
     auto_merge: el("autoMerge").checked,
   };
 }

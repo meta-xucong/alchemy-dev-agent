@@ -513,6 +513,46 @@ class DocumentRunPipelineTests(unittest.TestCase):
         self.assertEqual(payload["delivery_report"]["artifact"]["native_ui_tests"]["status"], "generated")
         self.assertIn("Native UI acceptance tests: generated.", payload["requirement_coverage"]["entries"][0]["verification_evidence"])
 
+    def test_document_run_can_write_native_ui_tests_to_supported_repository(self) -> None:
+        with temp_document_run_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "package.json").write_text(
+                json.dumps({"devDependencies": {"@playwright/test": "^1.0.0"}}),
+                encoding="utf-8",
+            )
+            (repo / "index.html").write_text(
+                "<!doctype html><main id='app'><form><input name='todo'><button>Add Todo</button></form><ul><li>Seed task</li></ul></main>",
+                encoding="utf-8",
+            )
+            spec = root / "todo_spec.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Todo App",
+                        "## Requirements",
+                        "- Must deliver todo creation in index.html.",
+                        "## Acceptance Criteria",
+                        "- CRUD create updates the visible todo list.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = DocumentRunPipeline().run(
+                objective="Deliver todo app",
+                documents=[spec],
+                repository_path=repo,
+                output_dir=root / "run",
+                write_native_ui_tests=True,
+            )
+
+            payload = result.to_dict()
+            target = repo / "tests" / "alchemy_acceptance.spec.ts"
+            self.assertTrue(target.exists())
+            self.assertEqual(payload["native_ui_tests"]["write_mode"], "repository")
+            self.assertEqual(payload["native_ui_tests"]["target_path"], "tests/alchemy_acceptance.spec.ts")
+
     def test_development_cycle_report_marks_manual_engineering_loop_evidence(self) -> None:
         report = build_development_cycle_report(
             project_brief={

@@ -58,6 +58,7 @@ class NativeUITestGenerator:
         repo = Path(repository_path)
         output = Path(output_dir)
         framework, evidence = detect_ui_test_framework(repo)
+        repository_write_allowed = framework != "none"
         if framework == "none" and _is_static_browser_profile(repo, artifact_profile):
             framework = "playwright"
             evidence.append("No native UI framework detected; generated Playwright draft in report-only mode for static browser artifact.")
@@ -69,7 +70,9 @@ class NativeUITestGenerator:
                 evidence=evidence,
             )
 
-        write_mode: NativeUITestWriteMode = "repository" if write_to_repository and framework != "none" else "report_only"
+        if write_to_repository and not repository_write_allowed:
+            evidence.append("Repository write skipped because no Playwright or Cypress dependency/configuration was detected.")
+        write_mode: NativeUITestWriteMode = "repository" if write_to_repository and repository_write_allowed else "report_only"
         if framework == "playwright":
             relative = "tests/alchemy_acceptance.spec.ts" if write_mode == "repository" else "generated_tests/playwright/alchemy_acceptance.spec.ts"
             content = playwright_test_text(scenarios)

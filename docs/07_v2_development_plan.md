@@ -576,6 +576,14 @@ DONE requires:
 - Surface `readiness_issues` and next actions when a run needs another iteration. Status: implemented.
 - Map API run status `in_progress` to terminal job/project status `needs_iteration` so the browser console stops polling and shows delivery evidence. Status: implemented.
 
+### V2.35: Native UI Test Repository Write
+
+- Add `write_native_ui_tests` to API, CLI, and browser-console run controls. Status: implemented.
+- Keep generated UI tests report-only by default. Status: implemented.
+- Write generated Playwright/Cypress tests into the repository only when a supported framework is already detected. Status: implemented.
+- Keep static browser artifacts without Playwright/Cypress dependencies in report-only mode even when repository write is requested. Status: implemented.
+- Surface repository-write or skipped-write evidence through the existing native UI test and artifact manifest contracts. Status: implemented.
+
 ## Risks And Mitigations
 
 | Risk | Impact | Mitigation |

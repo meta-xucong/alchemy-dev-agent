@@ -1,6 +1,6 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.34 delivery readiness gate",
+  "current_phase": "V2.35 native UI test repository write",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -45,10 +45,10 @@
     "V2.31 delivery evidence API and browser console reviewability",
     "V2.32 feedback recovery comparison",
     "V2.33 artifact file previews",
-    "V2.34 delivery readiness gate"
+    "V2.34 delivery readiness gate",
+    "V2.35 native UI test repository write"
   ],
   "next_actions": [
-    "Add a controlled repository-write switch for native UI tests once dependency and CI setup checks can prevent generated tests from breaking target projects.",
     "Add optional comparison-driven repair suggestions that turn recovery_comparison regressions into next Debug Agent tasks.",
     "Add richer task graph and requirement coverage visualization in the browser console."
   ],
@@ -61,7 +61,12 @@
     "Playwright UI smoke against local API console for artifact previews and needs_iteration delivery evidence",
     "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"",
     "git diff --check",
-    "validate_state.py --project ."
+    "validate_state.py --project .",
+    "gh run watch 27837563200 --exit-status",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_native_ui_tests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_document_run_generates_native_ui_acceptance_tests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_document_run_can_write_native_ui_tests_to_supported_repository tests.test_api_server.ApiServerTests.test_project_service_run_payload_records_github_ci_wait_contract tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest discover -s tests",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_35",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\\local_repository_acceptance_v2_35_final --auto-browser-verify"
   ],
   "known_bugs": [
     {
@@ -167,9 +172,11 @@
     "Delivery artifact files are exposed through a safe run-scoped manifest and content API without arbitrary path serving.",
     "The browser console previews screenshots and links generated native UI test drafts, artifact files, and generated CI workflows from delivery evidence.",
     "Partial must-requirement coverage and failed browser/static/semantic/scenario/gameplay probes block evaluator DONE and delivery ready_for_review.",
-    "API async runs ending below delivery threshold become needs_iteration so the UI stops polling and surfaces evidence plus next actions."
+    "API async runs ending below delivery threshold become needs_iteration so the UI stops polling and surfaces evidence plus next actions.",
+    "Generated native UI acceptance tests write into target repositories only when the caller enables write_native_ui_tests and Playwright/Cypress support is detected.",
+    "Static browser projects without native UI test framework evidence remain report-only even when repository write is requested."
   ],
-  "last_verified_at": "2026-06-20T00:32:11+08:00",
+  "last_verified_at": "2026-06-20T00:47:37+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T23:31:10+08:00"
+  "updated_at": "2026-06-20T00:47:37+08:00"
 }

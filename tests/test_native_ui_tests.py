@@ -66,6 +66,28 @@ class NativeUITestGeneratorTests(unittest.TestCase):
         self.assertIn("const scenarios: AlchemyScenario[]", text)
         self.assertIn("SCN-001", text)
 
+    def test_static_web_write_request_stays_report_only_without_framework_dependency(self) -> None:
+        root = temp_dir()
+        repo = root / "repo"
+        output = root / "run"
+        repo.mkdir()
+        (repo / "index.html").write_text("<!doctype html><main><input><button>Add</button><ul><li>Seed</li></ul></main>", encoding="utf-8")
+
+        result = NativeUITestGenerator().generate(
+            repository_path=repo,
+            output_dir=output,
+            acceptance_scenarios=scenario_payload(),
+            artifact_profile="static_web_app",
+            write_to_repository=True,
+        )
+
+        self.assertEqual(result.status, "generated")
+        self.assertEqual(result.framework, "playwright")
+        self.assertEqual(result.write_mode, "report_only")
+        self.assertTrue((output / "generated_tests" / "playwright" / "alchemy_acceptance.spec.ts").exists())
+        self.assertFalse((repo / "tests" / "alchemy_acceptance.spec.ts").exists())
+        self.assertIn("Repository write skipped", " ".join(result.evidence))
+
     def test_detects_playwright_and_can_write_repository_file(self) -> None:
         root = temp_dir()
         repo = root / "repo"

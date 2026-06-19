@@ -111,6 +111,7 @@ class DocumentRunPipeline:
         browser_console_errors: Sequence[str] = (),
         auto_browser_verify: bool = False,
         generate_static_ci: bool = True,
+        write_native_ui_tests: bool = False,
         auto_merge: bool = False,
         controller: ExecutionController | None = None,
     ) -> DocumentRunResult:
@@ -138,6 +139,7 @@ class DocumentRunPipeline:
                 browser_console_errors=browser_console_errors,
                 auto_browser_verify=auto_browser_verify,
                 generate_static_ci=generate_static_ci,
+                write_native_ui_tests=write_native_ui_tests,
                 auto_merge=auto_merge,
                 controller=controller,
             )
@@ -309,6 +311,7 @@ class DocumentRunPipeline:
             repository_path=state.repository.get("path", "."),
             output_dir=output,
             artifact_report=artifact_report,
+            write_to_repository=write_native_ui_tests,
         )
         artifact_report["native_ui_tests"] = native_ui_tests
         final_state.repository["native_ui_tests"] = native_ui_tests
@@ -396,6 +399,7 @@ class DocumentRunPipeline:
         browser_console_errors: Sequence[str],
         auto_browser_verify: bool,
         generate_static_ci: bool,
+        write_native_ui_tests: bool,
         auto_merge: bool,
         controller: ExecutionController | None,
     ) -> DocumentRunResult:
@@ -501,6 +505,7 @@ class DocumentRunPipeline:
             repository_path=repository_path,
             output_dir=output,
             artifact_report=artifact_report,
+            write_to_repository=write_native_ui_tests,
         )
         artifact_report["native_ui_tests"] = native_ui_tests
         final_state.repository["native_ui_tests"] = native_ui_tests
@@ -597,6 +602,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--browser-console-error", action="append", default=[], help="Browser console error captured during artifact verification.")
     parser.add_argument("--auto-browser-verify", action="store_true", help="Launch a local static server and browser runner to capture artifact evidence automatically.")
     parser.add_argument("--no-generate-static-ci", action="store_true", help="Do not generate a lightweight static web CI workflow for docs-only static artifacts.")
+    parser.add_argument("--write-native-ui-tests", action="store_true", help="Write generated Playwright/Cypress acceptance tests into repositories that already have a supported UI test framework.")
     parser.add_argument("--auto-merge", action="store_true", help="After a successful real GitHub delivery and passing checks, attempt to merge the PR.")
     return parser
 
@@ -784,6 +790,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         browser_console_errors=args.browser_console_error,
         auto_browser_verify=args.auto_browser_verify,
         generate_static_ci=not args.no_generate_static_ci,
+        write_native_ui_tests=args.write_native_ui_tests,
         auto_merge=args.auto_merge,
     )
     print(json.dumps(result.to_dict(), indent=2, sort_keys=True))

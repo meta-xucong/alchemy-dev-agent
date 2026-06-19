@@ -569,3 +569,17 @@ PY"`
 - Added `readiness_issues` and next-action surfacing for runs that need more iteration.
 - Mapped API run status `in_progress` to terminal project/job status `needs_iteration` so the UI stops polling and shows evidence.
 - Verified a UI smoke where a failing static web scenario now ends as `needs_iteration`, shows `ready_for_review=false`, displays readiness issues, and still previews screenshots/native tests/artifact files.
+
+## 2026-06-20 V2.34 Remote CI Closure
+
+- Pushed commit `f0942c1` to `master`.
+- GitHub Actions CI run `27837563200` completed successfully for `Add artifact previews and harden delivery readiness`.
+
+## 2026-06-20 V2.35 Native UI Test Repository Write
+
+- Added `docs/42_v2_35_native_ui_test_repository_write.md` and linked V2.35 from README and the V2 development plan.
+- Added `write_native_ui_tests` to the document-run CLI, API run payload, ProjectService handoff, and browser console controls.
+- Kept native UI test generation report-only by default.
+- Allowed repository writes only when Playwright/Cypress dependency, script, config, or directory evidence already exists in the target repository.
+- Preserved static browser artifact drafts as report-only when no native UI framework is detected, even if repository write is requested.
+- Verified focused tests, full unit suite, main acceptance, and local repository acceptance with browser verification.

@@ -247,6 +247,7 @@ class ApiServerTests(unittest.TestCase):
                     "github_ci_poll_interval_seconds": 4,
                     "auto_browser_verify": True,
                     "generate_static_ci": False,
+                    "write_native_ui_tests": True,
                     "auto_merge": True,
                 },
             )
@@ -257,6 +258,7 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(captured["kwargs"]["github_ci_poll_interval_seconds"], 4.0)
         self.assertEqual(captured["kwargs"]["auto_browser_verify"], True)
         self.assertEqual(captured["kwargs"]["generate_static_ci"], False)
+        self.assertEqual(captured["kwargs"]["write_native_ui_tests"], True)
         self.assertEqual(captured["kwargs"]["auto_merge"], True)
 
     def test_project_service_reopens_delivered_run_with_feedback(self) -> None:
@@ -719,6 +721,7 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("artifactPreviews", html)
             self.assertIn("autoBrowserVerify", html)
             self.assertIn("generateStaticCi", html)
+            self.assertIn("writeNativeUiTests", html)
             self.assertIn("autoMerge", html)
             self.assertIn("reopenFeedback", html)
             self.assertIn("real_codex", js)
@@ -728,6 +731,7 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("auto_browser_verify", js)
             self.assertIn("require_browser", js)
             self.assertIn("generate_static_ci", js)
+            self.assertIn("write_native_ui_tests", js)
             self.assertIn("auto_merge", js)
             self.assertIn("renderDelivery", js)
             self.assertIn("renderEvidence", js)

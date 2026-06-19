@@ -116,6 +116,8 @@ docs/
                               V2.33 safe artifact manifest and file preview contract.
   41_v2_34_delivery_readiness_gate.md
                               V2.34 evidence-consistent delivery readiness gate.
+  42_v2_35_native_ui_test_repository_write.md
+                              V2.35 controlled repository write switch for native UI tests.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -216,6 +218,7 @@ Implemented runtime capabilities:
 - Real PR/CI evidence collection through the V2.18 delivery validation harness.
 - Safe delivery artifact manifests for screenshots, generated UI test drafts, artifact files, and generated CI previews.
 - Evidence-consistent readiness gates so partial must coverage or failed browser probes require iteration.
+- Controlled repository writes for generated Playwright/Cypress acceptance tests when a supported UI test framework is already present.
 - Persistent JSON runtime state under `.alchemy/state.json`.
 
 DONE requires final gate score `>= 0.85`, completed required graph nodes, passing verification evidence, reviewer approval, no hard failures, and GitHub execution evidence.

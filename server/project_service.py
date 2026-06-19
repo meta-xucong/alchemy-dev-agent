@@ -652,6 +652,7 @@ class ProjectService:
             resume_tasks=[str(task_id) for task_id in run_payload.get("resume_tasks", [])],
             auto_browser_verify=bool(run_payload.get("auto_browser_verify", False)),
             generate_static_ci=bool(run_payload.get("generate_static_ci", True)),
+            write_native_ui_tests=bool(run_payload.get("write_native_ui_tests", False)),
             auto_merge=bool(run_payload.get("auto_merge", False)),
             controller=controller,
         )
