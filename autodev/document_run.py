@@ -304,6 +304,7 @@ class DocumentRunPipeline:
             auto_browser_verify=auto_browser_verify,
         )
         final_state.repository["artifact_profile"] = str(artifact_report.get("artifact_profile", {}).get("name", "unknown"))
+        final_state.repository["artifact_report"] = artifact_report
         native_ui_tests = build_native_ui_tests_report(
             repository_path=state.repository.get("path", "."),
             output_dir=output,
@@ -495,6 +496,7 @@ class DocumentRunPipeline:
             auto_browser_verify=auto_browser_verify,
         )
         final_state.repository["artifact_profile"] = str(artifact_report.get("artifact_profile", {}).get("name", "unknown"))
+        final_state.repository["artifact_report"] = artifact_report
         native_ui_tests = build_native_ui_tests_report(
             repository_path=repository_path,
             output_dir=output,

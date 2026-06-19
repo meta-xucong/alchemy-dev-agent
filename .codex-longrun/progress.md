@@ -551,3 +551,21 @@ PY"`
 
 - Pushed commit `00258fc` to `master`.
 - GitHub Actions CI run `27834632529` completed successfully for `Add feedback recovery comparison evidence`.
+
+## 2026-06-20 V2.33 Artifact File Previews
+
+- Added `docs/40_v2_33_artifact_file_previews.md` and linked V2.33 from README and the V2 development plan.
+- Added `autodev.artifact_manifest` to build safe run-scoped artifact manifests from persisted run evidence only.
+- Added `GET /projects/{project_id}/runs/{run_id}/artifacts` and `GET /projects/{project_id}/runs/{run_id}/artifacts/{artifact_id}`.
+- Delivery responses now include `artifact_manifest` for screenshots, generated native UI test drafts, static artifact files, and generated CI workflows when present.
+- Browser console Delivery now renders `Evidence Artifacts` with inline screenshot thumbnails and openable text artifact previews.
+
+## 2026-06-20 V2.34 Delivery Readiness Gate
+
+- Added `docs/41_v2_34_delivery_readiness_gate.md` and linked V2.34 from README and the V2 development plan.
+- Persisted `artifact_report` into runtime repository state before final gate re-evaluation.
+- Tightened evaluator hard failures for partial must coverage and failed static/browser/semantic/scenario/gameplay artifact probes.
+- Tightened delivery `ready_for_review` to require final gate done, passed coverage, clean artifact probes, clean blockers, and CI pass/waiver.
+- Added `readiness_issues` and next-action surfacing for runs that need more iteration.
+- Mapped API run status `in_progress` to terminal project/job status `needs_iteration` so the UI stops polling and shows evidence.
+- Verified a UI smoke where a failing static web scenario now ends as `needs_iteration`, shows `ready_for_review=false`, displays readiness issues, and still previews screenshots/native tests/artifact files.

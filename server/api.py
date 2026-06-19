@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any, Sequence
 from urllib.parse import urlparse
 
+from autodev.artifact_manifest import ArtifactContent
+
 from .project_service import ApiError, ProjectService, safe_identifier
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
@@ -45,6 +47,9 @@ class AlchemyApiHandler(BaseHTTPRequestHandler):
                 return
             payload = self._read_body() if method in {"POST", "PATCH"} else {}
             result, status = route_request(self.service, method, self.path, payload)
+            if isinstance(result, ArtifactContent):
+                self._write_artifact(result, status=status)
+                return
             self._write_json(result, status=status)
         except ApiError as exc:
             self._write_json(exc.to_dict(), status=exc.status_code)
@@ -108,6 +113,16 @@ class AlchemyApiHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _write_artifact(self, content: ArtifactContent, *, status: int = 200) -> None:
+        data = content.data
+        self.send_response(status)
+        self.send_header("Content-Type", content.media_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition", f'inline; filename="{content.filename}"')
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(data)
+
     def _try_static_response(self) -> bool:
         parsed = urlparse(self.path)
         route = parsed.path
@@ -135,7 +150,7 @@ class AlchemyApiHandler(BaseHTTPRequestHandler):
         return True
 
 
-def route_request(service: ProjectService, method: str, raw_path: str, payload: dict[str, Any]) -> tuple[dict[str, object], int]:
+def route_request(service: ProjectService, method: str, raw_path: str, payload: dict[str, Any]) -> tuple[dict[str, object] | ArtifactContent, int]:
     parts = [part for part in urlparse(raw_path).path.strip("/").split("/") if part]
     if method == "GET" and parts == ["health"]:
         return {"status": "ok"}, HTTPStatus.OK
@@ -180,6 +195,13 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "GET" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "job":
         run_id = safe_identifier(tail[1], "run_id")
         return service.get_run_job(project_id, run_id), HTTPStatus.OK
+    if method == "GET" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "artifacts":
+        run_id = safe_identifier(tail[1], "run_id")
+        return service.get_run_artifacts(project_id, run_id), HTTPStatus.OK
+    if method == "GET" and len(tail) == 4 and tail[0] == "runs" and tail[2] == "artifacts":
+        run_id = safe_identifier(tail[1], "run_id")
+        artifact_id = safe_identifier(tail[3], "artifact_id")
+        return service.get_run_artifact_content(project_id, run_id, artifact_id), HTTPStatus.OK
     if method == "GET" and len(tail) == 2 and tail[0] == "runs":
         run_id = safe_identifier(tail[1], "run_id")
         return service.get_run(project_id, run_id), HTTPStatus.OK

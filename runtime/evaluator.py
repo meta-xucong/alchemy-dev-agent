@@ -112,7 +112,10 @@ class Evaluator:
             if missing_must:
                 hard_failures.append("Must requirements are missing coverage: " + ", ".join(missing_must) + ".")
             if partial_must:
-                required_changes.append("Improve partial must requirement coverage: " + ", ".join(partial_must) + ".")
+                hard_failures.append("Must requirements have only partial coverage: " + ", ".join(partial_must) + ".")
+        artifact_report = state.repository.get("artifact_report", {})
+        if isinstance(artifact_report, dict):
+            hard_failures.extend(_artifact_hard_failures(artifact_report))
 
         for node in nodes:
             if node.status == "completed":
@@ -239,3 +242,30 @@ class Evaluator:
             if isinstance(result, dict):
                 return result
         return None
+
+
+def _artifact_hard_failures(artifact_report: dict) -> list[str]:
+    failures: list[str] = []
+    static = artifact_report.get("static_verification", {})
+    browser = artifact_report.get("browser_verification", {})
+    profile = artifact_report.get("artifact_profile", {})
+    profile_name = str(profile.get("name", "")) if isinstance(profile, dict) else ""
+    if isinstance(static, dict) and static.get("status") == "failed":
+        failures.append("Static artifact verification failed.")
+    if not isinstance(browser, dict) or not browser:
+        return failures
+    if browser.get("status") == "failed":
+        failures.append("Browser artifact verification failed.")
+    semantic = browser.get("semantic_probe", {})
+    if isinstance(semantic, dict) and semantic.get("status") == "failed":
+        failures.append("Semantic browser probe failed.")
+    scenario = browser.get("scenario_probe", {})
+    if isinstance(scenario, dict) and scenario.get("status") == "failed":
+        failures.append("Acceptance scenario browser probe failed.")
+    gameplay = browser.get("gameplay_probe", {})
+    gameplay_status = str(gameplay.get("status", "")) if isinstance(gameplay, dict) else ""
+    if profile_name == "canvas_game" and gameplay_status != "completed":
+        failures.append("Canvas gameplay probe did not complete.")
+    elif gameplay_status == "failed":
+        failures.append("Gameplay browser probe failed.")
+    return failures

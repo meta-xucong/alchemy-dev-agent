@@ -1389,3 +1389,40 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27834632529` passed on `master` commit `00258fc` after V2.32 feedback recovery comparison changes.
 - Next verification command: none.
+
+## 2026-06-20 V2.33/V2.34 Artifact Preview And Readiness Gate
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets`
+- Result: passed.
+- Summary: 5 focused artifact manifest/API/static UI tests passed after V2.33 artifact preview implementation.
+- Next verification command: readiness gate focused tests.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.EvaluatorTests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_delivery_report_blocks_partial_must_and_failed_browser_probe tests.test_api_server.ApiServerTests.test_project_status_maps_in_progress_to_needs_iteration tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content`
+- Result: passed.
+- Summary: 8 focused tests passed for evaluator hard failures, delivery readiness issues, API needs_iteration mapping, and artifact content serving.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 190 tests passed after V2.33 artifact previews and V2.34 readiness-gate hardening.
+- Next verification command: main acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_34`
+- Result: passed.
+- Summary: Main acceptance harness passed with delivery done, `ready_for_review=true`, and no readiness issues on the standard document-driven path.
+- Next verification command: local repository acceptance with browser verification.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.local_repository_acceptance --output .alchemy\local_repository_acceptance_v2_34 --auto-browser-verify`
+- Result: passed.
+- Summary: Local repository import plus feedback reopen acceptance passed under the stricter readiness gate with browser verification enabled.
+- Next verification command: UI smoke.
+
+- Command: `Playwright UI smoke against local API console for artifact previews and needs_iteration readiness evidence`
+- Result: passed.
+- Summary: Browser console rendered 4 artifact previews; failing browser/scenario evidence ended as `needs_iteration`, `delivery_report.ready_for_review=false`, and readiness issues were visible.
+- Next verification command: JSON specs, diff hygiene, and state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`; `git diff --check`; `validate_state.py --project .`
+- Result: passed.
+- Summary: JSON specs parsed, diff hygiene passed, and long-running state validated after V2.33/V2.34.
+- Next verification command: commit, push, and GitHub Actions.

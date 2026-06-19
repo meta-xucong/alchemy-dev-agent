@@ -638,6 +638,41 @@ class DocumentRunPipelineTests(unittest.TestCase):
 
         self.assertNotIn("Wait for generated GitHub Actions checks to pass on the PR.", report["next_actions"])
 
+    def test_delivery_report_blocks_partial_must_and_failed_browser_probe(self) -> None:
+        report = build_delivery_report(
+            status="done",
+            runtime_state={
+                "evaluation": {
+                    "done": False,
+                    "reason": "Must requirements have only partial coverage: REQ-001.",
+                    "final_gate_score": 0.85,
+                    "hard_failures": ["Must requirements have only partial coverage: REQ-001."],
+                },
+                "github": {"ci_status": "passed"},
+                "blockers": [],
+            },
+            artifact_report={
+                "artifact_profile": {"name": "static_web_app"},
+                "browser_verification": {
+                    "status": "failed",
+                    "scenario_probe": {"status": "failed"},
+                },
+            },
+            requirement_coverage={
+                "status": "failed",
+                "entries": [{"coverage_status": "partial"}],
+                "coverage_score": 0.5,
+                "missing_must_requirement_ids": [],
+                "partial_must_requirement_ids": ["REQ-001"],
+            },
+            generated_ci={"status": "skipped"},
+        )
+
+        self.assertFalse(report["ready_for_review"])
+        self.assertIn("Must requirements have only partial coverage: REQ-001.", report["readiness_issues"])
+        self.assertIn("Browser artifact verification failed.", report["readiness_issues"])
+        self.assertIn("Acceptance scenario browser probe failed.", report["next_actions"])
+
     def test_delivery_report_summarizes_gameplay_probe_status(self) -> None:
         report = build_delivery_report(
             status="done",

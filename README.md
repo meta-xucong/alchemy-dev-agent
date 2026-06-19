@@ -112,6 +112,10 @@ docs/
                               V2.31 human-reviewable delivery evidence console.
   39_v2_32_feedback_recovery_comparison.md
                               V2.32 source-vs-repair run comparison evidence.
+  40_v2_33_artifact_file_previews.md
+                              V2.33 safe artifact manifest and file preview contract.
+  41_v2_34_delivery_readiness_gate.md
+                              V2.34 evidence-consistent delivery readiness gate.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -160,6 +164,7 @@ planner/
 
 autodev/
   acceptance_run.py          Local end-to-end acceptance harness.
+  artifact_manifest.py       Safe run artifact manifest and preview content resolver.
   local_repository_acceptance.py
                              Local repository import and feedback-reopen acceptance harness.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
@@ -209,6 +214,8 @@ Implemented runtime capabilities:
 - Weighted evaluation gate across test health, spec alignment, graph completion, reviewer approval, and risk quality.
 - GitHub execution evidence through dry-run records or real `git`/`gh` commands.
 - Real PR/CI evidence collection through the V2.18 delivery validation harness.
+- Safe delivery artifact manifests for screenshots, generated UI test drafts, artifact files, and generated CI previews.
+- Evidence-consistent readiness gates so partial must coverage or failed browser probes require iteration.
 - Persistent JSON runtime state under `.alchemy/state.json`.
 
 DONE requires final gate score `>= 0.85`, completed required graph nodes, passing verification evidence, reviewer approval, no hard failures, and GitHub execution evidence.

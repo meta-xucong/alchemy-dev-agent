@@ -263,6 +263,77 @@ h2 {
   font-size: 12px;
 }
 
+.artifactPreviews {
+  margin-bottom: 10px;
+}
+
+.artifactPreviews h3 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.artifactGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.artifactItem {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fbfcfd;
+}
+
+.artifactItem strong,
+.artifactItem span,
+.artifactItem small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.artifactItem strong {
+  margin-top: 6px;
+  color: var(--ink);
+}
+
+.artifactItem span,
+.artifactItem small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.artifactThumb {
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #eef2f6;
+}
+
+.artifactThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.artifactOpen {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -398,7 +469,8 @@ pre {
 
   .deliverySummary,
   .evidenceCards,
-  .evidenceDetails {
+  .evidenceDetails,
+  .artifactGrid {
     grid-template-columns: 1fr;
   }
 }

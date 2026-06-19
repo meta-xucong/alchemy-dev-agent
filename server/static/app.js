@@ -59,6 +59,7 @@ function renderDelivery(delivery) {
     .map(([label, value]) => `<div><strong>${label}</strong><span>${escapeHtml(String(value))}</span></div>`)
     .join("");
   renderEvidence(delivery.delivery_evidence || fallbackEvidence(delivery));
+  renderArtifactPreviews(delivery.artifact_manifest || {});
   show("deliveryOutput", delivery);
 }
 
@@ -130,6 +131,42 @@ function renderEvidenceDetails(evidence) {
       <h3>Next Actions</h3>
       <ul>${nextActions.length ? nextActions.map((item) => `<li><strong>Action</strong><span>${escapeHtml(String(item))}</span></li>`).join("") : "<li><strong>None</strong><span>No next action</span></li>"}</ul>
     </section>
+  `;
+}
+
+function renderArtifactPreviews(manifest) {
+  const items = Array.isArray(manifest.items) ? manifest.items : [];
+  const container = el("artifactPreviews");
+  if (!items.length) {
+    container.innerHTML = "";
+    return;
+  }
+  container.innerHTML = `
+    <h3>Evidence Artifacts</h3>
+    <div class="artifactGrid">
+      ${items.map(renderArtifactItem).join("")}
+    </div>
+  `;
+}
+
+function renderArtifactItem(item) {
+  const label = escapeHtml(String(item.label || item.kind || "Artifact"));
+  const path = escapeHtml(String(item.path || "-"));
+  const mediaType = escapeHtml(String(item.media_type || ""));
+  const url = escapeHtml(String(item.url || "#"));
+  const size = Number(item.size_bytes || 0);
+  const sizeText = size ? `${Math.ceil(size / 1024)} KB` : "-";
+  const preview = String(item.preview || "");
+  const body = preview === "image"
+    ? `<a class="artifactThumb" href="${url}" target="_blank" rel="noreferrer"><img src="${url}" alt="${label}"></a>`
+    : `<a class="artifactOpen" href="${url}" target="_blank" rel="noreferrer">Open preview</a>`;
+  return `
+    <article class="artifactItem">
+      ${body}
+      <strong>${label}</strong>
+      <span>${path}</span>
+      <small>${mediaType} · ${escapeHtml(sizeText)}</small>
+    </article>
   `;
 }
 
@@ -269,6 +306,7 @@ async function createProject() {
   el("deliverySummary").innerHTML = "";
   el("evidenceCards").innerHTML = "";
   el("evidenceDetails").innerHTML = "";
+  el("artifactPreviews").innerHTML = "";
   setSummary(result.project, {});
   setControls();
 }

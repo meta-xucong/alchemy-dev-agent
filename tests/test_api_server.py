@@ -110,6 +110,59 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(events["run_id"], "run_001")
         self.assertGreater(len(events["events"]), 0)
 
+    def test_project_service_exposes_artifact_manifest_and_content(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        (repo / ".github" / "workflows").mkdir(parents=True)
+        (repo / "index.html").write_text("<main>Playable artifact</main>\n", encoding="utf-8")
+        (repo / ".github" / "workflows" / "alchemy-static-checks.yml").write_text("name: checks\n", encoding="utf-8")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run = service.run_project(project_id, {})
+        run_dir = service.project_dir(project_id) / "runs" / str(run["run_id"])
+        screenshot = run_dir / "browser_initial.png"
+        test_draft = run_dir / "generated_tests" / "playwright" / "alchemy_acceptance.spec.ts"
+        test_draft.parent.mkdir(parents=True, exist_ok=True)
+        screenshot.write_bytes(b"\x89PNG\r\n\x1a\n")
+        test_draft.write_text("test('acceptance', async () => {});\n", encoding="utf-8")
+        run["artifact_report"] = {
+            "browser_verification": {"screenshots": {"initial": str(screenshot)}},
+            "native_ui_tests": {"status": "generated", "files": [str(test_draft)]},
+            "artifact_files": ["index.html"],
+        }
+        run["generated_ci"] = {
+            "status": "generated",
+            "workflow_path": ".github/workflows/alchemy-static-checks.yml",
+        }
+        run["runtime_state"]["repository"]["path"] = str(repo)
+        service._write_json(run_dir / "run.json", run)
+
+        manifest = service.get_run_artifacts(project_id, str(run["run_id"]))
+
+        self.assertEqual(len(manifest["items"]), 4)
+        self.assertEqual(
+            {item["kind"] for item in manifest["items"]},
+            {"screenshot", "native_ui_test", "artifact_file", "generated_ci"},
+        )
+        self.assertTrue(all("_absolute_path" not in item for item in manifest["items"]))
+        artifact_id = next(str(item["artifact_id"]) for item in manifest["items"] if item["kind"] == "artifact_file")
+        content = service.get_run_artifact_content(project_id, str(run["run_id"]), artifact_id)
+        self.assertEqual(content.data.decode("utf-8").strip(), "<main>Playable artifact</main>")
+        self.assertEqual(content.media_type, "text/plain; charset=utf-8")
+        delivery = service.get_delivery(project_id)
+        self.assertEqual(delivery["artifact_manifest"]["items"], manifest["items"])
+
     def test_project_service_records_local_repository_provider(self) -> None:
         root = temp_root()
         repo = root / "repo"
@@ -157,6 +210,11 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(run["status"], "done")
         self.assertEqual(run["workspace"]["status"], "skipped")
         self.assertEqual(run["workspace"]["enabled"], False)
+
+    def test_project_status_maps_in_progress_to_needs_iteration(self) -> None:
+        from server.project_service import project_status_for_run
+
+        self.assertEqual(project_status_for_run("in_progress"), "needs_iteration")
 
     def test_project_service_run_payload_records_github_ci_wait_contract(self) -> None:
         root = temp_root()
@@ -423,6 +481,53 @@ class ApiServerTests(unittest.TestCase):
             thread.join(timeout=10)
             server.server_close()
 
+    def test_http_api_serves_run_artifact_manifest_and_content(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        (repo / "index.html").write_text("<main>HTTP artifact</main>\n", encoding="utf-8")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            created = request_json(
+                conn,
+                "POST",
+                "/projects",
+                {
+                    "objective": "Add workspace support",
+                    "documents": [str(spec)],
+                    "repository_path": str(repo),
+                },
+                expected=201,
+            )
+            project_id = str(created["project"]["project_id"])
+            run = request_json(conn, "POST", f"/projects/{project_id}/runs", {}, expected=201)
+            run_id = str(run["run_id"])
+            run_dir = service.project_dir(project_id) / "runs" / run_id
+            stored = service.get_run(project_id, run_id)
+            stored["artifact_report"] = {"artifact_files": ["index.html"]}
+            stored["runtime_state"]["repository"]["path"] = str(repo)
+            service._write_json(run_dir / "run.json", stored)
+
+            manifest = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/artifacts", expected=200)
+            self.assertGreaterEqual(len(manifest["items"]), 1)
+            artifact_id = next(str(item["artifact_id"]) for item in manifest["items"] if item["kind"] == "artifact_file")
+            body = request_text(conn, "GET", f"/projects/{project_id}/runs/{run_id}/artifacts/{artifact_id}", expected=200)
+
+            self.assertIn("HTTP artifact", body)
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
     def test_http_api_reopens_with_feedback(self) -> None:
         root = temp_root()
         repo = root / "repo"
@@ -611,6 +716,7 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("deliverySummary", html)
             self.assertIn("evidenceCards", html)
             self.assertIn("evidenceDetails", html)
+            self.assertIn("artifactPreviews", html)
             self.assertIn("autoBrowserVerify", html)
             self.assertIn("generateStaticCi", html)
             self.assertIn("autoMerge", html)
@@ -626,12 +732,15 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("renderDelivery", js)
             self.assertIn("renderEvidence", js)
             self.assertIn("renderEvidenceDetails", js)
+            self.assertIn("renderArtifactPreviews", js)
+            self.assertIn("artifact_manifest", js)
             self.assertIn("reopenWithFeedback", js)
             self.assertIn("Repair Comparison", js)
             self.assertIn("recovery_comparison", js)
             self.assertIn("deliverySummary", css)
             self.assertIn("evidenceCards", css)
             self.assertIn("evidenceDetails", css)
+            self.assertIn("artifactPreviews", css)
         finally:
             conn.close()
             server.shutdown()

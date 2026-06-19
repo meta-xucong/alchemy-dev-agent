@@ -559,6 +559,23 @@ DONE requires:
 - Surface comparison evidence in `delivery_evidence` and the browser console as a `Repair Comparison` card and detail section. Status: implemented.
 - Keep execution, evaluator, task graph, and worker behavior unchanged. Status: implemented.
 
+### V2.33: Artifact File Previews
+
+- Build a safe `artifact_manifest` from persisted run evidence only. Status: implemented.
+- Serve run artifact content through `/projects/{project_id}/runs/{run_id}/artifacts/{artifact_id}` without accepting arbitrary paths. Status: implemented.
+- Include screenshots, generated native UI test drafts, static artifact files, and generated CI workflows when those files exist. Status: implemented.
+- Render artifact previews and openable evidence links in the browser console Delivery panel. Status: implemented.
+- Keep execution, evaluator, task graph, and worker behavior unchanged. Status: implemented.
+
+### V2.34: Delivery Readiness Gate
+
+- Treat partial must-requirement coverage as an evaluator hard failure. Status: implemented.
+- Treat failed static/browser/semantic/scenario/gameplay artifact probes as evaluator hard failures. Status: implemented.
+- Persist artifact evidence into runtime state before final gate re-evaluation. Status: implemented.
+- Derive delivery `ready_for_review` from final gate, blockers, coverage, artifact probes, and CI evidence. Status: implemented.
+- Surface `readiness_issues` and next actions when a run needs another iteration. Status: implemented.
+- Map API run status `in_progress` to terminal job/project status `needs_iteration` so the browser console stops polling and shows delivery evidence. Status: implemented.
+
 ## Risks And Mitigations
 
 | Risk | Impact | Mitigation |

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from autodev import DocumentRunPipeline
+from autodev.artifact_manifest import ArtifactContent, build_artifact_manifest, resolve_artifact_content
 from autodev.delivery_evidence import build_delivery_evidence
 from autodev.real_env_check import RealEnvironmentCheck
 from autodev.recovery_comparison import build_recovery_comparison
@@ -392,6 +393,32 @@ class ProjectService:
             raise ApiError(404, "run_not_found", f"Run not found: {run_id}")
         return self._read_json(path)
 
+    def get_run_artifacts(self, project_id: str, run_id: str) -> dict[str, object]:
+        record = self.load_project(project_id)
+        run = self.get_run(project_id, run_id)
+        return build_artifact_manifest(
+            project_id=project_id,
+            run_id=run_id,
+            run=run,
+            project_dir=self.project_dir(project_id),
+            repository_path=record.repository_path or None,
+        )
+
+    def get_run_artifact_content(self, project_id: str, run_id: str, artifact_id: str) -> ArtifactContent:
+        record = self.load_project(project_id)
+        run = self.get_run(project_id, run_id)
+        content = resolve_artifact_content(
+            project_id=project_id,
+            run_id=run_id,
+            artifact_id=artifact_id,
+            run=run,
+            project_dir=self.project_dir(project_id),
+            repository_path=record.repository_path or None,
+        )
+        if content is None:
+            raise ApiError(404, "artifact_not_found", f"Artifact not found: {artifact_id}")
+        return content
+
     def get_run_events(self, project_id: str, run_id: str) -> dict[str, object]:
         stored_events = self.job_store(project_id).events(run_id)
         run_path = self.project_dir(project_id) / "runs" / run_id / "run.json"
@@ -518,6 +545,13 @@ class ProjectService:
         generated_ci = run.get("generated_ci", {})
         development_cycle = run.get("development_cycle", {})
         recovery_comparison = self._recovery_comparison_for_run(project_id, run)
+        artifact_manifest = build_artifact_manifest(
+            project_id=project_id,
+            run_id=latest,
+            run=run,
+            project_dir=self.project_dir(project_id),
+            repository_path=self.load_project(project_id).repository_path or None,
+        )
         delivery_evidence = build_delivery_evidence(
             status=str(run.get("status", "")),
             delivery_report=delivery_report if isinstance(delivery_report, dict) else {},
@@ -538,6 +572,7 @@ class ProjectService:
             "generated_ci": generated_ci,
             "delivery_report": delivery_report,
             "delivery_evidence": delivery_evidence,
+            "artifact_manifest": artifact_manifest,
             "development_cycle": development_cycle,
             "recovery_comparison": recovery_comparison,
             "output_dir": run.get("output_dir", ""),
@@ -757,6 +792,10 @@ def project_status_for_run(run_status: str) -> str:
         return "done"
     if run_status == "blocked":
         return "blocked"
+    if run_status == "in_progress":
+        return "needs_iteration"
+    if run_status == "failed":
+        return "failed"
     return "running"
 
 

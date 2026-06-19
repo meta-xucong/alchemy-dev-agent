@@ -852,6 +852,65 @@ class EvaluatorTests(unittest.TestCase):
         self.assertIn("REQ-001", " ".join(result.hard_failures))
         self.assertLess(result.spec_alignment, 1.0)
 
+    def test_evaluator_blocks_partial_must_requirement_coverage(self) -> None:
+        engine = TaskGraphEngine()
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective", engine)
+
+        for node in state.task_graph.nodes:
+            engine.mark_completed(
+                state.task_graph,
+                node.id,
+                {
+                    "type": "worker_result",
+                    "summary": "done",
+                    "result": {"status": "completed", "tests_failed": []},
+                },
+            )
+        state.github = {"commit": "abc123", "pull_request_url": "https://example.test/pr/1"}
+        state.repository["requirement_coverage"] = {
+            "coverage_score": 0.85,
+            "missing_must_requirement_ids": [],
+            "partial_must_requirement_ids": ["REQ-002"],
+        }
+
+        result = Evaluator().evaluate(state)
+
+        self.assertFalse(result.done)
+        self.assertIn("REQ-002", " ".join(result.hard_failures))
+
+    def test_evaluator_blocks_failed_artifact_probe(self) -> None:
+        engine = TaskGraphEngine()
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective", engine)
+
+        for node in state.task_graph.nodes:
+            engine.mark_completed(
+                state.task_graph,
+                node.id,
+                {
+                    "type": "worker_result",
+                    "summary": "done",
+                    "result": {"status": "completed", "tests_failed": []},
+                },
+            )
+        state.github = {"commit": "abc123", "pull_request_url": "https://example.test/pr/1"}
+        state.repository["artifact_report"] = {
+            "artifact_profile": {"name": "static_web_app"},
+            "browser_verification": {
+                "status": "failed",
+                "scenario_probe": {"status": "failed"},
+            },
+        }
+
+        result = Evaluator().evaluate(state)
+
+        self.assertFalse(result.done)
+        self.assertIn("Browser artifact verification failed.", result.hard_failures)
+        self.assertIn("Acceptance scenario browser probe failed.", result.hard_failures)
+
 
 class OrchestratorTests(unittest.TestCase):
     @classmethod
