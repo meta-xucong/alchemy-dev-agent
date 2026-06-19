@@ -432,3 +432,8 @@ PY"`
 - Re-audited the previous V2.24 generated game under the new gate; V2.25 correctly rejects it because it lacks semantic gameplay evidence.
 - Fixed a related acceptance issue where non-web Node projects were incorrectly marked partial by static web artifact checks; non-web profiles now skip the web-specific verifier.
 - Verified focused tests, full suite, browser gameplay probe, acceptance harness, JSON specs, diff hygiene, and long-running state validation.
+
+## 2026-06-19 V2.25 Remote CI Closure
+
+- Pushed commit `e5e653d` to `master`.
+- GitHub Actions CI run `27822953044` completed successfully for `Add semantic gameplay verification gate`.
