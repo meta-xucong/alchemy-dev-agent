@@ -21,6 +21,7 @@ def build_delivery_report(
     browser = artifact_report.get("browser_verification", {})
     static = artifact_report.get("static_verification", {})
     profile = artifact_report.get("artifact_profile", {})
+    gameplay_probe = browser.get("gameplay_probe", {}) if isinstance(browser, dict) else {}
     coverage_entries = requirement_coverage.get("entries", [])
     report = {
         "status": status,
@@ -44,6 +45,8 @@ def build_delivery_report(
             "profile": profile.get("name", "unknown"),
             "static_status": static.get("status", ""),
             "browser_status": browser.get("status", ""),
+            "gameplay_status": gameplay_probe.get("status", "") if isinstance(gameplay_probe, dict) else "",
+            "gameplay_probe": dict(gameplay_probe) if isinstance(gameplay_probe, dict) else {},
             "screenshots": browser.get("screenshots", {}),
             "pixel_diff": browser.get("pixel_diff", {}),
             "artifact_files": list(artifact_report.get("artifact_files", [])),

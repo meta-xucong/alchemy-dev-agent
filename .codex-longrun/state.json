@@ -1,6 +1,6 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.24 development-cycle brain and one-click external delivery rerun",
+  "current_phase": "V2.25 playability feedback loop and semantic gameplay gate",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -35,12 +35,13 @@
     "V2.24.1 development-cycle brain contract",
     "V2.24.2 explicit auto-merge contract and GitHub merge-state hardening",
     "V2.24.3 browser automation readiness preflight and screenshot path fix",
-    "V2.24.4 fresh external docs-only repository rerun with generated CI, browser evidence, PR merge"
+    "V2.24.4 fresh external docs-only repository rerun with generated CI, browser evidence, PR merge",
+    "V2.25 playability feedback loop and semantic gameplay gate"
   ],
   "next_actions": [
-    "Install or verify Playwright browser binaries in any new execution environment before enabling --auto-browser-verify.",
-    "Polish the browser console with an interactive development_cycle checklist, task graph preview, and requirement coverage preview.",
-    "Reduce the remaining internal debug/retry frequency for docs-only canvas game tasks by strengthening preflight artifact instructions and worker self-check prompts."
+    "Generalize semantic browser probes beyond canvas games to CRUD apps, dashboards, forms, and API-backed workflows.",
+    "Add structured user-feedback intake that converts manual bug reports into requirement deltas, debug tasks, and acceptance probes.",
+    "Polish browser-console evidence views for development_cycle steps, gameplay probe snapshots, and failed interaction traces."
   ],
   "tests_run": [
     {
@@ -462,6 +463,51 @@
       "command": "GitHub Actions CI run 27819574114 on master a02ee8f",
       "result": "passed",
       "summary": "Remote CI completed successfully after editable package discovery and dependency fixes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime tests.test_document_run_pipeline",
+      "result": "passed",
+      "summary": "77 focused tests passed after adding gameplay probe evidence to browser artifact verification and delivery reports."
+    },
+    {
+      "command": "StaticWebArtifactVerifier against RetroPlatformerGenerator output",
+      "result": "passed",
+      "summary": "Generated demo game now exposes __ALCHEMY_GAME_TEST__ and passes static canvas-game hook checks."
+    },
+    {
+      "command": "BrowserArtifactRunner Playwright probe against RetroPlatformerGenerator output",
+      "result": "passed",
+      "summary": "Real browser probe completed: movement, jump, victory, restart, nonblank screenshot, pixel diff, and console checks passed."
+    },
+    {
+      "command": "V2.25 artifact gate audit against prior V2.24 generated external game worktree",
+      "result": "expected_failed_gate",
+      "summary": "New V2.25 gate correctly rejects the previous rendered game because it lacks the gameplay hook and semantic gameplay evidence."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_25_fix",
+      "result": "passed",
+      "summary": "Acceptance harness passed; development_cycle score returned to 1.0 after non-web profiles skip static web artifact inspection."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "150 tests passed after V2.25 gameplay gate and static-web profile-skip fixes."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"",
+      "result": "passed",
+      "summary": "All JSON specs parse after V2.25 changes."
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "summary": "No whitespace errors reported after V2.25 changes."
+    },
+    {
+      "command": "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
+      "result": "passed",
+      "summary": "Long-running state schema validated after V2.25 changes."
     }
   ],
   "known_bugs": [
@@ -494,6 +540,16 @@
       "id": "PYPROJECT_FLAT_LAYOUT_PACKAGE_DISCOVERY",
       "status": "fixed",
       "summary": "Editable install failed in CI because setuptools detected multiple top-level packages in flat layout; pyproject now declares explicit package discovery include patterns."
+    },
+    {
+      "id": "CANVAS_GAME_SMOKE_VERIFICATION_ONLY",
+      "status": "fixed",
+      "summary": "Manual testing showed rendered canvas games can still contain gameplay bugs; fixed by requiring __ALCHEMY_GAME_TEST__ and browser gameplay probes for movement, jump, victory, and restart."
+    },
+    {
+      "id": "STATIC_WEB_VERIFIER_MISAPPLIED_TO_NODE_PROJECTS",
+      "status": "fixed",
+      "summary": "Acceptance harness exposed that non-web Node projects were being marked partial by static web artifact checks; fixed by skipping static web verification for node/python/docs profiles."
     }
   ],
   "blockers": [],
@@ -504,9 +560,12 @@
     "Generated static GitHub Actions CI passed on the external test PR.",
     "Automatic browser artifact verification passed with screenshots, nonblank check, pixel diff, and no console errors.",
     "External test PR was merged, and merge evidence is represented in delivery_report and development_cycle.",
-    "Full repository unit test suite, JSON spec parsing, diff hygiene, and long-running state validation pass."
+    "Full repository unit test suite, JSON spec parsing, diff hygiene, and long-running state validation pass.",
+    "Canvas-game artifacts expose a deterministic gameplay hook and fail delivery when semantic gameplay evidence is missing or failed.",
+    "Gameplay probe status is surfaced in artifact_report, delivery_report, requirement_coverage, development_cycle, and the browser console summary.",
+    "Non-web project profiles skip static web artifact verification instead of producing false partial development-cycle results."
   ],
-  "last_verified_at": "2026-06-19T17:48:00+08:00",
+  "last_verified_at": "2026-06-19T19:25:23+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T17:48:00+08:00"
+  "updated_at": "2026-06-19T19:25:23+08:00"
 }

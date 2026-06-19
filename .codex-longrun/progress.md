@@ -419,3 +419,16 @@ PY"`
 
 - Pushed follow-up commit `a02ee8f` to master.
 - GitHub Actions CI run https://github.com/meta-xucong/alchemy-dev-agent/actions/runs/27819574114 completed successfully.
+
+## 2026-06-19 V2.25 Playability Feedback Loop
+
+- Converted the user's manual feedback that the generated game still had bugs into a semantic canvas-game acceptance contract.
+- Added `docs/32_v2_25_playability_feedback_loop.md` and linked it from README and the V2 development plan.
+- Required generated canvas games to expose `window.__ALCHEMY_GAME_TEST__` with `snapshot()`, `step(dt)`, `advanceToVictory()`, and `restart()`.
+- Added browser gameplay probing for numeric player position, right movement, jump behavior, victory reachability, and restart state.
+- Surfaced gameplay probe evidence in artifact reports, delivery reports, requirement coverage, development-cycle testing, and the browser console delivery summary.
+- Hardened generated static CI fallback and Codex worker prompts so new generated canvas games include the hook.
+- Updated the built-in retro platformer generator to expose the same deterministic gameplay hook.
+- Re-audited the previous V2.24 generated game under the new gate; V2.25 correctly rejects it because it lacks semantic gameplay evidence.
+- Fixed a related acceptance issue where non-web Node projects were incorrectly marked partial by static web artifact checks; non-web profiles now skip the web-specific verifier.
+- Verified focused tests, full suite, browser gameplay probe, acceptance harness, JSON specs, diff hygiene, and long-running state validation.

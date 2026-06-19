@@ -344,6 +344,12 @@ class DocumentRunPipelineTests(unittest.TestCase):
                 function physics() {}
                 function collision() {}
                 document.addEventListener("keydown", () => {});
+                window.__ALCHEMY_GAME_TEST__ = {
+                  snapshot() { return { player_x: 0, player_y: 0, state: "playing", won: false }; },
+                  step(dt) {},
+                  advanceToVictory() { return { won: true }; },
+                  restart() {}
+                };
                 requestAnimationFrame(function frame(){ requestAnimationFrame(frame); });
                 </script>
                 """,
@@ -359,7 +365,14 @@ class DocumentRunPipelineTests(unittest.TestCase):
                 changed = Image.new("RGB", (8, 8), "white")
                 changed.putpixel((2, 2), (0, 0, 0))
                 changed.save(second)
-                return {"status": "completed"}
+                return {
+                    "status": "completed",
+                    "gameplay_probe": {
+                        "status": "completed",
+                        "tests_passed": ["Right movement changes player_x.", "Jump input changes player_y."],
+                        "tests_failed": [],
+                    },
+                }
 
             report = build_artifact_report(
                 repository_path=repo,
@@ -379,6 +392,7 @@ class DocumentRunPipelineTests(unittest.TestCase):
         browser = report["browser_verification"]
         self.assertEqual(browser["status"], "completed")
         self.assertGreater(browser["pixel_diff"]["changed_pixels"], 0)
+        self.assertEqual(browser["gameplay_probe"]["status"], "completed")
         self.assertEqual(report["artifact_profile"]["name"], "canvas_game")
 
     def test_generated_ci_report_writes_static_web_workflow_for_real_github(self) -> None:
@@ -447,6 +461,44 @@ class DocumentRunPipelineTests(unittest.TestCase):
         statuses = {step["name"]: step["status"] for step in report["steps"]}
         self.assertEqual(statuses["merge"], "passed")
 
+    def test_development_cycle_requires_gameplay_probe_for_canvas_games(self) -> None:
+        report = build_development_cycle_report(
+            project_brief={"documents": [{"path": "spec.md"}]},
+            context_bundle={
+                "document_index": {"documents": [{"path": "spec.md"}]},
+                "requirement_map": {"requirements": [{"id": "REQ-001", "planned_task_ids": ["T002"]}]},
+            },
+            task_graph={
+                "nodes": [
+                    {"id": "T001", "type": "architecture"},
+                    {"id": "T003", "type": "test"},
+                    {"id": "T004", "type": "review"},
+                ]
+            },
+            runtime_state={
+                "completed_tasks": ["T001", "T002", "T003", "T004"],
+                "iteration_history": [{"type": "evaluation"}],
+                "evaluation": {"done": True, "test_pass_rate": 1.0},
+                "github": {"status": "pushed", "pull_request_url": "https://example.test/pr/2", "ci_status": "passed"},
+                "task_graph": {"nodes": [{"id": "T004", "type": "review", "status": "completed"}]},
+            },
+            artifact_report={
+                "artifact_profile": {"name": "canvas_game"},
+                "static_verification": {"status": "passed"},
+                "browser_verification": {
+                    "status": "completed",
+                    "gameplay_probe": {"status": "failed"},
+                },
+            },
+            requirement_coverage={"status": "passed"},
+            delivery_report={"status": "done", "ready_for_review": True, "github": {"ci_status": "passed"}},
+        )
+
+        statuses = {step["name"]: step["status"] for step in report["steps"]}
+        gaps = {step["name"]: step["gaps"] for step in report["steps"]}
+        self.assertEqual(statuses["testing"], "missing")
+        self.assertIn("Canvas gameplay probe did not complete.", gaps["testing"])
+
     def test_development_cycle_accepts_completed_static_artifact_status(self) -> None:
         report = build_development_cycle_report(
             project_brief={"documents": [{"path": "spec.md"}]},
@@ -484,6 +536,28 @@ class DocumentRunPipelineTests(unittest.TestCase):
         )
 
         self.assertNotIn("Wait for generated GitHub Actions checks to pass on the PR.", report["next_actions"])
+
+    def test_delivery_report_summarizes_gameplay_probe_status(self) -> None:
+        report = build_delivery_report(
+            status="done",
+            runtime_state={
+                "evaluation": {"done": True, "reason": "DONE condition met.", "final_gate_score": 0.9},
+                "github": {"ci_status": "passed"},
+                "blockers": [],
+            },
+            artifact_report={
+                "artifact_profile": {"name": "canvas_game"},
+                "browser_verification": {
+                    "status": "completed",
+                    "gameplay_probe": {"status": "completed", "tests_passed": ["Victory path can be reached."]},
+                },
+            },
+            requirement_coverage={"status": "passed", "entries": []},
+            generated_ci={"status": "generated"},
+        )
+
+        self.assertEqual(report["artifact"]["gameplay_status"], "completed")
+        self.assertEqual(report["artifact"]["gameplay_probe"]["tests_passed"], ["Victory path can be reached."])
 
     def test_assign_release_branch_binds_real_worktree_branch_to_release_task(self) -> None:
         state = RuntimeState(

@@ -93,6 +93,6 @@ jobs:
           if [ -f tests/static_checks.js ]; then
             node tests/static_checks.js
           else
-            node -e "const fs=require('fs'); if(!fs.existsSync('index.html')) { throw new Error('index.html missing'); } const html=fs.readFileSync('index.html','utf8'); if(!/<canvas|<main|id=['\\\"]app['\\\"]/.test(html)) { throw new Error('No browser artifact root detected'); }"
+            node -e "const fs=require('fs'); if(!fs.existsSync('index.html')) { throw new Error('index.html missing'); } const files=['index.html']; if(fs.existsSync('src')) { for (const f of fs.readdirSync('src')) files.push('src/'+f); } const text=files.filter(f=>fs.existsSync(f)).map(f=>fs.readFileSync(f,'utf8')).join('\\n'); if(!/<canvas|<main|id=['\\\"]app['\\\"]/.test(text)) { throw new Error('No browser artifact root detected'); } if(/canvas|game|player|level/i.test(text) && !text.includes('__ALCHEMY_GAME_TEST__')) { throw new Error('Canvas game missing __ALCHEMY_GAME_TEST__ hook'); }"
           fi
 """

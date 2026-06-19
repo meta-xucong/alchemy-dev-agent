@@ -96,6 +96,8 @@ docs/
                               V2.23 optimization plan from proof to product-grade delivery.
   31_v2_24_development_cycle_brain.md
                               V2.24 machine-checkable long-running development-cycle contract.
+  32_v2_25_playability_feedback_loop.md
+                              V2.25 semantic gameplay probe and feedback-loop gate.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -682,6 +684,9 @@ Current V2.23 implementation status:
 - Automatic browser verification starts a local static server, captures initial
   and post-interaction screenshots, computes pixel diff, and fails on console
   errors or blank/static canvas-game evidence.
+- Canvas-game browser verification now also requires a deterministic
+  `window.__ALCHEMY_GAME_TEST__` hook and a semantic gameplay probe for
+  movement, jump, victory, and restart behavior.
 - Real Codex worker runs now persist worker lifecycle records with task id, PID,
   timeout, process-group, termination, and cleanup evidence under the run's
   worker evidence directory.
@@ -693,14 +698,18 @@ Current V2.23 implementation status:
   workflow is included in the branch/PR instead of only appearing in the final
   report.
 - `delivery_report` summarizes final gate status, PR/branch/commit/CI,
-  artifact evidence, requirement coverage, generated CI, blockers, worker
-  lifecycle evidence, workspace, preflight, and next actions.
+  artifact evidence, gameplay probe status, requirement coverage, generated CI,
+  blockers, worker lifecycle evidence, workspace, preflight, and next actions.
 - `development_cycle` now maps the manual engineering loop into machine
   evidence: long task state, document reading, central-brain refinement, phase
   planning, execution, audit, testing, iteration, full review, simulated
   acceptance, real delivery, and merge/waiver.
 - Real GitHub delivery supports explicit `--auto-merge`; it remains off by
   default and only attempts merge after passing CI.
+
+See also `docs/32_v2_25_playability_feedback_loop.md` for the semantic
+playability gate added after manual testing found that a rendered game can still
+contain product-level bugs.
 
 Run a smoke execution:
 
@@ -751,6 +760,8 @@ This repository does not yet implement:
 - Proven real external rerun that combines generated static CI, automatic
   browser verification, and terminal GitHub check collection in one PR.
 - Browser-console visualization for every development-cycle checklist step.
+- General semantic probes for every app category beyond the current canvas-game
+  gameplay hook.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.

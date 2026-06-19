@@ -61,6 +61,8 @@ class AutoDevPipelineTests(unittest.TestCase):
             html = index_path.read_text(encoding="utf-8").lower()
             self.assertIn("<canvas", html)
             self.assertIn("stage clear", html)
+            self.assertIn("__alchemy_game_test__", html)
+            self.assertIn("advancetovictory", html)
             self.assertNotIn("mario", html)
             self.assertNotIn("nintendo", html)
 

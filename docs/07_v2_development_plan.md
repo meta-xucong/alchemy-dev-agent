@@ -489,6 +489,14 @@ DONE requires:
 - Add explicit auto-merge support for trusted real GitHub runs after passing CI. Status: implemented and off by default.
 - Run a new external docs-only repository test to compare against the earlier `meta-xucong/-super-mario-test` run. Status: pending.
 
+### V2.25: Playability Feedback Loop
+
+- Convert manual game-play feedback into a semantic browser probe for generated canvas games. Status: implemented for movement, jump, victory, restart, and missing-hook failure.
+- Require generated canvas games to expose `window.__ALCHEMY_GAME_TEST__` with `snapshot()`, `step(dt)`, `advanceToVictory()`, and `restart()`. Status: implemented in worker prompt, static artifact verifier, and generated static CI fallback.
+- Surface gameplay probe evidence in `artifact_report`, `delivery_report`, `requirement_coverage`, `development_cycle`, and the browser console delivery summary. Status: implemented.
+- Treat canvas-game delivery as incomplete when gameplay probe evidence is missing or failed. Status: implemented in browser verification and development-cycle testing.
+- Generalize semantic probes to non-game apps and turn structured user feedback into requirement deltas/debug tasks. Status: planned.
+
 ## Risks And Mitigations
 
 | Risk | Impact | Mitigation |

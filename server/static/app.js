@@ -50,6 +50,7 @@ function renderDelivery(delivery) {
     ["CI", github.ci_status || "-"],
     ["Merge", merge.status || "-"],
     ["Artifact", artifact.profile || "-"],
+    ["Gameplay", artifact.gameplay_status || artifact.gameplay_probe?.status || "-"],
     ["Coverage", requirements.coverage_score ?? "-"],
   ];
   el("deliverySummary").innerHTML = parts

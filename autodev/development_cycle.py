@@ -143,16 +143,33 @@ def _step_audit(runtime_state: dict[str, Any], requirement_coverage: dict[str, A
 
 def _step_testing(runtime_state: dict[str, Any], artifact_report: dict[str, Any], delivery_report: dict[str, Any]) -> CycleStep:
     evaluation = runtime_state.get("evaluation", runtime_state.get("evaluation_result", {}))
+    profile_name = str(artifact_report.get("artifact_profile", {}).get("name", ""))
     static_status = artifact_report.get("static_verification", {}).get("status", "")
+    browser = artifact_report.get("browser_verification", {})
+    browser_status = browser.get("status", "") if isinstance(browser, dict) else ""
+    gameplay_probe = browser.get("gameplay_probe", {}) if isinstance(browser, dict) else {}
+    gameplay_status = gameplay_probe.get("status", "") if isinstance(gameplay_probe, dict) else ""
     ci_status = delivery_report.get("github", {}).get("ci_status", runtime_state.get("github", {}).get("ci_status", ""))
-    passed = evaluation.get("test_pass_rate", 0) and static_status in {"passed", "completed", "skipped", ""}
+    artifact_ok = static_status in {"passed", "completed", "skipped", ""}
+    browser_ok = browser_status in {"completed", "passed", "skipped", ""}
+    gameplay_ok = profile_name != "canvas_game" or gameplay_status == "completed"
+    passed = evaluation.get("test_pass_rate", 0) and artifact_ok and browser_ok and gameplay_ok
     if passed and ci_status in {"passed", "waived", ""}:
-        return CycleStep("testing", "passed", [f"test_pass_rate={evaluation.get('test_pass_rate')}", f"ci_status={ci_status or 'n/a'}"])
+        evidence = [f"test_pass_rate={evaluation.get('test_pass_rate')}", f"ci_status={ci_status or 'n/a'}"]
+        if browser_status:
+            evidence.append(f"browser_status={browser_status}")
+        if gameplay_status:
+            evidence.append(f"gameplay_status={gameplay_status}")
+        return CycleStep("testing", "passed", evidence)
     gaps: list[str] = []
     if not evaluation.get("test_pass_rate", 0):
         gaps.append("Evaluator test health is zero or missing.")
     if static_status == "failed":
         gaps.append("Static artifact verification failed.")
+    if browser_status == "failed":
+        gaps.append("Browser artifact verification failed.")
+    if profile_name == "canvas_game" and gameplay_status != "completed":
+        gaps.append("Canvas gameplay probe did not complete.")
     if ci_status in {"failed", "pending", "unknown"}:
         gaps.append(f"GitHub CI status is {ci_status}.")
     return CycleStep("testing", "missing", gaps=gaps)

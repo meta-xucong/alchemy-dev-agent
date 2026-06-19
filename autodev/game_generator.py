@@ -170,6 +170,26 @@ def game_html(title: str) -> str:
     }});
   }}
 
+  function snapshot() {{
+    return {{
+      player_x: player.x,
+      player_y: player.y,
+      state: won ? "won" : lost ? "lost" : "playing",
+      won
+    }};
+  }}
+
+  function advanceToVictory() {{
+    player.x = level.finishX + 4;
+    player.y = level.startY;
+    player.vx = 0;
+    player.vy = 0;
+    won = true;
+    lost = false;
+    draw();
+    return snapshot();
+  }}
+
   function update(dt) {{
     if (won || lost) return;
 
@@ -357,6 +377,13 @@ def game_html(title: str) -> str:
     draw();
     requestAnimationFrame(frame);
   }}
+
+  window.__ALCHEMY_GAME_TEST__ = {{
+    snapshot,
+    step(dt) {{ update(Math.max(0, Number(dt) || 0) * 1000); draw(); }},
+    advanceToVictory,
+    restart() {{ restart(); draw(); }}
+  }};
 
   requestAnimationFrame(frame);
   </script>

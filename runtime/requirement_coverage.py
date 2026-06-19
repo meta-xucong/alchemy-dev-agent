@@ -178,6 +178,9 @@ def _verification_evidence(nodes: dict[str, dict[str, Any]], task_ids: list[str]
     browser_status = artifact_report.get("browser_verification", {}).get("status")
     if browser_status:
         evidence.append(f"Browser artifact verification: {browser_status}.")
+    gameplay_status = artifact_report.get("browser_verification", {}).get("gameplay_probe", {}).get("status")
+    if gameplay_status:
+        evidence.append(f"Gameplay probe: {gameplay_status}.")
     return _dedupe(evidence)
 
 

@@ -1063,3 +1063,50 @@
 - Result: passed.
 - Summary: Remote CI completed successfully after editable package discovery and dependency fixes.
 - Next verification command: final clean worktree check.
+
+## 2026-06-19 V2.25 Playability Feedback Loop
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime tests.test_document_run_pipeline`
+- Result: passed after fixes.
+- Summary: Initial failures caught empty gameplay evidence and missing hook fixture issues. After fixes, 77 focused tests passed.
+- Next verification command: generator static/browser probes.
+
+- Command: `StaticWebArtifactVerifier` against `RetroPlatformerGenerator` output.
+- Result: passed.
+- Summary: Generated demo game includes `__ALCHEMY_GAME_TEST__`, `snapshot()`, `advanceToVictory()`, and `restart()` and passes static canvas-game inspection.
+- Next verification command: browser gameplay probe.
+
+- Command: `BrowserArtifactRunner` Playwright probe against `RetroPlatformerGenerator` output.
+- Result: passed.
+- Summary: Real browser probe passed movement, jump, victory, restart, nonblank screenshot, pixel diff, and console checks.
+- Next verification command: previous generated game gate audit.
+
+- Command: `build_artifact_report(... auto_browser_verify=True ...)` against the previous V2.24 generated external game worktree.
+- Result: expected failed gate.
+- Summary: New V2.25 gate correctly rejects the previous rendered game because it lacks `window.__ALCHEMY_GAME_TEST__` and semantic gameplay evidence.
+- Next verification command: acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_25_fix`
+- Result: passed.
+- Summary: Acceptance harness passed and development_cycle score is 1.0 after non-web project profiles skip static web artifact checks.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 150 tests passed after V2.25 gameplay gate and profile-skip changes.
+- Next verification command: JSON specs, diff hygiene, and long-running state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`
+- Result: passed.
+- Summary: All JSON specs parse.
+- Next verification command: `git diff --check`.
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported.
+- Next verification command: state validation.
+
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed.
+- Summary: Long-running state schema validated.
+- Next verification command: commit, push, and remote CI.

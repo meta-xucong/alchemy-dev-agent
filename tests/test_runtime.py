@@ -1092,6 +1092,12 @@ class OrchestratorTests(unittest.TestCase):
                 function physics() {}
                 function collision() {}
                 addEventListener("keydown", event => console.log(event.code));
+                window.__ALCHEMY_GAME_TEST__ = {
+                  snapshot() { return { player_x: 0, player_y: 0, state: "playing", won: false }; },
+                  step(dt) {},
+                  advanceToVictory() { return { won: true }; },
+                  restart() {}
+                };
                 function frame() { requestAnimationFrame(frame); }
                 frame();
                 </script>
@@ -1104,6 +1110,40 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertIn("static artifact inspection", result.tests_passed)
         self.assertEqual(result.profile["name"], "canvas_game")
+
+    def test_static_artifact_verifier_rejects_canvas_game_without_gameplay_probe_hook(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text(
+                """
+                <!doctype html>
+                <canvas id="game"></canvas>
+                <script>
+                const level = { tiles: [], player: {}, enemy: {}, coin: {}, flag: {} };
+                function physics() {}
+                function collision() {}
+                document.addEventListener("keydown", () => {});
+                requestAnimationFrame(function frame(){ requestAnimationFrame(frame); });
+                </script>
+                """,
+                encoding="utf-8",
+            )
+
+            result = StaticWebArtifactVerifier().verify(repo, ["index.html"])
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("__ALCHEMY_GAME_TEST__", "\n".join(result.tests_failed))
+
+    def test_static_artifact_verifier_skips_non_web_project_profiles(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "package.json").write_text('{"scripts":{"test":"node test.js"}}\n', encoding="utf-8")
+
+            result = StaticWebArtifactVerifier().verify(repo, ["index.html"])
+
+        self.assertEqual(result.status, "skipped")
+        self.assertEqual(result.profile["name"], "node_project")
+        self.assertFalse(result.tests_failed)
 
     def test_artifact_profile_detector_classifies_common_projects(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -1162,7 +1202,15 @@ class OrchestratorTests(unittest.TestCase):
                 image = Image.new("RGB", (8, 8), "white")
                 image.putpixel((3, 3), (0, 0, 0))
                 image.save(second)
-                return {"status": "completed", "evidence": ["fake browser completed"]}
+                return {
+                    "status": "completed",
+                    "evidence": ["fake browser completed"],
+                    "gameplay_probe": {
+                        "status": "completed",
+                        "tests_passed": ["Right movement changes player_x.", "Jump input changes player_y."],
+                        "tests_failed": [],
+                    },
+                }
 
             result = BrowserArtifactRunner(fake_browser).verify(
                 repo,
@@ -1174,6 +1222,7 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertGreater(result.pixel_diff["changed_pixels"], 0)
         self.assertIn("fake browser completed", result.evidence)
+        self.assertEqual(result.gameplay_probe["status"], "completed")
 
     def test_browser_artifact_runner_resolves_relative_output_dir_before_verification(self) -> None:
         from PIL import Image
@@ -1196,7 +1245,14 @@ class OrchestratorTests(unittest.TestCase):
                 image = Image.new("RGB", (8, 8), "white")
                 image.putpixel((3, 3), (0, 0, 0))
                 image.save(second)
-                return {"status": "completed"}
+                return {
+                    "status": "completed",
+                    "gameplay_probe": {
+                        "status": "completed",
+                        "tests_passed": ["Right movement changes player_x.", "Jump input changes player_y."],
+                        "tests_failed": [],
+                    },
+                }
 
             old_cwd = Path.cwd()
             try:
@@ -1215,6 +1271,62 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertTrue(seen_initial_paths)
         self.assertGreater(result.pixel_diff["changed_pixels"], 0)
+
+    def test_browser_artifact_runner_requires_gameplay_probe_for_canvas_games(self) -> None:
+        from PIL import Image
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text("<!doctype html><canvas id='game'></canvas>", encoding="utf-8")
+
+            def fake_browser(request: dict[str, object]) -> dict[str, object]:
+                first = Path(str(request["initial_screenshot"]))
+                second = Path(str(request["after_interaction_screenshot"]))
+                initial = Image.new("RGB", (8, 8), "white")
+                initial.putpixel((1, 1), (20, 20, 20))
+                initial.save(first)
+                image = Image.new("RGB", (8, 8), "white")
+                image.putpixel((3, 3), (0, 0, 0))
+                image.save(second)
+                return {"status": "completed"}
+
+            result = BrowserArtifactRunner(fake_browser).verify(
+                repo,
+                ["index.html"],
+                output_dir=repo / "evidence",
+                profile_name="canvas_game",
+            )
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("gameplay probe", "\n".join(result.tests_failed))
+
+    def test_browser_artifact_runner_fails_when_gameplay_probe_status_failed(self) -> None:
+        from PIL import Image
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text("<!doctype html><canvas id='game'></canvas>", encoding="utf-8")
+
+            def fake_browser(request: dict[str, object]) -> dict[str, object]:
+                first = Path(str(request["initial_screenshot"]))
+                second = Path(str(request["after_interaction_screenshot"]))
+                initial = Image.new("RGB", (8, 8), "white")
+                initial.putpixel((1, 1), (20, 20, 20))
+                initial.save(first)
+                image = Image.new("RGB", (8, 8), "white")
+                image.putpixel((3, 3), (0, 0, 0))
+                image.save(second)
+                return {"status": "completed", "gameplay_probe": {"status": "failed"}}
+
+            result = BrowserArtifactRunner(fake_browser).verify(
+                repo,
+                ["index.html"],
+                output_dir=repo / "evidence",
+                profile_name="canvas_game",
+            )
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("Gameplay probe failed.", result.tests_failed)
 
     def test_browser_artifact_runner_fails_on_console_errors(self) -> None:
         from PIL import Image
@@ -1255,6 +1367,12 @@ class OrchestratorTests(unittest.TestCase):
                 function physics() {}
                 function collision() {}
                 document.addEventListener("keydown", () => {});
+                window.__ALCHEMY_GAME_TEST__ = {
+                  snapshot() { return { player_x: 0, player_y: 0, state: "playing", won: false }; },
+                  step(dt) {},
+                  advanceToVictory() { return { won: true }; },
+                  restart() {}
+                };
                 requestAnimationFrame(function frame(){ requestAnimationFrame(frame); });
                 </script>
                 """,
@@ -1804,6 +1922,45 @@ class RequirementCoverageTests(unittest.TestCase):
         self.assertEqual(payload["status"], "passed")
         self.assertEqual(payload["coverage_score"], 1.0)
         self.assertEqual(payload["entries"][0]["coverage_status"], "covered")
+
+    def test_requirement_coverage_records_gameplay_probe_evidence(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text("<!doctype html><canvas id='game'></canvas>", encoding="utf-8")
+
+            report = RequirementCoverageBuilder().build(
+                repository_path=repo,
+                context_bundle={
+                    "requirement_map": {
+                        "requirements": [
+                            {
+                                "id": "REQ-001",
+                                "priority": "must",
+                                "text": "Implement playable browser game",
+                                "related_files": ["index.html"],
+                                "planned_task_ids": ["T002", "T003"],
+                            }
+                        ]
+                    }
+                },
+                task_graph={
+                    "nodes": [
+                        {"id": "T002", "type": "frontend", "status": "completed", "relevant_files": ["index.html"]},
+                        {"id": "T003", "type": "test", "status": "completed", "relevant_files": ["index.html"]},
+                    ]
+                },
+                runtime_state={"completed_tasks": ["T002", "T003"]},
+                artifact_report={
+                    "static_verification": {"status": "completed"},
+                    "browser_verification": {
+                        "status": "completed",
+                        "gameplay_probe": {"status": "completed"},
+                    },
+                },
+            )
+
+        evidence = report.to_dict()["entries"][0]["verification_evidence"]
+        self.assertIn("Gameplay probe: completed.", evidence)
 
     def test_requirement_coverage_marks_missing_files_missing(self) -> None:
         with temp_project_dir() as tmp_dir:
