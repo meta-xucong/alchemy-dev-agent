@@ -633,3 +633,12 @@ PY"`
 - Wired browser console to EventSource SSE events with existing polling fallback.
 - Stabilized async resume handoff and source job status preservation.
 - Re-ran focused tests, full unit suite, acceptance harness, and local repository acceptance.
+
+## 2026-06-20 V2.38 Local Game Rerun
+
+- Re-ran the one-line fallback autonomous generation flow using the Chinese Super Mario style request.
+- Generated a safe original retro platformer at `.alchemy/generated/super_mario_rerun_v2_38_20260620/index.html`.
+- Verified the agent chain completed architect, frontend, test, and reviewer stages.
+- Verified static artifact checks, browser screenshots, nonblank rendering, pixel change, no console errors, movement, jump, victory, and restart.
+- Opened the generated game locally at `http://127.0.0.1:8739/index.html` for manual review.
+- Assessment: playability and verification are stronger than the earliest manual runs because the runtime now proves semantic gameplay behavior, but visual/game-content generation is intentionally original and not a direct clone of protected commercial assets.

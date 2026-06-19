@@ -91,7 +91,12 @@
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_runtime.CodexWorkerTests tests.test_api_server tests.test_document_to_plan",
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest discover -s tests # 197 tests OK",
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.acceptance_run --output .alchemy\\v2_38_acceptance_3",
-    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\\v2_38_local_acceptance_3 --auto-browser-verify"
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\\v2_38_local_acceptance_3 --auto-browser-verify",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.demo_run --objective \"我要生成一个超级玛丽第一关的游戏。关卡设计、人物和场景形象均完全模仿经典原始版的超级玛丽\" --output .alchemy\\generated\\super_mario_rerun_v2_38_20260620",
+    "StaticWebArtifactVerifier and BrowserArtifactRunner canvas-game verification for .alchemy\\generated\\super_mario_rerun_v2_38_20260620",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_autodev_pipeline",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime",
+    "Codex in-app browser opened http://127.0.0.1:8739/index.html and captured visual evidence"
   ],
   "known_bugs": [
     {
@@ -222,9 +227,11 @@
     "Full unit suite and acceptance harnesses pass.",
     "Best-effort running Codex worker cancellation is implemented with lifecycle evidence and tests.",
     "Browser console is wired to SSE event streaming with polling fallback.",
-    "Final verification passes with 197 unit tests and two acceptance harnesses."
+    "Final verification passes with 197 unit tests and two acceptance harnesses.",
+    "A fresh local one-line rerun generated a safe playable original retro platformer and passed static plus browser gameplay verification.",
+    "The generated platformer was opened in the Codex in-app browser at http://127.0.0.1:8739/index.html for manual review."
   ],
-  "last_verified_at": "2026-06-20T02:48:39+08:00",
+  "last_verified_at": "2026-06-20T03:05:02+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T02:48:39+08:00"
+  "updated_at": "2026-06-20T03:05:02+08:00"
 }

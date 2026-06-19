@@ -1567,3 +1567,16 @@
 - Result: passed; 8/8 checks, delivery done, ready_for_review=true, score=0.9571.
 - Command: `$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\v2_38_local_acceptance_3 --auto-browser-verify`
 - Result: passed; 13/13 checks, delivery done, ready_for_review=true, score=0.9667.
+
+## 2026-06-20 V2.38 Local Game Rerun Verification
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.demo_run --objective "我要生成一个超级玛丽第一关的游戏。关卡设计、人物和场景形象均完全模仿经典原始版的超级玛丽" --output .alchemy\generated\super_mario_rerun_v2_38_20260620`
+- Result: passed; local agent chain returned status `done`, all four tasks completed, and `index.html` plus `autodev_report.json` were generated.
+- Command: `StaticWebArtifactVerifier().verify(...)` and `BrowserArtifactRunner().verify(..., profile_name='canvas_game')`
+- Result: passed; static profile `canvas_game`, no protected terms, browser screenshots recorded, 3549 changed pixels, no console errors, gameplay probe completed movement/jump/victory/restart checks.
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_autodev_pipeline`
+- Result: passed; 2 tests OK.
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime`
+- Result: passed; 76 tests OK.
+- Command: Codex in-app browser open at `http://127.0.0.1:8739/index.html`
+- Result: passed after restarting the static file server with quoted path arguments; visual screenshot showed HUD, player, coins, platforms, gap, and instructions.
