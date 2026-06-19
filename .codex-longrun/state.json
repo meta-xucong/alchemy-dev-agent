@@ -695,6 +695,11 @@
       "command": "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"; git diff --check; validate_state.py --project .",
       "result": "passed",
       "summary": "JSON specs parsed, diff hygiene passed, and long-running state validated before V2.32 commit."
+    },
+    {
+      "command": "gh run watch 27834632529 --exit-status",
+      "result": "passed",
+      "summary": "GitHub Actions CI run 27834632529 passed on master commit 00258fc after V2.32 feedback recovery comparison changes."
     }
   ],
   "known_bugs": [
@@ -799,7 +804,7 @@
     "Delivery evidence is summarized into a human-reviewable API/UI contract covering final gate, requirements, probes, native tests, GitHub, blockers, next actions, and development-cycle status.",
     "Feedback repair runs produce source-vs-current recovery_comparison evidence covering score, coverage, must gaps, blockers, probes, and CI."
   ],
-  "last_verified_at": "2026-06-19T23:24:48+08:00",
+  "last_verified_at": "2026-06-19T23:31:10+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T23:24:48+08:00"
+  "updated_at": "2026-06-19T23:31:10+08:00"
 }
