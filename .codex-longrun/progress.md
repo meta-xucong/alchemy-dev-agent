@@ -520,3 +520,12 @@ PY"`
 
 - Pushed commit `9ec419b` to `master`.
 - GitHub Actions CI run `27831272738` completed successfully for `Add native UI acceptance test generation`.
+
+
+## 2026-06-19 V2.31 Delivery Evidence Console
+
+- Added `docs/38_v2_31_delivery_evidence_console.md` to align the evidence console with the autonomous development delivery goal.
+- Added `autodev.delivery_evidence` to build display-ready summaries for final gate, requirements, probes, native UI tests, GitHub/CI, blockers, next actions, and development-cycle evidence.
+- Added `delivery_evidence` to API delivery responses.
+- Updated the browser console with evidence cards and detailed evidence sections while preserving raw JSON output.
+- Verified focused API, static UI, and evidence-summary tests before full verification.

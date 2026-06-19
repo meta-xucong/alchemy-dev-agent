@@ -1,6 +1,6 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.30 native UI acceptance tests",
+  "current_phase": "V2.31 delivery evidence console",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -41,12 +41,13 @@
     "V2.27 acceptance scenario browser probes",
     "V2.28 feedback reopen loop",
     "V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness",
-    "V2.30 native UI acceptance-test generation and report integration"
+    "V2.30 native UI acceptance-test generation and report integration",
+    "V2.31 delivery evidence API and browser console reviewability"
   ],
   "next_actions": [
-    "Polish browser-console evidence views for semantic probe snapshots, scenario probe details, native UI test drafts, failed interactions, and development_cycle checklist details.",
     "Add recovery-run comparison reports that show source run evidence versus feedback repair run evidence.",
-    "Add a controlled repository-write switch for native UI tests once dependency and CI setup checks can prevent generated tests from breaking target projects."
+    "Add a controlled repository-write switch for native UI tests once dependency and CI setup checks can prevent generated tests from breaking target projects.",
+    "Polish evidence console with screenshot previews and native UI test file preview once artifact file serving is available."
   ],
   "tests_run": [
     {
@@ -633,6 +634,31 @@
       "command": "gh run watch 27831272738 --exit-status",
       "result": "passed",
       "summary": "GitHub Actions CI run 27831272738 passed on master commit 9ec419b after V2.30 native UI acceptance test generation changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_delivery_evidence tests.test_api_server.ApiServerTests.test_project_service_creates_plans_runs_and_reads_delivery tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
+      "result": "passed",
+      "summary": "4 focused tests passed for delivery_evidence summaries, API delivery evidence contract, and browser console static evidence UI hooks."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "179 tests passed after V2.31 delivery evidence API/UI changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_31",
+      "result": "passed",
+      "summary": "Acceptance harness passed after V2.31 changes and delivery output includes delivery_evidence with review cards."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"; git diff --check; validate_state.py --project .",
+      "result": "passed",
+      "summary": "JSON specs parsed, diff hygiene passed with only CRLF normalization warnings on long-running logs, and long-running state validated before V2.31 commit."
+    },
+    {
+      "command": "Playwright UI smoke against local API console with injected delivery_evidence fixture",
+      "result": "passed",
+      "summary": "Headless Chromium rendered the delivery evidence cards/details and wrote .alchemy/ui_smoke_v2_31/delivery-evidence-console.png."
     }
   ],
   "known_bugs": [
@@ -733,9 +759,10 @@
     "Local and GitHub source modes converge into the same ProjectBrief -> ContextBundle -> TaskGraph -> RuntimeState contract.",
     "A local-only acceptance harness verifies initial delivery and feedback reopen without creating a GitHub repository.",
     "Dry-run workers do not misinterpret natural-language words like blocked as explicit blocker constraints.",
-    "Generated acceptance scenarios can be converted into Playwright/Cypress native UI test drafts and surfaced in document-run, delivery, runtime state, and requirement coverage evidence."
+    "Generated acceptance scenarios can be converted into Playwright/Cypress native UI test drafts and surfaced in document-run, delivery, runtime state, and requirement coverage evidence.",
+    "Delivery evidence is summarized into a human-reviewable API/UI contract covering final gate, requirements, probes, native tests, GitHub, blockers, next actions, and development-cycle status."
   ],
-  "last_verified_at": "2026-06-19T22:23:08+08:00",
+  "last_verified_at": "2026-06-19T22:44:07+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T22:23:08+08:00"
+  "updated_at": "2026-06-19T22:44:07+08:00"
 }

@@ -44,6 +44,7 @@ The repository currently contains:
 - A V2.22 supplemental plan for external docs-only repository delivery closure.
 - A V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness.
 - A V2.30 native UI acceptance-test generator that converts inferred acceptance scenarios into Playwright/Cypress drafts.
+- A V2.31 delivery evidence console that turns machine evidence into human-reviewable summaries.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, richer UI/API observability, representative real GitHub delivery validation, external docs-only delivery closure, and safer live execution controls. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -183,6 +184,7 @@ runtime/
 
 autodev/
   acceptance_run.py         Run local end-to-end acceptance checks and write an acceptance report.
+  delivery_evidence.py      Build display-ready delivery evidence summaries for API/UI review.
   local_repository_acceptance.py
                             Run local repository import and feedback-reopen acceptance checks.
   document_run.py           Run document-driven intake, context, planning, handoff, and dry-run execution.
@@ -540,6 +542,13 @@ DONE requires:
 - Generate report-only Playwright drafts for local static browser artifacts without mutating arbitrary repositories. Status: implemented.
 - Surface native UI test generation in `document_run`, `artifact_report`, `delivery_report`, runtime repository evidence, and requirement coverage. Status: implemented.
 - Keep generated browser probes as the delivery gate while native tests provide reusable post-delivery regression artifacts. Status: implemented.
+
+### V2.31: Delivery Evidence Console
+
+- Add a display-ready `delivery_evidence` contract to API delivery responses. Status: implemented.
+- Summarize final gate, requirement coverage, static/browser probes, native UI tests, GitHub/CI/merge evidence, blockers, next actions, and development-cycle steps. Status: implemented.
+- Render evidence cards and detailed evidence sections in the browser console while preserving raw JSON audit output. Status: implemented.
+- Keep execution, evaluator, and task graph behavior unchanged. Status: implemented.
 
 ## Risks And Mitigations
 

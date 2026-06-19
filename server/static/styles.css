@@ -141,6 +141,13 @@ h2 {
   margin-bottom: 10px;
 }
 
+.evidenceCards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .deliverySummary div {
   min-width: 0;
   border: 1px solid var(--line);
@@ -149,15 +156,109 @@ h2 {
   background: #fbfcfd;
 }
 
+.evidenceCard {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 6px;
+  padding: 8px;
+  background: #fbfcfd;
+}
+
+.evidenceCard.status-passed {
+  border-left-color: var(--accent);
+}
+
+.evidenceCard.status-failed {
+  border-left-color: var(--bad);
+}
+
+.evidenceCard.status-partial {
+  border-left-color: var(--warn);
+}
+
+.evidenceCard.status-skipped,
+.evidenceCard.status-unknown {
+  border-left-color: #8793a2;
+}
+
 .deliverySummary strong,
-.deliverySummary span {
+.deliverySummary span,
+.evidenceCard strong,
+.evidenceCard span,
+.evidenceCard small {
   display: block;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.deliverySummary strong {
+.deliverySummary strong,
+.evidenceCard strong {
   margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.evidenceCard span {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.evidenceCard small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.evidenceDetails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.evidenceDetails section {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fbfcfd;
+}
+
+.evidenceDetails h3 {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.evidenceDetails p {
+  margin: 0 0 5px;
+  overflow-wrap: anywhere;
+}
+
+.evidenceDetails ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evidenceDetails li {
+  display: grid;
+  grid-template-columns: minmax(76px, 0.45fr) minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.evidenceDetails li strong,
+.evidenceDetails li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.evidenceDetails li strong {
   color: var(--muted);
   font-size: 12px;
 }
@@ -293,5 +394,11 @@ pre {
       "graph"
       "events"
       "delivery";
+  }
+
+  .deliverySummary,
+  .evidenceCards,
+  .evidenceDetails {
+    grid-template-columns: 1fr;
   }
 }

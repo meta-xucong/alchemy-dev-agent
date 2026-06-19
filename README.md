@@ -108,6 +108,8 @@ docs/
                               V2.29 local and GitHub source-mode unification.
   37_v2_30_native_ui_acceptance_tests.md
                               V2.30 repository-native Playwright/Cypress acceptance test generation.
+  38_v2_31_delivery_evidence_console.md
+                              V2.31 human-reviewable delivery evidence console.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -739,6 +741,9 @@ Current V2.23 implementation status:
 - Document-run reports now include `native_ui_tests`, converting generated
   CRUD/auth/upload/dashboard acceptance scenarios into Playwright or Cypress
   test drafts when a browser artifact or native UI test framework is detected.
+- API delivery responses now include `delivery_evidence`, a display-ready
+  summary for final gate, requirements, browser probes, native UI tests,
+  GitHub/CI, blockers, next actions, and development-cycle status.
 - Real GitHub document-runs can generate a lightweight static web CI workflow
   for docs-only canvas/static artifacts immediately before release, so the
   workflow is included in the branch/PR instead of only appearing in the final
@@ -765,6 +770,8 @@ See `docs/35_v2_28_feedback_reopen_loop.md` for reopening delivered runs from
 playtest or acceptance feedback and routing fixes through Debug Agent tasks.
 See `docs/37_v2_30_native_ui_acceptance_tests.md` for converting generated
 acceptance scenarios into repository-native Playwright/Cypress test drafts.
+See `docs/38_v2_31_delivery_evidence_console.md` for the browser-console
+delivery evidence view that makes run completion human-reviewable.
 
 Run a smoke execution:
 

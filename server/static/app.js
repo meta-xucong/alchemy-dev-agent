@@ -58,7 +58,95 @@ function renderDelivery(delivery) {
   el("deliverySummary").innerHTML = parts
     .map(([label, value]) => `<div><strong>${label}</strong><span>${escapeHtml(String(value))}</span></div>`)
     .join("");
+  renderEvidence(delivery.delivery_evidence || fallbackEvidence(delivery));
   show("deliveryOutput", delivery);
+}
+
+function renderEvidence(evidence) {
+  const cards = Array.isArray(evidence.cards) ? evidence.cards : [];
+  el("evidenceCards").innerHTML = cards
+    .map((card) => `
+      <article class="evidenceCard status-${safeClass(card.status)}">
+        <strong>${escapeHtml(String(card.label || "-"))}</strong>
+        <span>${escapeHtml(String(card.value || "-"))}</span>
+        <small>${escapeHtml(String(card.detail || card.status || ""))}</small>
+      </article>
+    `)
+    .join("");
+  renderEvidenceDetails(evidence);
+}
+
+function renderEvidenceDetails(evidence) {
+  const requirements = evidence.requirements || {};
+  const probes = evidence.probes || {};
+  const nativeTests = evidence.native_ui_tests || {};
+  const github = evidence.github || {};
+  const cycle = evidence.development_cycle || {};
+  const blockers = Array.isArray(evidence.blockers) ? evidence.blockers : [];
+  const nextActions = Array.isArray(evidence.next_actions) ? evidence.next_actions : [];
+  const probeRows = ["semantic", "scenario", "gameplay"]
+    .map((name) => probes[name] || { label: name, status: "" })
+    .map((probe) => `<li><strong>${escapeHtml(String(probe.label || "-"))}</strong><span>${escapeHtml(String(probe.status || "-"))}</span></li>`)
+    .join("");
+  const cycleSteps = Array.isArray(cycle.steps) ? cycle.steps.slice(0, 8) : [];
+  el("evidenceDetails").innerHTML = `
+    <section>
+      <h3>Requirements</h3>
+      <p>${escapeHtml(String(requirements.covered ?? 0))}/${escapeHtml(String(requirements.total ?? 0))} covered · ${escapeHtml(String(requirements.partial ?? 0))} partial · ${escapeHtml(String(requirements.missing ?? 0))} missing</p>
+      <p>Must gaps: ${escapeHtml(String(requirements.missing_must ?? 0))} missing, ${escapeHtml(String(requirements.partial_must ?? 0))} partial</p>
+    </section>
+    <section>
+      <h3>Browser Probes</h3>
+      <ul>${probeRows || "<li><strong>Probe</strong><span>-</span></li>"}</ul>
+    </section>
+    <section>
+      <h3>Native UI Tests</h3>
+      <p>${escapeHtml(String(nativeTests.status || "-"))} · ${escapeHtml(String(nativeTests.framework || "none"))} · ${escapeHtml(String(nativeTests.write_mode || "-"))}</p>
+      <p>${escapeHtml(String(nativeTests.target_path || nativeTests.summary || "-"))}</p>
+    </section>
+    <section>
+      <h3>GitHub</h3>
+      <p>${escapeHtml(String(github.branch || "-"))} · CI ${escapeHtml(String(github.ci_status || "-"))} · Merge ${escapeHtml(String(github.merge_status || "-"))}</p>
+      <p>${github.pull_request_url ? `<a href="${escapeHtml(String(github.pull_request_url))}" target="_blank" rel="noreferrer">Pull request</a>` : "-"}</p>
+    </section>
+    <section>
+      <h3>Development Cycle</h3>
+      <p>${escapeHtml(String(cycle.status || "-"))} · ${escapeHtml(String(cycle.passed_steps ?? 0))}/${escapeHtml(String(cycle.total_steps ?? 0))} steps · score ${escapeHtml(String(cycle.score ?? 0))}</p>
+      <ul>${cycleSteps.map((step) => `<li><strong>${escapeHtml(String(step.name || "-"))}</strong><span>${escapeHtml(String(step.status || "-"))}</span></li>`).join("")}</ul>
+    </section>
+    <section>
+      <h3>Blockers</h3>
+      <ul>${blockers.length ? blockers.map((item) => `<li><strong>${escapeHtml(String(item.id || item.type || "blocker"))}</strong><span>${escapeHtml(String(item.description || item.message || item))}</span></li>`).join("") : "<li><strong>None</strong><span>No blockers</span></li>"}</ul>
+    </section>
+    <section>
+      <h3>Next Actions</h3>
+      <ul>${nextActions.length ? nextActions.map((item) => `<li><strong>Action</strong><span>${escapeHtml(String(item))}</span></li>`).join("") : "<li><strong>None</strong><span>No next action</span></li>"}</ul>
+    </section>
+  `;
+}
+
+function fallbackEvidence(delivery) {
+  const report = delivery.delivery_report || {};
+  const artifact = report.artifact || {};
+  const requirements = report.requirements || {};
+  return {
+    cards: [
+      { label: "Final Gate", status: report.ready_for_review ? "passed" : "unknown", value: String(report.final_gate?.score ?? "-"), detail: report.summary || "" },
+      { label: "Requirements", status: requirements.status || "unknown", value: String(requirements.coverage_score ?? "-"), detail: "coverage" },
+      { label: "Artifact", status: artifact.static_status || "unknown", value: artifact.profile || "-", detail: "artifact evidence" },
+    ],
+    requirements,
+    probes: {
+      semantic: artifact.semantic_probe || {},
+      scenario: artifact.scenario_probe || {},
+      gameplay: artifact.gameplay_probe || {},
+    },
+    native_ui_tests: artifact.native_ui_tests || {},
+    github: report.github || {},
+    development_cycle: delivery.development_cycle || {},
+    blockers: report.blockers || [],
+    next_actions: report.next_actions || [],
+  };
 }
 
 function escapeHtml(value) {
@@ -69,6 +157,10 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#39;",
   })[char]);
+}
+
+function safeClass(value) {
+  return String(value || "unknown").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
 }
 
 function setSummary(project = {}, run = {}) {
@@ -117,6 +209,8 @@ async function createProject() {
   show("eventOutput", []);
   show("deliveryOutput", {});
   el("deliverySummary").innerHTML = "";
+  el("evidenceCards").innerHTML = "";
+  el("evidenceDetails").innerHTML = "";
   setSummary(result.project, {});
   setControls();
 }

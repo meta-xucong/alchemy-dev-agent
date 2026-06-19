@@ -1313,3 +1313,31 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27831272738` passed on `master` commit `9ec419b` after V2.30 native UI acceptance test generation changes.
 - Next verification command: none.
+
+
+## 2026-06-19 V2.31 Delivery Evidence Console
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_delivery_evidence tests.test_api_server.ApiServerTests.test_project_service_creates_plans_runs_and_reads_delivery tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets`
+- Result: passed.
+- Summary: 4 focused tests passed for delivery_evidence summaries, API delivery evidence contract, and browser console static evidence UI hooks.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 179 tests passed after V2.31 delivery evidence API/UI changes.
+- Next verification command: acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_31`
+- Result: passed.
+- Summary: Acceptance harness passed after V2.31 changes and delivery output includes delivery_evidence with review cards.
+- Next verification command: JSON specs, diff hygiene, and state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`; `git diff --check`; `validate_state.py --project .`
+- Result: passed.
+- Summary: JSON specs parsed, diff hygiene passed with only CRLF normalization warnings on long-running logs, and long-running state validated before V2.31 commit.
+- Next verification command: commit, push, and GitHub Actions.
+
+- Command: `Playwright UI smoke against local API console with injected delivery_evidence fixture`
+- Result: passed.
+- Summary: Headless Chromium rendered delivery evidence cards/details and wrote `.alchemy/ui_smoke_v2_31/delivery-evidence-console.png`.
+- Next verification command: final commit and GitHub Actions.

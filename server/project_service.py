@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from autodev import DocumentRunPipeline
+from autodev.delivery_evidence import build_delivery_evidence
 from autodev.real_env_check import RealEnvironmentCheck
 from context import ContextBundleBuilder
 from intake import GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
@@ -510,17 +511,30 @@ class ProjectService:
         latest = run_dirs[-1].name
         run = self.get_run(project_id, latest)
         delivery_report = run.get("delivery_report", {})
+        artifact_report = run.get("artifact_report", {})
+        requirement_coverage = run.get("requirement_coverage", {})
+        generated_ci = run.get("generated_ci", {})
+        development_cycle = run.get("development_cycle", {})
+        delivery_evidence = build_delivery_evidence(
+            status=str(run.get("status", "")),
+            delivery_report=delivery_report if isinstance(delivery_report, dict) else {},
+            artifact_report=artifact_report if isinstance(artifact_report, dict) else {},
+            requirement_coverage=requirement_coverage if isinstance(requirement_coverage, dict) else {},
+            generated_ci=generated_ci if isinstance(generated_ci, dict) else {},
+            development_cycle=development_cycle if isinstance(development_cycle, dict) else {},
+        )
         return {
             "project_id": project_id,
             "latest_run_id": latest,
             "status": run.get("status"),
             "runtime_state": run.get("runtime_state", {}),
             "preflight": run.get("preflight", {}),
-            "artifact_report": run.get("artifact_report", {}),
-            "requirement_coverage": run.get("requirement_coverage", {}),
-            "generated_ci": run.get("generated_ci", {}),
+            "artifact_report": artifact_report,
+            "requirement_coverage": requirement_coverage,
+            "generated_ci": generated_ci,
             "delivery_report": delivery_report,
-            "development_cycle": run.get("development_cycle", {}),
+            "delivery_evidence": delivery_evidence,
+            "development_cycle": development_cycle,
             "output_dir": run.get("output_dir", ""),
         }
 
