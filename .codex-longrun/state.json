@@ -571,6 +571,11 @@
       "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_28",
       "result": "passed",
       "summary": "Acceptance harness passed with delivery done and development_cycle score 1.0 after V2.28 changes."
+    },
+    {
+      "command": "GitHub Actions CI run 27827029904 on master cab4518",
+      "result": "passed",
+      "summary": "Remote CI completed successfully after V2.28 feedback reopen repair loop changes."
     }
   ],
   "known_bugs": [
@@ -658,7 +663,7 @@
     "Delivered runs can be reopened with feedback files through the local API and browser console.",
     "Feedback reopen runs record source run, feedback files, and feedback-recovery branch prefix metadata."
   ],
-  "last_verified_at": "2026-06-19T20:54:04+08:00",
+  "last_verified_at": "2026-06-19T20:57:42+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T20:54:04+08:00"
+  "updated_at": "2026-06-19T20:57:42+08:00"
 }

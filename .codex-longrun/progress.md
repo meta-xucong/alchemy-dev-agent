@@ -481,3 +481,9 @@ PY"`
 - Added `POST /projects/{project_id}/feedback/reopen` to reopen a delivered run with feedback files and start a repair run using `agent/feedback-recovery` by default.
 - Added browser-console `Feedback Reopen` control that uploads selected files as feedback and starts the repair run.
 - Verified focused tests, full suite, acceptance harness, JSON specs, diff hygiene, and long-running state validation.
+
+
+## 2026-06-19 V2.28 Remote CI Closure
+
+- Pushed commit `cab4518` to `master`.
+- GitHub Actions CI run `27827029904` completed successfully for `Add feedback reopen repair loop`.
