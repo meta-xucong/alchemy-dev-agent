@@ -8,5 +8,8 @@ dependencies = ["pillow>=10.0.0"]
 [project.optional-dependencies]
 browser = ["playwright>=1.60.0"]
 
+[tool.setuptools.packages.find]
+include = ["autodev*", "context*", "intake*", "planner*", "runtime*", "server*"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]

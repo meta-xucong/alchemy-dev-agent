@@ -1042,3 +1042,17 @@
 - Result: passed.
 - Summary: 143 tests passed after CI-discovered dependency and async resume fixes.
 - Next verification command: GitHub Actions on pushed follow-up commit.
+
+## 2026-06-19
+
+- Command: `python -m pip install -e .`
+- Result: passed.
+- Summary: Editable install passed after declaring explicit setuptools package discovery include patterns.
+- Next verification command: push follow-up commit and wait for GitHub Actions.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 143 tests passed after pyproject package discovery fix.
+- Next verification command: GitHub Actions on pushed follow-up commit.

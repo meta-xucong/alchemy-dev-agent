@@ -408,3 +408,9 @@ PY"`
 - Fixed async pause/resume recovery handoff by restoring project status to `planned` before starting the recovery run.
 - Narrowed the HTTP pause/resume control test so it verifies the HTTP handoff contract without racing a full recovery run to completion; service-level tests still cover completed recovery execution.
 - Re-ran the full local suite: 143 tests passed.
+
+## 2026-06-19 CI Package Discovery Follow-Up
+
+- GitHub Actions showed that `python -m pip install -e .` failed in CI because setuptools refused automatic package discovery in the repository's flat layout.
+- Added explicit setuptools package discovery includes for `autodev`, `context`, `intake`, `planner`, `runtime`, and `server`.
+- Verified `python -m pip install -e .` locally and reran the full unit suite: 143 tests passed.

@@ -452,6 +452,11 @@
       "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
       "result": "passed",
       "summary": "143 tests passed after CI-discovered dependency and async resume fixes."
+    },
+    {
+      "command": "python -m pip install -e .",
+      "result": "passed",
+      "summary": "Editable install passed after declaring setuptools package discovery include patterns."
     }
   ],
   "known_bugs": [
@@ -479,6 +484,11 @@
       "id": "HTTP_ASYNC_RESUME_RACE",
       "status": "fixed",
       "summary": "HTTP pause/resume test raced project status and recovery handoff; resume_run now restores project status before starting recovery, and the HTTP test follows the resumed-run handoff contract."
+    },
+    {
+      "id": "PYPROJECT_FLAT_LAYOUT_PACKAGE_DISCOVERY",
+      "status": "fixed",
+      "summary": "Editable install failed in CI because setuptools detected multiple top-level packages in flat layout; pyproject now declares explicit package discovery include patterns."
     }
   ],
   "blockers": [],
@@ -491,7 +501,7 @@
     "External test PR was merged, and merge evidence is represented in delivery_report and development_cycle.",
     "Full repository unit test suite, JSON spec parsing, diff hygiene, and long-running state validation pass."
   ],
-  "last_verified_at": "2026-06-19T17:35:00+08:00",
+  "last_verified_at": "2026-06-19T17:42:00+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T17:35:00+08:00"
+  "updated_at": "2026-06-19T17:42:00+08:00"
 }
