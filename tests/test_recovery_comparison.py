@@ -100,6 +100,11 @@ class RecoveryComparisonTests(unittest.TestCase):
         self.assertEqual(comparison["status"], "mixed")
         self.assertEqual(comparison["resolved_partial_must_requirement_ids"], ["REQ-2"])
         self.assertEqual(comparison["new_missing_must_requirement_ids"], ["REQ-3"])
+        suggestions = comparison["repair_suggestions"]
+        self.assertEqual(suggestions[0]["agent"], "debug")
+        self.assertEqual(suggestions[0]["task_type"], "debug")
+        self.assertEqual(suggestions[0]["requirement_ids"], ["REQ-3"])
+        self.assertIn("missing must", suggestions[0]["title"].lower())
 
     def test_feedback_repair_counts_new_covered_feedback_requirements_as_improvement(self) -> None:
         source = {
@@ -138,6 +143,39 @@ class RecoveryComparisonTests(unittest.TestCase):
         self.assertEqual(comparison["new_must_requirement_ids"], ["REQ-2"])
         self.assertEqual(comparison["covered_new_must_requirement_ids"], ["REQ-2"])
         self.assertEqual(comparison["uncovered_new_must_requirement_ids"], [])
+        self.assertEqual(comparison["repair_suggestions"], [])
+
+    def test_feedback_repair_suggestions_include_probe_regression_and_blockers(self) -> None:
+        source = {
+            "run_id": "run_001",
+            "status": "done",
+            "runtime_state": {"evaluation": {"final_gate_score": 0.92}},
+            "requirement_coverage": {"coverage_score": 1.0, "missing_must_requirement_ids": []},
+            "delivery_report": {
+                "ready_for_review": True,
+                "artifact": {"scenario_probe": {"status": "completed"}},
+                "blockers": [],
+            },
+        }
+        current = {
+            "run_id": "run_002",
+            "status": "blocked",
+            "runtime_state": {"evaluation": {"final_gate_score": 0.6}},
+            "requirement_coverage": {"coverage_score": 0.8, "missing_must_requirement_ids": []},
+            "delivery_report": {
+                "ready_for_review": False,
+                "artifact": {"scenario_probe": {"status": "failed"}},
+                "blockers": [{"id": "B-SCENARIO", "description": "Scenario failed."}],
+            },
+        }
+
+        comparison = build_recovery_comparison(source_run=source, current_run=current)
+
+        self.assertEqual(comparison["status"], "regressed")
+        titles = [suggestion["title"] for suggestion in comparison["repair_suggestions"]]
+        self.assertIn("Repair scenario probe regression", titles)
+        self.assertIn("Resolve new repair blockers", titles)
+        self.assertTrue(all(suggestion["agent"] == "debug" for suggestion in comparison["repair_suggestions"]))
 
 
 if __name__ == "__main__":

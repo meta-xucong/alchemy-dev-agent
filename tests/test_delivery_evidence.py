@@ -71,6 +71,18 @@ class DeliveryEvidenceTests(unittest.TestCase):
                         "direction": "improved",
                     }
                 ],
+                "repair_suggestions": [
+                    {
+                        "id": "RS-001",
+                        "agent": "debug",
+                        "task_type": "debug",
+                        "priority": "must",
+                        "title": "Cover new feedback must requirements",
+                        "reason": "Feedback introduced new must requirements that are not covered yet.",
+                        "requirement_ids": ["REQ-2"],
+                        "worker_goal": "Implement or fix the linked must requirements.",
+                    }
+                ],
             },
         )
 
@@ -84,6 +96,8 @@ class DeliveryEvidenceTests(unittest.TestCase):
         self.assertEqual(evidence["development_cycle"]["passed_steps"], 2)
         self.assertEqual(evidence["recovery_comparison"]["status"], "improved")
         self.assertEqual(evidence["recovery_comparison"]["resolved_missing_must_requirement_ids"], ["REQ-1"])
+        self.assertEqual(evidence["repair_suggestions"][0]["agent"], "debug")
+        self.assertIn("Cover new feedback must requirements", evidence["next_actions"])
         self.assertIn("Repair Comparison", [card["label"] for card in evidence["cards"]])
         self.assertGreaterEqual(len(evidence["cards"]), 8)
 

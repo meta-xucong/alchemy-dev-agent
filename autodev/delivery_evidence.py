@@ -26,6 +26,13 @@ def build_delivery_evidence(
     github_summary = github_evidence(github, generated_ci)
     cycle = development_cycle_summary(development_cycle)
     comparison = recovery_comparison_summary(recovery_comparison or {})
+    repair_suggestions = list(comparison.get("repair_suggestions", [])) if isinstance(comparison.get("repair_suggestions", []), list) else []
+    for suggestion in repair_suggestions:
+        if not isinstance(suggestion, dict):
+            continue
+        title = str(suggestion.get("title", ""))
+        if title and title not in next_actions:
+            next_actions.append(title)
     ready = bool(delivery_report.get("ready_for_review", False))
     score = _number(final_gate.get("score"))
     evidence_status = "ready" if ready else "blocked" if blockers else status or "unknown"
@@ -96,6 +103,7 @@ def build_delivery_evidence(
         "github": github_summary,
         "development_cycle": cycle,
         "recovery_comparison": comparison,
+        "repair_suggestions": repair_suggestions,
         "blockers": blockers,
         "next_actions": next_actions,
     }
@@ -275,6 +283,9 @@ def recovery_comparison_summary(recovery_comparison: dict[str, Any]) -> dict[str
         else [],
         "probe_changes": list(recovery_comparison.get("probe_changes", []))
         if isinstance(recovery_comparison.get("probe_changes", []), list)
+        else [],
+        "repair_suggestions": list(recovery_comparison.get("repair_suggestions", []))
+        if isinstance(recovery_comparison.get("repair_suggestions", []), list)
         else [],
     }
 

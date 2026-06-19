@@ -538,7 +538,10 @@ class ProjectService:
         if not run_dirs:
             raise ApiError(404, "delivery_not_found", "No execution run has been recorded for this project.")
         latest = run_dirs[-1].name
-        run = self.get_run(project_id, latest)
+        return self.get_delivery_for_run(project_id, latest)
+
+    def get_delivery_for_run(self, project_id: str, run_id: str) -> dict[str, object]:
+        run = self.get_run(project_id, run_id)
         delivery_report = run.get("delivery_report", {})
         artifact_report = run.get("artifact_report", {})
         requirement_coverage = run.get("requirement_coverage", {})
@@ -547,7 +550,7 @@ class ProjectService:
         recovery_comparison = self._recovery_comparison_for_run(project_id, run)
         artifact_manifest = build_artifact_manifest(
             project_id=project_id,
-            run_id=latest,
+            run_id=run_id,
             run=run,
             project_dir=self.project_dir(project_id),
             repository_path=self.load_project(project_id).repository_path or None,
@@ -563,7 +566,7 @@ class ProjectService:
         )
         return {
             "project_id": project_id,
-            "latest_run_id": latest,
+            "latest_run_id": run_id,
             "status": run.get("status"),
             "runtime_state": run.get("runtime_state", {}),
             "preflight": run.get("preflight", {}),

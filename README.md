@@ -118,6 +118,8 @@ docs/
                               V2.34 evidence-consistent delivery readiness gate.
   42_v2_35_native_ui_test_repository_write.md
                               V2.35 controlled repository write switch for native UI tests.
+  43_v2_36_repair_suggestions.md
+                              V2.36 comparison-driven Debug Agent repair suggestions.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -169,6 +171,7 @@ autodev/
   artifact_manifest.py       Safe run artifact manifest and preview content resolver.
   local_repository_acceptance.py
                              Local repository import and feedback-reopen acceptance harness.
+  repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
   real_delivery_validation.py
@@ -760,6 +763,9 @@ Current V2.23 implementation status:
 - Feedback reopen delivery responses now include `recovery_comparison`, showing
   source-vs-repair deltas for score, coverage, must gaps, blockers, probes, and
   CI.
+- Recovery comparisons now include deterministic Debug Agent `repair_suggestions`
+  for newly missing or partial must requirements, uncovered feedback must items,
+  score or coverage regressions, new blockers, and regressed probes.
 - Real GitHub document-runs can generate a lightweight static web CI workflow
   for docs-only canvas/static artifacts immediately before release, so the
   workflow is included in the branch/PR instead of only appearing in the final

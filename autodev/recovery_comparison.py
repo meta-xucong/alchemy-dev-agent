@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .repair_suggestions import build_repair_suggestions
+
 
 PROBE_KEYS = ("static", "browser", "semantic", "scenario", "gameplay", "native_ui_tests", "ci")
 STATUS_RANK = {
@@ -76,7 +78,7 @@ def build_recovery_comparison(
         probe_changes=probe_changes,
     )
 
-    return {
+    comparison = {
         "status": status,
         "summary": summary_for(status),
         "source_run_id": str(source.get("run_id", "")),
@@ -95,6 +97,8 @@ def build_recovery_comparison(
         "uncovered_new_must_requirement_ids": uncovered_new_must,
         "probe_changes": probe_changes,
     }
+    comparison["repair_suggestions"] = build_repair_suggestions(comparison)
+    return comparison
 
 
 def summarize_run(run: dict[str, Any]) -> dict[str, object]:

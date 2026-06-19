@@ -1462,3 +1462,42 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27838216571` passed on `master` commit `4d3037b` after V2.35 native UI repository-write changes.
 - Next verification command: comparison-driven repair suggestions.
+
+## 2026-06-20 V2.35 Closure Commit Remote CI
+
+- Command: `gh run watch 27838328185 --exit-status`
+- Result: passed.
+- Summary: GitHub Actions CI run `27838328185` passed on `master` commit `be2399d` after recording the V2.35 CI closure.
+- Next verification command: V2.36 focused tests.
+
+## 2026-06-20 V2.36 Comparison-Driven Repair Suggestions
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_recovery_comparison tests.test_delivery_evidence tests.test_api_server.ApiServerTests.test_project_service_reopens_delivered_run_with_feedback tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets`
+- Result: passed.
+- Summary: 8 focused tests passed for Debug Agent repair suggestions, delivery evidence surfacing, API delivery propagation, browser console static hooks, and project/run deep-link code.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 193 tests passed after V2.36 changes.
+- Next verification command: main acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_36_final`
+- Result: passed.
+- Summary: Main acceptance harness passed with delivery done and delivery evidence including `repair_suggestions`.
+- Next verification command: local repository acceptance with browser verification.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.local_repository_acceptance --output .alchemy\local_repository_acceptance_v2_36_final --auto-browser-verify`
+- Result: passed.
+- Summary: Local repository acceptance passed with 13/13 checks under browser verification.
+- Next verification command: browser UI smoke.
+
+- Command: `Browser UI smoke against http://127.0.0.1:18782/?project_id=proj_repair&run_id=run_001`
+- Result: passed.
+- Summary: Browser console deep-linked into project/run evidence and rendered Repair Suggestions, `RS-001`, `debug`, and the repair next action.
+- Next verification command: JSON specs, diff hygiene, and state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`; `git diff --check`; `validate_state.py --project .`
+- Result: passed.
+- Summary: JSON specs parsed, diff hygiene passed, and long-running state validated after V2.36.
+- Next verification command: commit, push, and GitHub Actions.

@@ -588,3 +588,12 @@ PY"`
 
 - Pushed commit `4d3037b` to `master`.
 - GitHub Actions CI run `27838216571` completed successfully for `Add controlled native UI test repository writes`.
+
+## 2026-06-20 V2.36 Comparison-Driven Repair Suggestions
+
+- Added `docs/43_v2_36_repair_suggestions.md` and linked V2.36 from README and the V2 development plan.
+- Added `autodev.repair_suggestions` to convert recovery comparison regressions into deterministic Debug Agent task seeds.
+- Added `recovery_comparison.repair_suggestions` and surfaced the same data through `delivery_evidence.repair_suggestions` and `next_actions`.
+- Added browser-console rendering for Repair Suggestions inside the Repair Comparison section.
+- Added project/run deep-link loading via `?project_id=...&run_id=...` so evidence for a known run can be opened directly.
+- Verified focused tests, full unit suite, main acceptance, local repository acceptance with browser verification, UI smoke, JSON specs, diff hygiene, and long-running state validation.

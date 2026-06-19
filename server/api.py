@@ -208,6 +208,9 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "GET" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "events":
         run_id = safe_identifier(tail[1], "run_id")
         return service.get_run_events(project_id, run_id), HTTPStatus.OK
+    if method == "GET" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "delivery":
+        run_id = safe_identifier(tail[1], "run_id")
+        return service.get_delivery_for_run(project_id, run_id), HTTPStatus.OK
     if method == "POST" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "pause":
         run_id = safe_identifier(tail[1], "run_id")
         return service.pause_run(project_id, run_id), HTTPStatus.OK

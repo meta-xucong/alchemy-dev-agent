@@ -84,6 +84,7 @@ function renderEvidenceDetails(evidence) {
   const github = evidence.github || {};
   const cycle = evidence.development_cycle || {};
   const comparison = evidence.recovery_comparison || {};
+  const repairSuggestions = Array.isArray(evidence.repair_suggestions) ? evidence.repair_suggestions : (Array.isArray(comparison.repair_suggestions) ? comparison.repair_suggestions : []);
   const blockers = Array.isArray(evidence.blockers) ? evidence.blockers : [];
   const nextActions = Array.isArray(evidence.next_actions) ? evidence.next_actions : [];
   const probeRows = ["semantic", "scenario", "gameplay"]
@@ -122,6 +123,8 @@ function renderEvidenceDetails(evidence) {
       <p>${escapeHtml(String(comparison.status || "-"))} · source ${escapeHtml(String(comparison.source_run_id || "-"))} · current ${escapeHtml(String(comparison.current_run_id || "-"))}</p>
       <p>Score ${formatDelta(comparison.score_delta)} · Coverage ${formatDelta(comparison.coverage_delta)} · Blockers ${formatDelta(comparison.blocker_delta)}</p>
       <ul>${repairRows(comparison, probeChanges)}</ul>
+      <h4>Repair Suggestions</h4>
+      <ul>${repairSuggestionRows(repairSuggestions)}</ul>
     </section>
     <section>
       <h3>Blockers</h3>
@@ -200,6 +203,7 @@ function fallbackEvidence(delivery) {
     github: report.github || {},
     development_cycle: delivery.development_cycle || {},
     recovery_comparison: comparison,
+    repair_suggestions: comparison.repair_suggestions || [],
     blockers: report.blockers || [],
     next_actions: report.next_actions || [],
   };
@@ -232,6 +236,20 @@ function repairRows(comparison, probeChanges) {
   });
   return rows
     .map(([label, value]) => `<li><strong>${escapeHtml(String(label))}</strong><span>${escapeHtml(String(value))}</span></li>`)
+    .join("");
+}
+
+function repairSuggestionRows(suggestions) {
+  if (!Array.isArray(suggestions) || !suggestions.length) {
+    return "<li><strong>None</strong><span>No repair suggestions</span></li>";
+  }
+  return suggestions
+    .slice(0, 8)
+    .map((suggestion) => {
+      const label = `${suggestion.id || "RS"} · ${suggestion.priority || "should"} · ${suggestion.agent || "debug"}`;
+      const detail = suggestion.worker_goal || suggestion.reason || suggestion.title || "";
+      return `<li><strong>${escapeHtml(String(label))}</strong><span>${escapeHtml(String(suggestion.title || detail))}</span></li>`;
+    })
     .join("");
 }
 
@@ -475,6 +493,29 @@ function showError(error) {
   show("eventOutput", [{ level: "error", message: error.message }]);
 }
 
+async function loadFromUrl() {
+  const params = new URLSearchParams(window.location.search || "");
+  const projectId = params.get("project_id") || params.get("projectId") || "";
+  const runId = params.get("run_id") || params.get("runId") || "";
+  if (!projectId) return;
+
+  state.projectId = projectId;
+  state.runId = runId;
+  setControls();
+
+  const project = await api(`/projects/${state.projectId}`);
+  show("briefOutput", project.brief || project);
+  show("graphOutput", project.task_graph || {});
+  setSummary(project, runId ? { status: "loaded" } : {});
+
+  if (runId) {
+    const delivery = await api(`/projects/${state.projectId}/runs/${state.runId}/delivery`);
+    renderDelivery(delivery);
+    setSummary(project, { status: delivery.status || "loaded" });
+  }
+}
+
 bind();
 setControls();
 checkHealth();
+loadFromUrl().catch(showError);

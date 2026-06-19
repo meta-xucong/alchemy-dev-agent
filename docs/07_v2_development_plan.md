@@ -584,6 +584,13 @@ DONE requires:
 - Keep static browser artifacts without Playwright/Cypress dependencies in report-only mode even when repository write is requested. Status: implemented.
 - Surface repository-write or skipped-write evidence through the existing native UI test and artifact manifest contracts. Status: implemented.
 
+### V2.36: Comparison-Driven Repair Suggestions
+
+- Convert `recovery_comparison` gaps and regressions into deterministic Debug Agent `repair_suggestions`. Status: implemented.
+- Generate suggestions for newly missing/partial must requirements, uncovered feedback must requirements, score regressions, coverage regressions, new blockers, and regressed probes. Status: implemented.
+- Surface suggestions through `recovery_comparison`, `delivery_evidence`, browser console repair details, and `next_actions`. Status: implemented.
+- Keep task graph mutation and execution scheduling unchanged; suggestions are task seeds for the next repair loop. Status: implemented.
+
 ## Risks And Mitigations
 
 | Risk | Impact | Mitigation |
