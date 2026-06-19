@@ -58,6 +58,7 @@ class BrowserArtifactEvidence:
     screenshots: dict[str, str] = field(default_factory=dict)
     pixel_diff: dict[str, object] = field(default_factory=dict)
     semantic_probe: dict[str, object] = field(default_factory=dict)
+    scenario_probe: dict[str, object] = field(default_factory=dict)
     gameplay_probe: dict[str, object] = field(default_factory=dict)
     console_errors: list[str] = field(default_factory=list)
     evidence: list[str] = field(default_factory=list)
@@ -72,6 +73,7 @@ class BrowserArtifactEvidence:
             "screenshots": dict(self.screenshots),
             "pixel_diff": dict(self.pixel_diff),
             "semantic_probe": dict(self.semantic_probe),
+            "scenario_probe": dict(self.scenario_probe),
             "gameplay_probe": dict(self.gameplay_probe),
             "console_errors": list(self.console_errors),
             "evidence": list(self.evidence),
@@ -278,6 +280,7 @@ class BrowserArtifactRunner:
         output_dir: str | Path,
         profile_name: str = "unknown",
         timeout_seconds: float = 15,
+        acceptance_scenarios: list[dict[str, object]] | None = None,
     ) -> BrowserArtifactEvidence:
         repo = Path(repository_path).resolve()
         selected = dedupe(files or ["index.html"])
@@ -315,6 +318,7 @@ class BrowserArtifactRunner:
                     "after_interaction_screenshot": str(after),
                     "profile_name": profile_name,
                     "timeout_seconds": timeout_seconds,
+                    "acceptance_scenarios": list(acceptance_scenarios or []),
                 }
             )
         except Exception as exc:  # pragma: no cover - defensive around external browsers
@@ -338,6 +342,7 @@ class BrowserArtifactRunner:
         )
         gameplay_probe = runner_result.get("gameplay_probe")
         semantic_probe = runner_result.get("semantic_probe")
+        scenario_probe = runner_result.get("scenario_probe")
         if isinstance(gameplay_probe, dict) and gameplay_probe:
             browser.gameplay_probe = dict(gameplay_probe)
             browser.semantic_probe = dict(gameplay_probe)
@@ -364,6 +369,17 @@ class BrowserArtifactRunner:
             for passed in _string_list(semantic_probe.get("tests_passed")):
                 browser.tests_passed.append(passed)
             for failed in _string_list(semantic_probe.get("tests_failed")):
+                browser.tests_failed.append(failed)
+        if isinstance(scenario_probe, dict) and scenario_probe:
+            browser.scenario_probe = dict(scenario_probe)
+            scenario_status = str(scenario_probe.get("status", ""))
+            if scenario_status:
+                browser.evidence.append(f"Scenario probe: {scenario_status}.")
+            if scenario_status == "failed" and not _string_list(scenario_probe.get("tests_failed")):
+                browser.tests_failed.append("Scenario probe failed.")
+            for passed in _string_list(scenario_probe.get("tests_passed")):
+                browser.tests_passed.append(passed)
+            for failed in _string_list(scenario_probe.get("tests_failed")):
                 browser.tests_failed.append(failed)
         browser.evidence.extend(_string_list(runner_result.get("evidence")))
         browser.tests_failed.extend(_string_list(runner_result.get("tests_failed")))
@@ -432,6 +448,7 @@ def playwright_browser_runner(request: dict[str, object]) -> dict[str, object]:
     evidence: list[str] = []
     gameplay_probe: dict[str, object] = {}
     semantic_probe: dict[str, object] = {}
+    scenario_probe: dict[str, object] = {}
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
@@ -445,6 +462,10 @@ def playwright_browser_runner(request: dict[str, object]) -> dict[str, object]:
                 gameplay_probe = run_canvas_gameplay_probe(page)
             elif profile == "static_web_app":
                 semantic_probe = run_static_web_semantic_probe(page)
+                scenario_probe = run_acceptance_scenario_probe(
+                    page,
+                    _scenario_list(request.get("acceptance_scenarios")),
+                )
             page.screenshot(path=after, full_page=True)
             browser.close()
         evidence.append("Playwright browser smoke completed.")
@@ -453,6 +474,7 @@ def playwright_browser_runner(request: dict[str, object]) -> dict[str, object]:
             "console_errors": console_errors,
             "evidence": evidence,
             "semantic_probe": gameplay_probe or semantic_probe,
+            "scenario_probe": scenario_probe,
             "gameplay_probe": gameplay_probe,
         }
     except Exception as exc:  # pragma: no cover - depends on local browser installation
@@ -463,6 +485,7 @@ def playwright_browser_runner(request: dict[str, object]) -> dict[str, object]:
             "tests_failed": [str(exc)],
             "evidence": evidence,
             "semantic_probe": gameplay_probe or semantic_probe,
+            "scenario_probe": scenario_probe,
             "gameplay_probe": gameplay_probe,
         }
 
@@ -753,6 +776,134 @@ def run_static_web_semantic_probe(page: object) -> dict[str, object]:
     }
 
 
+def run_acceptance_scenario_probe(page: object, scenarios: list[dict[str, object]]) -> dict[str, object]:
+    """Run deterministic checks for scenarios inferred from acceptance documents."""
+
+    if not scenarios:
+        return {
+            "status": "skipped",
+            "summary": "No domain-specific acceptance scenarios were provided.",
+            "tests_passed": [],
+            "tests_failed": [],
+            "evidence": [],
+            "scenarios": [],
+        }
+    result = page.evaluate(
+        """async (scenarios) => {
+            const visibleText = () => (document.body?.innerText || "").replace(/\\s+/g, " ").trim();
+            const controls = Array.from(document.querySelectorAll(
+              "input, textarea, select, button, a[href], [role='button'], [data-action], [onclick], form"
+            )).filter((node) => {
+              const style = window.getComputedStyle(node);
+              return style.visibility !== "hidden" && style.display !== "none" && !node.disabled;
+            });
+            const labelFor = (node) => (
+              node.innerText ||
+              node.value ||
+              node.name ||
+              node.id ||
+              node.getAttribute("aria-label") ||
+              node.getAttribute("placeholder") ||
+              node.getAttribute("type") ||
+              node.tagName
+            ).toLowerCase();
+            const labels = controls.map(labelFor);
+            const inputs = Array.from(document.querySelectorAll("input, textarea, select")).filter((node) => !node.disabled);
+            const buttons = Array.from(document.querySelectorAll("button, input[type='button'], input[type='submit'], [role='button'], [data-action], [onclick], a[href^='#']")).filter((node) => !node.disabled);
+            const scenarioResults = [];
+            for (const scenario of scenarios) {
+              const kind = scenario.kind || "";
+              const behaviors = Array.isArray(scenario.required_behaviors) ? scenario.required_behaviors : [];
+              const passed = [];
+              const failed = [];
+              const evidence = [];
+              if (kind === "crud") {
+                const hasInput = inputs.some((node) => !["hidden", "file"].includes((node.getAttribute("type") || "").toLowerCase()));
+                const hasCreate = labels.some((text) => /(add|create|new|save|submit|新增|添加|创建|保存)/i.test(text)) || buttons.length > 0;
+                const hasList = /(todo|task|item|record|list|table|待办|任务|记录|列表)/i.test(visibleText()) || document.querySelectorAll("li, tr, article, [data-item], [data-record]").length > 0;
+                if (hasInput && hasCreate) passed.push("CRUD create controls are present."); else failed.push("CRUD create controls are missing.");
+                if (!behaviors.includes("list") || hasList) passed.push("CRUD list/read surface is present."); else failed.push("CRUD list/read surface is missing.");
+                if (behaviors.includes("update")) {
+                  if (labels.some((text) => /(edit|update|modify|编辑|修改|更新)/i.test(text))) passed.push("CRUD update control is present."); else failed.push("CRUD update control is missing.");
+                }
+                if (behaviors.includes("delete")) {
+                  if (labels.some((text) => /(delete|remove|archive|删除|移除)/i.test(text))) passed.push("CRUD delete control is present."); else failed.push("CRUD delete control is missing.");
+                }
+                evidence.push(`${inputs.length} input(s), ${buttons.length} clickable control(s).`);
+              } else if (kind === "auth") {
+                const hasCredentialInput = inputs.some((node) => {
+                  const type = (node.getAttribute("type") || "").toLowerCase();
+                  const label = labelFor(node);
+                  return ["email", "password", "text"].includes(type) || /(email|user|name|password|邮箱|用户|密码)/i.test(label);
+                });
+                const hasPassword = inputs.some((node) => (node.getAttribute("type") || "").toLowerCase() === "password" || /(password|密码)/i.test(labelFor(node)));
+                const hasSubmit = labels.some((text) => /(login|sign in|signin|register|sign up|submit|登录|注册)/i.test(text)) || buttons.length > 0;
+                if (hasCredentialInput) passed.push("Authentication credential input is present."); else failed.push("Authentication credential input is missing.");
+                if (!behaviors.includes("login") || hasPassword) passed.push("Authentication password/session field is present."); else failed.push("Authentication password field is missing.");
+                if (hasSubmit) passed.push("Authentication submit control is present."); else failed.push("Authentication submit control is missing.");
+              } else if (kind === "file_upload") {
+                const hasFileInput = inputs.some((node) => (node.getAttribute("type") || "").toLowerCase() === "file");
+                const hasUploadControl = labels.some((text) => /(upload|import|attach|choose file|上传|导入|附件|文件)/i.test(text));
+                if (hasFileInput || hasUploadControl) passed.push("File upload control is present."); else failed.push("File upload control is missing.");
+              } else if (kind === "dashboard") {
+                const text = visibleText();
+                const hasMetric = /(dashboard|analytics|metric|kpi|chart|graph|report|total|count|仪表盘|看板|统计|指标|图表|报表)/i.test(text) || document.querySelectorAll("canvas, svg, table, [data-metric], [data-chart]").length > 0;
+                const hasFilter = labels.some((value) => /(filter|search|sort|筛选|搜索|排序)/i.test(value)) || inputs.length > 0;
+                if (hasMetric) passed.push("Dashboard metric/report surface is present."); else failed.push("Dashboard metric/report surface is missing.");
+                if (!behaviors.includes("filter") || hasFilter) passed.push("Dashboard filter/search control is present."); else failed.push("Dashboard filter/search control is missing.");
+              }
+              scenarioResults.push({
+                id: scenario.id || "",
+                kind,
+                title: scenario.title || "",
+                tests_passed: passed,
+                tests_failed: failed,
+                evidence
+              });
+            }
+            return {
+              text: visibleText(),
+              controls: controls.length,
+              inputs: inputs.length,
+              buttons: buttons.length,
+              scenarios: scenarioResults
+            };
+        }""",
+        scenarios,
+    )
+    if not isinstance(result, dict):
+        return {
+            "status": "failed",
+            "summary": "Acceptance scenario probe did not return structured evidence.",
+            "tests_passed": [],
+            "tests_failed": ["Acceptance scenario probe did not return structured evidence."],
+            "evidence": [],
+            "scenarios": [],
+        }
+    scenario_results = result.get("scenarios", []) if isinstance(result.get("scenarios"), list) else []
+    passed: list[str] = []
+    failures: list[str] = []
+    evidence: list[str] = [
+        f"{len(scenario_results)} scenario(s) evaluated.",
+        f"{int(result.get('controls', 0) or 0)} visible control(s) available.",
+    ]
+    for scenario in scenario_results:
+        if not isinstance(scenario, dict):
+            continue
+        prefix = f"{scenario.get('id') or scenario.get('kind')}: "
+        passed.extend(prefix + value for value in _string_list(scenario.get("tests_passed")))
+        failures.extend(prefix + value for value in _string_list(scenario.get("tests_failed")))
+        evidence.extend(prefix + value for value in _string_list(scenario.get("evidence")))
+    return {
+        "status": "failed" if failures else "completed",
+        "summary": "Acceptance scenario probe passed." if not failures else "Acceptance scenario probe failed.",
+        "tests_passed": passed,
+        "tests_failed": failures,
+        "evidence": evidence,
+        "scenarios": scenario_results,
+    }
+
+
 def _perform_browser_interactions(page: object, profile_name: str) -> None:
     if profile_name == "canvas_game":
         try:
@@ -772,6 +923,12 @@ def _number(value: object) -> float | None:
         return float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
+
+
+def _scenario_list(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [dict(item) for item in value if isinstance(item, dict)]
 
 
 def static_web_root_present(html: str) -> bool:

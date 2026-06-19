@@ -412,6 +412,67 @@ class DocumentRunPipelineTests(unittest.TestCase):
         self.assertEqual(report["status"], "generated")
         self.assertEqual(report["workflow_path"], ".github/workflows/alchemy-static-checks.yml")
 
+    def test_artifact_report_generates_and_passes_acceptance_scenarios(self) -> None:
+        from PIL import Image
+
+        with temp_document_run_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "index.html").write_text(
+                "<!doctype html><main id='app'><form><input name='todo'><button>Add Todo</button></form><ul><li>Seed task</li></ul></main>",
+                encoding="utf-8",
+            )
+            seen_scenarios: list[dict[str, object]] = []
+
+            def fake_browser(request: dict[str, object]) -> dict[str, object]:
+                seen_scenarios.extend(list(request.get("acceptance_scenarios", [])))  # type: ignore[arg-type]
+                first = Path(str(request["initial_screenshot"]))
+                second = Path(str(request["after_interaction_screenshot"]))
+                initial = Image.new("RGB", (8, 8), "white")
+                initial.putpixel((1, 1), (20, 20, 20))
+                initial.save(first)
+                changed = Image.new("RGB", (8, 8), "white")
+                changed.putpixel((2, 2), (0, 0, 0))
+                changed.save(second)
+                return {
+                    "status": "completed",
+                    "semantic_probe": {"status": "completed"},
+                    "scenario_probe": {
+                        "status": "completed",
+                        "tests_passed": ["SCN-001: CRUD create controls are present."],
+                    },
+                }
+
+            report = build_artifact_report(
+                repository_path=repo,
+                task_graph={
+                    "nodes": [
+                        {
+                            "commands_to_run": ["static artifact inspection"],
+                            "relevant_files": ["index.html"],
+                        }
+                    ]
+                },
+                context_bundle={
+                    "requirement_map": {
+                        "requirements": [
+                            {
+                                "id": "REQ-001",
+                                "text": "Users can create todo records.",
+                                "acceptance_criteria": ["CRUD create updates the visible todo list."],
+                            }
+                        ]
+                    }
+                },
+                output_dir=root / "run",
+                auto_browser_verify=True,
+                browser_artifact_runner=BrowserArtifactRunner(fake_browser),
+            )
+
+        self.assertEqual(report["acceptance_scenarios"]["status"], "generated")
+        self.assertEqual(seen_scenarios[0]["kind"], "crud")
+        self.assertEqual(report["browser_verification"]["scenario_probe"]["status"], "completed")
+
     def test_development_cycle_report_marks_manual_engineering_loop_evidence(self) -> None:
         report = build_development_cycle_report(
             project_brief={
@@ -580,6 +641,30 @@ class DocumentRunPipelineTests(unittest.TestCase):
 
         self.assertEqual(report["artifact"]["semantic_status"], "completed")
         self.assertEqual(report["artifact"]["semantic_probe"]["tests_passed"], ["Static web controls are discoverable."])
+
+    def test_delivery_report_summarizes_acceptance_scenario_probe_status(self) -> None:
+        report = build_delivery_report(
+            status="done",
+            runtime_state={
+                "evaluation": {"done": True, "reason": "DONE condition met.", "final_gate_score": 0.9},
+                "github": {"ci_status": "passed"},
+                "blockers": [],
+            },
+            artifact_report={
+                "artifact_profile": {"name": "static_web_app"},
+                "acceptance_scenarios": {"status": "generated", "scenarios": [{"id": "SCN-001", "kind": "crud"}]},
+                "browser_verification": {
+                    "status": "completed",
+                    "scenario_probe": {"status": "completed", "tests_passed": ["SCN-001: CRUD create controls are present."]},
+                },
+            },
+            requirement_coverage={"status": "passed", "entries": []},
+            generated_ci={"status": "generated"},
+        )
+
+        self.assertEqual(report["artifact"]["scenario_status"], "completed")
+        self.assertEqual(report["artifact"]["acceptance_scenarios"]["status"], "generated")
+        self.assertEqual(report["artifact"]["scenario_probe"]["tests_passed"], ["SCN-001: CRUD create controls are present."])
 
     def test_assign_release_branch_binds_real_worktree_branch_to_release_task(self) -> None:
         state = RuntimeState(

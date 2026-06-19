@@ -151,12 +151,15 @@ def _step_testing(runtime_state: dict[str, Any], artifact_report: dict[str, Any]
     gameplay_status = gameplay_probe.get("status", "") if isinstance(gameplay_probe, dict) else ""
     semantic_probe = browser.get("semantic_probe", {}) if isinstance(browser, dict) else {}
     semantic_status = semantic_probe.get("status", "") if isinstance(semantic_probe, dict) else ""
+    scenario_probe = browser.get("scenario_probe", {}) if isinstance(browser, dict) else {}
+    scenario_status = scenario_probe.get("status", "") if isinstance(scenario_probe, dict) else ""
     ci_status = delivery_report.get("github", {}).get("ci_status", runtime_state.get("github", {}).get("ci_status", ""))
     artifact_ok = static_status in {"passed", "completed", "skipped", ""}
     browser_ok = browser_status in {"completed", "passed", "skipped", ""}
     gameplay_ok = profile_name != "canvas_game" or gameplay_status == "completed"
     semantic_ok = semantic_status not in {"failed"}
-    passed = evaluation.get("test_pass_rate", 0) and artifact_ok and browser_ok and gameplay_ok and semantic_ok
+    scenario_ok = scenario_status not in {"failed"}
+    passed = evaluation.get("test_pass_rate", 0) and artifact_ok and browser_ok and gameplay_ok and semantic_ok and scenario_ok
     if passed and ci_status in {"passed", "waived", ""}:
         evidence = [f"test_pass_rate={evaluation.get('test_pass_rate')}", f"ci_status={ci_status or 'n/a'}"]
         if browser_status:
@@ -165,6 +168,8 @@ def _step_testing(runtime_state: dict[str, Any], artifact_report: dict[str, Any]
             evidence.append(f"gameplay_status={gameplay_status}")
         if semantic_status and semantic_status != gameplay_status:
             evidence.append(f"semantic_status={semantic_status}")
+        if scenario_status and scenario_status != "skipped":
+            evidence.append(f"scenario_status={scenario_status}")
         return CycleStep("testing", "passed", evidence)
     gaps: list[str] = []
     if not evaluation.get("test_pass_rate", 0):
@@ -177,6 +182,8 @@ def _step_testing(runtime_state: dict[str, Any], artifact_report: dict[str, Any]
         gaps.append("Canvas gameplay probe did not complete.")
     if semantic_status == "failed":
         gaps.append("Semantic browser probe failed.")
+    if scenario_status == "failed":
+        gaps.append("Acceptance scenario browser probe failed.")
     if ci_status in {"failed", "pending", "unknown"}:
         gaps.append(f"GitHub CI status is {ci_status}.")
     return CycleStep("testing", "missing", gaps=gaps)

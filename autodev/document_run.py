@@ -13,6 +13,7 @@ from intake import Blocker, GitHubSourceRuntime, PrivateGitHubSourceRuntime, Pro
 from planner import TaskGraphBuilder
 from runtime.control import ExecutionController
 from runtime import (
+    AcceptanceScenarioPlanner,
     BrowserArtifactEvidenceVerifier,
     BrowserArtifactRunner,
     CodexWorkerAdapter,
@@ -602,6 +603,7 @@ def build_artifact_report(
 ) -> dict[str, object]:
     artifact_files = artifact_files_from_graph(task_graph)
     requirements = requirement_texts(context_bundle or {})
+    scenario_plan = AcceptanceScenarioPlanner().build(context_bundle or {})
     static_verification = StaticWebArtifactVerifier().verify(
         repository_path,
         artifact_files,
@@ -614,6 +616,7 @@ def build_artifact_report(
             artifact_files,
             output_dir=output_dir,
             profile_name=str(static_verification.profile.get("name", "unknown")),
+            acceptance_scenarios=list(scenario_plan.to_dict().get("scenarios", [])),
         ).to_dict()
     elif browser_initial_screenshot or browser_after_screenshot or browser_console_errors:
         browser_verification = BrowserArtifactEvidenceVerifier().verify_existing_evidence(
@@ -627,6 +630,7 @@ def build_artifact_report(
         "artifact_profile": static_verification.profile,
         "static_verification": static_verification.to_dict(),
         "browser_verification": browser_verification,
+        "acceptance_scenarios": scenario_plan.to_dict(),
         "artifact_files": artifact_files,
     }
 

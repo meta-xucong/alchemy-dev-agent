@@ -1,6 +1,7 @@
 """Alchemy Dev Agent Runtime Engine v0.2."""
 
 from .agent_router import AgentRouter
+from .acceptance_scenarios import AcceptanceScenario, AcceptanceScenarioPlan, AcceptanceScenarioPlanner
 from .artifact_profile import ArtifactProfile, ArtifactProfileDetector
 from .artifact_verifier import BrowserArtifactEvidenceVerifier, BrowserArtifactRunner, StaticWebArtifactVerifier
 from .codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult, CommandResult
@@ -18,6 +19,9 @@ from .worktree import RealRunWorkspace, WorktreeSession
 
 __all__ = [
     "AgentRouter",
+    "AcceptanceScenario",
+    "AcceptanceScenarioPlan",
+    "AcceptanceScenarioPlanner",
     "ArtifactProfile",
     "ArtifactProfileDetector",
     "BrowserArtifactEvidenceVerifier",

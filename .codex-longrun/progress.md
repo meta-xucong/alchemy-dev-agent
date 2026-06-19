@@ -454,3 +454,14 @@ PY"`
 
 - Pushed commit `7757d08` to `master`.
 - GitHub Actions CI run `27825199118` completed successfully for `Add semantic web probes and feedback intake`.
+
+
+## 2026-06-19 V2.27 Acceptance Scenario Browser Probes
+
+- Added `docs/34_v2_27_acceptance_scenario_browser_probes.md` and linked it from README and the V2 development plan.
+- Added deterministic acceptance scenario planning for CRUD, auth, file upload, and dashboard requirements.
+- Wired generated scenarios into automatic static-web browser verification as `scenario_probe` evidence.
+- Surfaced scenario status in delivery reports, requirement coverage, development-cycle testing, and the browser console summary.
+- Updated Codex worker guidance so generated static web apps expose visible semantic controls for document-specific flows.
+- Verified real Playwright scenario probing against a static fixture containing auth, CRUD, upload, and dashboard controls.
+- Verified focused tests, full suite, acceptance harness, JSON specs, diff hygiene, and long-running state validation.

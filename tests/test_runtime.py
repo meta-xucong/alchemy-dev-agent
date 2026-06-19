@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Iterator
 
 from runtime.agent_router import AgentRouter
+from runtime.acceptance_scenarios import AcceptanceScenarioPlanner
 from runtime.artifact_profile import ArtifactProfileDetector
 from runtime.artifact_verifier import BrowserArtifactEvidenceVerifier, BrowserArtifactRunner, StaticWebArtifactVerifier
 from runtime.control import ControlDecision
@@ -78,6 +79,43 @@ class AgentRouterTests(unittest.TestCase):
         task = graph.nodes[0]
 
         self.assertEqual(AgentRouter().route(task), "architect")
+
+
+class AcceptanceScenarioPlannerTests(unittest.TestCase):
+    def test_generates_domain_scenarios_from_acceptance_requirements(self) -> None:
+        context_bundle = {
+            "requirement_map": {
+                "requirements": [
+                    {
+                        "id": "REQ-001",
+                        "text": "Users must login with email and password.",
+                        "acceptance_criteria": ["Login form accepts credentials and starts a session."],
+                    },
+                    {
+                        "id": "REQ-002",
+                        "text": "Users can create, edit, and delete todo records.",
+                        "acceptance_criteria": ["CRUD actions update the visible todo list."],
+                    },
+                    {
+                        "id": "REQ-003",
+                        "text": "Dashboard shows KPI charts and supports search filters.",
+                        "acceptance_criteria": ["Metrics and filters are visible."],
+                    },
+                    {
+                        "id": "REQ-004",
+                        "text": "Users can upload an attachment.",
+                        "acceptance_criteria": ["File upload control is available."],
+                    },
+                ]
+            }
+        }
+
+        plan = AcceptanceScenarioPlanner().build(context_bundle)
+
+        self.assertEqual(plan.status, "generated")
+        self.assertEqual({scenario.kind for scenario in plan.scenarios}, {"auth", "crud", "dashboard", "file_upload"})
+        crud = next(scenario for scenario in plan.scenarios if scenario.kind == "crud")
+        self.assertIn("delete", crud.required_behaviors)
 
 
 class CodexWorkerTests(unittest.TestCase):
@@ -1414,6 +1452,49 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result.semantic_probe["status"], "completed")
         self.assertIn("Static web controls are discoverable.", result.tests_passed)
 
+    def test_browser_artifact_runner_passes_acceptance_scenarios_to_browser(self) -> None:
+        from PIL import Image
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text("<!doctype html><main id='app'><input><button>Add</button></main>", encoding="utf-8")
+            seen_scenarios: list[dict[str, object]] = []
+
+            def fake_browser(request: dict[str, object]) -> dict[str, object]:
+                seen_scenarios.extend(list(request.get("acceptance_scenarios", [])))  # type: ignore[arg-type]
+                first = Path(str(request["initial_screenshot"]))
+                second = Path(str(request["after_interaction_screenshot"]))
+                image = Image.new("RGB", (6, 6), "white")
+                image.putpixel((1, 1), (0, 0, 0))
+                image.save(first)
+                changed = Image.new("RGB", (6, 6), "white")
+                changed.putpixel((2, 2), (0, 0, 0))
+                changed.save(second)
+                return {
+                    "status": "completed",
+                    "semantic_probe": {"status": "completed"},
+                    "scenario_probe": {
+                        "status": "completed",
+                        "tests_passed": ["SCN-001: CRUD create controls are present."],
+                        "tests_failed": [],
+                    },
+                }
+
+            result = BrowserArtifactRunner(fake_browser).verify(
+                repo,
+                ["index.html"],
+                output_dir=repo / "evidence",
+                profile_name="static_web_app",
+                acceptance_scenarios=[
+                    {"id": "SCN-001", "kind": "crud", "required_behaviors": ["create"]},
+                ],
+            )
+
+        self.assertEqual(seen_scenarios[0]["kind"], "crud")
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.scenario_probe["status"], "completed")
+        self.assertIn("SCN-001: CRUD create controls are present.", result.tests_passed)
+
     def test_browser_artifact_runner_fails_when_static_web_semantic_probe_fails(self) -> None:
         from PIL import Image
 
@@ -1439,6 +1520,42 @@ class OrchestratorTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
         self.assertIn("Semantic probe failed.", result.tests_failed)
+
+    def test_browser_artifact_runner_fails_when_acceptance_scenario_probe_fails(self) -> None:
+        from PIL import Image
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text("<!doctype html><main id='app'><input></main>", encoding="utf-8")
+
+            def fake_browser(request: dict[str, object]) -> dict[str, object]:
+                first = Path(str(request["initial_screenshot"]))
+                second = Path(str(request["after_interaction_screenshot"]))
+                image = Image.new("RGB", (6, 6), "white")
+                image.putpixel((1, 1), (0, 0, 0))
+                image.save(first)
+                image.save(second)
+                return {
+                    "status": "completed",
+                    "semantic_probe": {"status": "completed"},
+                    "scenario_probe": {
+                        "status": "failed",
+                        "tests_failed": ["SCN-001: CRUD create controls are missing."],
+                    },
+                }
+
+            result = BrowserArtifactRunner(fake_browser).verify(
+                repo,
+                ["index.html"],
+                output_dir=repo / "evidence",
+                profile_name="static_web_app",
+                acceptance_scenarios=[
+                    {"id": "SCN-001", "kind": "crud", "required_behaviors": ["create"]},
+                ],
+            )
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("SCN-001: CRUD create controls are missing.", result.tests_failed)
 
     def test_orchestrator_runs_static_artifact_inspection_deterministically(self) -> None:
         with temp_project_dir() as tmp_dir:

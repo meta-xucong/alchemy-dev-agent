@@ -1,6 +1,6 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.26 semantic web probes and feedback intake loop",
+  "current_phase": "V2.27 acceptance scenario browser probes",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -37,12 +37,13 @@
     "V2.24.3 browser automation readiness preflight and screenshot path fix",
     "V2.24.4 fresh external docs-only repository rerun with generated CI, browser evidence, PR merge",
     "V2.25 playability feedback loop and semantic gameplay gate",
-    "V2.26 semantic web probes and feedback intake loop"
+    "V2.26 semantic web probes and feedback intake loop",
+    "V2.27 acceptance scenario browser probes"
   ],
   "next_actions": [
-    "Generate domain-specific Playwright scenarios from detailed acceptance documents for CRUD, dashboards, auth, and file-upload flows.",
     "Allow feedback intake to reopen a delivered run and automatically create a recovery/debug branch with targeted worker packages.",
-    "Polish browser-console evidence views for semantic probe snapshots, failed interactions, and development_cycle checklist details."
+    "Polish browser-console evidence views for semantic probe snapshots, scenario probe details, failed interactions, and development_cycle checklist details.",
+    "Extend generated acceptance scenarios beyond static web apps into repository-native Playwright/Cypress test generation when a project already has a UI test framework."
   ],
   "tests_run": [
     {
@@ -606,6 +607,11 @@
       "id": "MANUAL_FEEDBACK_NOT_STRUCTURED_AS_WORK",
       "status": "fixed",
       "summary": "Manual playtest and acceptance feedback could be uploaded but was not first-class work; fixed by adding feedback file role inference and must-priority feedback requirement extraction."
+    },
+    {
+      "id": "DETAILED_ACCEPTANCE_DOCS_NOT_BROWSER_EXECUTABLE",
+      "status": "fixed",
+      "summary": "Detailed acceptance documents could generate requirements but not executable browser scenarios; fixed by adding deterministic CRUD/auth/upload/dashboard scenario planning and scenario_probe browser evidence."
     }
   ],
   "blockers": [],
@@ -622,9 +628,12 @@
     "Non-web project profiles skip static web artifact verification instead of producing false partial development-cycle results.",
     "Static-web artifacts are verified with generic app-root/control rules instead of canvas-game-only rules.",
     "Automatic browser verification records semantic_probe evidence for ordinary static web apps.",
-    "Feedback files are recognized as first-class intake and converted into must-priority requirement deltas."
+    "Feedback files are recognized as first-class intake and converted into must-priority requirement deltas.",
+    "Detailed acceptance requirements generate deterministic browser acceptance scenarios for CRUD, auth, file upload, and dashboard flows.",
+    "Static web browser verification runs scenario_probe evidence and fails testing readiness when generated scenarios fail.",
+    "Scenario evidence is surfaced in artifact_report, delivery_report, requirement_coverage, development_cycle, and the browser console summary."
   ],
-  "last_verified_at": "2026-06-19T20:18:41+08:00",
+  "last_verified_at": "2026-06-19T20:39:01+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T20:18:41+08:00"
+  "updated_at": "2026-06-19T20:39:01+08:00"
 }

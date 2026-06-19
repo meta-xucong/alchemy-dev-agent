@@ -51,6 +51,7 @@ function renderDelivery(delivery) {
     ["Merge", merge.status || "-"],
     ["Artifact", artifact.profile || "-"],
     ["Semantic", artifact.semantic_status || artifact.semantic_probe?.status || "-"],
+    ["Scenarios", artifact.scenario_status || artifact.scenario_probe?.status || artifact.acceptance_scenarios?.status || "-"],
     ["Gameplay", artifact.gameplay_status || artifact.gameplay_probe?.status || "-"],
     ["Coverage", requirements.coverage_score ?? "-"],
   ];

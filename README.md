@@ -100,6 +100,8 @@ docs/
                               V2.25 semantic gameplay probe and feedback-loop gate.
   33_v2_26_semantic_web_and_feedback.md
                               V2.26 semantic web probes and feedback intake loop.
+  34_v2_27_acceptance_scenario_browser_probes.md
+                              V2.27 acceptance-scenario browser probes for CRUD/auth/upload/dashboard flows.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -717,6 +719,8 @@ playability gate added after manual testing found that a rendered game can still
 contain product-level bugs.
 See `docs/33_v2_26_semantic_web_and_feedback.md` for the next extension:
 semantic probes for ordinary web apps and feedback files as requirement deltas.
+See `docs/34_v2_27_acceptance_scenario_browser_probes.md` for deterministic
+browser scenarios generated from detailed acceptance documents.
 
 Run a smoke execution:
 

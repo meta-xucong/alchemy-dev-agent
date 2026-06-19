@@ -503,7 +503,14 @@ DONE requires:
 - Add a browser `semantic_probe` for static web apps that inspects controls, fills inputs, clicks safe controls, and records DOM/state-change evidence. Status: implemented.
 - Surface semantic probe evidence in artifact reports, delivery reports, requirement coverage, development-cycle testing, and browser-console summaries. Status: implemented.
 - Add `feedback` role intake so playtest notes, bug reports, and acceptance feedback become requirement-like deltas for the next debug/fix loop. Status: implemented for deterministic file-role inference and requirement extraction.
-- Generate domain-specific Playwright scenarios from detailed acceptance documents. Status: planned.
+- Generate domain-specific Playwright scenarios from detailed acceptance documents. Status: implemented in V2.27 for CRUD, auth, file upload, and dashboard static-web flows.
+
+### V2.27: Acceptance Scenario Browser Probes
+
+- Generate deterministic `acceptance_scenarios` from requirement text and acceptance criteria. Status: implemented.
+- Pass generated scenarios into automatic browser verification for `static_web_app` artifacts. Status: implemented.
+- Verify CRUD, authentication, file-upload, and dashboard controls with scenario-specific browser evidence. Status: implemented.
+- Surface scenario evidence in `artifact_report`, `delivery_report`, requirement coverage, development-cycle testing, and the browser console summary. Status: implemented.
 
 ## Risks And Mitigations
 

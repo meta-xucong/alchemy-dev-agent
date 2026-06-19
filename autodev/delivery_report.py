@@ -23,6 +23,8 @@ def build_delivery_report(
     profile = artifact_report.get("artifact_profile", {})
     gameplay_probe = browser.get("gameplay_probe", {}) if isinstance(browser, dict) else {}
     semantic_probe = browser.get("semantic_probe", {}) if isinstance(browser, dict) else {}
+    scenario_probe = browser.get("scenario_probe", {}) if isinstance(browser, dict) else {}
+    scenario_plan = artifact_report.get("acceptance_scenarios", {})
     coverage_entries = requirement_coverage.get("entries", [])
     report = {
         "status": status,
@@ -48,6 +50,9 @@ def build_delivery_report(
             "browser_status": browser.get("status", ""),
             "semantic_status": semantic_probe.get("status", "") if isinstance(semantic_probe, dict) else "",
             "semantic_probe": dict(semantic_probe) if isinstance(semantic_probe, dict) else {},
+            "scenario_status": scenario_probe.get("status", "") if isinstance(scenario_probe, dict) else "",
+            "scenario_probe": dict(scenario_probe) if isinstance(scenario_probe, dict) else {},
+            "acceptance_scenarios": dict(scenario_plan) if isinstance(scenario_plan, dict) else {},
             "gameplay_status": gameplay_probe.get("status", "") if isinstance(gameplay_probe, dict) else "",
             "gameplay_probe": dict(gameplay_probe) if isinstance(gameplay_probe, dict) else {},
             "screenshots": browser.get("screenshots", {}),

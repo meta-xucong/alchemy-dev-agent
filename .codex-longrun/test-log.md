@@ -1161,3 +1161,41 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27825199118` passed on `master` commit `7757d08` after V2.26 changes.
 - Next verification command: none.
+
+
+## 2026-06-19 V2.27 Acceptance Scenario Browser Probes
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.AcceptanceScenarioPlannerTests tests.test_runtime.OrchestratorTests tests.test_runtime.RequirementCoverageTests tests.test_document_run_pipeline.DocumentRunPipelineTests`
+- Result: passed.
+- Summary: 53 focused tests passed for scenario planning, artifact runner/reporting, requirement coverage, and document-run reporting.
+- Next verification command: real Playwright scenario smoke.
+
+- Command: `BrowserArtifactRunner` real Playwright scenario probe against a static auth/CRUD/upload/dashboard fixture.
+- Result: passed.
+- Summary: Scenario probe completed for auth, CRUD create/update/delete/list, file upload, and dashboard metric/filter checks.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 162 tests passed after V2.27 acceptance scenario browser probe changes.
+- Next verification command: acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_27`
+- Result: passed.
+- Summary: Acceptance harness passed with delivery done and development_cycle score 1.0; reports include generated acceptance_scenarios.
+- Next verification command: JSON specs, diff hygiene, state validation, commit, push, and remote CI.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`
+- Result: passed.
+- Summary: All JSON specs parse after V2.27 changes.
+- Next verification command: `git diff --check`.
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported after V2.27 changes.
+- Next verification command: state validation.
+
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed.
+- Summary: Long-running state schema validated after V2.27 changes.
+- Next verification command: commit, push, and GitHub Actions.
