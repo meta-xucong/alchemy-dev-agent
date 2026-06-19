@@ -274,13 +274,13 @@ def rewrite_protected_game_terms(text: str) -> str:
 
 
 def infer_priority(text: str, role: str) -> str:
+    if role == "feedback":
+        return "must"
     lowered = text.lower()
     for priority, markers in PRIORITY_MARKERS.items():
         if any(marker in lowered or marker in text for marker in markers):
             return priority
     if role == "primary_requirements":
-        return "must"
-    if role == "feedback":
         return "must"
     if role == "test_plan":
         return "should"

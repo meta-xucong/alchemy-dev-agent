@@ -104,6 +104,8 @@ docs/
                               V2.27 acceptance-scenario browser probes for CRUD/auth/upload/dashboard flows.
   35_v2_28_feedback_reopen_loop.md
                               V2.28 feedback-driven reopen and repair loop.
+  36_v2_29_local_and_github_source_modes.md
+                              V2.29 local and GitHub source-mode unification.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -151,6 +153,8 @@ planner/
 
 autodev/
   acceptance_run.py          Local end-to-end acceptance harness.
+  local_repository_acceptance.py
+                             Local repository import and feedback-reopen acceptance harness.
   real_env_check.py          Real git/gh/Codex environment readiness report.
   real_delivery_validation.py
                               Controlled real GitHub delivery validation harness.
@@ -384,6 +388,34 @@ GET  /projects/{project_id}/delivery
 ```
 
 The API accepts local file paths through `documents`, `attachments`, or a UI-oriented `files` list. V2.9 builds browser upload, async run jobs, and a local console on top of this backend.
+
+## V2.29 Local And GitHub Source Modes
+
+The project source can now be provided in either mode:
+
+- `repository_path` only: local repository import, recorded as `provider = local`
+- `repository`: GitHub repository import, recorded as `provider = github`
+
+Both modes converge into the same intake, context, task graph, runtime, feedback
+reopen, and delivery contracts. GitHub mode may clone/fetch first; local mode
+starts from an existing directory and does not require a GitHub URL.
+
+Run the local-only source-mode acceptance harness:
+
+```bash
+python -m autodev.local_repository_acceptance \
+  --output .alchemy/local_repository_acceptance
+```
+
+Optional local browser verification:
+
+```bash
+python -m autodev.local_repository_acceptance \
+  --output .alchemy/local_repository_acceptance \
+  --auto-browser-verify
+```
+
+See `docs/36_v2_29_local_and_github_source_modes.md`.
 
 ## V2.9 Browser Console And Async Runs
 

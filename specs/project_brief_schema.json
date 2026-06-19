@@ -178,11 +178,13 @@
       "properties": {
         "provider": {
           "type": "string",
-          "const": "github"
+          "enum": [
+            "github",
+            "local"
+          ]
         },
         "url": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         },
         "owner": {
           "type": "string"

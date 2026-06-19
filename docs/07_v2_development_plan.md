@@ -42,6 +42,7 @@ The repository currently contains:
 - A v2.19 representative real worker probe for bounded document-driven execution.
 - V2.20 and V2.21 acceptance closure and post-acceptance quality gate hardening.
 - A V2.22 supplemental plan for external docs-only repository delivery closure.
+- A V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, richer UI/API observability, representative real GitHub delivery validation, external docs-only delivery closure, and safer live execution controls. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -53,6 +54,7 @@ Build a system that can accept a complete project package and drive implementati
 The system must be able to:
 
 - Ingest a development document and multiple supporting files.
+- Inspect an existing local repository path.
 - Inspect a linked public GitHub repository.
 - Treat private repository access as an optional path that requires local `gh` authentication.
 - Build a normalized project brief.
@@ -179,6 +181,8 @@ runtime/
 
 autodev/
   acceptance_run.py         Run local end-to-end acceptance checks and write an acceptance report.
+  local_repository_acceptance.py
+                            Run local repository import and feedback-reopen acceptance checks.
   document_run.py           Run document-driven intake, context, planning, handoff, and dry-run execution.
   preflight.py              Check local readiness for real Codex and GitHub execution.
   real_delivery_validation.py
@@ -518,6 +522,14 @@ DONE requires:
 - Route feedback-derived requirements to Debug Agent tasks. Status: implemented.
 - Add `/projects/{project_id}/feedback/reopen` for delivered-run repair iterations. Status: implemented.
 - Add browser-console feedback reopen control that uploads selected feedback files and starts a repair run. Status: implemented.
+
+### V2.29: Local And GitHub Source Modes
+
+- Treat local repository import as a first-class `ProjectBrief.repository` provider. Status: implemented.
+- Support `repository_path` without requiring a GitHub URL. Status: implemented.
+- Keep GitHub and local import modes on the same ProjectBrief -> ContextBundle -> TaskGraph -> RuntimeState contract. Status: implemented.
+- Add a local repository acceptance harness that runs initial delivery and feedback reopen without creating a GitHub repository. Status: implemented.
+- Keep optional browser verification as a local acceptance flag, not a mandatory unit-test dependency. Status: implemented.
 
 ## Risks And Mitigations
 

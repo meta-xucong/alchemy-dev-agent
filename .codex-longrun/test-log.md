@@ -1248,3 +1248,30 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27827029904` passed on `master` commit `cab4518` after V2.28 feedback reopen repair loop changes.
 - Next verification command: none.
+
+## 2026-06-19 V2.29 Local And GitHub Source Modes
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.CodexWorkerTests.test_worker_does_not_block_from_natural_language_goal tests.test_intake.ProjectBriefBuilderTests.test_local_repository_path_is_first_class_source tests.test_api_server.ApiServerTests.test_project_service_records_local_repository_provider tests.test_document_to_plan.DocumentToPlanTests.test_feedback_priority_stays_must_even_when_text_says_should tests.test_document_to_plan.DocumentToPlanTests.test_feedback_document_becomes_must_fix_requirement tests.test_local_repository_acceptance`
+- Result: passed.
+- Summary: 7 focused tests passed for local repository provider contract, feedback priority, dry-run blocker regression, and the local repository acceptance harness.
+- Next verification command: local acceptance harness with browser verification.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.local_repository_acceptance --output .alchemy\local_repository_acceptance_v2_29_browser --auto-browser-verify`
+- Result: passed.
+- Summary: Local-only repository acceptance passed with automatic browser verification, feedback reopen `run_002`, Debug Agent tasks, static-web semantic/scenario evidence, and dry-run GitHub evidence.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 170 tests passed after V2.29 source-mode unification and local acceptance harness changes.
+- Next verification command: main acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_29`
+- Result: passed.
+- Summary: Main acceptance harness passed with delivery done and development_cycle score 1.0.
+- Next verification command: JSON specs, diff hygiene, and state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"; git diff --check; python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed.
+- Summary: JSON specs parsed, diff hygiene passed, and long-running state validated before V2.29 commit.
+- Next verification command: commit, push, and GitHub Actions.

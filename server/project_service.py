@@ -628,6 +628,7 @@ class ProjectService:
             attachments=list(normalized["attachments"]),
             primary_input_mode=normalized["primary_input_mode"],
             repository_url=str(normalized["repository_url"]),
+            repository_path=str(normalized["repository_path"]),
             target_branch=str(normalized["target_branch"]),
             base_branch=str(normalized["base_branch"]),
             repository_visibility=normalized["repository_visibility"],

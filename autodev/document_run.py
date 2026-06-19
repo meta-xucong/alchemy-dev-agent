@@ -144,6 +144,7 @@ class DocumentRunPipeline:
             documents=documents,
             attachments=attachments,
             repository_url=repository_url,
+            repository_path=repository_path or "",
             repository_visibility=repository_visibility,  # type: ignore[arg-type]
         )
         if brief.repository and repository_path:

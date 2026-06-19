@@ -10,6 +10,8 @@ __all__ = [
     "DeliveryValidationReport",
     "ExternalDocsOnlyAcceptance",
     "ExternalDocsOnlyAcceptanceReport",
+    "LocalRepositoryAcceptanceHarness",
+    "LocalRepositoryAcceptanceResult",
     "build_development_cycle_report",
 ]
 
@@ -49,6 +51,14 @@ def __getattr__(name: str):
         exports = {
             "ExternalDocsOnlyAcceptance": ExternalDocsOnlyAcceptance,
             "ExternalDocsOnlyAcceptanceReport": ExternalDocsOnlyAcceptanceReport,
+        }
+        return exports[name]
+    if name in {"LocalRepositoryAcceptanceHarness", "LocalRepositoryAcceptanceResult"}:
+        from .local_repository_acceptance import LocalRepositoryAcceptanceHarness, LocalRepositoryAcceptanceResult
+
+        exports = {
+            "LocalRepositoryAcceptanceHarness": LocalRepositoryAcceptanceHarness,
+            "LocalRepositoryAcceptanceResult": LocalRepositoryAcceptanceResult,
         }
         return exports[name]
     if name == "build_development_cycle_report":

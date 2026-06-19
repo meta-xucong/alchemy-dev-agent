@@ -101,6 +101,28 @@ class ProjectBriefBuilderTests(unittest.TestCase):
         self.assertTrue(payload["repository"]["gh_auth_required"])
         self.assertEqual(validate_project_brief_contract(payload), [])
 
+    def test_local_repository_path_is_first_class_source(self) -> None:
+        with temp_intake_dir() as tmp_dir:
+            repo = tmp_dir / "repo"
+            repo.mkdir()
+            primary = tmp_dir / "feature.md"
+            primary.write_text("# Feature\nUsers can add todos.\n", encoding="utf-8")
+
+            brief = ProjectBriefBuilder().build(
+                objective="Build local todo",
+                documents=[primary],
+                repository_path=repo,
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+            payload = brief.to_dict()
+
+        self.assertEqual(payload["repository"]["provider"], "local")
+        self.assertEqual(payload["repository"]["name"], "repo")
+        self.assertEqual(payload["repository"]["url"], "")
+        self.assertEqual(payload["repository"]["local_path"], str(repo))
+        self.assertEqual(payload["repository"]["access_status"], "available")
+        self.assertEqual(validate_project_brief_contract(payload), [])
+
     def test_document_driven_mode_requires_primary_document(self) -> None:
         brief = ProjectBriefBuilder().build(
             objective="Build billing dashboard",

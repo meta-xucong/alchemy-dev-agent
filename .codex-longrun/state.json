@@ -1,7 +1,7 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.28 feedback reopen loop",
-  "phase_status": "done",
+  "current_phase": "V2.29 local and GitHub source modes",
+  "phase_status": "verifying",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
     "V2.8 local API and project service runtime",
@@ -39,12 +39,13 @@
     "V2.25 playability feedback loop and semantic gameplay gate",
     "V2.26 semantic web probes and feedback intake loop",
     "V2.27 acceptance scenario browser probes",
-    "V2.28 feedback reopen loop"
+    "V2.28 feedback reopen loop",
+    "V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness"
   ],
   "next_actions": [
-    "Polish browser-console evidence views for semantic probe snapshots, scenario probe details, failed interactions, and development_cycle checklist details.",
-    "Extend generated acceptance scenarios beyond static web apps into repository-native Playwright/Cypress test generation when a project already has a UI test framework.",
-    "Add recovery-run comparison reports that show source run evidence versus feedback repair run evidence."
+    "Push V2.29 source-mode unification to GitHub and wait for remote CI.",
+    "Record remote CI closure for V2.29 after GitHub Actions passes.",
+    "Continue toward repository-native UI test generation and source-run versus repair-run comparison reports."
   ],
   "tests_run": [
     {
@@ -576,6 +577,31 @@
       "command": "GitHub Actions CI run 27827029904 on master cab4518",
       "result": "passed",
       "summary": "Remote CI completed successfully after V2.28 feedback reopen repair loop changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.CodexWorkerTests.test_worker_does_not_block_from_natural_language_goal tests.test_intake.ProjectBriefBuilderTests.test_local_repository_path_is_first_class_source tests.test_api_server.ApiServerTests.test_project_service_records_local_repository_provider tests.test_document_to_plan.DocumentToPlanTests.test_feedback_priority_stays_must_even_when_text_says_should tests.test_document_to_plan.DocumentToPlanTests.test_feedback_document_becomes_must_fix_requirement tests.test_local_repository_acceptance",
+      "result": "passed",
+      "summary": "7 focused tests passed for local repository provider contract, feedback priority, dry-run blocker regression, and local acceptance harness."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.local_repository_acceptance --output .alchemy\\local_repository_acceptance_v2_29_browser --auto-browser-verify",
+      "result": "passed",
+      "summary": "Local-only repository acceptance passed with automatic browser verification, feedback reopen run_002, Debug Agent tasks, static-web semantic/scenario evidence, and dry-run GitHub evidence."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests",
+      "result": "passed",
+      "summary": "170 tests passed after V2.29 source-mode unification and local acceptance harness changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_29",
+      "result": "passed",
+      "summary": "Main acceptance harness passed after V2.29 changes with delivery done and development_cycle score 1.0."
+    },
+    {
+      "command": "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"; git diff --check; validate_state.py --project .",
+      "result": "passed",
+      "summary": "JSON specs parsed, diff hygiene passed, and long-running state validated before V2.29 commit."
     }
   ],
   "known_bugs": [
@@ -638,6 +664,16 @@
       "id": "FEEDBACK_REOPEN_NOT_ACTIONABLE_AFTER_DELIVERY",
       "status": "fixed",
       "summary": "Feedback files could become requirements but had no first-class delivered-run reopen path; fixed by preserving source_role=feedback, routing feedback to Debug Agent tasks, and adding /feedback/reopen with UI support."
+    },
+    {
+      "id": "DRY_RUN_BLOCKED_WORD_FALSE_POSITIVE",
+      "status": "fixed",
+      "summary": "Dry-run worker no longer treats the word blocked in natural-language goals as an explicit worker blocker; only explicit dry-run block constraints trigger blocked status."
+    },
+    {
+      "id": "LOCAL_REPOSITORY_NOT_FIRST_CLASS_SOURCE",
+      "status": "fixed",
+      "summary": "Projects can now provide repository_path without a GitHub URL; ProjectBrief records provider=local and ContextBundle indexes the local source path."
     }
   ],
   "blockers": [],
@@ -661,9 +697,13 @@
     "Feedback files preserve source_role=feedback through requirement extraction and task planning.",
     "Feedback-derived requirements route to Debug Agent tasks.",
     "Delivered runs can be reopened with feedback files through the local API and browser console.",
-    "Feedback reopen runs record source run, feedback files, and feedback-recovery branch prefix metadata."
+    "Feedback reopen runs record source run, feedback files, and feedback-recovery branch prefix metadata.",
+    "Local repository paths are first-class ProjectBrief repository providers without requiring a GitHub URL.",
+    "Local and GitHub source modes converge into the same ProjectBrief -> ContextBundle -> TaskGraph -> RuntimeState contract.",
+    "A local-only acceptance harness verifies initial delivery and feedback reopen without creating a GitHub repository.",
+    "Dry-run workers do not misinterpret natural-language words like blocked as explicit blocker constraints."
   ],
-  "last_verified_at": "2026-06-19T20:57:42+08:00",
+  "last_verified_at": "2026-06-19T21:36:59+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T20:57:42+08:00"
+  "updated_at": "2026-06-19T21:36:59+08:00"
 }

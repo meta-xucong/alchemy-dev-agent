@@ -238,6 +238,39 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertGreaterEqual(len(feedback_nodes), 1)
         self.assertEqual(feedback_nodes[0]["assigned_agent"], "debug")
 
+    def test_feedback_priority_stays_must_even_when_text_says_should(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "index.html").write_text("<main id='app'></main>\n", encoding="utf-8")
+            primary = root / "spec.md"
+            primary.write_text("# Todo\n## Requirements\n- Must add todo creation in index.html.\n", encoding="utf-8")
+            feedback = root / "feedback.md"
+            feedback.write_text(
+                "# Feedback\n\n## Feedback\n- Bug: empty todo submission should remain blocked in index.html.\n",
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Fix todo feedback",
+                documents=[primary],
+                attachments=[feedback],
+                repository_path=repo,
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            payload = bundle.to_dict()
+
+        feedback_requirements = [
+            requirement
+            for requirement in payload["requirement_map"]["requirements"]
+            if requirement["source_role"] == "feedback"
+        ]
+        self.assertEqual(feedback_requirements[0]["priority"], "must")
+        repository_files = payload["repository_map"]["files"]
+        html_file = next(file for file in repository_files if file["path"] == "index.html")
+        self.assertEqual(html_file["kind"], "source")
+
     def test_document_driven_platformer_spec_does_not_use_generated_fallback(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

@@ -487,3 +487,14 @@ PY"`
 
 - Pushed commit `cab4518` to `master`.
 - GitHub Actions CI run `27827029904` completed successfully for `Add feedback reopen repair loop`.
+
+## 2026-06-19 V2.29 Local And GitHub Source Modes
+
+- Added `docs/36_v2_29_local_and_github_source_modes.md` and linked it from README and the V2 development plan.
+- Promoted local repository import to a first-class `ProjectBrief.repository` provider with `provider = local`.
+- Wired `repository_path` through intake, API project service, and document-run ProjectBrief generation so local-only projects are indexed like GitHub-derived checkouts.
+- Added `autodev.local_repository_acceptance`, a local-only harness that verifies project creation, context indexing, initial delivery, feedback reopen, Debug Agent routing, dry-run GitHub evidence, and delivery readiness without creating a GitHub repository.
+- Fixed dry-run worker false-positive blocking when a natural-language goal contains the word `blocked`; only explicit dry-run blocker constraints now block.
+- Kept feedback-derived requirements as must-priority even when the feedback sentence contains `should`.
+- Classified `.html` and `.css` as source files during repository indexing so static web local repositories are represented correctly.
+- Verified focused tests, full suite, local-only acceptance with browser verification, main acceptance harness, JSON specs, diff hygiene, and long-running state validation.

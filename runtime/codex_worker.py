@@ -304,7 +304,7 @@ class CodexWorkerAdapter:
         goal = worker_input.goal.lower()
         constraint_values = {constraint.strip().lower() for constraint in worker_input.constraints}
 
-        if {"block", "blocked", "dry-run:block", "dry-run:blocked"} & constraint_values or "blocked" in goal:
+        if {"block", "blocked", "dry-run:block", "dry-run:blocked"} & constraint_values:
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
                 status="blocked",

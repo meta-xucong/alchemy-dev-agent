@@ -103,6 +103,30 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(events["run_id"], "run_001")
         self.assertGreater(len(events["events"]), 0)
 
+    def test_project_service_records_local_repository_provider(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        plan = service.build_plan(project_id)
+
+        self.assertEqual(created["brief"]["repository"]["provider"], "local")
+        self.assertEqual(created["brief"]["repository"]["local_path"], str(repo))
+        repository_files = plan["context"]["repository_map"]["files"]
+        self.assertIn("src/pages/dashboard.tsx", [file["path"] for file in repository_files])
+
     def test_project_service_run_payload_records_workspace_contract(self) -> None:
         root = temp_root()
         repo = root / "repo"

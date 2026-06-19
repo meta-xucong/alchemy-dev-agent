@@ -132,6 +132,19 @@ class CodexWorkerTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
 
+    def test_worker_does_not_block_from_natural_language_goal(self) -> None:
+        worker = CodexWorkerAdapter()
+        result = worker.execute(
+            CodexWorkerInput(
+                task_id="T001",
+                goal="Ensure empty todo submission remains blocked in index.html.",
+                commands_to_run=["static artifact inspection"],
+            )
+        )
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tests_passed, ["static artifact inspection"])
+
     def test_worker_prompt_forbids_protected_terms_in_generated_files(self) -> None:
         prompt = CodexWorkerAdapter().build_prompt(
             CodexWorkerInput(

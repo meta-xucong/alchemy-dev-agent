@@ -11,6 +11,7 @@ from typing import Sequence
 from .document_loader import DocumentLoader
 from .github_source import parse_github_source
 from .models import Blocker, FileRole, InputMode, ProjectBrief, ProjectFile, SourceConfidence, Visibility, utc_now_iso
+from .models import RepositorySource
 from .schema_validation import validate_project_brief_contract
 
 
@@ -28,6 +29,7 @@ class ProjectBriefBuilder:
         attachments: Sequence[str | Path] = (),
         primary_input_mode: InputMode = "document_driven",
         repository_url: str = "",
+        repository_path: str | Path = "",
         target_branch: str = "main",
         base_branch: str = "",
         repository_visibility: Visibility = "public",
@@ -83,7 +85,7 @@ class ProjectBriefBuilder:
             clean_objective,
             document_files,
             attachment_files,
-            repository_url,
+            repository_url or str(repository_path),
         )
 
         repository = None
@@ -103,6 +105,13 @@ class ProjectBriefBuilder:
                         severity="hard",
                     )
                 )
+        elif repository_path:
+            repository = build_local_repository_source(
+                repository_path,
+                target_branch=target_branch,
+                base_branch=base_branch,
+                visibility=repository_visibility,
+            )
 
         generated_from_one_liner = primary_input_mode == "one_line_fallback"
         source_confidence = self.source_confidence(primary_input_mode, document_files, blockers)
@@ -156,6 +165,28 @@ def stable_project_id(
     return f"proj_{digest.hexdigest()[:12]}"
 
 
+def build_local_repository_source(
+    repository_path: str | Path,
+    *,
+    target_branch: str = "main",
+    base_branch: str = "",
+    visibility: Visibility = "public",
+) -> RepositorySource:
+    path = Path(repository_path)
+    return RepositorySource(
+        provider="local",
+        url="",
+        owner="",
+        name=path.name or "local-repository",
+        target_branch=target_branch,
+        base_branch=base_branch,
+        local_path=str(path),
+        visibility=visibility,
+        gh_auth_required=False,
+        access_status="available" if path.exists() else "unchecked",
+    )
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build a v2 ProjectBrief from local intake inputs.")
     parser.add_argument("--objective", required=True)
@@ -164,6 +195,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--attachment", action="append", default=[])
     parser.add_argument("--required-attachment", action="append", default=[])
     parser.add_argument("--repository")
+    parser.add_argument("--repository-path", default="")
     parser.add_argument("--target-branch", default="main")
     parser.add_argument("--base-branch", default="")
     parser.add_argument("--repository-visibility", choices=["public", "private", "unknown"], default="public")
@@ -183,6 +215,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         attachments=args.attachment,
         primary_input_mode=args.mode,
         repository_url=args.repository or "",
+        repository_path=args.repository_path,
         target_branch=args.target_branch,
         base_branch=args.base_branch,
         repository_visibility=args.repository_visibility,

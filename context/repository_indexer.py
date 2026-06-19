@@ -53,7 +53,7 @@ LANGUAGE_BY_SUFFIX = {
     ".sql": "sql",
 }
 
-SOURCE_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java", ".cs", ".rb", ".php"}
+SOURCE_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java", ".cs", ".rb", ".php", ".html", ".css"}
 TEST_HINTS = ("test", "tests", "spec", "__tests__")
 DOC_SUFFIXES = {".md", ".txt", ".rst"}
 CONFIG_NAMES = {

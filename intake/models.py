@@ -72,9 +72,12 @@ class ProjectFile:
         return payload
 
 
+RepositoryProvider = Literal["github", "local"]
+
+
 @dataclass(slots=True)
 class RepositorySource:
-    provider: Literal["github"]
+    provider: RepositoryProvider
     url: str
     owner: str
     name: str
