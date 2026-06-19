@@ -457,6 +457,11 @@
       "command": "python -m pip install -e .",
       "result": "passed",
       "summary": "Editable install passed after declaring setuptools package discovery include patterns."
+    },
+    {
+      "command": "GitHub Actions CI run 27819574114 on master a02ee8f",
+      "result": "passed",
+      "summary": "Remote CI completed successfully after editable package discovery and dependency fixes."
     }
   ],
   "known_bugs": [
@@ -501,7 +506,7 @@
     "External test PR was merged, and merge evidence is represented in delivery_report and development_cycle.",
     "Full repository unit test suite, JSON spec parsing, diff hygiene, and long-running state validation pass."
   ],
-  "last_verified_at": "2026-06-19T17:42:00+08:00",
+  "last_verified_at": "2026-06-19T17:48:00+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T17:42:00+08:00"
+  "updated_at": "2026-06-19T17:48:00+08:00"
 }

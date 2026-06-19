@@ -1056,3 +1056,10 @@
 - Result: passed.
 - Summary: 143 tests passed after pyproject package discovery fix.
 - Next verification command: GitHub Actions on pushed follow-up commit.
+
+## 2026-06-19
+
+- Command: `GitHub Actions CI run 27819574114 on master a02ee8f`
+- Result: passed.
+- Summary: Remote CI completed successfully after editable package discovery and dependency fixes.
+- Next verification command: final clean worktree check.
