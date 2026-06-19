@@ -122,6 +122,8 @@ docs/
                               V2.36 comparison-driven Debug Agent repair suggestions.
   44_v2_37_graph_and_coverage_visualization.md
                               V2.37 browser graph and requirement coverage visualization.
+  45_v2_38_production_gap_closure.md
+                              V2.38 file lifecycle API, SSE event stream, contradiction warnings, and code summaries.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -847,17 +849,18 @@ This repository does not yet implement:
 
 - Deep PDF/DOCX document parser pipeline.
 - Proven private GitHub end-to-end delivery against a real private repository.
-- Deep code summarization and semantic requirement-to-file mapping beyond deterministic file/path signals.
+- Deep LLM-grade code summarization and semantic requirement-to-file mapping
+  beyond deterministic file/path/signature signals.
 - Proven real external rerun that combines generated static CI, automatic
   browser verification, and terminal GitHub check collection in one PR.
-- Browser-console visualization for every development-cycle checklist step.
-- Artifact file serving for screenshot and generated native UI test previews.
 - Domain-specific semantic probes for every app category beyond the current
   canvas-game and generic static-web probes.
 - Agent SDK runtime code.
 - GitHub App integration.
 - GitHub Actions log ingestion.
-- Hard cancellation of an already-running Codex subprocess.
+- Guaranteed hard cancellation of every already-running Codex subprocess across
+  every host environment beyond the current best-effort managed subprocess
+  cancellation.
 - Production database, asynchronous worker daemon process, hard already-running worker cancellation, or multi-user access control.
 
 Those systems should be implemented against the protocols defined here.

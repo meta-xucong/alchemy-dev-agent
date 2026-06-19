@@ -89,6 +89,10 @@ tests/
 
 - Extraction is rule-based and works best with structured Markdown or plain text.
 - PDF and DOCX deep parsing are still future parser work.
-- Requirement contradiction detection is not implemented yet.
-- Semantic code summarization is not implemented yet.
+- V2.38 adds lightweight deterministic requirement contradiction warnings for
+  common opposing requirement pairs.
+- V2.38 adds bounded repository code summaries in
+  `ContextBundle.repository_map.code_summaries`.
+- Deep semantic contradiction analysis and LLM-grade codebase summarization
+  remain production-hardening work.
 - Generated task graphs are deterministic starting points, not final expert plans.

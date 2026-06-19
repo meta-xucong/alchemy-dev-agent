@@ -16,6 +16,7 @@ from .models import utc_now_iso
 
 
 Terminator = Callable[[int], dict[str, Any]]
+CancellationCheck = Callable[[], bool]
 
 
 @dataclass(slots=True)
@@ -85,6 +86,13 @@ class WorkerLifecycleRecorder:
         record.error = error
         self.persist(record)
 
+    def cancel(self, record: WorkerLifecycleRecord, reason: str) -> None:
+        record.status = "cancelled"
+        record.terminated_at = utc_now_iso()
+        record.cleanup_required = bool(record.worker_pid)
+        record.error = reason
+        self.persist(record)
+
     def terminate(self, record: WorkerLifecycleRecord) -> None:
         if not record.worker_pid:
             record.cleanup_required = False
@@ -112,9 +120,18 @@ class WorkerLifecycleRecorder:
 class ManagedSubprocessRunner:
     """Run a subprocess with PID evidence and timeout process-tree cleanup."""
 
-    def __init__(self, recorder: WorkerLifecycleRecorder, record: WorkerLifecycleRecord) -> None:
+    def __init__(
+        self,
+        recorder: WorkerLifecycleRecorder,
+        record: WorkerLifecycleRecord,
+        *,
+        cancellation_check: CancellationCheck | None = None,
+        poll_interval_seconds: float = 0.1,
+    ) -> None:
         self.recorder = recorder
         self.record = record
+        self.cancellation_check = cancellation_check
+        self.poll_interval_seconds = poll_interval_seconds
 
     def __call__(
         self,
@@ -146,7 +163,7 @@ class ManagedSubprocessRunner:
         )
         self.recorder.attach_pid(self.record, process.pid)
         try:
-            stdout, stderr = process.communicate(input=input, timeout=timeout)
+            stdout, stderr = self._communicate_with_control(process, input=input, timeout=timeout, args=args)
         except subprocess.TimeoutExpired as exc:
             self.recorder.mark_timed_out(self.record, str(exc))
             self.recorder.terminate(self.record)
@@ -156,11 +173,50 @@ class ManagedSubprocessRunner:
                 process.kill()
                 stdout, stderr = process.communicate()
             raise subprocess.TimeoutExpired(args, timeout, output=stdout or exc.output, stderr=stderr or exc.stderr)
+        except WorkerCancelled as exc:
+            self.recorder.cancel(self.record, str(exc))
+            self.recorder.terminate(self.record)
+            try:
+                stdout, stderr = process.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                stdout, stderr = process.communicate()
+            return subprocess.CompletedProcess(args, 130, stdout, stderr)
 
         self.recorder.complete(self.record, process.returncode)
         if check and process.returncode:
             raise subprocess.CalledProcessError(process.returncode, args, output=stdout, stderr=stderr)
         return subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
+
+    def _communicate_with_control(
+        self,
+        process: subprocess.Popen[Any],
+        *,
+        input: str | bytes,
+        timeout: int | float,
+        args: list[str],
+    ) -> tuple[Any, Any]:
+        if self.cancellation_check is None:
+            return process.communicate(input=input, timeout=timeout)
+        deadline = time.monotonic() + float(timeout)
+        sent_input = False
+        while True:
+            if self.cancellation_check():
+                raise WorkerCancelled(f"Worker cancellation requested for {self.record.task_id}.")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(args, timeout)
+            try:
+                return process.communicate(
+                    input=input if not sent_input else None,
+                    timeout=min(self.poll_interval_seconds, remaining),
+                )
+            except subprocess.TimeoutExpired:
+                sent_input = True
+
+
+class WorkerCancelled(Exception):
+    """Raised when operator stop is requested while the worker is running."""
 
 
 def terminate_process_tree(pid: int) -> dict[str, Any]:

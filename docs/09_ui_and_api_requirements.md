@@ -260,12 +260,18 @@ V2.17 adds recovery resume semantics:
 - recovery runs can also be started directly with `resume_from_run_id` or
   `resume_from` in the run payload.
 
-Still not implemented:
+Implemented in V2.38:
 
 - `PATCH /projects/{project_id}/files/{file_id}`
 - `DELETE /projects/{project_id}/files/{file_id}`
-- cancellation of an already-running worker subprocess
 - server-sent events or WebSocket live streaming
+
+Still not implemented:
+
+- guaranteed cancellation of an already-running worker subprocess across every
+  supported real Codex host environment; V2.38 implements best-effort managed
+  subprocess cancellation for the local runtime
+- WebSocket live streaming
 
 ## Data Objects
 

@@ -6,11 +6,12 @@ import argparse
 import email
 import email.policy
 import json
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Sequence
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from autodev.artifact_manifest import ArtifactContent
 
@@ -46,6 +47,9 @@ class AlchemyApiHandler(BaseHTTPRequestHandler):
             if method == "GET" and self._try_static_response():
                 return
             payload = self._read_body() if method in {"POST", "PATCH"} else {}
+            streamed = route_stream_request(self.service, method, self.path, self)
+            if streamed:
+                return
             result, status = route_request(self.service, method, self.path, payload)
             if isinstance(result, ArtifactContent):
                 self._write_artifact(result, status=status)
@@ -113,6 +117,34 @@ class AlchemyApiHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def write_sse(self, events: Sequence[dict[str, object]], *, retry_ms: int = 1000) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        self.close_connection = True
+        if not events:
+            self._write_sse_event({"type": "heartbeat", "message": "No new events."}, retry_ms=retry_ms)
+            return
+        for event in events:
+            self._write_sse_event(event, retry_ms=retry_ms)
+
+    def _write_sse_event(self, event: dict[str, object], *, retry_ms: int) -> None:
+        event_id = str(event.get("event_id", ""))
+        event_type = str(event.get("type", "message") or "message")
+        data = json.dumps(event, sort_keys=True)
+        lines = []
+        if event_id:
+            lines.append(f"id: {event_id}")
+        lines.append(f"event: {event_type}")
+        lines.append(f"retry: {retry_ms}")
+        lines.extend(f"data: {line}" for line in data.splitlines() or ["{}"])
+        payload = "\n".join(lines) + "\n\n"
+        self.wfile.write(payload.encode("utf-8"))
+        self.wfile.flush()
+
     def _write_artifact(self, content: ArtifactContent, *, status: int = 200) -> None:
         data = content.data
         self.send_response(status)
@@ -178,6 +210,12 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
         return service.add_files(project_id, payload), HTTPStatus.OK
     if method == "GET" and tail == ["files"]:
         return service.list_files(project_id), HTTPStatus.OK
+    if method == "PATCH" and len(tail) == 2 and tail[0] == "files":
+        file_id = safe_identifier(tail[1], "file_id")
+        return service.update_file(project_id, file_id, payload), HTTPStatus.OK
+    if method == "DELETE" and len(tail) == 2 and tail[0] == "files":
+        file_id = safe_identifier(tail[1], "file_id")
+        return service.delete_file(project_id, file_id), HTTPStatus.OK
     if method == "POST" and tail == ["intake", "build"]:
         return service.build_intake(project_id), HTTPStatus.OK
     if method == "GET" and tail == ["brief"]:
@@ -228,6 +266,48 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
         return service.inspect_github(project_id, payload), HTTPStatus.OK
 
     raise ApiError(404, "not_found", "Endpoint not found.")
+
+
+def route_stream_request(service: ProjectService, method: str, raw_path: str, handler: AlchemyApiHandler) -> bool:
+    parsed = urlparse(raw_path)
+    parts = [part for part in parsed.path.strip("/").split("/") if part]
+    if method != "GET" or len(parts) != 5 or parts[0] != "projects" or parts[2] != "runs" or parts[4] != "events-stream":
+        return False
+
+    project_id = safe_identifier(parts[1], "project_id")
+    run_id = safe_identifier(parts[3], "run_id")
+    query = parse_qs(parsed.query)
+    last_event_id = handler.headers.get("Last-Event-ID", "") or first_query_value(query, "last_event_id")
+    timeout_seconds = parse_float(first_query_value(query, "timeout"), 30.0)
+    poll_interval_seconds = parse_float(first_query_value(query, "poll_interval"), 0.25)
+    started_at = time.time()
+    events = list(
+        service.stream_run_events(
+            project_id,
+            run_id,
+            last_event_id=last_event_id,
+            timeout_seconds=timeout_seconds,
+            poll_interval_seconds=poll_interval_seconds,
+        )
+    )
+    if not events and time.time() - started_at < min(timeout_seconds, 0.05):
+        time.sleep(0.05)
+    handler.write_sse(events)
+    return True
+
+
+def first_query_value(query: dict[str, list[str]], key: str) -> str:
+    values = query.get(key, [])
+    return str(values[0]) if values else ""
+
+
+def parse_float(value: str, default: float) -> float:
+    if not value:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
 
 
 def make_handler(service: ProjectService) -> type[AlchemyApiHandler]:

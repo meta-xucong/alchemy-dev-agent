@@ -97,7 +97,8 @@ V2.5 is verified by:
 
 - Real Codex mutation of arbitrary repositories is still gated behind the existing `real_codex` adapter.
 - Live GitHub PR and CI evidence are still handled by the existing optional `real_github` adapter, not by a product API.
-- Deep semantic requirement validation and contradiction detection remain future work.
+- V2.38 adds lightweight contradiction warnings before handoff. Deep semantic
+  requirement validation remains future work.
 
 Later phases add local API project creation, browser upload, execution
 monitoring, real Codex configuration, isolated worktrees, and recovery-run

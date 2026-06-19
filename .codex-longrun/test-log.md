@@ -1547,3 +1547,23 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27840129145` passed on `master` commit `f91bd15` after V2.37 graph and coverage visualization changes.
 - Next verification command: none; explicit next_actions are clear.
+
+## 2026-06-20 V2.38 Verification
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest discover -s tests`
+- Result: passed; 196 tests OK.
+- Command: `$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.acceptance_run --output .alchemy\v2_38_acceptance_2`
+- Result: passed; 8/8 checks, delivery done, ready_for_review=true, score=0.9571.
+- Command: `$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\v2_38_local_acceptance_2 --auto-browser-verify`
+- Result: passed; 13/13 checks, delivery done, ready_for_review=true, score=0.9667.
+- Command: `git diff --check`; JSON spec parse check; long-running state validation.
+- Result: passed.
+
+## 2026-06-20 V2.38 Final Verification
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest discover -s tests`
+- Result: passed; 197 tests OK.
+- Command: `$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.acceptance_run --output .alchemy\v2_38_acceptance_3`
+- Result: passed; 8/8 checks, delivery done, ready_for_review=true, score=0.9571.
+- Command: `$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\v2_38_local_acceptance_3 --auto-browser-verify`
+- Result: passed; 13/13 checks, delivery done, ready_for_review=true, score=0.9667.

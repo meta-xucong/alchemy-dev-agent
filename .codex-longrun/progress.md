@@ -617,3 +617,19 @@ PY"`
 - Pushed commit `f91bd15` to `master`.
 - GitHub Actions CI run `27840129145` completed successfully for `Add graph and coverage console visualization`.
 - Cleared explicit long-running `next_actions`; remaining known gaps are production-hardening boundaries such as live SSE/WebSocket streaming, hard cancellation of already-running real Codex subprocesses, worker-daemon separation, and multi-user persistence.
+
+## 2026-06-20 V2.38 Production Gap Closure
+
+- Added docs/45_v2_38_production_gap_closure.md.
+- Implemented project file PATCH/DELETE endpoints with upload-directory safety.
+- Implemented storage-backed SSE run event streaming and browser EventSource wiring with polling fallback.
+- Added deterministic requirement contradiction warnings and ContextBundle code summaries.
+- Fixed paused-run resume handoff race so source jobs are not overwritten after recovery handoff.
+- Verified focused tests, full unit suite, acceptance harness, local repository acceptance with browser verification, JSON parsing, diff hygiene, and long-running state validation.
+
+## 2026-06-20 V2.38 Cancellation And Final Audit
+
+- Added best-effort running real worker cancellation through managed subprocess lifecycle checks.
+- Wired browser console to EventSource SSE events with existing polling fallback.
+- Stabilized async resume handoff and source job status preservation.
+- Re-ran focused tests, full unit suite, acceptance harness, and local repository acceptance.

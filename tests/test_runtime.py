@@ -425,6 +425,51 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertFalse(result.worker_lifecycle["cleanup_required"])
         self.assertTrue(terminated)
 
+    def test_real_worker_cancellation_result_includes_lifecycle_cleanup(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+            terminated: list[int] = []
+            checks = {"count": 0}
+
+            def fake_terminator(pid: int) -> dict[str, object]:
+                terminated.append(pid)
+                return {"terminated": True, "method": "fake-cancel"}
+
+            def should_cancel(task_id: str) -> bool:
+                checks["count"] += 1
+                return checks["count"] >= 2
+
+            sleeper = repo / "exec"
+            sleeper.write_text(
+                "import time\n"
+                "time.sleep(30)\n",
+                encoding="utf-8",
+            )
+
+            worker = CodexWorkerAdapter(
+                executable=sys.executable,
+                dry_run=False,
+                timeout_seconds=10,
+                lifecycle_recorder=WorkerLifecycleRecorder(repo / "workers", terminator=fake_terminator),
+                cancellation_check=should_cancel,
+            )
+            result = worker.execute(
+                CodexWorkerInput(
+                    task_id="T903",
+                    goal="cancel",
+                    repository_path=str(repo),
+                    allowed_files=[],
+                )
+            )
+
+        self.assertEqual(result.status, "blocked")
+        self.assertIn("cancelled", result.summary)
+        self.assertEqual(result.worker_lifecycle["status"], "cancelled")
+        self.assertEqual(result.worker_lifecycle["termination"]["method"], "fake-cancel")
+        self.assertFalse(result.worker_lifecycle["cleanup_required"])
+        self.assertTrue(terminated)
+
 
 class GitHubFlowTests(unittest.TestCase):
     def test_dry_run_records_github_evidence(self) -> None:

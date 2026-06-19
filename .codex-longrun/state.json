@@ -1,6 +1,6 @@
 {
-  "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.37 graph and coverage visualization",
+  "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
+  "current_phase": "V2.38 production gap closure",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -48,7 +48,8 @@
     "V2.34 delivery readiness gate",
     "V2.35 native UI test repository write",
     "V2.36 comparison-driven repair suggestions",
-    "V2.37 graph and coverage visualization"
+    "V2.37 graph and coverage visualization",
+    "V2.38 production gap closure"
   ],
   "next_actions": [],
   "tests_run": [
@@ -82,7 +83,15 @@
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_37",
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\\local_repository_acceptance_v2_37 --auto-browser-verify",
     "Browser UI smoke for graphViz and coverageViz on project/run deep link",
-    "gh run watch 27840129145 --exit-status"
+    "gh run watch 27840129145 --exit-status",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_api_server tests.test_document_to_plan",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.acceptance_run --output .alchemy\\v2_38_acceptance_2",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\\v2_38_local_acceptance_2 --auto-browser-verify",
+    "JSON specs parse check",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_runtime.CodexWorkerTests tests.test_api_server tests.test_document_to_plan",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest discover -s tests # 197 tests OK",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.acceptance_run --output .alchemy\\v2_38_acceptance_3",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\\v2_38_local_acceptance_3 --auto-browser-verify"
   ],
   "known_bugs": [
     {
@@ -154,6 +163,16 @@
       "id": "LOCAL_REPOSITORY_NOT_FIRST_CLASS_SOURCE",
       "status": "fixed",
       "summary": "Projects can now provide repository_path without a GitHub URL; ProjectBrief records provider=local and ContextBundle indexes the local source path."
+    },
+    {
+      "id": "HTTP_ASYNC_RESUME_SOURCE_OVERWRITE_RACE",
+      "status": "fixed",
+      "summary": "Paused source jobs could be overwritten by late async worker status after resume handoff; JobStore now preserves resumed source state and tests wait for recovery run completion."
+    },
+    {
+      "id": "RUNNING_WORKER_STOP_ONLY_TASK_BOUNDARY",
+      "status": "fixed",
+      "summary": "Stop previously only applied before dispatching the next task; V2.38 adds best-effort managed subprocess cancellation while a real Codex worker is running."
     }
   ],
   "blockers": [],
@@ -194,9 +213,18 @@
     "Recovery comparisons generate deterministic Debug Agent repair_suggestions for comparison-driven repair loops.",
     "The browser console can deep-link to project/run evidence with project_id and run_id query parameters.",
     "The browser console renders task graph statistics, agent/status distribution, and compact task cards.",
-    "The browser console renders requirement coverage statistics, status distribution, and compact coverage rows."
+    "The browser console renders requirement coverage statistics, status distribution, and compact coverage rows.",
+    "V2.38 production gap closure document exists and maps each final audit gap to implemented or intentionally deferred scope.",
+    "Project file PATCH/DELETE API is implemented and tested.",
+    "Storage-backed SSE run event stream is implemented and tested through API and browser console wiring.",
+    "ContextBundle includes deterministic code summaries and contradiction warnings with schema/tests updated.",
+    "Async resume handoff race is fixed and tested.",
+    "Full unit suite and acceptance harnesses pass.",
+    "Best-effort running Codex worker cancellation is implemented with lifecycle evidence and tests.",
+    "Browser console is wired to SSE event streaming with polling fallback.",
+    "Final verification passes with 197 unit tests and two acceptance harnesses."
   ],
-  "last_verified_at": "2026-06-20T01:35:53+08:00",
+  "last_verified_at": "2026-06-20T02:48:39+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T01:35:53+08:00"
+  "updated_at": "2026-06-20T02:48:39+08:00"
 }

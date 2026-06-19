@@ -595,7 +595,7 @@ class ApiServerTests(unittest.TestCase):
         created = service.create_project(
             {
                 "objective": "Add workspace support",
-                "primary_input_mode": "one_line_fallback",
+                "primary_input_mode": "document_driven",
                 "repository": "https://github.com/example/saas-dashboard",
             }
         )
@@ -642,6 +642,8 @@ class ApiServerTests(unittest.TestCase):
                 self.assertIn("resumed_run_id", resumed)
                 source_job = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/job", expected=200)
                 self.assertEqual(source_job["status"], "resumed")
+                resumed_job = wait_for_http_job(conn, project_id, str(resumed["resumed_run_id"]))
+                self.assertIn(resumed_job["status"], {"done", "blocked"})
             else:
                 job = wait_for_http_job(conn, project_id, run_id)
                 self.assertEqual(job["status"], "done")
@@ -659,7 +661,7 @@ class ApiServerTests(unittest.TestCase):
         created = service.create_project(
             {
                 "objective": "Add workspace support",
-                "primary_input_mode": "one_line_fallback",
+                "primary_input_mode": "document_driven",
             }
         )
         project_id = str(created["project"]["project_id"])
@@ -697,6 +699,134 @@ class ApiServerTests(unittest.TestCase):
             self.assertEqual(uploaded["name"], "workspace_spec.md")
             self.assertTrue(Path(uploaded["path"]).exists())
             self.assertEqual(data["brief"]["documents"][0]["name"], "workspace_spec.md")
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
+    def test_project_service_updates_and_deletes_uploaded_files(self) -> None:
+        root = temp_root()
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "primary_input_mode": "document_driven",
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        uploaded = service.upload_files(
+            project_id,
+            [
+                {
+                    "filename": "workspace_spec.md",
+                    "content_type": "text/markdown",
+                    "content": b"# Workspace\n- Must add workspace support.\n",
+                    "role": "primary_requirements",
+                }
+            ],
+            {},
+        )
+        file_id = str(uploaded["brief"]["documents"][0]["id"])
+        file_path = Path(str(uploaded["brief"]["documents"][0]["path"]))
+
+        updated = service.update_file(
+            project_id,
+            file_id,
+            {
+                "content": "# Workspace\n- Must add workspace API support.\n",
+                "role": "primary_requirements",
+                "required": True,
+            },
+        )
+
+        self.assertEqual(updated["project"]["status"], "intake_ready")
+        self.assertIn("API support", file_path.read_text(encoding="utf-8"))
+        updated_file_id = str(updated["brief"]["documents"][0]["id"])
+
+        deleted = service.delete_file(project_id, updated_file_id)
+
+        self.assertFalse(file_path.exists())
+        self.assertEqual(deleted["project"]["documents"], [])
+        self.assertEqual(deleted["project"]["status"], "intake_blocked")
+        blocker_codes = {blocker["code"] for blocker in deleted["brief"]["blockers"]}
+        self.assertIn("missing_primary_document", blocker_codes)
+
+    def test_http_api_updates_files_and_streams_sse_events(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            created = request_json(
+                conn,
+                "POST",
+                "/projects",
+                {
+                    "objective": "Add workspace support",
+                    "primary_input_mode": "document_driven",
+                    "repository_path": str(repo),
+                },
+                expected=201,
+            )
+            project_id = str(created["project"]["project_id"])
+            boundary = "----alchemy-test-boundary"
+            body = multipart_body(
+                boundary,
+                fields={"role": "primary_requirements", "required": "true"},
+                files={
+                    "file": (
+                        "workspace_spec.md",
+                        b"# Workspace\n- Must add workspace support.\n",
+                        "text/markdown",
+                    )
+                },
+            )
+            conn.request(
+                "POST",
+                f"/projects/{project_id}/files",
+                body=body,
+                headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            )
+            response = conn.getresponse()
+            uploaded = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(response.status, 200)
+            file_id = str(uploaded["brief"]["documents"][0]["id"])
+
+            patched = request_json(
+                conn,
+                "PATCH",
+                f"/projects/{project_id}/files/{file_id}",
+                {
+                    "content": "# Workspace\n- Must add workspace API support.\n",
+                    "role": "primary_requirements",
+                    "required": True,
+                },
+                expected=200,
+            )
+            self.assertEqual(patched["project"]["status"], "intake_ready")
+
+            run = request_json(conn, "POST", f"/projects/{project_id}/runs", {"async": True}, expected=202)
+            run_id = str(run["run_id"])
+            job = wait_for_http_job(conn, project_id, run_id)
+            self.assertEqual(job["status"], "done")
+            sse = request_text(conn, "GET", f"/projects/{project_id}/runs/{run_id}/events-stream?timeout=0", expected=200)
+
+            self.assertIn("event: queued", sse)
+            self.assertIn("event: done", sse)
+            self.assertIn("data: ", sse)
+
+            latest_file_id = str(patched["brief"]["documents"][0]["id"])
+            deleted = request_json(conn, "DELETE", f"/projects/{project_id}/files/{latest_file_id}", expected=200)
+            self.assertEqual(deleted["project"]["status"], "intake_blocked")
         finally:
             conn.close()
             server.shutdown()
@@ -749,6 +879,8 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("renderArtifactPreviews", js)
             self.assertIn("renderGraphViz", js)
             self.assertIn("renderCoverageViz", js)
+            self.assertIn("EventSource", js)
+            self.assertIn("events-stream", js)
             self.assertIn("loadFromUrl", js)
             self.assertIn("project_id", js)
             self.assertIn("run_id", js)

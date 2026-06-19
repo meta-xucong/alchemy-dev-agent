@@ -8,7 +8,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 from intake.models import utc_now_iso
 from runtime.control import ControlDecision
@@ -98,6 +98,15 @@ class JobStore:
     def save(self, job: RunJob) -> None:
         path = self.job_path(job.run_id)
         path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            try:
+                current = RunJob.from_dict(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError):
+                current = None
+            if current is not None and current.status == "resumed" and job.status != "failed":
+                job.status = "resumed"
+                job.result_path = job.result_path or current.result_path
+                job.error = job.error or current.error
         job.updated_at = utc_now_iso()
         payload = json.dumps(job.to_dict(), indent=2, sort_keys=True) + "\n"
         temp_path = path.with_name(f"{path.name}.tmp-{threading.get_ident()}-{uuid.uuid4().hex}")
@@ -176,6 +185,43 @@ class JobStore:
                 events.append(json.loads(line))
         return events
 
+    def events_after(self, run_id: str, last_event_id: str = "") -> list[dict[str, object]]:
+        events = self.events(run_id)
+        if not last_event_id:
+            return events
+        for index, event in enumerate(events):
+            if str(event.get("event_id", "")) == last_event_id:
+                return events[index + 1 :]
+        return events
+
+    def stream_events(
+        self,
+        run_id: str,
+        *,
+        last_event_id: str = "",
+        timeout_seconds: float = 30.0,
+        poll_interval_seconds: float = 0.25,
+    ) -> Iterable[dict[str, object]]:
+        """Yield stored events that appear after ``last_event_id``.
+
+        This is intentionally backed by the existing append-only JSONL store so
+        the HTTP layer can provide SSE without introducing a separate broker.
+        """
+
+        deadline = time.time() + max(0.0, timeout_seconds)
+        cursor = last_event_id
+        terminal_types = {"done", "failed", "blocked", "paused", "needs_iteration"}
+        while True:
+            pending = self.events_after(run_id, cursor)
+            for event in pending:
+                cursor = str(event.get("event_id", cursor))
+                yield event
+                if str(event.get("type", "")) in terminal_types:
+                    return
+            if time.time() >= deadline:
+                return
+            time.sleep(max(0.01, poll_interval_seconds))
+
     def _next_event_index(self, run_id: str) -> int:
         return len(self.events(run_id)) + 1
 
@@ -199,8 +245,21 @@ class JobExecutionController:
             self.store.append_event(job, "stop_boundary", "runtime", f"Run stopped before dispatching {task_id}.", task_id=task_id)
             return ControlDecision("stop", f"Operator requested stop before task {task_id}.")
         if job.controls.get("pause_requested"):
+            if job.status == "resumed":
+                self.store.append_event(job, "resume_boundary", "runtime", f"Run resume already handed off before {task_id}.", task_id=task_id)
+                return ControlDecision("stop", f"Source run already resumed before task {task_id}.")
             job.status = "paused"
             self.store.save(job)
             self.store.append_event(job, "pause_boundary", "runtime", f"Run paused before dispatching {task_id}.", task_id=task_id)
             return ControlDecision("pause", f"Operator requested pause before task {task_id}.")
         return ControlDecision()
+
+    def should_stop_worker(self, task_id: str) -> bool:
+        try:
+            job = self.store.load(self.run_id)
+        except (FileNotFoundError, json.JSONDecodeError, PermissionError):
+            return False
+        if bool(job.controls.get("stop_requested")):
+            self.store.append_event(job, "worker_stop_requested", "runtime", f"Stop requested while worker was executing {task_id}.", task_id=task_id)
+            return True
+        return False

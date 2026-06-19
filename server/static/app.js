@@ -2,6 +2,8 @@ const state = {
   projectId: "",
   runId: "",
   pollTimer: 0,
+  eventSource: null,
+  events: [],
 };
 
 const el = (id) => document.getElementById(id);
@@ -421,6 +423,8 @@ async function createProject() {
   const result = await api("/projects", { method: "POST", body: payload });
   state.projectId = result.project.project_id;
   state.runId = "";
+  closeEventStream();
+  state.events = [];
   show("briefOutput", result.brief);
   show("graphOutput", {});
   renderGraphViz({});
@@ -488,6 +492,8 @@ async function reopenWithFeedback() {
     },
   });
   state.runId = result.run_id;
+  closeEventStream();
+  state.events = [];
   show("briefOutput", result.context_bundle || {});
   show("graphOutput", result.task_graph || {});
   renderGraphViz(result.task_graph || {});
@@ -505,6 +511,8 @@ async function startRun() {
     },
   });
   state.runId = result.run_id;
+  closeEventStream();
+  state.events = [];
   setSummary({}, result.job);
   setControls();
   startPolling();
@@ -559,6 +567,7 @@ function startPolling() {
   if (state.pollTimer) {
     clearInterval(state.pollTimer);
   }
+  startEventStream();
   state.pollTimer = setInterval(refreshRun, 1000);
   refreshRun();
 }
@@ -582,7 +591,48 @@ async function refreshRun() {
 
 async function refreshEvents() {
   const events = await api(`/projects/${state.projectId}/runs/${state.runId}/events`);
-  show("eventOutput", events.events);
+  state.events = events.events || [];
+  show("eventOutput", state.events);
+}
+
+function startEventStream() {
+  closeEventStream();
+  state.events = [];
+  if (!window.EventSource || !state.projectId || !state.runId) {
+    return;
+  }
+  const source = new EventSource(`/projects/${state.projectId}/runs/${state.runId}/events-stream?timeout=30`);
+  state.eventSource = source;
+  source.onmessage = (event) => appendStreamEvent(event);
+  ["queued", "running", "done", "failed", "blocked", "paused", "needs_iteration", "heartbeat"].forEach((type) => {
+    source.addEventListener(type, appendStreamEvent);
+  });
+  source.onerror = () => {
+    closeEventStream();
+  };
+}
+
+function appendStreamEvent(event) {
+  try {
+    const payload = JSON.parse(event.data || "{}");
+    if (payload.type === "heartbeat") return;
+    const eventId = payload.event_id || event.lastEventId || "";
+    if (eventId && state.events.some((item) => item.event_id === eventId)) return;
+    state.events.push(payload);
+    show("eventOutput", state.events);
+    if (["done", "failed", "blocked", "paused", "needs_iteration"].includes(String(payload.type || ""))) {
+      closeEventStream();
+    }
+  } catch (error) {
+    show("eventOutput", [{ level: "error", message: error.message }]);
+  }
+}
+
+function closeEventStream() {
+  if (state.eventSource) {
+    state.eventSource.close();
+    state.eventSource = null;
+  }
 }
 
 function bind() {

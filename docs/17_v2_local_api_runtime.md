@@ -156,5 +156,7 @@ Still planned:
 
 Implemented follow-up:
 
+- V2.38 adds missing project file `PATCH`/`DELETE` endpoints and a storage-backed
+  SSE run event stream on top of the local API runtime.
 - V2.37 adds browser-console task graph and requirement coverage visualization
   on top of this local API runtime.

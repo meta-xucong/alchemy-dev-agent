@@ -379,21 +379,21 @@ DONE requires:
 - Implement project intake API. Status: done for local JSON API.
 - Implement upload and repository inspection API. Status: done for local JSON API, multipart browser upload, public source preparation, and optional private source preparation through local `gh`.
 - Implement task graph preview API. Status: done.
-- Implement execution event stream. Status: partial; persisted async events are available, live SSE/WebSocket streaming is pending.
+- Implement execution event stream. Status: done for persisted event retrieval and V2.38 storage-backed SSE; WebSocket/broker streaming remains production work.
 - Implement UI screens for the document-driven flow. Status: done for one operational browser console with intake, planning, execution controls, delivery evidence, artifact previews, repair suggestions, task graph visualization, and requirement coverage visualization.
 
 ### V2.9: Browser UI And Async Execution Runtime
 
-- Implement browser screens for project create, file intake, GitHub source, intake review, task graph preview, execution monitor, and delivery review. Status: done for one local operational console; live streaming and production multi-user UX remain future work.
+- Implement browser screens for project create, file intake, GitHub source, intake review, task graph preview, execution monitor, and delivery review. Status: done for one local operational console; WebSocket streaming and production multi-user UX remain future work.
 - Implement real multipart upload into per-project storage. Status: done.
-- Implement asynchronous run control with pause, resume, stop, and live events. Status: partial; background run jobs, persisted controls, and event retrieval are done; hard worker cancellation and true live streaming remain pending.
+- Implement asynchronous run control with pause, resume, stop, and live events. Status: partial; background run jobs, persisted controls, event retrieval, storage-backed SSE, and best-effort running worker cancellation are done; WebSocket/broker streaming remains pending.
 - Keep the current local API contract as the backend interface. Status: done.
 
 ### V2.10: Task-Boundary Cancellation And Private GitHub Runtime
 
 - Implement safe task-boundary pause before dispatching each worker task. Status: done.
 - Implement stop behavior that prevents further task dispatch and records a blocked delivery state. Status: done.
-- Implement safe cancellation for real Codex subprocesses where possible. Status: pending.
+- Implement safe cancellation for real Codex subprocesses where possible. Status: done for V2.38 best-effort managed subprocess cancellation; production-grade cross-host guarantees remain future hardening.
 - Implement optional private GitHub source retrieval through local `gh` authentication. Status: done for source preparation; end-to-end private delivery remains pending.
 
 ### V2.11: Private GitHub Source Adapter

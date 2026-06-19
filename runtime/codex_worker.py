@@ -15,7 +15,7 @@ import os
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, Callable, Literal, Protocol
 
 from .models import WorkerStatus
 from .worker_lifecycle import ManagedSubprocessRunner, WorkerLifecycleRecorder
@@ -166,6 +166,7 @@ class CodexWorkerAdapter:
         timeout_seconds: int = 1800,
         runner: SubprocessRunner = subprocess.run,
         lifecycle_recorder: WorkerLifecycleRecorder | None = None,
+        cancellation_check: Callable[[str], bool] | None = None,
     ) -> None:
         self.executable = executable
         self.dry_run = dry_run
@@ -173,6 +174,7 @@ class CodexWorkerAdapter:
         self.timeout_seconds = timeout_seconds
         self.runner = runner
         self.lifecycle_recorder = lifecycle_recorder
+        self.cancellation_check = cancellation_check
 
     def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         if self.dry_run:
@@ -214,7 +216,15 @@ class CodexWorkerAdapter:
         runner = self.runner
         if self.lifecycle_recorder is not None and self.runner is subprocess.run:
             lifecycle_record = self.lifecycle_recorder.start(worker_input.task_id, self.timeout_seconds)
-            runner = ManagedSubprocessRunner(self.lifecycle_recorder, lifecycle_record)
+            runner = ManagedSubprocessRunner(
+                self.lifecycle_recorder,
+                lifecycle_record,
+                cancellation_check=(
+                    (lambda: bool(self.cancellation_check and self.cancellation_check(worker_input.task_id)))
+                    if self.cancellation_check
+                    else None
+                ),
+            )
         try:
             completed = runner(
                 args,
@@ -236,6 +246,16 @@ class CodexWorkerAdapter:
         except subprocess.TimeoutExpired as exc:
             self._rollback_task_changes(worker_input.repository_path, before_changes)
             lifecycle_payload = lifecycle_record.to_dict() if lifecycle_record is not None else {}
+            if lifecycle_payload.get("status") == "cancelled":
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="blocked",
+                    summary="Codex worker was cancelled by operator stop request.",
+                    known_issues=["Worker subprocess was terminated after stop was requested."],
+                    confidence=0.0,
+                    raw_output=str(exc),
+                    worker_lifecycle=lifecycle_payload,
+                )
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
                 status="failed",
@@ -249,6 +269,26 @@ class CodexWorkerAdapter:
         stdout = _decode_subprocess_output(completed.stdout)
         stderr = _decode_subprocess_output(completed.stderr)
         raw_output = "\n".join(part for part in [stdout, stderr] if part)
+        if lifecycle_record is not None and lifecycle_record.status == "cancelled":
+            self._rollback_task_changes(worker_input.repository_path, before_changes)
+            return CodexWorkerResult(
+                task_id=worker_input.task_id,
+                status="blocked",
+                summary="Codex worker was cancelled by operator stop request.",
+                commands_run=[
+                    CommandResult(
+                        command=" ".join(args),
+                        exit_code=completed.returncode,
+                        summary="Codex subprocess was terminated after stop was requested.",
+                        stdout=stdout,
+                        stderr=stderr,
+                    )
+                ],
+                known_issues=["Worker subprocess was terminated after stop was requested."],
+                confidence=0.0,
+                raw_output=raw_output,
+                worker_lifecycle=lifecycle_record.to_dict(),
+            )
         changed_files = self._new_or_modified_files(worker_input.repository_path, before_changes)
         boundary_violation = self._audit_file_boundaries(worker_input, changed_files)
         if boundary_violation:

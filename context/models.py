@@ -51,6 +51,22 @@ class RepositoryFile:
 
 
 @dataclass(slots=True)
+class CodeSummary:
+    path: str
+    language: str
+    summary: str
+    signals: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "path": self.path,
+            "language": self.language,
+            "summary": self.summary,
+            "signals": list(self.signals),
+        }
+
+
+@dataclass(slots=True)
 class Requirement:
     id: str
     source_document_id: str
@@ -109,6 +125,7 @@ class ContextBundle:
     risks: list[Risk] = field(default_factory=list)
     blockers: list[Blocker] = field(default_factory=list)
     root_path: str = ""
+    code_summaries: list[CodeSummary] = field(default_factory=list)
     created_at: str = field(default_factory=utc_now_iso)
 
     def to_dict(self) -> dict[str, object]:
@@ -124,6 +141,7 @@ class ContextBundle:
                 "files": [repository_file.to_dict() for repository_file in self.repository_files],
                 "package_files": list(self.package_files),
                 "ci_files": list(self.ci_files),
+                "code_summaries": [summary.to_dict() for summary in self.code_summaries],
             },
             "requirement_map": {
                 "requirements": [requirement.to_dict() for requirement in self.requirements],

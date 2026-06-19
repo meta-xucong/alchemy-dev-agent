@@ -271,6 +271,11 @@ class DocumentRunPipeline:
                 dry_run=not real_codex,
                 timeout_seconds=max_worker_seconds,
                 lifecycle_recorder=WorkerLifecycleRecorder(output / "workers") if real_codex else None,
+                cancellation_check=(
+                    (lambda task_id: bool(controller and hasattr(controller, "should_stop_worker") and controller.should_stop_worker(task_id)))
+                    if controller
+                    else None
+                ),
             )
             github_flow = GitHubFlow(dry_run=not real_github)
             orchestrator = Orchestrator(
@@ -469,6 +474,11 @@ class DocumentRunPipeline:
                 dry_run=not real_codex,
                 timeout_seconds=max_worker_seconds,
                 lifecycle_recorder=WorkerLifecycleRecorder(output / "workers") if real_codex else None,
+                cancellation_check=(
+                    (lambda task_id: bool(controller and hasattr(controller, "should_stop_worker") and controller.should_stop_worker(task_id)))
+                    if controller
+                    else None
+                ),
             )
             orchestrator = Orchestrator(
                 StateManager(output / "state.json"),

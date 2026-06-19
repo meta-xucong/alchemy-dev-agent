@@ -180,6 +180,84 @@ class ProjectService:
             "files": list(brief.get("documents", [])) + list(brief.get("attachments", [])),
         }
 
+    def update_file(self, project_id: str, file_id: str, payload: dict[str, Any]) -> dict[str, object]:
+        record = self.load_project(project_id)
+        brief = self.get_brief(project_id)
+        file_payload = find_file_payload(brief, file_id)
+        if file_payload is None:
+            raise ApiError(404, "file_not_found", f"Project file not found: {file_id}")
+
+        path = str(file_payload.get("path", ""))
+        merged_roles = dict(record.file_roles or {})
+        required_attachments = list(record.required_attachments or [])
+        documents = list(record.documents)
+        attachments = list(record.attachments)
+
+        role = str(payload.get("role", file_payload.get("role", "")) or "supplemental")
+        required = bool(payload.get("required", file_payload.get("required", False)))
+        content = payload.get("content")
+        if content is not None:
+            target = Path(path)
+            upload_root = (self.project_dir(project_id) / "uploads").resolve()
+            try:
+                resolved = target.resolve()
+            except OSError as exc:
+                raise ApiError(400, "file_update_failed", f"Cannot resolve file path: {exc}") from exc
+            if upload_root not in [resolved, *resolved.parents]:
+                raise ApiError(409, "external_file_update_forbidden", "Only uploaded project files can be edited through the API.")
+            target.write_text(str(content), encoding="utf-8")
+
+        if role == "primary_requirements":
+            documents = dedupe([*documents, path])
+            attachments = [item for item in attachments if item != path]
+            required_attachments = [item for item in required_attachments if item != path]
+        else:
+            attachments = dedupe([*attachments, path])
+            documents = [item for item in documents if item != path]
+            if required:
+                required_attachments = dedupe([*required_attachments, path])
+            else:
+                required_attachments = [item for item in required_attachments if item != path]
+        merged_roles[path] = role
+
+        updated = ProjectRecord.from_dict(record.to_dict())
+        updated.documents = documents
+        updated.attachments = attachments
+        updated.file_roles = merged_roles
+        updated.required_attachments = required_attachments
+        updated.status = "intake_pending"
+        updated.updated_at = utc_now_iso()
+        self._write_json(self.project_dir(project_id) / "project.json", updated.to_dict())
+        return self.build_intake(project_id)
+
+    def delete_file(self, project_id: str, file_id: str) -> dict[str, object]:
+        record = self.load_project(project_id)
+        brief = self.get_brief(project_id)
+        file_payload = find_file_payload(brief, file_id)
+        if file_payload is None:
+            raise ApiError(404, "file_not_found", f"Project file not found: {file_id}")
+        path = str(file_payload.get("path", ""))
+
+        updated = ProjectRecord.from_dict(record.to_dict())
+        updated.documents = [item for item in record.documents if item != path]
+        updated.attachments = [item for item in record.attachments if item != path]
+        updated.required_attachments = [item for item in (record.required_attachments or []) if item != path]
+        updated.file_roles = {key: value for key, value in (record.file_roles or {}).items() if key != path}
+        updated.status = "intake_pending"
+        updated.updated_at = utc_now_iso()
+
+        target = Path(path)
+        upload_root = (self.project_dir(project_id) / "uploads").resolve()
+        try:
+            resolved = target.resolve()
+        except OSError:
+            resolved = target
+        if upload_root in [resolved, *resolved.parents] and target.exists() and target.is_file():
+            target.unlink()
+
+        self._write_json(self.project_dir(project_id) / "project.json", updated.to_dict())
+        return self.build_intake(project_id)
+
     def add_files(self, project_id: str, payload: dict[str, Any]) -> dict[str, object]:
         record = self.load_project(project_id)
         normalized = normalize_project_payload(payload)
@@ -374,7 +452,13 @@ class ProjectService:
                 job_status = project_status_for_run(str(result.get("status", "")))
                 if result.get("runtime_state", {}).get("iteration_history", []) and has_history_type(result, "run_paused"):
                     job_status = "paused"
-                job_store.set_result(run_id, result_path, job_status)
+                current_job = job_store.load(run_id)
+                if current_job.status == "resumed":
+                    current_job.result_path = str(result_path)
+                    job_store.save(current_job)
+                    job_store.append_event(current_job, "source_result_recorded", "runtime", "Source run result recorded after resume handoff.")
+                else:
+                    job_store.set_result(run_id, result_path, job_status)
                 self._update_project_status(record, job_status)
             except Exception as exc:  # pragma: no cover - thread boundary defense.
                 job_store.transition(run_id, "failed", "Run failed.", source="runtime", error=str(exc))
@@ -441,6 +525,26 @@ class ProjectService:
             "events": events,
         }
 
+    def stream_run_events(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        last_event_id: str = "",
+        timeout_seconds: float = 30.0,
+        poll_interval_seconds: float = 0.25,
+    ):
+        job_path = self.project_dir(project_id) / "runs" / run_id / "job.json"
+        run_path = self.project_dir(project_id) / "runs" / run_id / "run.json"
+        if not job_path.exists() and not run_path.exists():
+            raise ApiError(404, "run_not_found", f"Run not found: {run_id}")
+        return self.job_store(project_id).stream_events(
+            run_id,
+            last_event_id=last_event_id,
+            timeout_seconds=timeout_seconds,
+            poll_interval_seconds=poll_interval_seconds,
+        )
+
     def get_run_job(self, project_id: str, run_id: str) -> dict[str, object]:
         path = self.project_dir(project_id) / "runs" / run_id / "job.json"
         if not path.exists():
@@ -468,9 +572,34 @@ class ProjectService:
             store.save(job)
             store.append_event(job, "resumed", "api", "Source run handed off to a new recovery run.")
             self._update_project_status(record, "planned")
-            resumed = self.start_run(project_id, run_payload)
-            store.append_event(job, "resume_started", "api", f"Started resumed run {resumed['run_id']} from {run_id}.")
+            resumed_run_id = self.next_run_id(project_id)
+            resumed_job = store.create(project_id, resumed_run_id)
             self._update_project_status(record, "running")
+
+            def worker() -> None:
+                try:
+                    store.transition(resumed_run_id, "running", "Run started.", source="runtime")
+                    result = self._execute_run(
+                        record,
+                        resumed_run_id,
+                        run_payload,
+                        controller=JobExecutionController(store, resumed_run_id),
+                    )
+                    result_path = self.project_dir(project_id) / "runs" / resumed_run_id / "run.json"
+                    job_status = project_status_for_run(str(result.get("status", "")))
+                    store.set_result(resumed_run_id, result_path, job_status)
+                    self._update_project_status(record, job_status)
+                except Exception as exc:  # pragma: no cover - thread boundary defense.
+                    store.transition(resumed_run_id, "failed", "Run failed.", source="runtime", error=str(exc))
+                    self._update_project_status(record, "failed")
+
+            start_background_job(worker)
+            resumed = {
+                "project_id": project_id,
+                "run_id": resumed_run_id,
+                "job": resumed_job.to_dict(),
+            }
+            store.append_event(job, "resume_started", "api", f"Started resumed run {resumed['run_id']} from {run_id}.")
             return {
                 "project_id": project_id,
                 "run_id": run_id,
@@ -824,6 +953,17 @@ def unique_upload_path(upload_dir: Path, filename: str) -> Path:
 
 def parse_bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def find_file_payload(brief: dict[str, object], file_id: str) -> dict[str, object] | None:
+    for collection in ("documents", "attachments"):
+        files = brief.get(collection, [])
+        if not isinstance(files, list):
+            continue
+        for item in files:
+            if isinstance(item, dict) and str(item.get("id", "")) == file_id:
+                return item
+    return None
 
 
 def has_history_type(result: dict[str, object], event_type: str) -> bool:

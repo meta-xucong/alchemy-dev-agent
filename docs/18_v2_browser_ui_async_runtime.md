@@ -131,10 +131,12 @@ the API returns `resumed_run_id`.
 
 Still planned:
 
-- Safe cancellation for real Codex subprocesses.
-- Live server-sent events or WebSocket streaming.
+- WebSocket streaming.
 
 Implemented follow-up:
 
+- V2.38 adds best-effort managed subprocess cancellation when `stop` is
+  requested during a real Codex worker task.
+- V2.38 adds storage-backed server-sent event streaming for run events.
 - V2.37 adds task graph and requirement coverage visualization to the browser
   console while preserving this async control contract.

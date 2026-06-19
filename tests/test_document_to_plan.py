@@ -100,6 +100,11 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("tests/workspaces.test.ts", requirements[2]["related_files"])
         self.assertEqual(requirements[0]["acceptance_criteria"][0], "Users can create a workspace.")
         self.assertEqual(bundle_payload["document_index"]["documents"][0]["key_requirements"][0], "Must add workspace API support in src/api/workspaces.ts.")
+        summaries = bundle_payload["repository_map"]["code_summaries"]
+        self.assertGreaterEqual(len(summaries), 2)
+        summary_by_path = {summary["path"]: summary for summary in summaries}
+        self.assertIn("exports", summary_by_path["src/api/workspaces.ts"]["signals"])
+        self.assertIn("tests", summary_by_path["tests/workspaces.test.ts"]["signals"])
 
         nodes = {node["id"]: node for node in graph_payload["nodes"]}
         self.assertEqual(graph_payload["graph_id"], f"{bundle.project_id}-document-plan")
@@ -237,6 +242,43 @@ class DocumentToPlanTests(unittest.TestCase):
         feedback_nodes = [node for node in implementation_nodes if node["type"] == "debug"]
         self.assertGreaterEqual(len(feedback_nodes), 1)
         self.assertEqual(feedback_nodes[0]["assigned_agent"], "debug")
+
+    def test_context_bundle_records_requirement_contradiction_warning(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "index.html").write_text("<main id='app'></main>\n", encoding="utf-8")
+            spec = root / "spec.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# App",
+                        "",
+                        "## Requirements",
+                        "- Must work offline.",
+                        "- Must be online.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Build app",
+                documents=[spec],
+                repository_path=repo,
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            payload = bundle.to_dict()
+
+        self.assertEqual(validate_context_bundle_contract(payload), [])
+        contradiction_blockers = [
+            blocker for blocker in payload["blockers"] if blocker["code"] == "requirement_contradiction"
+        ]
+        self.assertEqual(len(contradiction_blockers), 1)
+        self.assertEqual(contradiction_blockers[0]["severity"], "warning")
+        self.assertIn("REQ-001", contradiction_blockers[0]["message"])
+        self.assertIn("REQ-002", contradiction_blockers[0]["message"])
 
     def test_feedback_priority_stays_must_even_when_text_says_should(self) -> None:
         with temp_plan_dir() as root:

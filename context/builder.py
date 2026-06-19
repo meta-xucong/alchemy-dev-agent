@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from intake.models import Blocker, ProjectBrief
 
-from .models import ContextBundle, DocumentSummary, Requirement, Risk
+from .models import CodeSummary, ContextBundle, DocumentSummary, Requirement, Risk
 from .repository_indexer import RepositoryIndexer
 from .requirement_extractor import RequirementExtractor
 
@@ -56,6 +57,8 @@ class ContextBundleBuilder:
                 for attachment in payload.get("attachments", [])
             )
             requirements = enrich_requirements_with_scaffold_hints(extraction.requirements, objective, repository_files)
+        blockers.extend(detect_requirement_contradictions(requirements))
+        code_summaries = summarize_repository_code(root_path, repository_files)
         risks = self._risks_for_objective(objective)
 
         return ContextBundle(
@@ -69,6 +72,7 @@ class ContextBundleBuilder:
             risks=risks,
             blockers=blockers,
             root_path=root_path,
+            code_summaries=code_summaries,
             package_managers=repository_index.package_managers if repository_index else [],
             test_commands=repository_index.test_commands if repository_index else ["static artifact inspection"],
             build_commands=repository_index.build_commands if repository_index else [],
@@ -233,3 +237,87 @@ def dedupe_preserve_order(values: list[str]) -> list[str]:
             seen.add(clean)
             result.append(clean)
     return result
+
+
+def detect_requirement_contradictions(requirements: list[Requirement]) -> list[Blocker]:
+    blockers: list[Blocker] = []
+    pairs = [
+        ("offline", "online"),
+        ("local only", "cloud only"),
+        ("no login", "login required"),
+        ("without login", "requires login"),
+        ("no authentication", "authentication required"),
+        ("read only", "editable"),
+        ("single page", "multi page"),
+    ]
+    combined = [(requirement.id, requirement.text.lower()) for requirement in requirements]
+    for left, right in pairs:
+        left_hits = [req_id for req_id, text in combined if left in text]
+        right_hits = [req_id for req_id, text in combined if right in text]
+        if left_hits and right_hits:
+            blockers.append(
+                Blocker(
+                    code="requirement_contradiction",
+                    message=(
+                        f"Potential contradiction between requirements {', '.join(left_hits)} and "
+                        f"{', '.join(right_hits)}: '{left}' conflicts with '{right}'."
+                    ),
+                    severity="warning",
+                )
+            )
+    return blockers
+
+
+def summarize_repository_code(root_path: str, repository_files: list[Any], *, limit: int = 40) -> list[CodeSummary]:
+    if not root_path:
+        return []
+    root = Path(root_path)
+    summaries: list[CodeSummary] = []
+    for repository_file in repository_files:
+        if getattr(repository_file, "kind", "") not in {"source", "test"}:
+            continue
+        relative_path = str(getattr(repository_file, "path", ""))
+        path = root / relative_path
+        if not path.exists() or not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        signals = code_signals(text, relative_path)
+        summaries.append(
+            CodeSummary(
+                path=relative_path,
+                language=str(getattr(repository_file, "language", "")),
+                summary=code_summary_text(relative_path, signals),
+                signals=signals,
+            )
+        )
+        if len(summaries) >= limit:
+            break
+    return summaries
+
+
+def code_signals(text: str, path: str) -> list[str]:
+    lowered = text.lower()
+    signals: list[str] = []
+    markers = {
+        "exports": ("export ", "module.exports", "public class", "def "),
+        "tests": ("test(", "describe(", "it(", "unittest", "pytest"),
+        "api": ("fetch(", "axios", "route", "endpoint", "openapi", "express"),
+        "ui": ("react", "jsx", "tsx", "<template", "document.queryselector", "<main"),
+        "state": ("useState", "store", "reducer", "localstorage", "sessionstorage"),
+        "auth": ("login", "auth", "token", "session", "password"),
+    }
+    for signal, terms in markers.items():
+        if any(term.lower() in lowered for term in terms):
+            signals.append(signal)
+    if Path(path).suffix.lower() in {".test.ts", ".test.js", ".spec.ts", ".spec.js"} and "tests" not in signals:
+        signals.append("tests")
+    return dedupe_preserve_order(signals)
+
+
+def code_summary_text(path: str, signals: list[str]) -> str:
+    if not signals:
+        return f"{path} is indexed as source code with no high-confidence semantic signal."
+    return f"{path} appears to cover {', '.join(signals)} behavior."

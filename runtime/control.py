@@ -16,7 +16,13 @@ class ExecutionController(Protocol):
     def before_task(self, task_id: str) -> ControlDecision:
         ...
 
+    def should_stop_worker(self, task_id: str) -> bool:
+        ...
+
 
 class NoopExecutionController:
     def before_task(self, task_id: str) -> ControlDecision:
         return ControlDecision()
+
+    def should_stop_worker(self, task_id: str) -> bool:
+        return False
