@@ -334,6 +334,154 @@ h2 {
   text-decoration: none;
 }
 
+.graphViz,
+.coverageViz {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.coverageViz h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.vizStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vizStats span,
+.agentStrip span {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 8px;
+  background: #fbfcfd;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.vizStats strong {
+  display: block;
+  color: var(--ink);
+}
+
+.vizBars {
+  display: grid;
+  gap: 5px;
+}
+
+.vizBar {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.38fr) minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.vizBar span,
+.vizBar strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.vizBar span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.vizBar meter {
+  width: 100%;
+  height: 9px;
+}
+
+.agentStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.taskRail,
+.coverageMatrix {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.taskNode,
+.coverageRow {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 6px;
+  padding: 8px;
+  background: #fbfcfd;
+}
+
+.taskNode header,
+.coverageRow header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.taskNode strong,
+.taskNode span,
+.taskNode p,
+.taskNode small,
+.coverageRow strong,
+.coverageRow span,
+.coverageRow p,
+.coverageRow small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.taskNode p,
+.coverageRow p {
+  margin: 6px 0 4px;
+}
+
+.taskNode span,
+.taskNode small,
+.coverageRow span,
+.coverageRow small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.taskNode.status-completed,
+.coverageRow.status-covered,
+.vizBar.status-completed,
+.vizBar.status-covered {
+  border-left-color: var(--accent);
+}
+
+.taskNode.status-failed,
+.taskNode.status-blocked,
+.coverageRow.status-missing,
+.vizBar.status-failed,
+.vizBar.status-blocked,
+.vizBar.status-missing {
+  border-left-color: var(--bad);
+}
+
+.taskNode.status-running,
+.taskNode.status-in_progress,
+.coverageRow.status-partial,
+.vizBar.status-running,
+.vizBar.status-in_progress,
+.vizBar.status-partial {
+  border-left-color: var(--warn);
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -470,7 +618,8 @@ pre {
   .deliverySummary,
   .evidenceCards,
   .evidenceDetails,
-  .artifactGrid {
+  .artifactGrid,
+  .vizStats {
     grid-template-columns: 1fr;
   }
 }

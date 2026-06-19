@@ -133,4 +133,8 @@ Still planned:
 
 - Safe cancellation for real Codex subprocesses.
 - Live server-sent events or WebSocket streaming.
-- More polished visual graph rendering.
+
+Implemented follow-up:
+
+- V2.37 adds task graph and requirement coverage visualization to the browser
+  console while preserving this async control contract.

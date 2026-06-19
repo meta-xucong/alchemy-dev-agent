@@ -319,7 +319,7 @@ DONE requires:
 
 ### V2.1: Intake Runtime
 
-- Implement project creation. Status: partial, available as local ProjectBrief generation.
+- Implement project creation. Status: done through local API, CLI, and browser console intake.
 - Implement multi-file cataloging. Status: done for local files.
 - Implement document role classification. Status: done with deterministic filename and extension rules.
 - Implement `ProjectBrief` generation. Status: done.
@@ -380,11 +380,11 @@ DONE requires:
 - Implement upload and repository inspection API. Status: done for local JSON API, multipart browser upload, public source preparation, and optional private source preparation through local `gh`.
 - Implement task graph preview API. Status: done.
 - Implement execution event stream. Status: partial; persisted async events are available, live SSE/WebSocket streaming is pending.
-- Implement UI screens for the document-driven flow. Status: partial; one operational browser console covers the flow, richer graph and delivery views remain pending.
+- Implement UI screens for the document-driven flow. Status: done for one operational browser console with intake, planning, execution controls, delivery evidence, artifact previews, repair suggestions, task graph visualization, and requirement coverage visualization.
 
 ### V2.9: Browser UI And Async Execution Runtime
 
-- Implement browser screens for project create, file intake, GitHub source, intake review, task graph preview, execution monitor, and delivery review. Status: partial; one local operational console covers the full flow, richer graph visualization remains pending.
+- Implement browser screens for project create, file intake, GitHub source, intake review, task graph preview, execution monitor, and delivery review. Status: done for one local operational console; live streaming and production multi-user UX remain future work.
 - Implement real multipart upload into per-project storage. Status: done.
 - Implement asynchronous run control with pause, resume, stop, and live events. Status: partial; background run jobs, persisted controls, and event retrieval are done; hard worker cancellation and true live streaming remain pending.
 - Keep the current local API contract as the backend interface. Status: done.
@@ -453,11 +453,11 @@ DONE requires:
 
 ### V2.19: End-To-End Autonomous Delivery Runtime
 
-- Run against a representative real repository with a detailed development document. Status: partially done through a bounded representative documentation probe.
-- Execute real Codex worker tasks through document-driven graph execution. Status: done for bounded representative tasks.
-- Run tests and collect CI evidence. Status: done for repository CI validation; still pending for arbitrary external docs-only product repositories.
-- Open or update a GitHub pull request. Status: done in validation harness; external docs-only product delivery exposed V2.22 gaps.
-- Produce a final delivery report. Status: done for internal representative runs; external docs-only product reports need richer evidence.
+- Run against a representative real repository with a detailed development document. Status: done for bounded representative tasks and later external docs-only product repositories.
+- Execute real Codex worker tasks through document-driven graph execution. Status: done for bounded representative and external docs-only runs.
+- Run tests and collect CI evidence. Status: done for repository CI validation and generated static CI on external docs-only product repositories.
+- Open or update a GitHub pull request. Status: done through controlled GitHub delivery validation and external docs-only product delivery.
+- Produce a final delivery report. Status: done with delivery_report, delivery_evidence, artifact_manifest, recovery_comparison, and development_cycle outputs.
 
 ### V2.20: Delivery Stabilization And Acceptance Closure
 
@@ -483,20 +483,20 @@ DONE requires:
 
 ### V2.23: Perfect Delivery Optimization
 
-- Convert manual browser smoke verification into a first-class runtime artifact verifier. Status: partial but executable; `artifact_report` can import screenshots or run `--auto-browser-verify` through the browser artifact runner when Playwright is available.
+- Convert manual browser smoke verification into a first-class runtime artifact verifier. Status: implemented; `artifact_report` can import screenshots or run `--auto-browser-verify`, and readiness gates consume static, browser, semantic, scenario, and gameplay probe evidence.
 - Add artifact profiles for `canvas_game`, `static_web_app`, `node_project`, `python_project`, and `documentation_only`. Status: done.
 - Add managed worker process lifecycle with PID tracking, timeout cleanup, and stale-worker recovery. Status: core runtime implemented; UI surfacing and real-environment preflight polish remain.
 - Add a requirement coverage matrix that maps each requirement to files, tests, browser evidence, and PR evidence. Status: done for runtime report and evaluator hard-gate integration.
 - Add optional generated CI workflows for docs-only static app repositories. Status: implemented for static web/canvas artifacts; the release task now generates the workflow before GitHub commit/PR execution when real GitHub CI collection is enabled and no workflow exists.
 - Productize final delivery reports with screenshots, PR, commit, CI/no-CI status, blockers, and retry guidance. Status: `delivery_report` summary implemented and exposed through document-run output and API delivery output.
-- Polish the browser console for multi-file upload, GitHub link intake, graph preview, live execution, and final evidence review. Status: partial; delivery evidence summary, auto browser verification toggle, and generated static CI toggle are exposed, broader graph/coverage UX remains.
+- Polish the browser console for multi-file upload, GitHub link intake, graph preview, live execution, and final evidence review. Status: implemented for the local console, including delivery evidence summary, artifact previews, repair suggestions, task graph visualization, requirement coverage visualization, browser verification toggle, native UI write toggle, auto-merge toggle, and generated static CI toggle.
 
 ### V2.24: Development Cycle Brain
 
 - Convert the manual long-running engineering SOP into a machine-checkable `development_cycle` report. Status: implemented for document-run reports and API delivery output.
 - Track evidence for document reading, central-brain refinement, phase planning, implementation, audit, testing, iteration, full review, simulated acceptance, real delivery, and merge/waiver. Status: implemented.
 - Add explicit auto-merge support for trusted real GitHub runs after passing CI. Status: implemented and off by default.
-- Run a new external docs-only repository test to compare against the earlier `meta-xucong/-super-mario-test` run. Status: pending.
+- Run a new external docs-only repository test to compare against the earlier `meta-xucong/-super-mario-test` run. Status: done in the V2.24 rerun with generated CI, browser evidence, PR merge, and development-cycle evidence.
 
 ### V2.25: Playability Feedback Loop
 
@@ -504,7 +504,7 @@ DONE requires:
 - Require generated canvas games to expose `window.__ALCHEMY_GAME_TEST__` with `snapshot()`, `step(dt)`, `advanceToVictory()`, and `restart()`. Status: implemented in worker prompt, static artifact verifier, and generated static CI fallback.
 - Surface gameplay probe evidence in `artifact_report`, `delivery_report`, `requirement_coverage`, `development_cycle`, and the browser console delivery summary. Status: implemented.
 - Treat canvas-game delivery as incomplete when gameplay probe evidence is missing or failed. Status: implemented in browser verification and development-cycle testing.
-- Generalize semantic probes to non-game apps and turn structured user feedback into requirement deltas/debug tasks. Status: planned.
+- Generalize semantic probes to non-game apps and turn structured user feedback into requirement deltas/debug tasks. Status: implemented in V2.26-V2.28.
 
 ### V2.26: Semantic Web And Feedback Loop
 
@@ -591,6 +591,13 @@ DONE requires:
 - Surface suggestions through `recovery_comparison`, `delivery_evidence`, browser console repair details, and `next_actions`. Status: implemented.
 - Keep task graph mutation and execution scheduling unchanged; suggestions are task seeds for the next repair loop. Status: implemented.
 
+### V2.37: Graph And Coverage Visualization
+
+- Render task graph statistics, status distribution, agent distribution, and compact task cards in the browser console. Status: implemented.
+- Render requirement coverage statistics, coverage status distribution, and compact coverage rows in the browser console. Status: implemented.
+- Load graph and run-scoped coverage evidence from project/run deep links. Status: implemented.
+- Preserve raw JSON outputs for audit and keep visualization read-only. Status: implemented.
+
 ## Risks And Mitigations
 
 | Risk | Impact | Mitigation |
@@ -613,4 +620,4 @@ The v2 plan is ready for implementation when:
 - Public GitHub repository behavior is implemented and covered by tests.
 - Private GitHub repository behavior is specified as an optional local `gh` authentication path.
 - The document-driven example shows how inputs become task graph execution.
-- The plan clearly separates current runtime capabilities from planned v2 implementation.
+- The plan clearly separates implemented runtime capabilities from remaining production-hardening boundaries.

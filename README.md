@@ -120,6 +120,8 @@ docs/
                               V2.35 controlled repository write switch for native UI tests.
   43_v2_36_repair_suggestions.md
                               V2.36 comparison-driven Debug Agent repair suggestions.
+  44_v2_37_graph_and_coverage_visualization.md
+                              V2.37 browser graph and requirement coverage visualization.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -766,6 +768,9 @@ Current V2.23 implementation status:
 - Recovery comparisons now include deterministic Debug Agent `repair_suggestions`
   for newly missing or partial must requirements, uncovered feedback must items,
   score or coverage regressions, new blockers, and regressed probes.
+- The browser console now renders task graph statistics, agent/status
+  distribution, task cards, requirement coverage statistics, and a compact
+  requirement coverage matrix in addition to raw JSON evidence.
 - Real GitHub document-runs can generate a lightweight static web CI workflow
   for docs-only canvas/static artifacts immediately before release, so the
   workflow is included in the branch/PR instead of only appearing in the final

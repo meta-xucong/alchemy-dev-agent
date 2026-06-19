@@ -597,3 +597,17 @@ PY"`
 - Added browser-console rendering for Repair Suggestions inside the Repair Comparison section.
 - Added project/run deep-link loading via `?project_id=...&run_id=...` so evidence for a known run can be opened directly.
 - Verified focused tests, full unit suite, main acceptance, local repository acceptance with browser verification, UI smoke, JSON specs, diff hygiene, and long-running state validation.
+
+## 2026-06-20 V2.36 Remote CI Closure
+
+- Pushed commit `4b2a567` to `master`.
+- GitHub Actions CI run `27839491748` completed successfully for `Add comparison driven repair suggestions`.
+
+## 2026-06-20 V2.37 Graph And Coverage Visualization
+
+- Added `docs/44_v2_37_graph_and_coverage_visualization.md` and linked V2.37 from README and the V2 development plan.
+- Added browser-console task graph visualization with task count, agent count, dependency-bound count, status distribution, agent distribution, and compact task cards.
+- Added browser-console requirement coverage visualization with requirement count, coverage score, must-gap count, status distribution, and compact coverage rows.
+- Kept raw JSON output available for audit and kept visualization read-only.
+- Verified project/run deep links render graph and coverage evidence from run-scoped delivery.
+- Verified focused tests, full unit suite, main acceptance, local repository acceptance with browser verification, UI smoke, JSON specs, diff hygiene, and long-running state validation.

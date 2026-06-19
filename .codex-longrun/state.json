@@ -1,6 +1,6 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.36 comparison-driven repair suggestions",
+  "current_phase": "V2.37 graph and coverage visualization",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -47,11 +47,10 @@
     "V2.33 artifact file previews",
     "V2.34 delivery readiness gate",
     "V2.35 native UI test repository write",
-    "V2.36 comparison-driven repair suggestions"
+    "V2.36 comparison-driven repair suggestions",
+    "V2.37 graph and coverage visualization"
   ],
-  "next_actions": [
-    "Add richer task graph and requirement coverage visualization in the browser console."
-  ],
+  "next_actions": [],
   "tests_run": [
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_runtime.EvaluatorTests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_delivery_report_blocks_partial_must_and_failed_browser_probe tests.test_api_server.ApiServerTests.test_project_status_maps_in_progress_to_needs_iteration tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content",
@@ -76,7 +75,13 @@
     "Browser UI smoke for ?project_id=proj_repair&run_id=run_001 repair_suggestions deep link",
     "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"",
     "git diff --check",
-    "validate_state.py --project ."
+    "validate_state.py --project .",
+    "gh run watch 27839491748 --exit-status",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_api_server.ApiServerTests.test_http_api_reopens_with_feedback",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest discover -s tests",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_37",
+    "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m autodev.local_repository_acceptance --output .alchemy\\local_repository_acceptance_v2_37 --auto-browser-verify",
+    "Browser UI smoke for graphViz and coverageViz on project/run deep link"
   ],
   "known_bugs": [
     {
@@ -186,9 +191,11 @@
     "Generated native UI acceptance tests write into target repositories only when the caller enables write_native_ui_tests and Playwright/Cypress support is detected.",
     "Static browser projects without native UI test framework evidence remain report-only even when repository write is requested.",
     "Recovery comparisons generate deterministic Debug Agent repair_suggestions for comparison-driven repair loops.",
-    "The browser console can deep-link to project/run evidence with project_id and run_id query parameters."
+    "The browser console can deep-link to project/run evidence with project_id and run_id query parameters.",
+    "The browser console renders task graph statistics, agent/status distribution, and compact task cards.",
+    "The browser console renders requirement coverage statistics, status distribution, and compact coverage rows."
   ],
-  "last_verified_at": "2026-06-20T01:10:36+08:00",
+  "last_verified_at": "2026-06-20T01:30:44+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T01:10:36+08:00"
+  "updated_at": "2026-06-20T01:30:44+08:00"
 }

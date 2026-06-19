@@ -1501,3 +1501,37 @@
 - Result: passed.
 - Summary: JSON specs parsed, diff hygiene passed, and long-running state validated after V2.36.
 - Next verification command: commit, push, and GitHub Actions.
+
+## 2026-06-20 V2.36 Remote CI Closure
+
+- Command: `gh run watch 27839491748 --exit-status`
+- Result: passed.
+- Summary: GitHub Actions CI run `27839491748` passed on `master` commit `4b2a567` after V2.36 repair suggestion changes.
+- Next verification command: richer task graph and requirement coverage visualization.
+
+## 2026-06-20 V2.37 Graph And Coverage Visualization
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_api_server.ApiServerTests.test_http_api_reopens_with_feedback`
+- Result: passed.
+- Summary: Focused API/static tests passed for run-scoped delivery endpoint, deep-link script hooks, graph visualization hooks, and coverage visualization hooks.
+- Next verification command: browser UI smoke.
+
+- Command: `Browser UI smoke against http://127.0.0.1:18783 with project/run deep link`
+- Result: passed.
+- Summary: The console rendered task graph statistics, agent distribution, task cards, requirement coverage statistics, coverage rows, and no error output.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 193 tests passed after V2.37 graph and coverage visualization changes.
+- Next verification command: main acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_37`
+- Result: passed.
+- Summary: Main acceptance harness passed after V2.37 changes.
+- Next verification command: local repository acceptance with browser verification.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.local_repository_acceptance --output .alchemy\local_repository_acceptance_v2_37 --auto-browser-verify`
+- Result: passed.
+- Summary: Local repository acceptance passed with 13/13 checks under browser verification.
+- Next verification command: final JSON specs, diff hygiene, and state validation.

@@ -60,6 +60,7 @@ function renderDelivery(delivery) {
     .join("");
   renderEvidence(delivery.delivery_evidence || fallbackEvidence(delivery));
   renderArtifactPreviews(delivery.artifact_manifest || {});
+  renderCoverageViz(delivery.requirement_coverage || {});
   show("deliveryOutput", delivery);
 }
 
@@ -171,6 +172,109 @@ function renderArtifactItem(item) {
       <small>${mediaType} · ${escapeHtml(sizeText)}</small>
     </article>
   `;
+}
+
+function renderGraphViz(graph) {
+  const container = el("graphViz");
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
+  if (!nodes.length) {
+    container.innerHTML = "";
+    return;
+  }
+  const statusCounts = countBy(nodes, (node) => node.status || "pending");
+  const agentCounts = countBy(nodes, (node) => node.assigned_agent || "unassigned");
+  const blocked = nodes.filter((node) => Array.isArray(node.dependencies) && node.dependencies.length > 0).length;
+  container.innerHTML = `
+    <div class="vizStats">
+      ${statPill("Tasks", nodes.length)}
+      ${statPill("Agents", Object.keys(agentCounts).length)}
+      ${statPill("With deps", blocked)}
+    </div>
+    <div class="vizBars">${Object.entries(statusCounts).map(([label, value]) => vizBar(label, value, nodes.length, `status-${safeClass(label)}`)).join("")}</div>
+    <div class="agentStrip">${Object.entries(agentCounts).map(([label, value]) => `<span>${escapeHtml(label)} ${escapeHtml(String(value))}</span>`).join("")}</div>
+    <div class="taskRail">
+      ${nodes.map(taskNodeCard).join("")}
+    </div>
+  `;
+}
+
+function taskNodeCard(node) {
+  const dependencies = Array.isArray(node.dependencies) ? node.dependencies : [];
+  const criteria = Array.isArray(node.completion_criteria) ? node.completion_criteria : [];
+  return `
+    <article class="taskNode status-${safeClass(node.status || "pending")}">
+      <header>
+        <strong>${escapeHtml(String(node.id || "-"))}</strong>
+        <span>${escapeHtml(String(node.assigned_agent || node.type || "-"))}</span>
+      </header>
+      <p>${escapeHtml(String(node.title || node.description || "-"))}</p>
+      <small>deps ${escapeHtml(dependencies.length ? dependencies.join(", ") : "none")} · ${escapeHtml(String(criteria.length))} criteria</small>
+    </article>
+  `;
+}
+
+function renderCoverageViz(coverage) {
+  const container = el("coverageViz");
+  const entries = Array.isArray(coverage.entries) ? coverage.entries : [];
+  if (!entries.length) {
+    container.innerHTML = "";
+    return;
+  }
+  const counts = countBy(entries, (entry) => entry.coverage_status || "missing");
+  const mustGaps = [
+    ...(Array.isArray(coverage.missing_must_requirement_ids) ? coverage.missing_must_requirement_ids : []),
+    ...(Array.isArray(coverage.partial_must_requirement_ids) ? coverage.partial_must_requirement_ids : []),
+  ];
+  container.innerHTML = `
+    <h3>Requirement Coverage</h3>
+    <div class="vizStats">
+      ${statPill("Requirements", entries.length)}
+      ${statPill("Score", coverage.coverage_score ?? 0)}
+      ${statPill("Must gaps", mustGaps.length)}
+    </div>
+    <div class="vizBars">${Object.entries(counts).map(([label, value]) => vizBar(label, value, entries.length, `status-${safeClass(label)}`)).join("")}</div>
+    <div class="coverageMatrix">
+      ${entries.slice(0, 12).map(coverageRow).join("")}
+    </div>
+  `;
+}
+
+function coverageRow(entry) {
+  const files = Array.isArray(entry.implementation_files) ? entry.implementation_files : [];
+  const tasks = Array.isArray(entry.planned_task_ids) ? entry.planned_task_ids : [];
+  return `
+    <article class="coverageRow status-${safeClass(entry.coverage_status || "missing")}">
+      <header>
+        <strong>${escapeHtml(String(entry.requirement_id || "-"))}</strong>
+        <span>${escapeHtml(String(entry.coverage_status || "missing"))}</span>
+      </header>
+      <p>${escapeHtml(String(entry.text || ""))}</p>
+      <small>${escapeHtml(files.slice(0, 3).join(", ") || "no files")} · tasks ${escapeHtml(tasks.join(", ") || "-")}</small>
+    </article>
+  `;
+}
+
+function statPill(label, value) {
+  return `<span><strong>${escapeHtml(String(value))}</strong>${escapeHtml(String(label))}</span>`;
+}
+
+function vizBar(label, value, total, className) {
+  const percent = total ? Math.round((Number(value) / Number(total)) * 100) : 0;
+  return `
+    <div class="vizBar ${escapeHtml(className)}">
+      <span>${escapeHtml(String(label))}</span>
+      <meter min="0" max="100" value="${percent}"></meter>
+      <strong>${escapeHtml(String(value))}</strong>
+    </div>
+  `;
+}
+
+function countBy(items, mapper) {
+  return items.reduce((counts, item) => {
+    const key = String(mapper(item) || "unknown");
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
 }
 
 function fallbackEvidence(delivery) {
@@ -319,12 +423,14 @@ async function createProject() {
   state.runId = "";
   show("briefOutput", result.brief);
   show("graphOutput", {});
+  renderGraphViz({});
   show("eventOutput", []);
   show("deliveryOutput", {});
   el("deliverySummary").innerHTML = "";
   el("evidenceCards").innerHTML = "";
   el("evidenceDetails").innerHTML = "";
   el("artifactPreviews").innerHTML = "";
+  el("coverageViz").innerHTML = "";
   setSummary(result.project, {});
   setControls();
 }
@@ -333,6 +439,7 @@ async function buildPlan() {
   const result = await api(`/projects/${state.projectId}/plan`, { method: "POST", body: {} });
   show("briefOutput", result.context);
   show("graphOutput", result.task_graph);
+  renderGraphViz(result.task_graph || {});
   setSummary(result.project, {});
   setControls();
 }
@@ -383,6 +490,7 @@ async function reopenWithFeedback() {
   state.runId = result.run_id;
   show("briefOutput", result.context_bundle || {});
   show("graphOutput", result.task_graph || {});
+  renderGraphViz(result.task_graph || {});
   renderDelivery(result);
   setSummary({}, { status: result.status });
   setControls();
@@ -506,6 +614,7 @@ async function loadFromUrl() {
   const project = await api(`/projects/${state.projectId}`);
   show("briefOutput", project.brief || project);
   show("graphOutput", project.task_graph || {});
+  renderGraphViz(project.task_graph || {});
   setSummary(project, runId ? { status: "loaded" } : {});
 
   if (runId) {

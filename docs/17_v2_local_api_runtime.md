@@ -151,6 +151,10 @@ The remaining boundaries below are current production-readiness gaps.
 
 Still planned:
 
-- Richer browser UI screens and visual graph rendering.
 - A separate asynchronous worker daemon process.
 - Production database or multi-user access control.
+
+Implemented follow-up:
+
+- V2.37 adds browser-console task graph and requirement coverage visualization
+  on top of this local API runtime.
