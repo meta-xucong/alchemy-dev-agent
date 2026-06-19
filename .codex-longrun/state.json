@@ -1,7 +1,7 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
   "current_phase": "V2.29 local and GitHub source modes",
-  "phase_status": "verifying",
+  "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
     "V2.8 local API and project service runtime",
@@ -43,9 +43,9 @@
     "V2.29 local/GitHub source-mode unification and local repository feedback-reopen acceptance harness"
   ],
   "next_actions": [
-    "Push V2.29 source-mode unification to GitHub and wait for remote CI.",
-    "Record remote CI closure for V2.29 after GitHub Actions passes.",
-    "Continue toward repository-native UI test generation and source-run versus repair-run comparison reports."
+    "Polish browser-console evidence views for semantic probe snapshots, scenario probe details, failed interactions, and development_cycle checklist details.",
+    "Extend generated acceptance scenarios beyond static web apps into repository-native Playwright/Cypress test generation when a project already has a UI test framework.",
+    "Add recovery-run comparison reports that show source run evidence versus feedback repair run evidence."
   ],
   "tests_run": [
     {
@@ -602,6 +602,11 @@
       "command": "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]\"; git diff --check; validate_state.py --project .",
       "result": "passed",
       "summary": "JSON specs parsed, diff hygiene passed, and long-running state validated before V2.29 commit."
+    },
+    {
+      "command": "gh run watch 27829089780 --exit-status",
+      "result": "passed",
+      "summary": "GitHub Actions CI run 27829089780 passed on master commit 0c97999 after V2.29 local repository source acceptance changes."
     }
   ],
   "known_bugs": [
@@ -703,7 +708,7 @@
     "A local-only acceptance harness verifies initial delivery and feedback reopen without creating a GitHub repository.",
     "Dry-run workers do not misinterpret natural-language words like blocked as explicit blocker constraints."
   ],
-  "last_verified_at": "2026-06-19T21:36:59+08:00",
+  "last_verified_at": "2026-06-19T21:39:35+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T21:36:59+08:00"
+  "updated_at": "2026-06-19T21:39:35+08:00"
 }
