@@ -3,7 +3,7 @@ name = "alchemy-dev-agent"
 version = "0.1.0"
 description = "Specification and prototype runtime for autonomous development agents."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["pillow>=10.0.0"]
 
 [project.optional-dependencies]
 browser = ["playwright>=1.60.0"]

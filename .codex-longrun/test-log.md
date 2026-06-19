@@ -1028,3 +1028,17 @@
 - Result: passed.
 - Summary: Playwright captured initial and post-interaction screenshots, detected non-uniform render output, measured pixel changes after interaction, and recorded no console errors.
 - Next verification command: final state validation and GitHub evidence check.
+
+## 2026-06-19
+
+- Command: `GitHub Actions CI run 27817325756 after commit ad5377d`
+- Result: failed_then_fixed.
+- Summary: Remote CI exposed missing Pillow dependency installation and an async pause/resume race; both were fixed locally.
+- Next verification command: full local suite and push follow-up commit.
+
+## 2026-06-19
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 143 tests passed after CI-discovered dependency and async resume fixes.
+- Next verification command: GitHub Actions on pushed follow-up commit.

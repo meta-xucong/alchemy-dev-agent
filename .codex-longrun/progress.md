@@ -400,3 +400,11 @@ PY"`
 - Found and fixed an automatic browser verification path bug: relative output directories caused screenshots to be generated but not found by the verifier. The runner now resolves output paths before invoking Playwright.
 - Re-ran automatic browser verification against the generated game; screenshots were captured, initial screenshot was non-uniform, interaction changed pixels, and console errors were empty.
 - Full suite now passes with 143 tests.
+
+## 2026-06-19 CI Follow-Up Fix
+
+- The pushed master CI run exposed two environment/contract issues that local verification had not caught.
+- Fixed CI dependency setup by adding `python -m pip install -e .` to `.github/workflows/ci.yml` and declaring `pillow` as a runtime dependency because image diff helpers require it.
+- Fixed async pause/resume recovery handoff by restoring project status to `planned` before starting the recovery run.
+- Narrowed the HTTP pause/resume control test so it verifies the HTTP handoff contract without racing a full recovery run to completion; service-level tests still cover completed recovery execution.
+- Re-ran the full local suite: 143 tests passed.

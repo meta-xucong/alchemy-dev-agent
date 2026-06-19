@@ -433,6 +433,7 @@ class ProjectService:
             job.status = "resumed"
             store.save(job)
             store.append_event(job, "resumed", "api", "Source run handed off to a new recovery run.")
+            self._update_project_status(record, "planned")
             resumed = self.start_run(project_id, run_payload)
             store.append_event(job, "resume_started", "api", f"Started resumed run {resumed['run_id']} from {run_id}.")
             self._update_project_status(record, "running")

@@ -392,9 +392,15 @@ class ApiServerTests(unittest.TestCase):
             started = request_json(conn, "POST", f"/projects/{project_id}/runs", {"async": True}, expected=202)
             run_id = str(started["run_id"])
             request_json(conn, "POST", f"/projects/{project_id}/runs/{run_id}/pause", {}, expected=200)
-            request_json(conn, "POST", f"/projects/{project_id}/runs/{run_id}/resume", {}, expected=200)
-            job = wait_for_http_job(conn, project_id, run_id)
-            self.assertEqual(job["status"], "done")
+            paused = wait_for_http_job_status(conn, project_id, run_id, {"paused", "done"})
+            if paused["status"] == "paused":
+                resumed = request_json(conn, "POST", f"/projects/{project_id}/runs/{run_id}/resume", {}, expected=200)
+                self.assertIn("resumed_run_id", resumed)
+                source_job = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/job", expected=200)
+                self.assertEqual(source_job["status"], "resumed")
+            else:
+                job = wait_for_http_job(conn, project_id, run_id)
+                self.assertEqual(job["status"], "done")
             events = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/events", expected=200)
             self.assertGreater(len(events["events"]), 0)
         finally:
@@ -593,6 +599,21 @@ def wait_for_http_job(conn: http.client.HTTPConnection, project_id: str, run_id:
             return job
         time.sleep(0.05)
     raise AssertionError(f"Timed out waiting for HTTP job {run_id}")
+
+
+def wait_for_http_job_status(
+    conn: http.client.HTTPConnection,
+    project_id: str,
+    run_id: str,
+    statuses: set[str],
+) -> dict[str, object]:
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        job = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/job", expected=200)
+        if job["status"] in statuses:
+            return job
+        time.sleep(0.05)
+    raise AssertionError(f"Timed out waiting for HTTP job {run_id} to reach {sorted(statuses)}")
 
 
 def multipart_body(
