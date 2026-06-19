@@ -102,6 +102,8 @@ docs/
                               V2.26 semantic web probes and feedback intake loop.
   34_v2_27_acceptance_scenario_browser_probes.md
                               V2.27 acceptance-scenario browser probes for CRUD/auth/upload/dashboard flows.
+  35_v2_28_feedback_reopen_loop.md
+                              V2.28 feedback-driven reopen and repair loop.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -721,6 +723,8 @@ See `docs/33_v2_26_semantic_web_and_feedback.md` for the next extension:
 semantic probes for ordinary web apps and feedback files as requirement deltas.
 See `docs/34_v2_27_acceptance_scenario_browser_probes.md` for deterministic
 browser scenarios generated from detailed acceptance documents.
+See `docs/35_v2_28_feedback_reopen_loop.md` for reopening delivered runs from
+playtest or acceptance feedback and routing fixes through Debug Agent tasks.
 
 Run a smoke execution:
 

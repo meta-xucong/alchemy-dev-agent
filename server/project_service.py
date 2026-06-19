@@ -182,7 +182,12 @@ class ProjectService:
         normalized = normalize_project_payload(payload)
         merged = record.to_dict()
         merged["documents"] = dedupe([*record.documents, *normalized["documents"]])
-        merged["attachments"] = dedupe([*record.attachments, *normalized["attachments"]])
+        required_only_attachments = [
+            path
+            for path in normalized["required_attachments"]
+            if normalized["file_roles"].get(path) != "primary_requirements"
+        ]
+        merged["attachments"] = dedupe([*record.attachments, *normalized["attachments"], *required_only_attachments])
         merged["file_roles"] = {**(record.file_roles or {}), **normalized["file_roles"]}
         merged["required_attachments"] = dedupe([*(record.required_attachments or []), *normalized["required_attachments"]])
         updated_record = ProjectRecord.from_dict(merged)
@@ -446,6 +451,46 @@ class ProjectService:
             }
         return {"project_id": project_id, "run_id": run_id, "job": job.to_dict()}
 
+    def reopen_with_feedback(self, project_id: str, payload: dict[str, Any] | None = None) -> dict[str, object]:
+        payload = payload or {}
+        source_run_id = str(payload.get("source_run_id", "") or "")
+        if not source_run_id:
+            source_run_id = self.latest_run_id(project_id)
+        source_run = self.get_run(project_id, source_run_id)
+        feedback_files = [str(path) for path in payload.get("feedback_files", payload.get("files", [])) if str(path)]
+        if not feedback_files:
+            raise ApiError(400, "feedback_missing", "At least one feedback file is required to reopen a delivered run.")
+
+        self.add_files(
+            project_id,
+            {
+                "files": [
+                    {"path": path, "role": "feedback", "required": True}
+                    for path in feedback_files
+                ]
+            },
+        )
+        plan = self.build_plan(project_id)
+        run_payload = dict(payload.get("run", {})) if isinstance(payload.get("run", {}), dict) else {}
+        run_payload.setdefault("worktree_branch_prefix", "agent/feedback-recovery")
+        run_payload.setdefault("auto_browser_verify", True)
+        run_payload.setdefault("generate_static_ci", True)
+        run_payload["feedback_reopen"] = True
+        run_payload["feedback_source_run_id"] = source_run_id
+        run_payload["feedback_files"] = feedback_files
+        run = self.run_project(project_id, run_payload)
+        run["feedback_reopen"] = {
+            "status": "started",
+            "source_run_id": source_run_id,
+            "source_status": source_run.get("status", ""),
+            "feedback_files": feedback_files,
+            "task_graph": plan["task_graph"],
+            "run_id": run.get("run_id", ""),
+            "worktree_branch_prefix": run_payload["worktree_branch_prefix"],
+        }
+        self._write_json(self.project_dir(project_id) / "runs" / str(run["run_id"]) / "run.json", run)
+        return run
+
     def stop_run(self, project_id: str, run_id: str) -> dict[str, object]:
         job = self.job_store(project_id).update_control(
             run_id,
@@ -495,6 +540,15 @@ class ProjectService:
         existing = [path.name for path in runs_dir.iterdir() if path.is_dir() and path.name.startswith("run_")]
         numbers = [int(name.split("_", 1)[1]) for name in existing if name.split("_", 1)[1].isdigit()]
         return f"run_{(max(numbers) if numbers else 0) + 1:03d}"
+
+    def latest_run_id(self, project_id: str) -> str:
+        runs_dir = self.project_dir(project_id) / "runs"
+        if not runs_dir.exists():
+            raise ApiError(404, "run_not_found", "No source run exists for feedback reopen.")
+        run_dirs = sorted(path for path in runs_dir.iterdir() if path.is_dir() and path.name.startswith("run_"))
+        if not run_dirs:
+            raise ApiError(404, "run_not_found", "No source run exists for feedback reopen.")
+        return run_dirs[-1].name
 
     def active_run(self, project_id: str) -> str:
         runs_dir = self.project_dir(project_id) / "runs"
@@ -619,7 +673,7 @@ def normalize_project_payload(payload: dict[str, Any]) -> dict[str, Any]:
             continue
         role = str(file_payload.get("role", "supplemental"))
         required = bool(file_payload.get("required", role == "primary_requirements"))
-        if role == "primary_requirements" or required and not documents:
+        if role == "primary_requirements" or (required and not documents and role in {"", "supplemental"}):
             if path not in documents:
                 documents.append(path)
         elif path not in attachments:

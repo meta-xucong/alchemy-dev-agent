@@ -512,6 +512,13 @@ DONE requires:
 - Verify CRUD, authentication, file-upload, and dashboard controls with scenario-specific browser evidence. Status: implemented.
 - Surface scenario evidence in `artifact_report`, `delivery_report`, requirement coverage, development-cycle testing, and the browser console summary. Status: implemented.
 
+### V2.28: Feedback Reopen Loop
+
+- Preserve feedback file role through requirement extraction as `source_role = feedback`. Status: implemented.
+- Route feedback-derived requirements to Debug Agent tasks. Status: implemented.
+- Add `/projects/{project_id}/feedback/reopen` for delivered-run repair iterations. Status: implemented.
+- Add browser-console feedback reopen control that uploads selected feedback files and starts a repair run. Status: implemented.
+
 ## Risks And Mitigations
 
 | Risk | Impact | Mitigation |

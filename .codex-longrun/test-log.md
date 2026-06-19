@@ -1207,3 +1207,36 @@
 - Result: passed.
 - Summary: GitHub Actions CI run `27826225218` passed on `master` commit `a9fb340` after V2.27 acceptance scenario browser probe changes.
 - Next verification command: none.
+
+
+## 2026-06-19 V2.28 Feedback Reopen Loop
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_document_to_plan tests.test_api_server.ApiServerTests.test_project_service_reopens_delivered_run_with_feedback tests.test_api_server.ApiServerTests.test_http_api_reopens_with_feedback tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_intake tests.test_document_run_pipeline.DocumentRunPipelineTests.test_artifact_report_generates_and_passes_acceptance_scenarios`
+- Result: passed.
+- Summary: 19 focused tests passed for feedback role routing, delivered-run reopen API/UI, intake, and scenario report regression.
+- Next verification command: full unit suite.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed.
+- Summary: 164 tests passed after V2.28 feedback reopen changes.
+- Next verification command: acceptance harness.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\acceptance_v2_28`
+- Result: passed.
+- Summary: Acceptance harness passed with delivery done and development_cycle score 1.0.
+- Next verification command: JSON specs, diff hygiene, and state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`
+- Result: passed.
+- Summary: All JSON specs parse after adding `source_role` to ContextBundle schema.
+- Next verification command: `git diff --check`.
+
+- Command: `git diff --check`
+- Result: passed.
+- Summary: No whitespace errors reported after V2.28 changes.
+- Next verification command: state validation.
+
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed.
+- Summary: Long-running state schema validated after V2.28 changes.
+- Next verification command: commit, push, and GitHub Actions.

@@ -220,6 +220,11 @@ def classify_requirement_task(requirement: Requirement) -> tuple[str, str]:
     text = requirement.text.lower()
     files = " ".join(requirement.related_files).lower()
     combined = f"{text} {files}"
+    if requirement.source_role == "feedback" or any(
+        marker in text
+        for marker in ("bug", "issue", "feedback", "playtest", "regression", "验收反馈", "反馈", "问题")
+    ):
+        return "debug", "debug"
     if any(file.endswith((".md", ".txt", ".rst")) for file in requirement.related_files):
         return "documentation", "architect"
     test_text = any(marker in text for marker in ("test", "测试", "qa", "verification", "验证", "验收", "coverage", "ci"))
@@ -270,6 +275,7 @@ def task_title(requirement: Requirement, task_type: str) -> str:
         "test": "Implement verification requirement",
         "documentation": "Update documentation requirement",
         "integration": "Implement integration requirement",
+        "debug": "Fix feedback requirement",
     }.get(task_type, "Implement requirement")
     return f"{label}: {shorten(requirement.text)}"
 
@@ -281,6 +287,7 @@ def grouped_task_title(requirements: list[Requirement], task_type: str) -> str:
         "test": "Implement grouped verification requirements",
         "documentation": "Update grouped documentation requirements",
         "integration": "Implement grouped integration requirements",
+        "debug": "Fix grouped feedback requirements",
     }.get(task_type, "Implement grouped requirements")
     files = dedupe([file for requirement in requirements for file in requirement.related_files])
     if files:

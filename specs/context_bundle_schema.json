@@ -266,7 +266,8 @@
         "priority",
         "acceptance_criteria",
         "related_files",
-        "planned_task_ids"
+        "planned_task_ids",
+        "source_role"
       ],
       "properties": {
         "id": {
@@ -305,6 +306,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "source_role": {
+          "type": "string"
         }
       },
       "additionalProperties": false

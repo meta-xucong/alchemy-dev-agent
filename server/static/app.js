@@ -82,6 +82,7 @@ function setControls() {
   const hasProject = Boolean(state.projectId);
   const hasRun = Boolean(state.runId);
   el("uploadSelected").disabled = !hasProject;
+  el("reopenFeedback").disabled = !hasProject || !hasRun;
   el("buildPlan").disabled = !hasProject;
   el("startRun").disabled = !hasProject;
   el("pauseRun").disabled = !hasRun;
@@ -144,6 +145,38 @@ async function uploadSelected() {
   show("briefOutput", result.brief);
   show("eventOutput", result.uploaded_files || []);
   setSummary(result.project, {});
+  setControls();
+}
+
+async function reopenWithFeedback() {
+  if (!state.projectId || !state.runId) return;
+  const files = Array.from(el("uploadFiles").files || []);
+  if (!files.length) {
+    show("eventOutput", [{ level: "warning", message: "Select feedback files before reopening." }]);
+    return;
+  }
+  const formData = new FormData();
+  files.forEach((file) => formData.append("file", file, file.name));
+  formData.append("role", "feedback");
+  formData.append("required", "true");
+  const uploaded = await api(`/projects/${state.projectId}/files`, {
+    method: "POST",
+    formData,
+  });
+  const feedbackFiles = (uploaded.uploaded_files || []).map((file) => file.path);
+  const result = await api(`/projects/${state.projectId}/feedback/reopen`, {
+    method: "POST",
+    body: {
+      source_run_id: state.runId,
+      feedback_files: feedbackFiles,
+      run: runPayload(),
+    },
+  });
+  state.runId = result.run_id;
+  show("briefOutput", result.context_bundle || {});
+  show("graphOutput", result.task_graph || {});
+  renderDelivery(result);
+  setSummary({}, { status: result.status });
   setControls();
 }
 
@@ -238,6 +271,7 @@ async function refreshEvents() {
 function bind() {
   el("createProject").addEventListener("click", () => createProject().catch(showError));
   el("uploadSelected").addEventListener("click", () => uploadSelected().catch(showError));
+  el("reopenFeedback").addEventListener("click", () => reopenWithFeedback().catch(showError));
   el("buildPlan").addEventListener("click", () => buildPlan().catch(showError));
   el("checkEnvironment").addEventListener("click", () => checkEnvironment().catch(showError));
   el("startRun").addEventListener("click", () => startRun().catch(showError));

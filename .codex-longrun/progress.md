@@ -471,3 +471,13 @@ PY"`
 
 - Pushed commit `a9fb340` to `master`.
 - GitHub Actions CI run `27826225218` completed successfully for `Add acceptance scenario browser probes`.
+
+
+## 2026-06-19 V2.28 Feedback Reopen Loop
+
+- Added `docs/35_v2_28_feedback_reopen_loop.md` and linked it from README and the V2 development plan.
+- Preserved `source_role` on extracted requirements and updated the ContextBundle schema.
+- Routed feedback-derived requirements to Debug Agent tasks instead of ordinary feature tasks.
+- Added `POST /projects/{project_id}/feedback/reopen` to reopen a delivered run with feedback files and start a repair run using `agent/feedback-recovery` by default.
+- Added browser-console `Feedback Reopen` control that uploads selected files as feedback and starts the repair run.
+- Verified focused tests, full suite, acceptance harness, JSON specs, diff hygiene, and long-running state validation.

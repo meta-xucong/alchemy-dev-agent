@@ -1,6 +1,6 @@
 {
   "objective": "Deliver the document-driven autonomous development system through an external docs-only repository, including a playable browser game PR generated from the provided development document",
-  "current_phase": "V2.27 acceptance scenario browser probes",
+  "current_phase": "V2.28 feedback reopen loop",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -38,12 +38,13 @@
     "V2.24.4 fresh external docs-only repository rerun with generated CI, browser evidence, PR merge",
     "V2.25 playability feedback loop and semantic gameplay gate",
     "V2.26 semantic web probes and feedback intake loop",
-    "V2.27 acceptance scenario browser probes"
+    "V2.27 acceptance scenario browser probes",
+    "V2.28 feedback reopen loop"
   ],
   "next_actions": [
-    "Allow feedback intake to reopen a delivered run and automatically create a recovery/debug branch with targeted worker packages.",
     "Polish browser-console evidence views for semantic probe snapshots, scenario probe details, failed interactions, and development_cycle checklist details.",
-    "Extend generated acceptance scenarios beyond static web apps into repository-native Playwright/Cypress test generation when a project already has a UI test framework."
+    "Extend generated acceptance scenarios beyond static web apps into repository-native Playwright/Cypress test generation when a project already has a UI test framework.",
+    "Add recovery-run comparison reports that show source run evidence versus feedback repair run evidence."
   ],
   "tests_run": [
     {
@@ -560,6 +561,16 @@
       "command": "GitHub Actions CI run 27826225218 on master a9fb340",
       "result": "passed",
       "summary": "Remote CI completed successfully after V2.27 acceptance scenario browser probe changes."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_document_to_plan tests.test_api_server.ApiServerTests.test_project_service_reopens_delivered_run_with_feedback tests.test_api_server.ApiServerTests.test_http_api_reopens_with_feedback tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_intake tests.test_document_run_pipeline.DocumentRunPipelineTests.test_artifact_report_generates_and_passes_acceptance_scenarios",
+      "result": "passed",
+      "summary": "19 focused tests passed for feedback role routing, delivered-run reopen API/UI, intake, and scenario report regression."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.acceptance_run --output .alchemy\\acceptance_v2_28",
+      "result": "passed",
+      "summary": "Acceptance harness passed with delivery done and development_cycle score 1.0 after V2.28 changes."
     }
   ],
   "known_bugs": [
@@ -617,6 +628,11 @@
       "id": "DETAILED_ACCEPTANCE_DOCS_NOT_BROWSER_EXECUTABLE",
       "status": "fixed",
       "summary": "Detailed acceptance documents could generate requirements but not executable browser scenarios; fixed by adding deterministic CRUD/auth/upload/dashboard scenario planning and scenario_probe browser evidence."
+    },
+    {
+      "id": "FEEDBACK_REOPEN_NOT_ACTIONABLE_AFTER_DELIVERY",
+      "status": "fixed",
+      "summary": "Feedback files could become requirements but had no first-class delivered-run reopen path; fixed by preserving source_role=feedback, routing feedback to Debug Agent tasks, and adding /feedback/reopen with UI support."
     }
   ],
   "blockers": [],
@@ -636,9 +652,13 @@
     "Feedback files are recognized as first-class intake and converted into must-priority requirement deltas.",
     "Detailed acceptance requirements generate deterministic browser acceptance scenarios for CRUD, auth, file upload, and dashboard flows.",
     "Static web browser verification runs scenario_probe evidence and fails testing readiness when generated scenarios fail.",
-    "Scenario evidence is surfaced in artifact_report, delivery_report, requirement_coverage, development_cycle, and the browser console summary."
+    "Scenario evidence is surfaced in artifact_report, delivery_report, requirement_coverage, development_cycle, and the browser console summary.",
+    "Feedback files preserve source_role=feedback through requirement extraction and task planning.",
+    "Feedback-derived requirements route to Debug Agent tasks.",
+    "Delivered runs can be reopened with feedback files through the local API and browser console.",
+    "Feedback reopen runs record source run, feedback files, and feedback-recovery branch prefix metadata."
   ],
-  "last_verified_at": "2026-06-19T20:40:43+08:00",
+  "last_verified_at": "2026-06-19T20:54:04+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-19T20:40:43+08:00"
+  "updated_at": "2026-06-19T20:54:04+08:00"
 }

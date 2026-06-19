@@ -59,6 +59,7 @@ class Requirement:
     acceptance_criteria: list[str] = field(default_factory=list)
     related_files: list[str] = field(default_factory=list)
     planned_task_ids: list[str] = field(default_factory=list)
+    source_role: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -69,6 +70,7 @@ class Requirement:
             "acceptance_criteria": list(self.acceptance_criteria),
             "related_files": list(self.related_files),
             "planned_task_ids": list(self.planned_task_ids),
+            "source_role": self.source_role,
         }
 
 

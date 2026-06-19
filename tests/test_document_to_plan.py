@@ -234,6 +234,9 @@ class DocumentToPlanTests(unittest.TestCase):
             if node["type"] not in {"architecture", "test", "review", "release"}
         ]
         self.assertGreaterEqual(len(implementation_nodes), 1)
+        feedback_nodes = [node for node in implementation_nodes if node["type"] == "debug"]
+        self.assertGreaterEqual(len(feedback_nodes), 1)
+        self.assertEqual(feedback_nodes[0]["assigned_agent"], "debug")
 
     def test_document_driven_platformer_spec_does_not_use_generated_fallback(self) -> None:
         with temp_plan_dir() as root:

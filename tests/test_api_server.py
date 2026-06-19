@@ -170,6 +170,47 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(captured["kwargs"]["generate_static_ci"], False)
         self.assertEqual(captured["kwargs"]["auto_merge"], True)
 
+    def test_project_service_reopens_delivered_run_with_feedback(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        feedback = root / "playtest_feedback.md"
+        feedback.write_text(
+            "# Feedback\n\n## Feedback\n- Bug: clicking Create workspace does not update src/pages/dashboard.tsx.\n",
+            encoding="utf-8",
+        )
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        first_run = service.run_project(project_id, {})
+
+        reopened = service.reopen_with_feedback(
+            project_id,
+            {
+                "source_run_id": first_run["run_id"],
+                "feedback_files": [str(feedback)],
+                "run": {"auto_browser_verify": False},
+            },
+        )
+
+        self.assertEqual(reopened["run_id"], "run_002")
+        self.assertEqual(reopened["feedback_reopen"]["source_run_id"], "run_001")
+        self.assertEqual(reopened["feedback_reopen"]["worktree_branch_prefix"], "agent/feedback-recovery")
+        graph = reopened["task_graph"]
+        debug_nodes = [node for node in graph["nodes"] if node["type"] == "debug"]
+        self.assertGreaterEqual(len(debug_nodes), 1)
+        self.assertEqual(debug_nodes[0]["assigned_agent"], "debug")
+        self.assertIn(str(feedback), service.load_project(project_id).attachments)
+
     def test_project_service_async_run_records_job_controls_and_events(self) -> None:
         root = temp_root()
         repo = root / "repo"
@@ -345,6 +386,56 @@ class ApiServerTests(unittest.TestCase):
             thread.join(timeout=10)
             server.server_close()
 
+    def test_http_api_reopens_with_feedback(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        feedback = root / "feedback.md"
+        feedback.write_text("# Feedback\n\n## Feedback\n- Bug: dashboard create flow fails in src/pages/dashboard.tsx.\n", encoding="utf-8")
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            created = request_json(
+                conn,
+                "POST",
+                "/projects",
+                {
+                    "objective": "Add workspace support",
+                    "documents": [str(spec)],
+                    "repository_path": str(repo),
+                },
+                expected=201,
+            )
+            project_id = str(created["project"]["project_id"])
+            first_run = request_json(conn, "POST", f"/projects/{project_id}/runs", {}, expected=201)
+
+            reopened = request_json(
+                conn,
+                "POST",
+                f"/projects/{project_id}/feedback/reopen",
+                {
+                    "source_run_id": first_run["run_id"],
+                    "feedback_files": [str(feedback)],
+                    "run": {"auto_browser_verify": False},
+                },
+                expected=201,
+            )
+
+            self.assertEqual(reopened["run_id"], "run_002")
+            self.assertEqual(reopened["feedback_reopen"]["source_run_id"], "run_001")
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
     def test_project_service_github_inspect_without_prepare_returns_intake(self) -> None:
         root = temp_root()
         service = ProjectService(storage_root=root / "server")
@@ -483,6 +574,7 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("autoBrowserVerify", html)
             self.assertIn("generateStaticCi", html)
             self.assertIn("autoMerge", html)
+            self.assertIn("reopenFeedback", html)
             self.assertIn("real_codex", js)
             self.assertIn("isolate_real_run", js)
             self.assertIn("github_ci_wait_seconds", js)
@@ -492,6 +584,7 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("generate_static_ci", js)
             self.assertIn("auto_merge", js)
             self.assertIn("renderDelivery", js)
+            self.assertIn("reopenWithFeedback", js)
             self.assertIn("deliverySummary", css)
         finally:
             conn.close()

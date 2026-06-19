@@ -161,6 +161,7 @@ class RequirementExtractor:
                     acceptance_criteria=dedupe_preserve_order(acceptance),
                     related_files=related_files,
                     planned_task_ids=[],
+                    source_role=role,
                 )
             )
 

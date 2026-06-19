@@ -195,6 +195,8 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "POST" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "stop":
         run_id = safe_identifier(tail[1], "run_id")
         return service.stop_run(project_id, run_id), HTTPStatus.OK
+    if method == "POST" and tail == ["feedback", "reopen"]:
+        return service.reopen_with_feedback(project_id, payload), HTTPStatus.CREATED
     if method == "GET" and tail == ["delivery"]:
         return service.get_delivery(project_id), HTTPStatus.OK
     if method == "POST" and len(tail) == 2 and tail[0] == "github" and tail[1] == "inspect":
