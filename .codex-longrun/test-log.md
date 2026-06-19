@@ -1535,3 +1535,15 @@
 - Result: passed.
 - Summary: Local repository acceptance passed with 13/13 checks under browser verification.
 - Next verification command: final JSON specs, diff hygiene, and state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`; `git diff --check`; `validate_state.py --project .`
+- Result: passed.
+- Summary: JSON specs parsed, diff hygiene passed, and long-running state validated after V2.37.
+- Next verification command: commit, push, and GitHub Actions.
+
+## 2026-06-20 V2.37 Remote CI Closure
+
+- Command: `gh run watch 27840129145 --exit-status`
+- Result: passed.
+- Summary: GitHub Actions CI run `27840129145` passed on `master` commit `f91bd15` after V2.37 graph and coverage visualization changes.
+- Next verification command: none; explicit next_actions are clear.

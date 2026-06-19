@@ -611,3 +611,9 @@ PY"`
 - Kept raw JSON output available for audit and kept visualization read-only.
 - Verified project/run deep links render graph and coverage evidence from run-scoped delivery.
 - Verified focused tests, full unit suite, main acceptance, local repository acceptance with browser verification, UI smoke, JSON specs, diff hygiene, and long-running state validation.
+
+## 2026-06-20 V2.37 Remote CI Closure
+
+- Pushed commit `f91bd15` to `master`.
+- GitHub Actions CI run `27840129145` completed successfully for `Add graph and coverage console visualization`.
+- Cleared explicit long-running `next_actions`; remaining known gaps are production-hardening boundaries such as live SSE/WebSocket streaming, hard cancellation of already-running real Codex subprocesses, worker-daemon separation, and multi-user persistence.
