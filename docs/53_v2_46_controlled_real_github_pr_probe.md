@@ -126,3 +126,23 @@ The created draft PR is intentional evidence. Operators may close or merge it
 after review. This phase does not auto-close the PR because the PR URL itself is
 part of the auditable proof that the GitHub delivery path worked.
 
+## V2.46 Validation Evidence
+
+The current public repository was validated with an approved controlled draft
+PR:
+
+- Repository: `meta-xucong/alchemy-dev-agent`
+- PR: <https://github.com/meta-xucong/alchemy-dev-agent/pull/3>
+- Branch: `agent/alchemy-v2-46-pr-probe-20260620102706084177`
+- Head commit: `ec8150ab3712bb889889902e6663736ddf238d3e`
+- Base commit: `6dbc07bb0120ced2913b95825743baeab39368f4`
+- PR state: `OPEN`, draft, merge state `CLEAN`
+- CI workflow: `CI / tests`
+- CI run: <https://github.com/meta-xucong/alchemy-dev-agent/actions/runs/27868373195/job/82476108754>
+- CI result: `SUCCESS`
+- Local report: `.alchemy/v2_46_real_github_pr_probe/real_delivery_validation_report.json`
+- Local index: `.alchemy/v2_46_real_probe_index.json`
+
+The indexed probe summary reported six evidence entries, zero blockers, and
+status `passed`. This includes the V2.46 `real_github_pr_probe` entry with
+`github_status=pushed`, `ci_status=passed`, and `merge_status=skipped`.

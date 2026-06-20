@@ -722,3 +722,9 @@ PY"`
 - Generated `.alchemy/v2_45_real_probe_index.json`, discovering four passed real evidence reports: V2.42 readiness, V2.42 retry readiness, V2.43 real worker smoke, and V2.44 real document-run smoke.
 - Verified related tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 16:13:53 +0800.
 - Remaining major gap is intentionally not auto-run: a mutating real GitHub branch/PR probe requires explicit approval because it creates remote state.
+
+## 2026-06-20 18:31:11 +08:00 V2.46 Controlled Real GitHub PR Probe
+- Added V2.46 contract docs for approved mutating GitHub PR probes.
+- Extended real_probe_index to include real_delivery_validation_report.json as real_github_pr_probe evidence.
+- Ran approved real GitHub probe on meta-xucong/alchemy-dev-agent.
+- Result: draft PR #3 opened, branch agent/alchemy-v2-46-pr-probe-20260620102706084177 pushed, CI / tests passed, auto-merge skipped.

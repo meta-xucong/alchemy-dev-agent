@@ -1751,3 +1751,15 @@
 
 - Command: `python -B -m compileall autodev intake server runtime tests`; `python -c specs/state JSON parse`; `git diff --check`; `validate_state.py --project .`
 - Result: passed; compileall OK, JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.
+
+## 2026-06-20 18:31:11 +08:00 V2.46 Controlled Real GitHub PR Probe
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_probe_index tests.test_real_delivery_validation
+- Result: passed; 7 tests OK.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests
+- Result: passed; 228 tests OK before real probe and 228 tests OK after documentation evidence update.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_delivery_validation --repository-path . --output .alchemy\v2_46_real_github_pr_probe --branch agent/alchemy-v2-46-pr-probe --base-branch master --ci-wait-seconds 120 --ci-poll-interval-seconds 10
+- Result: passed; PR https://github.com/meta-xucong/alchemy-dev-agent/pull/3 created as draft, branch pushed, commit ec8150ab3712bb889889902e6663736ddf238d3e, CI / tests success.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_probe_index --root .alchemy --output .alchemy\v2_46_real_probe_index.json --summary
+- Result: passed; total=6, blocker_count=0.
+- Command: JSON specs parse, git diff --check, validate_state.py --project .
+- Result: passed.
