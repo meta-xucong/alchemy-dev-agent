@@ -14,6 +14,8 @@ __all__ = [
     "PullRequestLifecycleReport",
     "EvidencePackageExporter",
     "EvidencePackageReport",
+    "BenchmarkSuite",
+    "BenchmarkSuiteReport",
     "ExternalDocsOnlyAcceptance",
     "ExternalDocsOnlyAcceptanceReport",
     "LocalRepositoryAcceptanceHarness",
@@ -73,6 +75,14 @@ def __getattr__(name: str):
         exports = {
             "EvidencePackageExporter": EvidencePackageExporter,
             "EvidencePackageReport": EvidencePackageReport,
+        }
+        return exports[name]
+    if name in {"BenchmarkSuite", "BenchmarkSuiteReport"}:
+        from .benchmark_suite import BenchmarkSuite, BenchmarkSuiteReport
+
+        exports = {
+            "BenchmarkSuite": BenchmarkSuite,
+            "BenchmarkSuiteReport": BenchmarkSuiteReport,
         }
         return exports[name]
     if name in {"ExternalDocsOnlyAcceptance", "ExternalDocsOnlyAcceptanceReport"}:

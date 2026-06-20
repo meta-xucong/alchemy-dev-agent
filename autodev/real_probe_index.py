@@ -19,6 +19,7 @@ KNOWN_REPORTS = {
     "real_unified_delivery_report.json": "real_unified_delivery",
     "github_pr_lifecycle_report.json": "github_pr_lifecycle",
     "evidence_package_manifest.json": "evidence_package",
+    "benchmark_suite_report.json": "benchmark_suite",
 }
 
 
@@ -102,6 +103,8 @@ class RealProbeIndexer:
             entry.update(github_pr_lifecycle_fields(payload))
         elif report_type == "evidence_package":
             entry.update(evidence_package_fields(payload))
+        elif report_type == "benchmark_suite":
+            entry.update(benchmark_suite_fields(payload))
         return entry
 
 
@@ -208,6 +211,19 @@ def evidence_package_fields(payload: dict[str, Any]) -> dict[str, object]:
         "package_blocker_count": summary.get("blocker_count", 0),
         "failed_required_gates": list(summary.get("failed_required_gates", []))
         if isinstance(summary.get("failed_required_gates", []), list)
+        else [],
+    }
+
+
+def benchmark_suite_fields(payload: dict[str, Any]) -> dict[str, object]:
+    summary = as_dict(payload.get("summary"))
+    return {
+        "output_dir": payload.get("output_dir", ""),
+        "scenario_total": summary.get("total", 0),
+        "scenario_passed": summary.get("passed", 0),
+        "scenario_failed": summary.get("failed", 0),
+        "failed_scenarios": list(summary.get("failed_scenarios", []))
+        if isinstance(summary.get("failed_scenarios", []), list)
         else [],
     }
 

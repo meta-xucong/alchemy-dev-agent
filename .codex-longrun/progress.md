@@ -746,3 +746,9 @@ PY"`
 - Implemented autodev.evidence_package to copy known reports, hash them, and write manifest plus summary.md.
 - Extended real_probe_index to include evidence_package_manifest.json.
 - Generated .alchemy\v2_49_evidence_package from V2.47 and V2.48 evidence; status passed with 7 files and zero blockers.
+
+## 2026-06-20 19:24:08 +08:00 V2.50 Benchmark Suite
+- Added docs/57_v2_50_benchmark_suite.md for deterministic dry-run benchmark scenarios.
+- Implemented autodev.benchmark_suite covering one-line CLI, document-only CLI, local-repo CLI, V2.47 dry-run gate, unified acceptance, and evidence package export.
+- Extended real_probe_index to include benchmark_suite_report.json.
+- Ran .alchemy\v2_50_benchmark_suite; 6/6 scenarios passed and total evidence index reached 15 entries with zero blockers.

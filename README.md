@@ -146,6 +146,8 @@ docs/
                               V2.48 PR review and cleanup lifecycle controls.
   56_v2_49_evidence_package_export.md
                               V2.49 evidence package export for review/archival.
+  57_v2_50_benchmark_suite.md
+                              V2.50 deterministic benchmark suite.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -207,6 +209,7 @@ autodev/
   real_unified_delivery.py   Unified full-delivery validation harness and gate report.
   github_pr_lifecycle.py     Safe inspect, ready, close, and branch cleanup controls for PRs.
   evidence_package.py        Evidence package exporter with manifest and Markdown summary.
+  benchmark_suite.py         Deterministic dry-run benchmark matrix for key delivery paths.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -598,6 +601,18 @@ The package writes `evidence_package_manifest.json`, `summary.md`, and copied
 known JSON reports under `reports/`.
 
 See `docs/56_v2_49_evidence_package_export.md`.
+
+Run deterministic dry-run benchmarks:
+
+```bash
+python -m autodev.benchmark_suite \
+  --output .alchemy/benchmark_suite \
+  --summary
+```
+
+Use `--skip-unified-acceptance` for a faster local smoke.
+
+See `docs/57_v2_50_benchmark_suite.md`.
 
 ## V2.29 Local And GitHub Source Modes
 
