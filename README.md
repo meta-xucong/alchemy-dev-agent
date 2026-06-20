@@ -136,6 +136,8 @@ docs/
                               V2.43 controlled local real Codex worker smoke.
   51_v2_44_real_document_run_local_smoke.md
                               V2.44 controlled real document-run local smoke.
+  52_v2_45_real_probe_evidence_index.md
+                              V2.45 real probe evidence index.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -193,6 +195,7 @@ autodev/
   real_readiness_probe.py    Non-mutating real Codex/GitHub environment readiness probe.
   real_worker_smoke.py       Controlled disposable local real Codex worker smoke.
   real_document_run_smoke.py Controlled real Codex document-run smoke on a local fixture repository.
+  real_probe_index.py        Evidence indexer for real readiness and worker smoke reports.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -502,6 +505,18 @@ python -m autodev.real_document_run_smoke \
 This exercises document intake, task planning, real Codex implementation, local
 verification, and dry-run GitHub delivery evidence on a disposable local
 repository.
+
+Index real probe evidence after running readiness/smoke checks:
+
+```bash
+python -m autodev.real_probe_index \
+  --root .alchemy \
+  --output .alchemy/real_probe_index.json \
+  --summary
+```
+
+This creates a compact review index for real readiness, worker smoke, and
+document-run smoke reports.
 
 ## V2.29 Local And GitHub Source Modes
 

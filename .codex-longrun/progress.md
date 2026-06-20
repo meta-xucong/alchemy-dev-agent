@@ -712,3 +712,13 @@ PY"`
 - Added tests for blocked preflight behavior and compact smoke summary shape.
 - Ran a real local document-run smoke using `codex`; result passed with document_run status done, verification passed, delivery ready, 3 worker lifecycle records, and app.py diff containing `return a + b`.
 - Verified related regression tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 16:06:32 +0800.
+
+
+## 2026-06-20 V2.45 Real Probe Evidence Index
+
+- Added `docs/52_v2_45_real_probe_evidence_index.md` for consolidating real readiness and smoke evidence.
+- Added `autodev.real_probe_index`, which scans known probe reports and writes a compact `real_probe_index.json`.
+- Added tests for readiness, worker smoke, document-run smoke, blocked probe summaries, and CLI summary output.
+- Generated `.alchemy/v2_45_real_probe_index.json`, discovering four passed real evidence reports: V2.42 readiness, V2.42 retry readiness, V2.43 real worker smoke, and V2.44 real document-run smoke.
+- Verified related tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 16:13:53 +0800.
+- Remaining major gap is intentionally not auto-run: a mutating real GitHub branch/PR probe requires explicit approval because it creates remote state.

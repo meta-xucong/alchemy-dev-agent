@@ -1733,3 +1733,21 @@
 
 - Command: `python -B -m compileall autodev intake server runtime tests`; `python -c specs/state JSON parse`; `git diff --check`; `validate_state.py --project .`
 - Result: passed; compileall OK, JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.
+
+
+## 2026-06-20 V2.45 Real Probe Evidence Index Verification
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_probe_index`
+- Result: passed; 3 tests OK.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_probe_index --root .alchemy --output .alchemy\v2_45_real_probe_index.json --summary`
+- Result: passed; index status passed, total=4, passed=4, blocked_or_failed=0.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_probe_index tests.test_real_document_run_smoke tests.test_real_worker_smoke tests.test_real_readiness_probe`
+- Result: passed; 11 tests OK.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed; 228 tests OK.
+
+- Command: `python -B -m compileall autodev intake server runtime tests`; `python -c specs/state JSON parse`; `git diff --check`; `validate_state.py --project .`
+- Result: passed; compileall OK, JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.

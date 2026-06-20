@@ -1,6 +1,6 @@
 {
   "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
-  "current_phase": "V2.44 real document-run local smoke final verification",
+  "current_phase": "V2.45 real probe evidence index final verification",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -67,12 +67,15 @@
     "V2.43 controlled real Codex worker smoke final verification",
     "V2.44 real document-run local smoke planning",
     "V2.44 real document-run local smoke implementation",
-    "V2.44 real document-run local smoke final verification"
+    "V2.44 real document-run local smoke final verification",
+    "V2.45 real probe evidence index planning",
+    "V2.45 real probe evidence index implementation",
+    "V2.45 real probe evidence index final verification"
   ],
   "next_actions": [
-    "Review live CI after V2.44 push.",
-    "Remaining non-mutating gap: make real smoke reports easier to inspect from the browser evidence console.",
-    "Remaining mutating gap: controlled real GitHub PR probe requires explicit approval because it creates a branch/PR."
+    "Review live CI after V2.45 push.",
+    "Manual approval required for next mutating phase: controlled real GitHub branch/PR probe on a disposable test repository or explicitly approved target.",
+    "Optional non-mutating follow-up: expose real_probe_index in the browser console artifact/evidence panel."
   ],
   "tests_run": [
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
@@ -151,6 +154,11 @@
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_document_run_smoke --output .alchemy\\v2_44_real_document_run_smoke --codex-executable codex --timeout-seconds 300 --summary # passed real document-run smoke",
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_document_run_smoke tests.test_real_worker_smoke tests.test_document_run_pipeline tests.test_real_readiness_probe # 29 tests OK",
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 225 tests OK",
+    "compileall; specs/state JSON parse; git diff --check; validate_state.py --project . # passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_probe_index # 3 tests OK",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_probe_index --root .alchemy --output .alchemy\\v2_45_real_probe_index.json --summary # passed index total=4",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_probe_index tests.test_real_document_run_smoke tests.test_real_worker_smoke tests.test_real_readiness_probe # 11 tests OK",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 228 tests OK",
     "compileall; specs/state JSON parse; git diff --check; validate_state.py --project . # passed"
   ],
   "known_bugs": [
@@ -299,7 +307,7 @@
     "Browser console exposes a Unified Run button and source-mode selection wired to POST /runs.",
     "Browser console Unified Run flow was smoke-tested against a local API server and produced queued/running/done events plus delivery evidence."
   ],
-  "last_verified_at": "2026-06-20T16:06:32+08:00",
+  "last_verified_at": "2026-06-20T16:13:53+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
   "updated_at": "2026-06-20T13:50:02+08:00"
 }
