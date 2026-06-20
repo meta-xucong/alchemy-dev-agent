@@ -642,3 +642,11 @@ PY"`
 - Verified static artifact checks, browser screenshots, nonblank rendering, pixel change, no console errors, movement, jump, victory, and restart.
 - Opened the generated game locally at `http://127.0.0.1:8739/index.html` for manual review.
 - Assessment: playability and verification are stronger than the earliest manual runs because the runtime now proves semantic gameplay behavior, but visual/game-content generation is intentionally original and not a direct clone of protected commercial assets.
+
+## 2026-06-20 V2.39 Unified Entrypoint Planning
+
+- Added `docs/46_v2_39_unified_entrypoint.md` as the next phase development plan.
+- Added `examples/v2_39_unified_entrypoint_checklist.md` as the implementation checklist and acceptance matrix.
+- Updated README and `docs/07_v2_development_plan.md` so V2.39 is aligned with the original document-driven autonomous development objective.
+- Scoped V2.39 around one product-facing run contract for objective, documents, supporting files, local repositories, GitHub repositories, execution options, verification, and delivery evidence.
+- Kept the plan explicitly compatible with the existing ProjectBrief, ContextBundle, TaskGraph, RuntimeState, DocumentRunPipeline, ProjectService, artifact, evaluator, and delivery contracts.

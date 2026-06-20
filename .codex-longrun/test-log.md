@@ -1580,3 +1580,16 @@
 - Result: passed; 76 tests OK.
 - Command: Codex in-app browser open at `http://127.0.0.1:8739/index.html`
 - Result: passed after restarting the static file server with quoted path arguments; visual screenshot showed HUD, player, coins, platforms, gap, and instructions.
+
+## 2026-06-20 V2.39 Unified Entrypoint Planning Verification
+
+- Command: `rg -n "V2\.39|46_v2_39|unified entrypoint|v2_39_unified" README.md docs examples .codex-longrun -g "*.md" -g "*.json"`
+- Result: passed; README, V2 development plan, V2.39 plan, and V2.39 checklist references are discoverable.
+- Command: manual audit of `docs/46_v2_39_unified_entrypoint.md` and `examples/v2_39_unified_entrypoint_checklist.md`
+- Result: passed; the plan preserves the original document-driven autonomous development objective, reuses existing contracts, defines CLI/API/UI/project-type work, and includes implementation tests and done criteria.
+- Command: `python -c "import json, pathlib; json.loads(pathlib.Path('.codex-longrun/state.json').read_text(encoding='utf-8')); print('state json ok')"`
+- Result: passed; long-running state JSON parsed.
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+- Result: passed; long-running state schema validation returned OK.
+- Command: `git diff --check`
+- Result: passed; no whitespace errors. Git emitted CRLF normalization warnings for long-running state files only.

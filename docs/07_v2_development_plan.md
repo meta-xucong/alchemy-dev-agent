@@ -46,6 +46,13 @@ The repository currently contains:
 - A V2.30 native UI acceptance-test generator that converts inferred acceptance scenarios into Playwright/Cypress drafts.
 - A V2.31 delivery evidence console that turns machine evidence into human-reviewable summaries.
 - A V2.32 feedback recovery comparison report that shows whether repair runs improved or regressed against their source runs.
+- A V2.33 artifact file preview contract that safely exposes reported screenshots, generated tests, static artifacts, and generated CI files.
+- A V2.34 delivery readiness gate that blocks incomplete must requirements and failed artifact probes.
+- A V2.35 controlled native UI test repository-write switch.
+- A V2.36 comparison-driven repair suggestion layer for Debug Agent follow-up work.
+- A V2.37 task graph and requirement coverage visualization layer.
+- A V2.38 production gap closure layer for file lifecycle APIs, storage-backed SSE, contradiction warnings, code summaries, resume race closure, and best-effort running worker cancellation.
+- A V2.39 unified entrypoint plan for converging demo, document-run, API, local repository, GitHub, and UI flows behind one product-facing run contract.
 - Tests that protect the runtime contract.
 
 V2 must continue extending this baseline with deeper document parsing, richer UI/API observability, representative real GitHub delivery validation, external docs-only delivery closure, and safer live execution controls. It must not bypass the existing task graph, worker, state, and evaluation contracts.
@@ -598,6 +605,24 @@ DONE requires:
 - Load graph and run-scoped coverage evidence from project/run deep links. Status: implemented.
 - Preserve raw JSON outputs for audit and keep visualization read-only. Status: implemented.
 
+### V2.38: Production Gap Closure
+
+- Add project file update and delete APIs with upload-directory safety. Status: implemented.
+- Add storage-backed SSE run event streaming with polling fallback. Status: implemented.
+- Add deterministic requirement contradiction warnings. Status: implemented.
+- Add deterministic code summaries to `ContextBundle.repository_map`. Status: implemented.
+- Fix paused-run resume handoff races. Status: implemented.
+- Add best-effort running real worker cancellation through managed subprocess lifecycle checks. Status: implemented.
+
+### V2.39: Unified Entrypoint And Project-Type Runtime
+
+- Define a unified run request that covers objective, documents, attachments, local repository path, GitHub URL, source mode, execution mode, delivery mode, verification options, and resume/feedback options. Status: planned in `docs/46_v2_39_unified_entrypoint.md`.
+- Add a thin CLI facade that routes to existing `DocumentRunPipeline` or one-line fallback without duplicating runtime logic. Status: planned.
+- Add an API one-shot run facade while keeping staged project/intake/plan/run endpoints intact. Status: planned.
+- Add browser-console single-run mode that reuses existing evidence panels. Status: planned.
+- Add explicit project-type routing evidence for canvas games, static web apps, Node projects, Python projects, fullstack projects, documentation-only projects, and unknown projects. Status: planned.
+- Add a unified implementation checklist and acceptance matrix in `examples/v2_39_unified_entrypoint_checklist.md`. Status: planned.
+
 ## Risks And Mitigations
 
 | Risk | Impact | Mitigation |
@@ -605,10 +630,11 @@ DONE requires:
 | Development documents are long or contradictory. | Planner may create wrong tasks. | Build requirement traceability and reviewer gate before execution. |
 | Supporting files use mixed formats. | Context bundle may miss important constraints. | Keep file role metadata and parse confidence in the context bundle. |
 | Public repository clone or fetch fails. | Execution cannot inspect source. | Record git command output as a hard source blocker before planning. |
-| Private repository access is requested. | Execution cannot inspect source through the public path. | Use local `gh auth status` in a later optional adapter and report an explicit blocker until implemented. |
+| Private repository access is requested. | Execution cannot inspect source without authenticated local credentials. | Use the implemented local `gh auth status` preflight and private source adapter; report a source blocker when `gh` is missing, unauthenticated, or lacks access. |
 | One-line fallback creates weak specs. | The system may over-assume. | Mark generated requirements as low-confidence and require acceptance review. |
 | Runtime drifts from documents. | Agents follow stale contracts. | Keep schemas and tests as contract checks. |
 | UI starts execution before review. | Wrong plan may mutate code. | Require intake review and task graph preview before live execution. |
+| Unified entrypoint duplicates existing pipelines. | Contract drift and inconsistent evidence. | Keep the facade thin and route through the existing intake, document-run, ProjectService, artifact, evaluator, and delivery contracts. |
 
 ## Implementation Readiness Criteria
 

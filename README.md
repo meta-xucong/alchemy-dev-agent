@@ -124,6 +124,8 @@ docs/
                               V2.37 browser graph and requirement coverage visualization.
   45_v2_38_production_gap_closure.md
                               V2.38 file lifecycle API, SSE event stream, contradiction warnings, and code summaries.
+  46_v2_39_unified_entrypoint.md
+                              V2.39 unified product entrypoint and project-type runtime plan.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -138,6 +140,8 @@ examples/
                               Example with documents, attachments, and GitHub repository input.
   external_docs_only_delivery_acceptance.md
                               V2.22 external docs-only delivery acceptance scenario.
+  v2_39_unified_entrypoint_checklist.md
+                              V2.39 implementation and acceptance checklist.
 
 runtime/
   control.py                 Task-boundary pause/stop control hook.

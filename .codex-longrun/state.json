@@ -1,6 +1,6 @@
 {
   "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
-  "current_phase": "V2.38 production gap closure",
+  "current_phase": "V2.39 unified entrypoint planning",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -49,9 +49,16 @@
     "V2.35 native UI test repository write",
     "V2.36 comparison-driven repair suggestions",
     "V2.37 graph and coverage visualization",
-    "V2.38 production gap closure"
+    "V2.38 production gap closure",
+    "V2.39 unified entrypoint planning"
   ],
-  "next_actions": [],
+  "next_actions": [
+    "Implement the V2.39 unified run request model.",
+    "Implement the unified CLI facade in autodev/run.py.",
+    "Implement the ProjectService and HTTP API one-shot run facade.",
+    "Wire browser console single-run mode to the unified endpoint.",
+    "Add project-type routing evidence and unified acceptance tests."
+  ],
   "tests_run": [
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_runtime.EvaluatorTests tests.test_document_run_pipeline.DocumentRunPipelineTests.test_delivery_report_blocks_partial_must_and_failed_browser_probe tests.test_api_server.ApiServerTests.test_project_status_maps_in_progress_to_needs_iteration tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content",
@@ -96,7 +103,8 @@
     "StaticWebArtifactVerifier and BrowserArtifactRunner canvas-game verification for .alchemy\\generated\\super_mario_rerun_v2_38_20260620",
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_autodev_pipeline",
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime",
-    "Codex in-app browser opened http://127.0.0.1:8739/index.html and captured visual evidence"
+    "Codex in-app browser opened http://127.0.0.1:8739/index.html and captured visual evidence",
+    "V2.39 planning document and checklist audit"
   ],
   "known_bugs": [
     {
@@ -229,9 +237,10 @@
     "Browser console is wired to SSE event streaming with polling fallback.",
     "Final verification passes with 197 unit tests and two acceptance harnesses.",
     "A fresh local one-line rerun generated a safe playable original retro platformer and passed static plus browser gameplay verification.",
-    "The generated platformer was opened in the Codex in-app browser at http://127.0.0.1:8739/index.html for manual review."
+    "The generated platformer was opened in the Codex in-app browser at http://127.0.0.1:8739/index.html for manual review.",
+    "V2.39 unified entrypoint planning document and implementation checklist are present and aligned with the original document-driven autonomous development objective."
   ],
-  "last_verified_at": "2026-06-20T03:05:02+08:00",
+  "last_verified_at": "2026-06-20T10:25:31+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T03:05:02+08:00"
+  "updated_at": "2026-06-20T10:25:31+08:00"
 }
