@@ -105,13 +105,33 @@ class RealProbeIndexTests(unittest.TestCase):
                 "blockers": [],
             },
         )
+        write_json(
+            root / "lifecycle" / "github_pr_lifecycle_report.json",
+            {
+                "schema_version": "2.48",
+                "status": "passed",
+                "action": "inspect",
+                "selector": "3",
+                "pull_request": {
+                    "number": 3,
+                    "url": "https://github.example/pull/3",
+                    "state": "OPEN",
+                    "isDraft": True,
+                    "headRefName": "agent/probe",
+                    "baseRefName": "master",
+                },
+                "checks": [{"name": "tests"}],
+                "warnings": [],
+                "blockers": [],
+            },
+        )
         write_json(root / "other" / "unknown.json", {"status": "ignored"})
 
         index = RealProbeIndexer().build(roots=[root], output_path=root / "index.json").to_dict()
 
         self.assertEqual(index["status"], "passed")
         self.assertEqual(index["schema_version"], "2.47")
-        self.assertEqual(index["summary"]["total"], 5)
+        self.assertEqual(index["summary"]["total"], 6)
         entries = {entry["type"]: entry for entry in index["entries"]}
         self.assertEqual(entries["real_readiness"]["environment_status"], "ready")
         self.assertEqual(entries["real_worker_smoke"]["worker_status"], "completed")
@@ -122,6 +142,9 @@ class RealProbeIndexTests(unittest.TestCase):
         self.assertEqual(entries["real_unified_delivery"]["route"], "document_run")
         self.assertEqual(entries["real_unified_delivery"]["required_gates"], 1)
         self.assertEqual(entries["real_unified_delivery"]["failed_required_gates"], [])
+        self.assertEqual(entries["github_pr_lifecycle"]["action"], "inspect")
+        self.assertEqual(entries["github_pr_lifecycle"]["number"], 3)
+        self.assertEqual(entries["github_pr_lifecycle"]["check_count"], 1)
         self.assertTrue((root / "index.json").exists())
 
     def test_indexer_reports_blocked_when_any_probe_failed(self) -> None:

@@ -734,3 +734,9 @@ PY"`
 - Implemented autodev.real_unified_delivery as a total-control validation harness around the existing unified CLI, document-run, delivery gates, and real probe index.
 - Extended real_probe_index to recognize real_unified_delivery_report.json.
 - Ran a local document + repository V2.47 harness smoke; status passed with 7/7 required gates.
+
+## 2026-06-20 19:07:53 +08:00 V2.48 PR Lifecycle Controls
+- Added docs/55_v2_48_pr_lifecycle_controls.md for safe PR inspect/ready/close cleanup controls.
+- Implemented autodev.github_pr_lifecycle with non-mutating inspect defaults and confirm-required mutation actions.
+- Extended real_probe_index to include github_pr_lifecycle_report.json.
+- Ran non-mutating real inspect against PR #3; status passed, PR remained open draft.

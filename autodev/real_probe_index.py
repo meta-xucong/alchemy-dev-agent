@@ -17,6 +17,7 @@ KNOWN_REPORTS = {
     "real_document_run_smoke_report.json": "real_document_run_smoke",
     "real_delivery_validation_report.json": "real_github_pr_probe",
     "real_unified_delivery_report.json": "real_unified_delivery",
+    "github_pr_lifecycle_report.json": "github_pr_lifecycle",
 }
 
 
@@ -96,6 +97,8 @@ class RealProbeIndexer:
             entry.update(real_github_pr_fields(payload))
         elif report_type == "real_unified_delivery":
             entry.update(real_unified_delivery_fields(payload))
+        elif report_type == "github_pr_lifecycle":
+            entry.update(github_pr_lifecycle_fields(payload))
         return entry
 
 
@@ -174,6 +177,22 @@ def real_unified_delivery_fields(payload: dict[str, Any]) -> dict[str, object]:
         if isinstance(summary.get("failed_required_gates", []), list)
         else [],
         "gates": gates,
+    }
+
+
+def github_pr_lifecycle_fields(payload: dict[str, Any]) -> dict[str, object]:
+    pull_request = as_dict(payload.get("pull_request"))
+    return {
+        "action": payload.get("action", ""),
+        "selector": payload.get("selector", ""),
+        "number": pull_request.get("number", ""),
+        "url": pull_request.get("url", ""),
+        "state": pull_request.get("state", ""),
+        "is_draft": pull_request.get("isDraft", ""),
+        "head": pull_request.get("headRefName", ""),
+        "base": pull_request.get("baseRefName", ""),
+        "check_count": len(payload.get("checks", [])) if isinstance(payload.get("checks"), list) else 0,
+        "warning_count": len(payload.get("warnings", [])) if isinstance(payload.get("warnings"), list) else 0,
     }
 
 

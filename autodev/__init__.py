@@ -10,6 +10,8 @@ __all__ = [
     "DeliveryValidationReport",
     "RealUnifiedDeliveryHarness",
     "RealUnifiedDeliveryReport",
+    "GitHubPRLifecycle",
+    "PullRequestLifecycleReport",
     "ExternalDocsOnlyAcceptance",
     "ExternalDocsOnlyAcceptanceReport",
     "LocalRepositoryAcceptanceHarness",
@@ -53,6 +55,14 @@ def __getattr__(name: str):
         exports = {
             "RealUnifiedDeliveryHarness": RealUnifiedDeliveryHarness,
             "RealUnifiedDeliveryReport": RealUnifiedDeliveryReport,
+        }
+        return exports[name]
+    if name in {"GitHubPRLifecycle", "PullRequestLifecycleReport"}:
+        from .github_pr_lifecycle import GitHubPRLifecycle, PullRequestLifecycleReport
+
+        exports = {
+            "GitHubPRLifecycle": GitHubPRLifecycle,
+            "PullRequestLifecycleReport": PullRequestLifecycleReport,
         }
         return exports[name]
     if name in {"ExternalDocsOnlyAcceptance", "ExternalDocsOnlyAcceptanceReport"}:

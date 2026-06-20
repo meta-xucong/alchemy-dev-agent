@@ -1,6 +1,6 @@
 {
   "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
-  "current_phase": "V2.47 real unified delivery run implementation and verification",
+  "current_phase": "V2.48 PR lifecycle controls implementation and verification",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -73,12 +73,13 @@
     "V2.45 real probe evidence index final verification",
     "V2.46 controlled real GitHub PR probe implementation",
     "V2.46 controlled real GitHub PR probe final verification",
-    "V2.47 real unified delivery run implementation and verification"
+    "V2.47 real unified delivery run implementation and verification",
+    "V2.48 PR lifecycle controls implementation and verification"
   ],
   "next_actions": [
-    "Optional next step: expose real_unified_delivery_report and real_probe_index summaries in the browser console evidence panel.",
-    "Optional next step: run V2.47 with real Codex + real GitHub against an explicitly approved disposable app repository.",
-    "Optional next step: add PR lifecycle cleanup controls for validation branches and draft PRs."
+    "Next chapter candidate: expose V2.47/V2.48 evidence summaries through the browser console after product-design brief confirmation.",
+    "Next chapter candidate: run V2.47 real Codex + real GitHub against an explicitly approved disposable app repository.",
+    "Optional operator action: close or keep PR #3; V2.48 can now inspect/plan/execute lifecycle actions safely."
   ],
   "tests_run": [
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
@@ -172,6 +173,11 @@
     "='1'; python -B -m unittest tests.test_real_unified_delivery tests.test_real_probe_index # 7 tests OK",
     "='1'; python -B -m autodev.real_unified_delivery --objective 'Add workspace support' --document .alchemy\\v2_47_real_unified_delivery_fixture\\spec.md --repository-path .alchemy\\v2_47_real_unified_delivery_fixture\\repo --output .alchemy\\v2_47_real_unified_delivery --require-probe-index --summary # passed 7/7 required gates",
     "='1'; python -B -m unittest discover -s tests # 232 tests OK",
+    "JSON specs parse; git diff --check; validate_state.py --project . # passed",
+    "='1'; python -B -m unittest tests.test_github_pr_lifecycle tests.test_real_probe_index # 7 tests OK",
+    "='1'; python -B -m autodev.github_pr_lifecycle --repository-path . --selector 3 --action inspect --output .alchemy\\v2_48_pr_lifecycle_inspect --summary # passed PR #3 open draft",
+    "='1'; python -B -m autodev.real_probe_index --root .alchemy --output .alchemy\\v2_48_real_probe_index.json --summary # passed total=8 blocker_count=0",
+    "='1'; python -B -m unittest discover -s tests # 236 tests OK",
     "JSON specs parse; git diff --check; validate_state.py --project . # passed"
   ],
   "known_bugs": [
@@ -320,9 +326,12 @@
     "Browser console exposes a Unified Run button and source-mode selection wired to POST /runs.",
     "Browser console Unified Run flow was smoke-tested against a local API server and produced queued/running/done events plus delivery evidence.",
     "V2.47 real_unified_delivery harness produces a single gate-based report over unified preflight, unified run, document-run, optional real evidence, and probe index.",
-    "V2.47 local document-plus-repository smoke passed with all required gates and zero blockers."
+    "V2.47 local document-plus-repository smoke passed with all required gates and zero blockers.",
+    "V2.48 PR lifecycle controller can inspect GitHub PR evidence without mutation.",
+    "V2.48 mutating ready/close actions require explicit confirmation and are tested with fake runners.",
+    "V2.48 github_pr_lifecycle_report is indexed by real_probe_index."
   ],
-  "last_verified_at": "2026-06-20T18:50:23+08:00",
+  "last_verified_at": "2026-06-20T19:07:53+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T18:50:23+08:00"
+  "updated_at": "2026-06-20T19:07:53+08:00"
 }

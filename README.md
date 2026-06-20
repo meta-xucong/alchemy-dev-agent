@@ -142,6 +142,8 @@ docs/
                               V2.46 controlled real GitHub PR probe.
   54_v2_47_real_unified_delivery_run.md
                               V2.47 unified full-delivery validation harness.
+  55_v2_48_pr_lifecycle_controls.md
+                              V2.48 PR review and cleanup lifecycle controls.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -201,6 +203,7 @@ autodev/
   real_document_run_smoke.py Controlled real Codex document-run smoke on a local fixture repository.
   real_probe_index.py        Evidence indexer for real readiness, worker, document-run, and GitHub PR reports.
   real_unified_delivery.py   Unified full-delivery validation harness and gate report.
+  github_pr_lifecycle.py     Safe inspect, ready, close, and branch cleanup controls for PRs.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -561,6 +564,22 @@ gates for preflight, command execution, final gate, review readiness, real Codex
 worker evidence, real GitHub PR evidence, and browser verification evidence.
 
 See `docs/54_v2_47_real_unified_delivery_run.md`.
+
+Inspect or safely transition a delivery PR:
+
+```bash
+python -m autodev.github_pr_lifecycle \
+  --selector 3 \
+  --action inspect \
+  --output .alchemy/github_pr_lifecycle \
+  --summary
+```
+
+Mutating actions such as `ready` and `close --delete-branch` require
+`--confirm`; without it the command records `status=planned` and does not call
+the mutating GitHub operation.
+
+See `docs/55_v2_48_pr_lifecycle_controls.md`.
 
 ## V2.29 Local And GitHub Source Modes
 
