@@ -694,3 +694,12 @@ PY"`
 - Ran a local non-mutating real readiness probe using the installed `codex`, `git`, and authenticated `gh`; result was `ready` with zero blockers.
 - Fixed Windows subprocess output decoding in execution/GitHub auth preflight by using bytes plus safe UTF-8 replacement decoding.
 - Verified focused tests, related regression tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 15:45:09 +0800.
+
+
+## 2026-06-20 V2.43 Controlled Real Codex Worker Smoke
+
+- Added `docs/50_v2_43_controlled_real_worker_smoke.md` for the first controlled real-worker proof after readiness.
+- Added `autodev.real_worker_smoke`, which creates a disposable local fixture repository, runs one bounded Codex worker task, verifies `app.add(2, 3) == 5`, and writes `real_worker_smoke_report.json`.
+- Added tests for fake successful worker execution, missing-Codex blocked behavior, and compact smoke summaries.
+- Ran a real local Codex CLI smoke using `codex`; result passed with worker status completed, `app.py` changed, lifecycle status completed, and verification passed.
+- Verified related regression tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 15:54:31 +0800.

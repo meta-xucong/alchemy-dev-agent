@@ -132,6 +132,8 @@ docs/
                               V2.41 unified acceptance harness for product-facing modes.
   49_v2_42_real_readiness_probe.md
                               V2.42 non-mutating real Codex/GitHub readiness probe.
+  50_v2_43_controlled_real_worker_smoke.md
+                              V2.43 controlled local real Codex worker smoke.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -187,6 +189,7 @@ autodev/
                              Local repository import and feedback-reopen acceptance harness.
   unified_acceptance.py       Unified entrypoint acceptance harness across one-line, docs-only, local, and GitHub URL modes.
   real_readiness_probe.py    Non-mutating real Codex/GitHub environment readiness probe.
+  real_worker_smoke.py       Controlled disposable local real Codex worker smoke.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -470,6 +473,18 @@ python -m autodev.real_readiness_probe \
 
 This checks local `git`, `gh`, `gh auth status`, Codex CLI, and real-mode unified
 request preflight without starting workers or opening pull requests.
+
+Run a controlled local real Codex worker smoke after readiness passes:
+
+```bash
+python -m autodev.real_worker_smoke \
+  --output .alchemy/real_worker_smoke \
+  --codex-executable codex \
+  --timeout-seconds 300 \
+  --summary
+```
+
+This uses a disposable local fixture repository and does not touch GitHub.
 
 ## V2.29 Local And GitHub Source Modes
 

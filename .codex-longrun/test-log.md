@@ -1695,3 +1695,22 @@
 
 - Command: `python -B -m compileall autodev intake server tests`; `python -c specs/state JSON parse`; `git diff --check`; `validate_state.py --project .`
 - Result: passed; compileall OK, JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.
+
+
+## 2026-06-20 V2.43 Controlled Real Codex Worker Smoke Verification
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_worker_smoke`
+- Result: passed; 3 tests OK after adjusting fake executable/preflight behavior.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_worker_smoke --output .alchemy\v2_43_real_worker_smoke --codex-executable codex --timeout-seconds 300 --summary`
+- Result: passed; preflight passed, real Codex worker completed, verification passed, blocker_count=0.
+- Evidence: `real_worker_smoke_report.json` shows files_changed=['app.py'], lifecycle_status=completed, git_status=[' M app.py'], and diff contains `return a + b`.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_worker_smoke tests.test_real_readiness_probe tests.test_execution_preflight tests.test_runtime`
+- Result: passed; 87 tests OK.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed; 223 tests OK.
+
+- Command: `python -B -m compileall autodev intake server runtime tests`; `python -c specs/state JSON parse`; `git diff --check`; `validate_state.py --project .`
+- Result: passed; compileall OK, JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.
