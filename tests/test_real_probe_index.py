@@ -168,13 +168,28 @@ class RealProbeIndexTests(unittest.TestCase):
                 "blockers": [],
             },
         )
+        write_json(
+            root / "readiness" / "evidence_readiness_report.json",
+            {
+                "schema_version": "2.54",
+                "status": "ready",
+                "output_dir": "readiness",
+                "inputs": {
+                    "evidence_index": "real_probe_index.json",
+                    "evidence_package": "evidence_package_manifest.json",
+                    "benchmark_regression": "benchmark_regression_report.json",
+                },
+                "summary": {"check_count": 8, "passed_checks": 8, "failed_checks": [], "blocker_count": 0},
+                "blockers": [],
+            },
+        )
         write_json(root / "other" / "unknown.json", {"status": "ignored"})
 
         index = RealProbeIndexer().build(roots=[root], output_path=root / "index.json").to_dict()
 
         self.assertEqual(index["status"], "passed")
         self.assertEqual(index["schema_version"], "2.47")
-        self.assertEqual(index["summary"]["total"], 9)
+        self.assertEqual(index["summary"]["total"], 10)
         entries = {entry["type"]: entry for entry in index["entries"]}
         self.assertEqual(entries["real_readiness"]["environment_status"], "ready")
         self.assertEqual(entries["real_worker_smoke"]["worker_status"], "completed")
@@ -194,6 +209,8 @@ class RealProbeIndexTests(unittest.TestCase):
         self.assertEqual(entries["benchmark_suite"]["scenario_failed"], 0)
         self.assertEqual(entries["benchmark_regression"]["baseline_total"], 6)
         self.assertEqual(entries["benchmark_regression"]["new_failures"], [])
+        self.assertEqual(entries["evidence_readiness"]["check_count"], 8)
+        self.assertEqual(entries["evidence_readiness"]["failed_checks"], [])
         self.assertTrue((root / "index.json").exists())
 
     def test_indexer_reports_blocked_when_any_probe_failed(self) -> None:

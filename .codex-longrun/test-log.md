@@ -1863,3 +1863,16 @@
 - Result: passed; 253 tests OK.
 - Command: python -B -m compileall autodev intake context planner runtime server tests; specs/state JSON parse; git diff --check; validate_state.py --project .
 - Result: passed; git diff --check only reported CRLF normalization warning for .codex-longrun logs/state.
+- Command: gh run watch 27870495983 --exit-status
+- Result: passed; master CI succeeded for V2.53 commit 829734b2452ada9079202c72a3ec8d39b21782cf.
+
+## 2026-06-20 V2.54 Evidence Readiness Gate Verification
+
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_readiness tests.test_evidence_api tests.test_real_probe_index tests.test_evidence_package
+- Result: passed; 19 tests OK.
+- Command: python -B -m autodev.evidence_package / real_probe_index / evidence_readiness over current V2.47/V2.48/V2.50/V2.52 evidence
+- Result: passed; evidence package file_count=32, probe index total=31 blocked_or_failed=0, readiness status=ready, 8/8 checks passed.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests
+- Result: passed; 259 tests OK.
+- Command: python -B -m compileall autodev intake context planner runtime server tests; specs/state JSON parse; git diff --check; validate_state.py --project .
+- Result: passed; git diff --check only reported CRLF normalization warning for .codex-longrun logs/state.

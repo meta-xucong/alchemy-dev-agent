@@ -49,6 +49,32 @@ def write_benchmark_report(path: Path, scenarios: dict[str, str]) -> None:
     )
 
 
+def write_ready_evidence_reports(root: Path) -> dict[str, Path]:
+    index = root / "real_probe_index.json"
+    package = root / "evidence_package_manifest.json"
+    regression = root / "benchmark_regression_report.json"
+    write_json(
+        index,
+        {
+            "status": "passed",
+            "summary": {"total": 2, "passed": 2, "blocked_or_failed": 0},
+            "entries": [{"type": "benchmark_suite", "status": "passed"}],
+            "blockers": [],
+        },
+    )
+    write_json(
+        package,
+        {
+            "status": "passed",
+            "summary": {"file_count": 2, "blocker_count": 0},
+            "files": [{"name": "benchmark_suite_report.json"}],
+            "blockers": [],
+        },
+    )
+    write_json(regression, {"status": "passed", "summary": {}, "blockers": []})
+    return {"index": index, "package": package, "regression": regression}
+
+
 def request_json(
     conn: http.client.HTTPConnection,
     method: str,
@@ -185,6 +211,44 @@ class EvidenceApiTests(unittest.TestCase):
         self.assertEqual(report["status"], "blocked")
         self.assertEqual(report["blockers"][0]["id"], "B-BENCHMARK-BASELINE-MISSING")
         self.assertTrue((root / "regression" / "benchmark_regression_report.json").exists())
+
+    def test_project_service_evaluates_evidence_readiness(self) -> None:
+        root = temp_root()
+        reports = write_ready_evidence_reports(root)
+        service = ProjectService(storage_root=root / "server", evidence_root=root / "evidence")
+
+        report = service.evaluate_evidence_readiness(
+            {
+                "evidence_index": str(reports["index"]),
+                "evidence_package": str(reports["package"]),
+                "benchmark_regression": str(reports["regression"]),
+            }
+        )
+
+        self.assertEqual(report["status"], "ready")
+        self.assertEqual(report["summary"]["blocker_count"], 0)
+        self.assertTrue((root / "server" / "evidence_readiness" / "evidence_readiness_report.json").exists())
+
+    def test_http_route_returns_blocked_evidence_readiness_report(self) -> None:
+        root = temp_root()
+        reports = write_ready_evidence_reports(root)
+        service = ProjectService(storage_root=root / "server", evidence_root=root / "evidence")
+
+        report, status = route_request(
+            service,
+            "POST",
+            "/evidence/readiness",
+            {
+                "evidence_index": str(root / "missing.json"),
+                "evidence_package": str(reports["package"]),
+                "output": str(root / "readiness"),
+            },
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(report["status"], "blocked")
+        self.assertTrue(any(item["id"] == "B-EVIDENCE-READINESS-MISSING-INPUT" for item in report["blockers"]))
+        self.assertTrue((root / "readiness" / "evidence_readiness_report.json").exists())
 
     def test_http_server_serves_evidence_api(self) -> None:
         root = temp_root()

@@ -209,6 +209,9 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "POST" and parts == ["evidence", "benchmark-regression"]:
         return service.compare_benchmark_regression(payload), HTTPStatus.OK
 
+    if method == "POST" and parts == ["evidence", "readiness"]:
+        return service.evaluate_evidence_readiness(payload), HTTPStatus.OK
+
     if not parts or parts[0] != "projects":
         raise ApiError(404, "not_found", "Endpoint not found.")
 

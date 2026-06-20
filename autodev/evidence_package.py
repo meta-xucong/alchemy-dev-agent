@@ -27,6 +27,7 @@ KNOWN_REPORT_NAMES = {
     "real_document_run_smoke_report.json",
     "benchmark_suite_report.json",
     "benchmark_regression_report.json",
+    "evidence_readiness_report.json",
 }
 
 

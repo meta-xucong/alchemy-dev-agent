@@ -779,3 +779,12 @@ PY"`
 - Added tests for passing service comparisons and blocked HTTP evidence reports with missing baseline input.
 - Ran a service-layer smoke against current benchmark evidence; status passed with zero blockers.
 - Verified focused tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation.
+
+## 2026-06-20 V2.54 Evidence Readiness Gate
+
+- Added docs/61_v2_54_evidence_readiness_gate.md for a final ready/blocked evidence aggregation contract.
+- Implemented autodev.evidence_readiness to combine real_probe_index, evidence_package, and optional benchmark_regression reports.
+- Added ProjectService.evaluate_evidence_readiness and POST /evidence/readiness.
+- Extended real_probe_index and evidence_package to recognize evidence_readiness_report.json.
+- Ran current evidence readiness smoke; status=ready, 8/8 checks passed, zero blockers.
+- Verified focused tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation.

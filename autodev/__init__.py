@@ -18,6 +18,8 @@ __all__ = [
     "BenchmarkSuiteReport",
     "BenchmarkRegressionGate",
     "BenchmarkRegressionReport",
+    "EvidenceReadinessGate",
+    "EvidenceReadinessReport",
     "ExternalDocsOnlyAcceptance",
     "ExternalDocsOnlyAcceptanceReport",
     "LocalRepositoryAcceptanceHarness",
@@ -93,6 +95,14 @@ def __getattr__(name: str):
         exports = {
             "BenchmarkRegressionGate": BenchmarkRegressionGate,
             "BenchmarkRegressionReport": BenchmarkRegressionReport,
+        }
+        return exports[name]
+    if name in {"EvidenceReadinessGate", "EvidenceReadinessReport"}:
+        from .evidence_readiness import EvidenceReadinessGate, EvidenceReadinessReport
+
+        exports = {
+            "EvidenceReadinessGate": EvidenceReadinessGate,
+            "EvidenceReadinessReport": EvidenceReadinessReport,
         }
         return exports[name]
     if name in {"ExternalDocsOnlyAcceptance", "ExternalDocsOnlyAcceptanceReport"}:

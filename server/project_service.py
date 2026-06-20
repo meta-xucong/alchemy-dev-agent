@@ -12,6 +12,7 @@ from autodev.artifact_manifest import ArtifactContent, build_artifact_manifest, 
 from autodev.benchmark_regression import BenchmarkRegressionGate
 from autodev.delivery_evidence import build_delivery_evidence
 from autodev.evidence_package import EvidencePackageExporter
+from autodev.evidence_readiness import EvidenceReadinessGate
 from autodev.real_env_check import RealEnvironmentCheck
 from autodev.real_probe_index import RealProbeIndexer
 from autodev.recovery_comparison import build_recovery_comparison
@@ -875,6 +876,24 @@ class ProjectService:
         report = BenchmarkRegressionGate().compare(
             baseline=baseline,
             current=current,
+            output_dir=output,
+        )
+        return report.to_dict()
+
+    def evaluate_evidence_readiness(self, payload: dict[str, Any] | None = None) -> dict[str, object]:
+        payload = payload or {}
+        evidence_index = str(payload.get("evidence_index", "") or "")
+        evidence_package = str(payload.get("evidence_package", "") or "")
+        if not evidence_index:
+            raise ApiError(400, "evidence_index_missing", "evidence_index is required.")
+        if not evidence_package:
+            raise ApiError(400, "evidence_package_missing", "evidence_package is required.")
+        benchmark_regression = str(payload.get("benchmark_regression", "") or "")
+        output = Path(str(payload.get("output", "") or self.storage_root / "evidence_readiness"))
+        report = EvidenceReadinessGate().evaluate(
+            evidence_index=evidence_index,
+            evidence_package=evidence_package,
+            benchmark_regression=benchmark_regression or None,
             output_dir=output,
         )
         return report.to_dict()

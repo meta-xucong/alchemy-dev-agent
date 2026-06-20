@@ -21,6 +21,7 @@ KNOWN_REPORTS = {
     "evidence_package_manifest.json": "evidence_package",
     "benchmark_suite_report.json": "benchmark_suite",
     "benchmark_regression_report.json": "benchmark_regression",
+    "evidence_readiness_report.json": "evidence_readiness",
 }
 
 
@@ -108,6 +109,8 @@ class RealProbeIndexer:
             entry.update(benchmark_suite_fields(payload))
         elif report_type == "benchmark_regression":
             entry.update(benchmark_regression_fields(payload))
+        elif report_type == "evidence_readiness":
+            entry.update(evidence_readiness_fields(payload))
         return entry
 
 
@@ -244,6 +247,22 @@ def benchmark_regression_fields(payload: dict[str, Any]) -> dict[str, object]:
         else [],
         "missing_baseline_passes": list(summary.get("missing_baseline_passes", []))
         if isinstance(summary.get("missing_baseline_passes", []), list)
+        else [],
+    }
+
+
+def evidence_readiness_fields(payload: dict[str, Any]) -> dict[str, object]:
+    summary = as_dict(payload.get("summary"))
+    inputs = as_dict(payload.get("inputs"))
+    return {
+        "output_dir": payload.get("output_dir", ""),
+        "evidence_index": inputs.get("evidence_index", ""),
+        "evidence_package": inputs.get("evidence_package", ""),
+        "benchmark_regression": inputs.get("benchmark_regression", ""),
+        "check_count": summary.get("check_count", 0),
+        "passed_checks": summary.get("passed_checks", 0),
+        "failed_checks": list(summary.get("failed_checks", []))
+        if isinstance(summary.get("failed_checks", []), list)
         else [],
     }
 

@@ -154,6 +154,8 @@ docs/
                               V2.52 benchmark regression comparison gate.
   60_v2_53_benchmark_regression_api.md
                               V2.53 benchmark regression service/API endpoint.
+  61_v2_54_evidence_readiness_gate.md
+                              V2.54 final evidence readiness gate.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -217,6 +219,7 @@ autodev/
   evidence_package.py        Evidence package exporter with manifest and Markdown summary.
   benchmark_suite.py         Deterministic dry-run benchmark matrix for key delivery paths.
   benchmark_regression.py    Benchmark report comparison and regression gate.
+  evidence_readiness.py      Final evidence readiness aggregation gate.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -637,6 +640,22 @@ than `passed`.
 
 See `docs/59_v2_52_benchmark_regression_gate.md`.
 
+Aggregate final evidence readiness:
+
+```bash
+python -m autodev.evidence_readiness \
+  --evidence-index .alchemy/real_probe_index.json \
+  --evidence-package .alchemy/evidence_package/evidence_package_manifest.json \
+  --benchmark-regression .alchemy/benchmark_regression/benchmark_regression_report.json \
+  --output .alchemy/evidence_readiness \
+  --summary
+```
+
+This produces one `ready|blocked` evidence gate over indexed evidence,
+review packages, and benchmark regression results.
+
+See `docs/61_v2_54_evidence_readiness_gate.md`.
+
 Expose evidence through the local API service:
 
 ```bash
@@ -649,10 +668,12 @@ Then use:
 - `POST /evidence/index`
 - `POST /evidence/package`
 - `POST /evidence/benchmark-regression`
+- `POST /evidence/readiness`
 
 These endpoints reuse the same real-probe index and evidence-package contracts
 as the CLI tools. The benchmark regression endpoint reuses the V2.52 comparison
-gate. They do not run Codex, mutate GitHub, or rerun delivery.
+gate, and the readiness endpoint reuses the V2.54 aggregate evidence gate. They
+do not run Codex, mutate GitHub, or rerun delivery.
 
 See `docs/58_v2_51_evidence_api_service.md`.
 See `docs/60_v2_53_benchmark_regression_api.md`.
