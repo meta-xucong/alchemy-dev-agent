@@ -771,3 +771,11 @@ PY"`
 - Extended real_probe_index and evidence_package to recognize benchmark_regression_report.json.
 - Ran a local comparison against the current V2.50 benchmark baseline; status passed with zero blockers.
 - Verified focused tests, evidence indexing, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation.
+
+## 2026-06-20 V2.53 Benchmark Regression API
+
+- Added docs/60_v2_53_benchmark_regression_api.md for service/API access to the V2.52 comparison gate.
+- Added ProjectService.compare_benchmark_regression and POST /evidence/benchmark-regression.
+- Added tests for passing service comparisons and blocked HTTP evidence reports with missing baseline input.
+- Ran a service-layer smoke against current benchmark evidence; status passed with zero blockers.
+- Verified focused tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation.

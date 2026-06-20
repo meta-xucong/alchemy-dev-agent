@@ -152,6 +152,8 @@ docs/
                               V2.51 evidence index/package service API.
   59_v2_52_benchmark_regression_gate.md
                               V2.52 benchmark regression comparison gate.
+  60_v2_53_benchmark_regression_api.md
+                              V2.53 benchmark regression service/API endpoint.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -646,11 +648,14 @@ Then use:
 - `GET /evidence/index`
 - `POST /evidence/index`
 - `POST /evidence/package`
+- `POST /evidence/benchmark-regression`
 
 These endpoints reuse the same real-probe index and evidence-package contracts
-as the CLI tools. They do not run Codex, mutate GitHub, or rerun delivery.
+as the CLI tools. The benchmark regression endpoint reuses the V2.52 comparison
+gate. They do not run Codex, mutate GitHub, or rerun delivery.
 
 See `docs/58_v2_51_evidence_api_service.md`.
+See `docs/60_v2_53_benchmark_regression_api.md`.
 
 ## V2.29 Local And GitHub Source Modes
 

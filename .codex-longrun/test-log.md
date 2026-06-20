@@ -1850,3 +1850,16 @@
 - Result: passed; 251 tests OK.
 - Command: python -B -m compileall autodev intake context planner runtime server tests; specs/state JSON parse; git diff --check; validate_state.py --project .
 - Result: passed; git diff --check only reported CRLF normalization warning for .codex-longrun logs/state.
+- Command: gh run watch 27870336613 --exit-status
+- Result: passed; master CI succeeded for V2.52 commit d9fe7f94d54a7ebc064235dd0e6db833f5ad7cc6.
+
+## 2026-06-20 V2.53 Benchmark Regression API Verification
+
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_api tests.test_benchmark_regression
+- Result: passed; 10 tests OK.
+- Command: service smoke through ProjectService.compare_benchmark_regression
+- Result: passed; status=passed, blocker_count=0, current_total=6.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests
+- Result: passed; 253 tests OK.
+- Command: python -B -m compileall autodev intake context planner runtime server tests; specs/state JSON parse; git diff --check; validate_state.py --project .
+- Result: passed; git diff --check only reported CRLF normalization warning for .codex-longrun logs/state.

@@ -32,6 +32,23 @@ def write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def write_benchmark_report(path: Path, scenarios: dict[str, str]) -> None:
+    write_json(
+        path,
+        {
+            "schema_version": "2.50",
+            "status": "passed" if all(status == "passed" for status in scenarios.values()) else "failed",
+            "scenarios": [{"name": name, "status": status} for name, status in scenarios.items()],
+            "summary": {
+                "total": len(scenarios),
+                "passed": sum(1 for status in scenarios.values() if status == "passed"),
+                "failed": sum(1 for status in scenarios.values() if status != "passed"),
+                "failed_scenarios": [name for name, status in scenarios.items() if status != "passed"],
+            },
+        },
+    )
+
+
 def request_json(
     conn: http.client.HTTPConnection,
     method: str,
@@ -136,6 +153,38 @@ class EvidenceApiTests(unittest.TestCase):
         self.assertEqual(package["summary"]["file_count"], 0)
         self.assertEqual(package["blockers"][0]["id"], "B-EVIDENCE-PACKAGE-MISSING-ROOT")
         self.assertTrue((root / "server" / "evidence_package" / "evidence_package_manifest.json").exists())
+
+    def test_project_service_compares_benchmark_regression(self) -> None:
+        root = temp_root()
+        baseline = root / "baseline.json"
+        current = root / "current.json"
+        write_benchmark_report(baseline, {"one_line_cli": "passed"})
+        write_benchmark_report(current, {"one_line_cli": "passed", "document_only_cli": "passed"})
+        service = ProjectService(storage_root=root / "server", evidence_root=root / "evidence")
+
+        report = service.compare_benchmark_regression({"baseline": str(baseline), "current": str(current)})
+
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(report["summary"]["added_scenarios"], ["document_only_cli"])
+        self.assertTrue((root / "server" / "benchmark_regression" / "benchmark_regression_report.json").exists())
+
+    def test_http_route_returns_blocked_benchmark_regression_report(self) -> None:
+        root = temp_root()
+        current = root / "current.json"
+        write_benchmark_report(current, {"one_line_cli": "passed"})
+        service = ProjectService(storage_root=root / "server", evidence_root=root / "evidence")
+
+        report, status = route_request(
+            service,
+            "POST",
+            "/evidence/benchmark-regression",
+            {"baseline": str(root / "missing.json"), "current": str(current), "output": str(root / "regression")},
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["blockers"][0]["id"], "B-BENCHMARK-BASELINE-MISSING")
+        self.assertTrue((root / "regression" / "benchmark_regression_report.json").exists())
 
     def test_http_server_serves_evidence_api(self) -> None:
         root = temp_root()

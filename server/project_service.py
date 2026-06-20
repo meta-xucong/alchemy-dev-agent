@@ -9,6 +9,7 @@ from typing import Any
 
 from autodev import AutoDevPipeline, DocumentRunPipeline
 from autodev.artifact_manifest import ArtifactContent, build_artifact_manifest, resolve_artifact_content
+from autodev.benchmark_regression import BenchmarkRegressionGate
 from autodev.delivery_evidence import build_delivery_evidence
 from autodev.evidence_package import EvidencePackageExporter
 from autodev.real_env_check import RealEnvironmentCheck
@@ -859,6 +860,22 @@ class ProjectService:
             output_dir=output,
             include_unknown_json=bool(payload.get("include_unknown_json", False)),
             clean_output=bool(payload.get("clean_output", True)),
+        )
+        return report.to_dict()
+
+    def compare_benchmark_regression(self, payload: dict[str, Any] | None = None) -> dict[str, object]:
+        payload = payload or {}
+        baseline = str(payload.get("baseline", "") or "")
+        current = str(payload.get("current", "") or "")
+        if not baseline:
+            raise ApiError(400, "benchmark_baseline_missing", "baseline is required.")
+        if not current:
+            raise ApiError(400, "benchmark_current_missing", "current is required.")
+        output = Path(str(payload.get("output", "") or self.storage_root / "benchmark_regression"))
+        report = BenchmarkRegressionGate().compare(
+            baseline=baseline,
+            current=current,
+            output_dir=output,
         )
         return report.to_dict()
 
