@@ -9,6 +9,7 @@ from typing import Sequence
 
 from .document_run import DocumentRunPipeline
 from .pipeline import AutoDevPipeline
+from .unified_preflight import UnifiedRunPreflight, unified_preflight_summary, write_unified_preflight_report
 from .unified_request import AutoDevRunRequest, unified_run_summary, write_unified_run_outputs
 
 
@@ -47,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-generate-static-ci", action="store_true")
     parser.add_argument("--write-native-ui-tests", action="store_true")
     parser.add_argument("--auto-merge", action="store_true")
+    parser.add_argument("--preflight-only", action="store_true", help="Validate the unified run request without creating or executing a project.")
     parser.add_argument("--constraint", action="append", dest="constraints", default=[])
     parser.add_argument("--acceptance", action="append", dest="acceptance_criteria", default=[])
     return parser
@@ -91,12 +93,32 @@ def main(argv: Sequence[str] | None = None) -> int:
             "acceptance_criteria": args.acceptance_criteria,
         }
     )
+    preflight_report = UnifiedRunPreflight().run(request).to_dict()
+    write_unified_preflight_report(request.output_dir, preflight_report)
+    if args.preflight_only:
+        print(json.dumps(unified_preflight_summary(preflight_report), indent=2, sort_keys=True))
+        return 0 if preflight_report["status"] == "passed" else 1
+    if preflight_report["status"] == "blocked":
+        report = write_unified_run_outputs(
+            request.output_dir,
+            request=request,
+            result_payload={
+                "status": "blocked",
+                "validation_errors": [str(item.get("message", "")) for item in preflight_report.get("blockers", [])],
+                "unified_preflight": preflight_report,
+            },
+        )
+        summary = unified_run_summary(report)
+        summary["preflight_status"] = preflight_report["status"]
+        summary["validation_errors"] = report["validation_errors"]
+        print(json.dumps(summary, indent=2, sort_keys=True))
+        return 1
     validation_errors = request.validate_paths()
     if validation_errors:
         report = write_unified_run_outputs(
             request.output_dir,
             request=request,
-            result_payload={"status": "blocked", "validation_errors": validation_errors},
+            result_payload={"status": "blocked", "validation_errors": validation_errors, "unified_preflight": preflight_report},
         )
         summary = unified_run_summary(report)
         summary["validation_errors"] = validation_errors
@@ -112,6 +134,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "validation_errors": [
                     "CLI feedback reopen requires the API service because it needs an existing stored project/run."
                 ],
+                "unified_preflight": preflight_report,
             },
         )
         summary = unified_run_summary(report)
@@ -132,7 +155,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     report = write_unified_run_outputs(
         request.output_dir,
         request=request,
-        result_payload=result_payload,
+        result_payload={**result_payload, "unified_preflight": preflight_report},
         related_report=related_report,
     )
     print(json.dumps(unified_run_summary(report), indent=2, sort_keys=True))

@@ -12,6 +12,7 @@ from autodev.artifact_manifest import ArtifactContent, build_artifact_manifest, 
 from autodev.delivery_evidence import build_delivery_evidence
 from autodev.real_env_check import RealEnvironmentCheck
 from autodev.recovery_comparison import build_recovery_comparison
+from autodev.unified_preflight import UnifiedRunPreflight
 from autodev.unified_request import AutoDevRunRequest
 from context import ContextBundleBuilder
 from intake import GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
@@ -146,6 +147,15 @@ class ProjectService:
 
     def run_unified_request(self, payload: dict[str, Any]) -> dict[str, object]:
         request = AutoDevRunRequest.from_mapping(payload)
+        preflight = self.preflight_unified_request(payload)
+        if preflight.get("status") == "blocked":
+            blockers = preflight.get("blockers", [])
+            messages = [
+                str(item.get("message", ""))
+                for item in blockers
+                if isinstance(item, dict) and str(item.get("message", "")).strip()
+            ]
+            raise ApiError(400, "unified_preflight_blocked", "; ".join(messages) or "Unified run preflight blocked the request.")
         validation_errors = request.validate_paths()
         if validation_errors:
             raise ApiError(400, "invalid_unified_run_request", "; ".join(validation_errors))
@@ -177,6 +187,7 @@ class ProjectService:
                 "source_mode": request.source_mode,
                 "execution_mode": request.execution_mode,
                 "delivery_mode": request.delivery_mode,
+                "preflight": preflight,
                 "run": run,
                 "urls": urls,
             }
@@ -209,6 +220,7 @@ class ProjectService:
                 "source_mode": request.source_mode,
                 "execution_mode": request.execution_mode,
                 "delivery_mode": request.delivery_mode,
+                "preflight": preflight,
                 "project": project,
                 "brief": created.get("brief", {}),
                 "job": job,
@@ -233,11 +245,33 @@ class ProjectService:
             "source_mode": request.source_mode,
             "execution_mode": request.execution_mode,
             "delivery_mode": request.delivery_mode,
+            "preflight": preflight,
             "project": project,
             "brief": created.get("brief", {}),
             "run": run_result,
             "urls": urls,
         }
+
+    def preflight_unified_request(self, payload: dict[str, Any]) -> dict[str, object]:
+        request = AutoDevRunRequest.from_mapping(payload)
+        report = UnifiedRunPreflight().run(request).to_dict()
+        if request.route == "feedback_reopen" and request.project_id:
+            try:
+                self.load_project(request.project_id)
+            except ApiError:
+                report["status"] = "blocked"
+                report["can_start"] = False
+                blockers = report.setdefault("blockers", [])
+                if isinstance(blockers, list):
+                    blockers.append(
+                        {
+                            "code": "feedback_project_not_found",
+                            "severity": "hard",
+                            "message": f"Project not found: {request.project_id}",
+                            "required_resolution": "Provide an existing stored project_id before reopening with feedback.",
+                        }
+                    )
+        return report
 
     def check_environment(self, payload: dict[str, Any] | None = None) -> dict[str, object]:
         payload = payload or {}

@@ -364,7 +364,7 @@ def build_unified_run_report(
     final_score = final_gate.get("score", final_gate.get("final_score", None))
 
     return {
-        "schema_version": "2.39",
+        "schema_version": "2.40",
         "status": status,
         "route": request.route,
         "source_mode": request.source_mode,
@@ -379,8 +379,10 @@ def build_unified_run_report(
         "request": request.to_dict(),
         "report_paths": {
             "unified_run_report": str(Path(request.output_dir) / "unified_run_report.json"),
+            "unified_preflight_report": str(Path(request.output_dir) / "unified_preflight_report.json"),
             "related_report": related_report,
         },
+        "unified_preflight": _dict(result_payload.get("unified_preflight", {})),
         "delivery": {
             "ready_for_review": ready_for_review,
             "final_gate": final_gate,

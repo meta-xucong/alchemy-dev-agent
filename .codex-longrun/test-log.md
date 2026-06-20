@@ -1625,3 +1625,28 @@
 - Result: passed.
 - Summary: JSON specs parsed, diff hygiene passed, and long-running state schema validation returned OK after V2.39 implementation.
 - Next verification command: optional browser smoke, then commit/push.
+
+
+## 2026-06-20 V2.40 Unified Run Preflight Verification
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_unified_run tests.test_execution_preflight`
+- Result: passed; 20 tests OK.
+- Summary: Verified request-level preflight, CLI preflight-only, blocked bad Codex executable, generated repository preflight, and low-level execution preflight compatibility.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_api_server`
+- Result: passed; 23 tests OK.
+- Summary: Verified API route compatibility and static browser console controls.
+
+- Command: `python -B -m compileall autodev server tests`
+- Result: passed; touched Python modules compiled successfully.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_unified_run tests.test_api_server.ApiServerTests.test_project_service_reopens_delivered_run_with_feedback tests.test_api_server.ApiServerTests.test_http_api_reopens_with_feedback`
+- Result: passed; 17 tests OK.
+- Summary: Verified unified preflight does not regress feedback reopen flows.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed; 214 tests OK.
+- Summary: Full regression suite passed after V2.40 implementation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]; json.loads(pathlib.Path('.codex-longrun/state.json').read_text(encoding='utf-8'))"`; `git diff --check`; `validate_state.py --project .`
+- Result: passed; JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.

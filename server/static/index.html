@@ -67,6 +67,10 @@
               <input id="githubCiPollSeconds" type="number" min="1" step="1" value="10">
             </label>
             <label class="check">
+              <input id="prepareRepository" type="checkbox">
+              <span>Prepare GitHub source</span>
+            </label>
+            <label class="check">
               <input id="realCodex" type="checkbox">
               <span>Real Codex worker</span>
             </label>
@@ -110,6 +114,7 @@
             </div>
             <div class="buttonRow secondary">
               <button id="checkEnvironment">Check Env</button>
+              <button id="preflightUnifiedRun">Preflight</button>
               <button id="startUnifiedRun">Unified Run</button>
             </div>
             <div class="buttonRow secondary">

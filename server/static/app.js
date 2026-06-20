@@ -440,16 +440,7 @@ async function createProject() {
 }
 
 async function startUnifiedRun() {
-  const payload = {
-    objective: el("objective").value.trim(),
-    documents: lines("documents"),
-    attachments: lines("attachments"),
-    repository: el("repository").value.trim(),
-    repository_path: el("repositoryPath").value.trim(),
-    source_mode: el("sourceMode").value,
-    async: true,
-    ...runPayload(),
-  };
+  const payload = unifiedRunPayload();
   const result = await api("/runs", { method: "POST", body: payload });
   state.projectId = result.project_id;
   state.runId = result.run_id;
@@ -468,6 +459,25 @@ async function startUnifiedRun() {
   setSummary(result.project || {}, result.job || {});
   setControls();
   startPolling();
+}
+
+async function preflightUnifiedRun() {
+  const result = await api("/runs/preflight", { method: "POST", body: unifiedRunPayload() });
+  show("eventOutput", result);
+}
+
+function unifiedRunPayload() {
+  const payload = {
+    objective: el("objective").value.trim(),
+    documents: lines("documents"),
+    attachments: lines("attachments"),
+    repository: el("repository").value.trim(),
+    repository_path: el("repositoryPath").value.trim(),
+    source_mode: el("sourceMode").value,
+    async: true,
+    ...runPayload(),
+  };
+  return payload;
 }
 
 async function buildPlan() {
@@ -581,6 +591,7 @@ function runPayload() {
   return {
     real_codex: el("realCodex").checked,
     real_github: el("realGithub").checked,
+    prepare_repository: el("prepareRepository").checked,
     codex_executable: el("codexExecutable").value.trim() || "codex",
     github_collect_ci: el("githubCollectCi").checked,
     github_ci_wait_seconds: Number(el("githubCiWaitSeconds").value || 0),
@@ -668,6 +679,7 @@ function closeEventStream() {
 
 function bind() {
   el("createProject").addEventListener("click", () => createProject().catch(showError));
+  el("preflightUnifiedRun").addEventListener("click", () => preflightUnifiedRun().catch(showError));
   el("startUnifiedRun").addEventListener("click", () => startUnifiedRun().catch(showError));
   el("uploadSelected").addEventListener("click", () => uploadSelected().catch(showError));
   el("reopenFeedback").addEventListener("click", () => reopenWithFeedback().catch(showError));

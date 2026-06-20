@@ -194,6 +194,9 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
         result = service.run_unified_request(payload)
         return result, HTTPStatus.ACCEPTED if bool(result.get("async", True)) else HTTPStatus.CREATED
 
+    if method == "POST" and parts == ["runs", "preflight"]:
+        return service.preflight_unified_request(payload), HTTPStatus.OK
+
     if not parts or parts[0] != "projects":
         raise ApiError(404, "not_found", "Endpoint not found.")
 

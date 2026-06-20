@@ -58,11 +58,13 @@ class ExecutionPreflight:
         real_github: bool = False,
         codex_executable: str = "codex",
         private_repository: bool = False,
+        repository_required: bool = True,
+        require_git: bool = False,
     ) -> PreflightResult:
         checks: list[PreflightCheck] = []
         repo = Path(repository_path)
-        checks.append(self._repository_check(repo))
-        checks.append(self._command_check("git", required=real_github or real_codex))
+        checks.append(self._repository_check(repo, required=repository_required))
+        checks.append(self._command_check("git", required=real_github or real_codex or require_git))
         if real_codex:
             checks.append(self._command_check(codex_executable, required=True, display_name="codex"))
         else:
@@ -81,11 +83,17 @@ class ExecutionPreflight:
         blocking = [check for check in checks if check.required and check.status != "passed"]
         return PreflightResult(status="blocked" if blocking else "passed", checks=checks)
 
-    def _repository_check(self, path: Path) -> PreflightCheck:
+    def _repository_check(self, path: Path, *, required: bool = True) -> PreflightCheck:
         if not path.exists():
-            return PreflightCheck("repository_path", "failed", f"Repository path does not exist: {path}")
+            status = "failed" if required else "skipped"
+            return PreflightCheck(
+                "repository_path",
+                status,
+                f"Repository path does not exist yet: {path}",
+                required=required,
+            )
         if not path.is_dir():
-            return PreflightCheck("repository_path", "failed", f"Repository path is not a directory: {path}")
+            return PreflightCheck("repository_path", "failed", f"Repository path is not a directory: {path}", required=required)
         return PreflightCheck("repository_path", "passed", f"Repository path is available: {path}")
 
     def _command_check(self, executable: str, *, required: bool, display_name: str | None = None) -> PreflightCheck:

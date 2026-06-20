@@ -11,7 +11,9 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Iterator
 
+from autodev.unified_preflight import UnifiedRunPreflight
 from autodev.unified_request import AutoDevRunRequest
+from server.project_service import ApiError
 from server.api import route_request
 from server.project_service import ProjectService
 
@@ -161,6 +163,120 @@ class UnifiedRunTests(unittest.TestCase):
             self.assertTrue((output / "generated_repository" / "src" / "api" / "workspaces.ts").exists())
             self.assertTrue((output / "generated_repository" / "src" / "pages" / "dashboard.tsx").exists())
 
+    def test_unified_cli_preflight_only_writes_report_without_execution(self) -> None:
+        with workspace_tempdir() as temp:
+            root = Path(temp)
+            spec = write_spec(root)
+            output = root / "out"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-B",
+                    "-m",
+                    "autodev.run",
+                    "--objective",
+                    "Build from this development document",
+                    "--document",
+                    str(spec),
+                    "--output",
+                    str(output),
+                    "--preflight-only",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            summary = json.loads(completed.stdout)
+            self.assertEqual(summary["status"], "passed")
+            self.assertTrue(summary["can_start"])
+            report = json.loads((output / "unified_preflight_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["status"], "passed")
+            self.assertEqual(report["planned_repository_path"], str(output / "generated_repository"))
+            self.assertFalse((output / "unified_run_report.json").exists())
+            self.assertFalse((output / "document_run_report.json").exists())
+
+    def test_unified_cli_preflight_blocks_bad_real_codex_executable(self) -> None:
+        with workspace_tempdir() as temp:
+            root = Path(temp)
+            repo = write_repo(root)
+            spec = write_spec(root)
+            output = root / "out"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-B",
+                    "-m",
+                    "autodev.run",
+                    "--objective",
+                    "Add workspace support",
+                    "--document",
+                    str(spec),
+                    "--repository-path",
+                    str(repo),
+                    "--real-codex",
+                    "--codex-executable",
+                    "alchemy-definitely-missing-codex",
+                    "--output",
+                    str(output),
+                    "--preflight-only",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            summary = json.loads(completed.stdout)
+            self.assertEqual(summary["status"], "blocked")
+            report = json.loads((output / "unified_preflight_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["status"], "blocked")
+            self.assertTrue(any(blocker["code"] == "preflight_codex" for blocker in report["blockers"]))
+
+    def test_unified_preflight_blocks_one_line_real_execution(self) -> None:
+        request = AutoDevRunRequest.from_mapping({"objective": "Build an app", "real_codex": True})
+
+        report = UnifiedRunPreflight().run(request).to_dict()
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertTrue(any(blocker["code"] == "one_line_real_execution_unsupported" for blocker in report["blockers"]))
+
+    def test_unified_preflight_blocks_unprepared_github_real_execution(self) -> None:
+        request = AutoDevRunRequest.from_mapping(
+            {
+                "objective": "Implement docs",
+                "documents": [__file__],
+                "repository_url": "https://github.com/example/project",
+                "real_codex": True,
+                "codex_executable": "alchemy-definitely-missing-codex",
+            }
+        )
+
+        report = UnifiedRunPreflight().run(request).to_dict()
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertTrue(any(blocker["code"] == "github_source_unprepared_for_real_execution" for blocker in report["blockers"]))
+
+    def test_unified_preflight_prepare_github_plans_intake_checkout_path(self) -> None:
+        request = AutoDevRunRequest.from_mapping(
+            {
+                "objective": "Implement docs",
+                "documents": [__file__],
+                "repository_url": "https://github.com/example/project",
+                "prepare_repository": True,
+            }
+        )
+
+        report = UnifiedRunPreflight().run(request).to_dict()
+
+        self.assertEqual(report["status"], "passed")
+        self.assertIn(".alchemy/projects/proj_", str(report["planned_repository_path"]))
+        self.assertTrue(str(report["planned_repository_path"]).endswith("/repo") or str(report["planned_repository_path"]).endswith("\\repo"))
+        self.assertTrue(any(check["name"] == "git" and check["required"] for check in report["checks"]))
+
     def test_project_service_unified_request_runs_sync(self) -> None:
         with workspace_tempdir() as temp:
             root = Path(temp)
@@ -187,6 +303,7 @@ class UnifiedRunTests(unittest.TestCase):
             self.assertIn("/delivery", result["delivery_url"])
             self.assertIn("/artifacts", result["artifact_manifest_url"])
             self.assertIn("/delivery", result["urls"]["delivery"])
+            self.assertEqual(result["preflight"]["status"], "passed")
 
     def test_http_api_exposes_unified_run_endpoint(self) -> None:
         with workspace_tempdir() as temp:
@@ -216,6 +333,52 @@ class UnifiedRunTests(unittest.TestCase):
             self.assertIn("/events-stream", result["events_stream_url"])
             self.assertIn("/delivery", result["delivery_url"])
             self.assertIn("/artifacts", result["artifact_manifest_url"])
+            self.assertEqual(result["preflight"]["status"], "passed")
+
+    def test_http_api_exposes_unified_preflight_without_project_creation(self) -> None:
+        with workspace_tempdir() as temp:
+            root = Path(temp)
+            repo = write_repo(root)
+            spec = write_spec(root)
+            service = ProjectService(storage_root=root / "server")
+
+            result, status = route_request(
+                service,
+                "POST",
+                "/runs/preflight",
+                {
+                    "objective": "Add workspace support",
+                    "documents": [str(spec)],
+                    "repository_path": str(repo),
+                    "async": False,
+                },
+            )
+
+            self.assertEqual(status, HTTPStatus.OK)
+            self.assertEqual(result["status"], "passed")
+            self.assertEqual(list((root / "server" / "projects").glob("*")), [])
+
+    def test_project_service_blocks_failed_unified_preflight_before_project_creation(self) -> None:
+        with workspace_tempdir() as temp:
+            root = Path(temp)
+            repo = write_repo(root)
+            spec = write_spec(root)
+            service = ProjectService(storage_root=root / "server")
+
+            with self.assertRaises(ApiError) as caught:
+                service.run_unified_request(
+                    {
+                        "objective": "Add workspace support",
+                        "documents": [str(spec)],
+                        "repository_path": str(repo),
+                        "real_codex": True,
+                        "codex_executable": "alchemy-definitely-missing-codex",
+                        "async": False,
+                    }
+                )
+
+            self.assertEqual(caught.exception.code, "unified_preflight_blocked")
+            self.assertEqual(list((root / "server" / "projects").glob("*")), [])
 
     def test_project_service_unified_request_starts_async_run_with_events(self) -> None:
         with workspace_tempdir() as temp:

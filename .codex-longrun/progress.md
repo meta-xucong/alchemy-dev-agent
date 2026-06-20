@@ -663,3 +663,14 @@ PY"`
 - Routed unified `feedback_files` requests through the existing feedback reopen loop so delivered runs can be reopened from the one-shot API.
 - Verified the browser console Unified Run flow with a local API server: submitted a development document plus local repository, observed queued/running/done events, and loaded delivery evidence.
 - Verified focused tests, full unit suite, JSON specs, diff hygiene, and long-running state validation.
+
+
+## 2026-06-20 V2.40 Unified Run Preflight
+
+- Added `docs/47_v2_40_unified_preflight.md` as the request-level start-readiness contract for unified CLI/API/UI runs.
+- Added `autodev.unified_preflight` to produce machine-readable preflight reports with blockers, warnings, planned repository paths, and reused low-level git/gh/Codex checks.
+- Added CLI `python -m autodev.run --preflight-only`; normal unified runs now write `unified_preflight_report.json` before execution and embed it in `unified_run_report.json`.
+- Added `ProjectService.preflight_unified_request()` and `POST /runs/preflight`; `POST /runs` now blocks impossible requests before project creation.
+- Added browser console controls for `Prepare GitHub source` and `Preflight` while preserving the existing Unified Run flow.
+- Audited and fixed planned GitHub checkout paths so preflight reports match intake's real `.alchemy/projects/<project>/repo` path.
+- Verified focused tests, API tests, full unit suite, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 15:16:26 +0800.

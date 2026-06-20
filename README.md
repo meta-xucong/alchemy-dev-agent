@@ -126,6 +126,8 @@ docs/
                               V2.38 file lifecycle API, SSE event stream, contradiction warnings, and code summaries.
   46_v2_39_unified_entrypoint.md
                               V2.39 unified product entrypoint and project-type runtime plan.
+  47_v2_40_unified_preflight.md
+                              V2.40 unified run preflight and start-readiness gate.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -186,6 +188,7 @@ autodev/
                               Controlled real GitHub delivery validation harness.
   document_run.py            Document-driven end-to-end dry-run CLI.
   preflight.py               Real execution environment preflight checks.
+  unified_preflight.py       Request-level preflight for CLI, API, and UI unified runs.
   demo_run.py                One-line local app generation demo.
   agents.py                  Deterministic local agent cluster for demo delivery.
   game_generator.py          Original retro platformer artifact generator.
@@ -386,6 +389,21 @@ python -m autodev.document_run \
 
 The CLI records preflight checks for repository path, `git`, Codex, and `gh`. Missing required tools block real execution before worker tasks start.
 
+The unified product CLI also supports request-level preflight without creating
+or executing a project:
+
+```bash
+python -m autodev.run \
+  --objective "Build from the supplied project documents" \
+  --document docs/product_spec.md \
+  --repository-path ./target-repo \
+  --preflight-only
+```
+
+This writes `unified_preflight_report.json`. Normal unified runs write the same
+report before execution and block impossible combinations, such as real GitHub
+delivery without real Codex execution.
+
 ## V2.8 Local API Runtime
 
 The local API wraps the document-driven runtime with project persistence and HTTP endpoints:
@@ -414,9 +432,16 @@ POST /projects/{project_id}/runs/{run_id}/pause
 POST /projects/{project_id}/runs/{run_id}/resume
 POST /projects/{project_id}/runs/{run_id}/stop
 GET  /projects/{project_id}/delivery
+POST /runs/preflight
+POST /runs
 ```
 
 The API accepts local file paths through `documents`, `attachments`, or a UI-oriented `files` list. V2.9 builds browser upload, async run jobs, and a local console on top of this backend.
+
+`POST /runs/preflight` validates the exact unified request without creating a
+project. `POST /runs` runs the same preflight first and returns
+`unified_preflight_blocked` before project creation when required source,
+worker, GitHub, or delivery evidence is missing.
 
 ## V2.29 Local And GitHub Source Modes
 

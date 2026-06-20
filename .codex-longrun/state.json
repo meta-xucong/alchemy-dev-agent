@@ -1,6 +1,6 @@
 {
   "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
-  "current_phase": "V2.39 unified entrypoint final verification",
+  "current_phase": "V2.40 unified request preflight final verification",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -52,11 +52,15 @@
     "V2.38 production gap closure",
     "V2.39 unified entrypoint planning",
     "V2.39 unified entrypoint implementation slice",
-    "V2.39 unified entrypoint final verification"
+    "V2.39 unified entrypoint final verification",
+    "V2.40 unified request preflight planning",
+    "V2.40 unified request preflight implementation",
+    "V2.40 unified request preflight final verification"
   ],
   "next_actions": [
-    "Push V2.39 unified entrypoint implementation to GitHub.",
-    "Begin the next phase only after reviewing live CI status or choosing the next production-hardening target."
+    "Review live CI after V2.40 push.",
+    "Next production-hardening candidate: unified acceptance harness that exercises preflight + dry-run start + evidence retrieval for one-line, docs-only, local repo, and GitHub URL modes.",
+    "Optional real-environment candidate: run request-level preflight against the installed local Codex CLI and authenticated GitHub CLI before a controlled real worker probe."
   ],
   "tests_run": [
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
@@ -109,7 +113,12 @@
     "Codex in-app browser UI smoke against http://127.0.0.1:18739",
     "python -B -m unittest discover -s tests # 207 tests OK",
     "python -c \"import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]; json.loads(pathlib.Path('.codex-longrun/state.json').read_text(encoding='utf-8'))\"",
-    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project ."
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project .",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_unified_run tests.test_execution_preflight # 20 tests OK",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_api_server # 23 tests OK",
+    "python -B -m compileall autodev server tests # passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 214 tests OK",
+    "python -c specs/state JSON parse; git diff --check; validate_state.py --project . # passed"
   ],
   "known_bugs": [
     {
@@ -252,7 +261,7 @@
     "Browser console exposes a Unified Run button and source-mode selection wired to POST /runs.",
     "Browser console Unified Run flow was smoke-tested against a local API server and produced queued/running/done events plus delivery evidence."
   ],
-  "last_verified_at": "2026-06-20T13:50:02+08:00",
+  "last_verified_at": "2026-06-20T15:16:48+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
   "updated_at": "2026-06-20T13:50:02+08:00"
 }
