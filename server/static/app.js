@@ -439,6 +439,37 @@ async function createProject() {
   setControls();
 }
 
+async function startUnifiedRun() {
+  const payload = {
+    objective: el("objective").value.trim(),
+    documents: lines("documents"),
+    attachments: lines("attachments"),
+    repository: el("repository").value.trim(),
+    repository_path: el("repositoryPath").value.trim(),
+    source_mode: el("sourceMode").value,
+    async: true,
+    ...runPayload(),
+  };
+  const result = await api("/runs", { method: "POST", body: payload });
+  state.projectId = result.project_id;
+  state.runId = result.run_id;
+  closeEventStream();
+  state.events = [];
+  show("briefOutput", result);
+  show("graphOutput", {});
+  renderGraphViz({});
+  show("eventOutput", []);
+  show("deliveryOutput", {});
+  el("deliverySummary").innerHTML = "";
+  el("evidenceCards").innerHTML = "";
+  el("evidenceDetails").innerHTML = "";
+  el("artifactPreviews").innerHTML = "";
+  el("coverageViz").innerHTML = "";
+  setSummary(result.project || {}, result.job || {});
+  setControls();
+  startPolling();
+}
+
 async function buildPlan() {
   const result = await api(`/projects/${state.projectId}/plan`, { method: "POST", body: {} });
   show("briefOutput", result.context);
@@ -637,6 +668,7 @@ function closeEventStream() {
 
 function bind() {
   el("createProject").addEventListener("click", () => createProject().catch(showError));
+  el("startUnifiedRun").addEventListener("click", () => startUnifiedRun().catch(showError));
   el("uploadSelected").addEventListener("click", () => uploadSelected().catch(showError));
   el("reopenFeedback").addEventListener("click", () => reopenWithFeedback().catch(showError));
   el("buildPlan").addEventListener("click", () => buildPlan().catch(showError));

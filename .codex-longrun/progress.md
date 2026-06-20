@@ -650,3 +650,16 @@ PY"`
 - Updated README and `docs/07_v2_development_plan.md` so V2.39 is aligned with the original document-driven autonomous development objective.
 - Scoped V2.39 around one product-facing run contract for objective, documents, supporting files, local repositories, GitHub repositories, execution options, verification, and delivery evidence.
 - Kept the plan explicitly compatible with the existing ProjectBrief, ContextBundle, TaskGraph, RuntimeState, DocumentRunPipeline, ProjectService, artifact, evaluator, and delivery contracts.
+
+## 2026-06-20 V2.39 Unified Entrypoint Implementation
+
+- Added `AutoDevRunRequest` as the shared request contract for CLI, API, and browser-console entrypoints.
+- Added `python -m autodev.run` as the unified CLI facade for one-line fallback, document-only generated repositories, and local repository document runs.
+- Added `ProjectService.run_unified_request` and `POST /runs` as the one-shot API facade with project/run IDs and evidence URLs.
+- Added the browser-console `Unified Run` control and source-mode selector wired to `POST /runs`.
+- Added unified report output through `unified_run_report.json` and stable split JSON files for project brief, context bundle, task graph, runtime state, delivery report, and development cycle.
+- Fixed document-only development packages so they use a run-scoped `generated_repository` scaffold instead of scanning the Alchemy repo as the target project.
+- Fixed explicit path extraction for source paths followed by sentence punctuation.
+- Routed unified `feedback_files` requests through the existing feedback reopen loop so delivered runs can be reopened from the one-shot API.
+- Verified the browser console Unified Run flow with a local API server: submitted a development document plus local repository, observed queued/running/done events, and loaded delivery evidence.
+- Verified focused tests, full unit suite, JSON specs, diff hygiene, and long-running state validation.

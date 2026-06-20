@@ -34,6 +34,7 @@ from runtime import (
 from .preflight import ExecutionPreflight
 from .delivery_report import build_delivery_report
 from .development_cycle import build_development_cycle_report
+from intake.project_brief import build_local_repository_source
 
 
 @dataclass(slots=True)
@@ -87,6 +88,7 @@ class DocumentRunPipeline:
         objective: str,
         documents: Sequence[str | Path],
         attachments: Sequence[str | Path] = (),
+        primary_input_mode: str = "document_driven",
         repository_url: str = "",
         repository_path: str | Path | None = None,
         repository_visibility: str = "public",
@@ -117,6 +119,11 @@ class DocumentRunPipeline:
     ) -> DocumentRunResult:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
+        generated_repository = False
+        if not repository_url and not repository_path and primary_input_mode == "document_driven":
+            repository_path = output / "generated_repository"
+            generated_repository = True
+            Path(repository_path).mkdir(parents=True, exist_ok=True)
 
         recovery_payload: dict = {}
         if resume_from:
@@ -148,12 +155,19 @@ class DocumentRunPipeline:
             objective=objective,
             documents=documents,
             attachments=attachments,
+            primary_input_mode=primary_input_mode,  # type: ignore[arg-type]
             repository_url=repository_url,
             repository_path=repository_path or "",
             repository_visibility=repository_visibility,  # type: ignore[arg-type]
         )
         if brief.repository and repository_path:
             brief.repository.local_path = str(repository_path)
+        elif generated_repository:
+            brief.repository = build_local_repository_source(
+                repository_path,
+                target_branch="main",
+                visibility="public",
+            )
         if brief.repository and prepare_repository and not repository_path:
             source_runtime = (
                 PrivateGitHubSourceRuntime()
@@ -174,6 +188,14 @@ class DocumentRunPipeline:
 
         bundle = ContextBundleBuilder().build(brief)
         graph = TaskGraphBuilder().build(bundle)
+        if generated_repository:
+            scaffold_generated_repository(
+                repository_path,
+                task_graph=graph.to_dict(),
+                context_bundle=bundle.to_dict(),
+            )
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle)
         handoff = RuntimeHandoff()
         state = handoff.build_state(
             project_brief=brief,
@@ -626,6 +648,106 @@ def assign_release_branch(state: object, branch: str) -> None:
     for node in getattr(task_graph, "nodes", []):
         if getattr(node, "type", "") == "release":
             node.branch = branch
+
+
+def scaffold_generated_repository(
+    repository_path: str | Path,
+    *,
+    task_graph: dict,
+    context_bundle: dict,
+) -> dict[str, object]:
+    """Create deterministic dry-run files for document-only new-project runs."""
+
+    repo = Path(repository_path)
+    repo.mkdir(parents=True, exist_ok=True)
+    files = generated_repository_files(task_graph)
+    if "index.html" not in files:
+        files.insert(0, "index.html")
+    written: list[str] = []
+    requirements = requirement_texts(context_bundle)
+    for file_path in files:
+        clean = file_path.replace("\\", "/").strip("/")
+        if not clean or clean.startswith("../") or "/../" in clean:
+            continue
+        target = repo / clean
+        if target.exists() or target.suffix == "":
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(scaffold_content(clean, requirements), encoding="utf-8")
+        written.append(clean)
+    return {
+        "status": "generated",
+        "repository_path": str(repo),
+        "files": written,
+        "summary": f"Generated {len(written)} dry-run scaffold file(s) for document-only input.",
+    }
+
+
+def generated_repository_files(task_graph: dict) -> list[str]:
+    files: list[str] = []
+    for node in task_graph.get("nodes", []):
+        if not isinstance(node, dict):
+            continue
+        if node.get("type") in {"architecture", "review", "release"}:
+            continue
+        files.extend(str(file) for file in node.get("relevant_files", []) if str(file))
+    return dedupe_strings(files)
+
+
+def scaffold_content(file_path: str, requirements: list[str]) -> str:
+    requirement_notes = "\n".join(f"        <li>{escape_html(text)}</li>" for text in requirements[:8])
+    if file_path.endswith(".html"):
+        return (
+            "<!doctype html>\n"
+            "<html lang=\"en\">\n"
+            "  <head>\n"
+            "    <meta charset=\"utf-8\">\n"
+            "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+            "    <title>Generated Alchemy App</title>\n"
+            "  </head>\n"
+            "  <body>\n"
+            "    <main id=\"app\">\n"
+            "      <h1>Generated Alchemy App</h1>\n"
+            "      <form id=\"create-form\">\n"
+            "        <label>Workspace <input name=\"workspace\" value=\"Default\"></label>\n"
+            "        <button type=\"button\" id=\"create-workspace\">Create workspace</button>\n"
+            "      </form>\n"
+            "      <section aria-label=\"Dashboard\">\n"
+            "        <button type=\"button\" id=\"switch-workspace\">Switch workspace</button>\n"
+            "        <p id=\"status\">Ready</p>\n"
+            "        <ul id=\"requirements\">\n"
+            f"{requirement_notes}\n"
+            "        </ul>\n"
+            "      </section>\n"
+            "    </main>\n"
+            "    <script src=\"src/main.js\"></script>\n"
+            "  </body>\n"
+            "</html>\n"
+        )
+    if file_path.endswith((".js", ".ts", ".tsx")):
+        return (
+            "export const alchemyGenerated = true;\n"
+            "export function createWorkspace(name = 'Default') {\n"
+            "  return { id: name.toLowerCase().replace(/\\s+/g, '-'), name };\n"
+            "}\n"
+            "export function switchWorkspace(workspace) {\n"
+            "  return `Switched to ${workspace.name}`;\n"
+            "}\n"
+        )
+    if file_path.endswith((".md", ".txt", ".rst")):
+        return "# Generated Alchemy Artifact\n\n" + "\n".join(f"- {text}" for text in requirements) + "\n"
+    if file_path.endswith(".json"):
+        return "{}\n"
+    return "Generated by Alchemy document-only dry-run scaffold.\n"
+
+
+def escape_html(value: str) -> str:
+    return (
+        value.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
 
 
 def build_artifact_report(

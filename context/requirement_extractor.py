@@ -65,7 +65,7 @@ REQUIREMENT_HEADINGS = (
 )
 
 PATH_PATTERN = re.compile(
-    r"(?P<path>[\w./-]+\.(?:tsx|jsx|yaml|yml|py|js|ts|go|rs|java|cs|rb|php|html|css|sql|md|json))(?![\w.-])"
+    r"(?P<path>[\w./-]+\.(?:tsx|jsx|yaml|yml|py|js|ts|go|rs|java|cs|rb|php|html|css|sql|md|json))(?![\w/-])"
 )
 LEADING_MARKER_PATTERN = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 PROTECTED_TERM_REWRITES = (

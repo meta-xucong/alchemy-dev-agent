@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Iterator
 
 from context import ContextBundleBuilder
+from context.requirement_extractor import explicit_paths_from_text
 from intake import ProjectBriefBuilder
 from intake.schema_validation import validate_context_bundle_contract
 from planner import TaskGraphBuilder
@@ -118,6 +119,14 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("npm run build", nodes["T005"]["commands_to_run"])
         self.assertIn("npm run lint", nodes["T005"]["commands_to_run"])
         self.assertEqual(requirements[0]["planned_task_ids"], ["T002", "T005", "T006"])
+
+    def test_explicit_path_extraction_keeps_paths_with_sentence_punctuation(self) -> None:
+        text = "Must update src/api/workspaces.ts. Should render src/pages/dashboard.tsx, and tests/workspaces.test.ts."
+
+        self.assertEqual(
+            explicit_paths_from_text(text),
+            ["src/api/workspaces.ts", "src/pages/dashboard.tsx", "tests/workspaces.test.ts"],
+        )
 
     def test_acceptance_target_file_guides_same_document_requirements(self) -> None:
         with temp_plan_dir() as root:

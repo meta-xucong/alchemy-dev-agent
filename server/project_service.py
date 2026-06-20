@@ -12,6 +12,7 @@ from autodev.artifact_manifest import ArtifactContent, build_artifact_manifest, 
 from autodev.delivery_evidence import build_delivery_evidence
 from autodev.real_env_check import RealEnvironmentCheck
 from autodev.recovery_comparison import build_recovery_comparison
+from autodev.unified_request import AutoDevRunRequest
 from context import ContextBundleBuilder
 from intake import GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
 from intake.models import FileRole, ProjectBrief, utc_now_iso
@@ -141,6 +142,101 @@ class ProjectService:
         return {
             "project": record.to_dict(),
             "brief": brief.to_dict(),
+        }
+
+    def run_unified_request(self, payload: dict[str, Any]) -> dict[str, object]:
+        request = AutoDevRunRequest.from_mapping(payload)
+        validation_errors = request.validate_paths()
+        if validation_errors:
+            raise ApiError(400, "invalid_unified_run_request", "; ".join(validation_errors))
+
+        if request.route == "feedback_reopen":
+            if not request.project_id:
+                raise ApiError(400, "feedback_project_missing", "project_id is required for unified feedback reopen.")
+            run = self.reopen_with_feedback(
+                request.project_id,
+                {
+                    "source_run_id": request.source_run_id,
+                    "feedback_files": list(request.feedback_files),
+                    "run": request.to_run_payload(),
+                },
+            )
+            run_id = str(run.get("run_id", ""))
+            urls = unified_run_urls(request.project_id, run_id)
+            return {
+                "accepted": False,
+                "async": False,
+                "project_id": request.project_id,
+                "run_id": run_id,
+                "status": str(run.get("status", "")),
+                "events_url": urls["events"],
+                "events_stream_url": urls["events_stream"],
+                "delivery_url": urls["delivery"],
+                "artifact_manifest_url": urls["artifacts"],
+                "route": request.route,
+                "source_mode": request.source_mode,
+                "execution_mode": request.execution_mode,
+                "delivery_mode": request.delivery_mode,
+                "run": run,
+                "urls": urls,
+            }
+
+        created = self.create_project(request.to_project_payload())
+        project = created["project"]
+        if not isinstance(project, dict):
+            raise ApiError(500, "invalid_project_record", "Project creation did not return a project record.")
+        project_id = str(project["project_id"])
+        run_payload = request.to_run_payload()
+        async_requested = bool(payload.get("async", True))
+
+        if async_requested:
+            run_result = self.start_run(project_id, {"async": True, **run_payload})
+            run_id = str(run_result.get("run_id", ""))
+            urls = unified_run_urls(project_id, run_id)
+            job = run_result.get("job", {})
+            status = str(job.get("status", "queued")) if isinstance(job, dict) else "queued"
+            return {
+                "accepted": True,
+                "async": True,
+                "project_id": project_id,
+                "run_id": run_id,
+                "status": status,
+                "events_url": urls["events"],
+                "events_stream_url": urls["events_stream"],
+                "delivery_url": urls["delivery"],
+                "artifact_manifest_url": urls["artifacts"],
+                "route": request.route,
+                "source_mode": request.source_mode,
+                "execution_mode": request.execution_mode,
+                "delivery_mode": request.delivery_mode,
+                "project": project,
+                "brief": created.get("brief", {}),
+                "job": job,
+                "urls": urls,
+            }
+
+        run_result = self.run_project(project_id, run_payload)
+        run_id = str(run_result.get("run_id", ""))
+        urls = unified_run_urls(project_id, run_id)
+        status = str(run_result.get("status", ""))
+        return {
+            "accepted": False,
+            "async": False,
+            "project_id": project_id,
+            "run_id": run_id,
+            "status": status,
+            "events_url": urls["events"],
+            "events_stream_url": urls["events_stream"],
+            "delivery_url": urls["delivery"],
+            "artifact_manifest_url": urls["artifacts"],
+            "route": request.route,
+            "source_mode": request.source_mode,
+            "execution_mode": request.execution_mode,
+            "delivery_mode": request.delivery_mode,
+            "project": project,
+            "brief": created.get("brief", {}),
+            "run": run_result,
+            "urls": urls,
         }
 
     def check_environment(self, payload: dict[str, Any] | None = None) -> dict[str, object]:
@@ -765,6 +861,7 @@ class ProjectService:
             objective=record.objective,
             documents=record.documents,
             attachments=record.attachments,
+            primary_input_mode=record.primary_input_mode,
             repository_url=record.repository_url,
             repository_path=record.repository_path or None,
             output_dir=output_dir,
@@ -930,6 +1027,18 @@ def project_status_for_run(run_status: str) -> str:
     if run_status == "failed":
         return "failed"
     return "running"
+
+
+def unified_run_urls(project_id: str, run_id: str) -> dict[str, str]:
+    return {
+        "project": f"/projects/{project_id}",
+        "run": f"/projects/{project_id}/runs/{run_id}",
+        "job": f"/projects/{project_id}/runs/{run_id}/job",
+        "events": f"/projects/{project_id}/runs/{run_id}/events",
+        "events_stream": f"/projects/{project_id}/runs/{run_id}/events-stream",
+        "delivery": f"/projects/{project_id}/runs/{run_id}/delivery",
+        "artifacts": f"/projects/{project_id}/runs/{run_id}/artifacts",
+    }
 
 
 def safe_filename(filename: str) -> str:

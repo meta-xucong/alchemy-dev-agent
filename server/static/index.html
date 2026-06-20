@@ -45,6 +45,16 @@
               <input id="repositoryPath" type="text" placeholder="D:\path\to\repo">
             </label>
             <label>
+              Source mode
+              <select id="sourceMode">
+                <option value="auto" selected>Auto</option>
+                <option value="none">No repository</option>
+                <option value="local">Local repository</option>
+                <option value="github_public">Public GitHub</option>
+                <option value="github_private">Private GitHub</option>
+              </select>
+            </label>
+            <label>
               Codex CLI executable
               <input id="codexExecutable" type="text" value="codex" placeholder="D:\AI\Tools\CodexCLI\bin\codex.exe">
             </label>
@@ -100,6 +110,7 @@
             </div>
             <div class="buttonRow secondary">
               <button id="checkEnvironment">Check Env</button>
+              <button id="startUnifiedRun">Unified Run</button>
             </div>
             <div class="buttonRow secondary">
               <button id="startRun" disabled>Run</button>

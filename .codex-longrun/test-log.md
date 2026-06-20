@@ -1593,3 +1593,35 @@
 - Result: passed; long-running state schema validation returned OK.
 - Command: `git diff --check`
 - Result: passed; no whitespace errors. Git emitted CRLF normalization warnings for long-running state files only.
+
+## 2026-06-20 V2.39 Unified Entrypoint Implementation Verification
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_unified_run`
+- Result: passed; 8 tests OK.
+- Summary: Verified request normalization, one-line fallback CLI, document-only generated repository CLI, local repository CLI, one-shot service/API run, and unified feedback reopen routing.
+- Next verification command: focused related regression tests.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_unified_run tests.test_document_to_plan tests.test_api_server.ApiServerTests.test_project_service_reopens_delivered_run_with_feedback tests.test_api_server.ApiServerTests.test_http_api_reopens_with_feedback tests.test_autodev_pipeline tests.test_document_run_pipeline.DocumentRunPipelineTests.test_pipeline_generates_done_report tests.test_document_run_pipeline.DocumentRunPipelineTests.test_cli_outputs_done_report`
+- Result: passed; 23 tests OK.
+- Summary: Verified V2.39 changes plus document parsing, feedback reopen, one-line generation, and document-run compatibility.
+- Next verification command: browser-console static asset test.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_unified_run tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets`
+- Result: passed; 9 tests OK.
+- Summary: Verified `Unified Run`, source-mode selector, and `/runs` wiring are present in console static assets.
+- Next verification command: browser UI smoke.
+
+- Command: `Codex in-app browser UI smoke against http://127.0.0.1:18739`
+- Result: passed.
+- Summary: The browser console loaded Unified Run/source mode controls, submitted a local document plus local repository through `POST /runs`, created `proj_8f6d7e58cacb/run_001`, displayed queued/running/done events, and loaded delivery evidence.
+- Next verification command: full unit suite.
+
+- Command: `python -B -m unittest discover -s tests`
+- Result: passed under non-sandbox permissions; 206 tests OK.
+- Summary: Full suite passes. A prior sandboxed run failed with Windows Temp, `os.replace`, and Git for Windows permission errors; non-sandbox rerun confirmed no code regression.
+- Next verification command: JSON specs, diff hygiene, and long-running state validation.
+
+- Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]"`; `git diff --check`; `validate_state.py --project .`
+- Result: passed.
+- Summary: JSON specs parsed, diff hygiene passed, and long-running state schema validation returned OK after V2.39 implementation.
+- Next verification command: optional browser smoke, then commit/push.
