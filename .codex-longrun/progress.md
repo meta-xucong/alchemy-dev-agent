@@ -674,3 +674,13 @@ PY"`
 - Added browser console controls for `Prepare GitHub source` and `Preflight` while preserving the existing Unified Run flow.
 - Audited and fixed planned GitHub checkout paths so preflight reports match intake's real `.alchemy/projects/<project>/repo` path.
 - Verified focused tests, API tests, full unit suite, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 15:16:26 +0800.
+
+
+## 2026-06-20 V2.41 Unified Acceptance Harness
+
+- Added `docs/48_v2_41_unified_acceptance_harness.md` for a repeatable product-facing acceptance contract.
+- Added `autodev.unified_acceptance` to exercise one-line fallback, document-only generated repository, local repository package, and GitHub URL dry-run metadata modes through preflight/start/evidence paths.
+- Fixed API unified one-line fallback drift by routing service one-line runs through `AutoDevPipeline` and storing compatible run evidence/artifact manifest data.
+- Aligned GitHub URL dry-run acceptance with the honest metadata-only boundary unless `prepare_repository` or `repository_path` is supplied.
+- Added compact `--summary` output for acceptance runs.
+- Verified focused tests, acceptance CLI, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 15:34:24 +0800.

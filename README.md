@@ -128,6 +128,8 @@ docs/
                               V2.39 unified product entrypoint and project-type runtime plan.
   47_v2_40_unified_preflight.md
                               V2.40 unified run preflight and start-readiness gate.
+  48_v2_41_unified_acceptance_harness.md
+                              V2.41 unified acceptance harness for product-facing modes.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -181,6 +183,7 @@ autodev/
   artifact_manifest.py       Safe run artifact manifest and preview content resolver.
   local_repository_acceptance.py
                              Local repository import and feedback-reopen acceptance harness.
+  unified_acceptance.py       Unified entrypoint acceptance harness across one-line, docs-only, local, and GitHub URL modes.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -442,6 +445,16 @@ The API accepts local file paths through `documents`, `attachments`, or a UI-ori
 project. `POST /runs` runs the same preflight first and returns
 `unified_preflight_blocked` before project creation when required source,
 worker, GitHub, or delivery evidence is missing.
+
+Run the unified product-path acceptance harness locally:
+
+```bash
+python -m autodev.unified_acceptance --output .alchemy/unified_acceptance
+```
+
+It verifies one-line fallback, document-only generated repository, local
+repository package, and GitHub URL dry-run metadata modes through the same
+preflight/start/evidence contracts.
 
 ## V2.29 Local And GitHub Source Modes
 

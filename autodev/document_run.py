@@ -209,6 +209,7 @@ class DocumentRunPipeline:
             real_github=real_github,
             codex_executable=codex_executable,
             private_repository=bool(brief.repository and (brief.repository.visibility == "private" or brief.repository.gh_auth_required)),
+            repository_required=bool(repository_path or real_codex or real_github),
         )
         if preflight.status != "blocked" and real_codex and isolate_real_run:
             workspace_session = RealRunWorkspace().prepare(

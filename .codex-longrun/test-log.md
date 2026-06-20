@@ -1650,3 +1650,24 @@
 
 - Command: `python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]; json.loads(pathlib.Path('.codex-longrun/state.json').read_text(encoding='utf-8'))"`; `git diff --check`; `validate_state.py --project .`
 - Result: passed; JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.
+
+
+## 2026-06-20 V2.41 Unified Acceptance Harness Verification
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_unified_acceptance`
+- Result: passed; 3 tests OK after fixing service one-line artifact manifest and metadata-only GitHub dry-run semantics.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_unified_acceptance tests.test_unified_run tests.test_api_server`
+- Result: passed; 42 tests OK.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.unified_acceptance --output .alchemy\v2_41_unified_acceptance`
+- Result: passed; scenarios one_line_fallback, document_only_generated_repository, local_repository_package, and github_url_dry_run_metadata all passed.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.unified_acceptance --output .alchemy\v2_41_unified_acceptance_summary --summary`
+- Result: passed; compact summary reported all 4 scenarios passed.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed; 217 tests OK.
+
+- Command: `python -B -m compileall autodev server tests`; `python -c specs/state JSON parse`; `git diff --check`; `validate_state.py --project .`
+- Result: passed; compileall OK, JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.
