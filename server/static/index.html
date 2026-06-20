@@ -12,159 +12,240 @@
         <header class="topbar">
           <div>
             <h1>Alchemy Dev Agent</h1>
-            <p>Document-driven autonomous development console</p>
+            <p data-i18n="app.subtitle">Document-driven autonomous development console</p>
           </div>
-          <span id="apiStatus" class="status">Checking API</span>
+          <div class="topbarActions">
+            <div class="languageSwitch" role="group" aria-label="Language">
+              <button id="languageEn" type="button" class="languageOption active" data-lang="en">EN</button>
+              <button id="languageZh" type="button" class="languageOption" data-lang="zh">中文</button>
+            </div>
+            <span id="apiStatus" class="status" data-i18n="api.checking">Checking API</span>
+          </div>
         </header>
 
         <div class="layout">
           <section class="panel controls" aria-label="Project controls">
-            <h2>Create Project</h2>
+            <h2 data-i18n="controls.title">Create Project</h2>
             <label>
-              Objective
+              <span data-i18n="controls.objective">Objective</span>
               <textarea id="objective" rows="4" spellcheck="false">Add workspace support</textarea>
             </label>
             <label>
-              Development documents
-              <textarea id="documents" rows="3" spellcheck="false" placeholder="One local path per line"></textarea>
+              <span data-i18n="controls.documents">Development documents</span>
+              <textarea id="documents" rows="3" spellcheck="false" placeholder="One local path per line" data-i18n-placeholder="placeholder.paths"></textarea>
             </label>
             <label>
-              Supporting files
-              <textarea id="attachments" rows="3" spellcheck="false" placeholder="One local path per line"></textarea>
+              <span data-i18n="controls.attachments">Supporting files</span>
+              <textarea id="attachments" rows="3" spellcheck="false" placeholder="One local path per line" data-i18n-placeholder="placeholder.paths"></textarea>
             </label>
             <label>
-              Upload files
-              <input id="uploadFiles" type="file" multiple>
+              <span data-i18n="controls.upload_files">Upload files</span>
+              <span class="filePicker">
+                <span class="filePickerButton" data-i18n="button.choose_files">Choose files</span>
+                <input id="uploadFiles" type="file" multiple>
+              </span>
+              <span id="fileSelection" class="fileSelection" data-i18n="file.no_file">No file selected</span>
             </label>
             <label>
-              GitHub repository source
+              <span data-i18n="controls.github_source">GitHub repository source</span>
               <input id="repository" type="url" placeholder="https://github.com/org/repo">
             </label>
             <label>
-              Local repository source
+              <span data-i18n="controls.local_source">Local repository source</span>
               <input id="repositoryPath" type="text" placeholder="D:\path\to\repo">
             </label>
             <label>
-              Source mode
+              <span data-i18n="controls.source_mode">Source mode</span>
               <select id="sourceMode">
-                <option value="auto" selected>Auto</option>
-                <option value="none">No repository</option>
-                <option value="local">Local repository</option>
-                <option value="github_public">Public GitHub</option>
-                <option value="github_private">Private GitHub</option>
+                <option value="auto" selected data-i18n="source.auto">Auto</option>
+                <option value="none" data-i18n="source.none">No repository</option>
+                <option value="local" data-i18n="source.local">Local repository</option>
+                <option value="github_public" data-i18n="source.github_public">Public GitHub</option>
+                <option value="github_private" data-i18n="source.github_private">Private GitHub</option>
               </select>
             </label>
             <label>
-              Codex CLI executable
+              <span data-i18n="controls.codex_executable">Codex CLI executable</span>
               <input id="codexExecutable" type="text" value="codex" placeholder="D:\AI\Tools\CodexCLI\bin\codex.exe">
             </label>
             <label>
-              CI wait seconds
+              <span data-i18n="controls.ci_wait">CI wait seconds</span>
               <input id="githubCiWaitSeconds" type="number" min="0" step="1" value="120">
             </label>
             <label>
-              CI poll seconds
+              <span data-i18n="controls.ci_poll">CI poll seconds</span>
               <input id="githubCiPollSeconds" type="number" min="1" step="1" value="10">
             </label>
             <label class="check">
               <input id="prepareRepository" type="checkbox">
-              <span>Prepare GitHub source</span>
+              <span data-i18n="controls.prepare_repository">Prepare GitHub source</span>
             </label>
             <label class="check">
               <input id="realCodex" type="checkbox">
-              <span>Real Codex worker</span>
+              <span data-i18n="controls.real_codex">Real Codex worker</span>
             </label>
             <label class="check">
               <input id="realGithub" type="checkbox">
-              <span>Real GitHub flow</span>
+              <span data-i18n="controls.real_github">Real GitHub flow</span>
             </label>
             <label class="check">
               <input id="githubCollectCi" type="checkbox" checked>
-              <span>Collect GitHub CI</span>
+              <span data-i18n="controls.collect_ci">Collect GitHub CI</span>
             </label>
             <label class="check">
               <input id="isolateRealRun" type="checkbox" checked>
-              <span>Isolated worktree</span>
+              <span data-i18n="controls.isolated_worktree">Isolated worktree</span>
             </label>
             <label class="check">
               <input id="keepWorktree" type="checkbox" checked>
-              <span>Keep worktree</span>
+              <span data-i18n="controls.keep_worktree">Keep worktree</span>
             </label>
             <label class="check">
               <input id="autoBrowserVerify" type="checkbox">
-              <span>Auto browser verify</span>
+              <span data-i18n="controls.auto_browser">Auto browser verify</span>
             </label>
             <label class="check">
               <input id="generateStaticCi" type="checkbox" checked>
-              <span>Generate static CI</span>
+              <span data-i18n="controls.static_ci">Generate static CI</span>
             </label>
             <label class="check">
               <input id="writeNativeUiTests" type="checkbox">
-              <span>Write native UI tests</span>
+              <span data-i18n="controls.native_ui_tests">Write native UI tests</span>
             </label>
             <label class="check">
               <input id="autoMerge" type="checkbox">
-              <span>Auto merge after checks</span>
+              <span data-i18n="controls.auto_merge">Auto merge after checks</span>
             </label>
             <div class="buttonRow">
-              <button id="createProject">Create</button>
-              <button id="uploadSelected" disabled>Upload</button>
-              <button id="reopenFeedback" disabled>Feedback Reopen</button>
-              <button id="buildPlan" disabled>Plan</button>
+              <button id="createProject" data-i18n="button.create">Create</button>
+              <button id="uploadSelected" disabled data-i18n="button.upload">Upload</button>
+              <button id="reopenFeedback" disabled data-i18n="button.feedback_reopen">Feedback Reopen</button>
+              <button id="buildPlan" disabled data-i18n="button.plan">Plan</button>
             </div>
             <div class="buttonRow secondary">
-              <button id="checkEnvironment">Check Env</button>
-              <button id="preflightUnifiedRun">Preflight</button>
-              <button id="startUnifiedRun">Unified Run</button>
+              <button id="checkEnvironment" data-i18n="button.check_env">Check Env</button>
+              <button id="preflightUnifiedRun" data-i18n="button.preflight">Preflight</button>
+              <button id="startUnifiedRun" data-i18n="button.unified_run">Unified Run</button>
             </div>
             <div class="buttonRow secondary">
-              <button id="startRun" disabled>Run</button>
-              <button id="pauseRun" disabled>Pause</button>
-              <button id="resumeRun" disabled>Resume</button>
+              <button id="startRun" disabled data-i18n="button.run">Run</button>
+              <button id="pauseRun" disabled data-i18n="button.pause">Pause</button>
+              <button id="resumeRun" disabled data-i18n="button.resume">Resume</button>
             </div>
             <div class="buttonRow secondary">
-              <button id="stopRun" disabled>Stop</button>
+              <button id="stopRun" disabled data-i18n="button.stop">Stop</button>
             </div>
           </section>
 
           <section class="panel summary" aria-label="Project summary">
-            <h2>Project</h2>
+            <h2 data-i18n="project.title">Project</h2>
             <dl>
-              <dt>Project ID</dt>
+              <dt data-i18n="project.project_id">Project ID</dt>
               <dd id="projectId">-</dd>
-              <dt>Status</dt>
+              <dt data-i18n="project.status">Status</dt>
               <dd id="projectStatus">-</dd>
-              <dt>Run ID</dt>
+              <dt data-i18n="project.run_id">Run ID</dt>
               <dd id="runId">-</dd>
-              <dt>Run Status</dt>
+              <dt data-i18n="project.run_status">Run Status</dt>
               <dd id="runStatus">-</dd>
             </dl>
           </section>
 
           <section class="panel output briefPanel">
-            <h2>Intake</h2>
+            <h2 data-i18n="panel.intake">Intake</h2>
             <pre id="briefOutput">{}</pre>
           </section>
 
           <section class="panel output graphPanel">
-            <h2>Task Graph</h2>
+            <h2 data-i18n="panel.task_graph">Task Graph</h2>
             <div id="graphViz" class="graphViz" aria-label="Task graph visualization"></div>
             <pre id="graphOutput">{}</pre>
           </section>
 
           <section class="panel output eventPanel">
-            <h2>Events</h2>
+            <h2 data-i18n="panel.events">Events</h2>
             <pre id="eventOutput">[]</pre>
           </section>
 
           <section class="panel output deliveryPanel">
-            <h2>Delivery</h2>
-            <div id="deliverySummary" class="deliverySummary"></div>
-            <div id="evidenceCards" class="evidenceCards" aria-label="Delivery evidence cards"></div>
-            <div id="evidenceDetails" class="evidenceDetails" aria-label="Delivery evidence details"></div>
-            <div id="artifactPreviews" class="artifactPreviews" aria-label="Delivery artifact previews"></div>
-            <div id="coverageViz" class="coverageViz" aria-label="Requirement coverage visualization"></div>
-            <pre id="deliveryOutput">{}</pre>
+            <header class="panelHeader deliveryHeader">
+              <div>
+                <h2 data-i18n="delivery.title">Delivery Command</h2>
+              </div>
+              <span id="readinessBadge" class="readinessBadge status-unknown" data-i18n="delivery.no_delivery">No delivery</span>
+            </header>
+            <div class="deliveryCommand">
+              <div class="gateScoreCard">
+                <strong id="gateScore">-</strong>
+                <span data-i18n="delivery.final_gate">Final gate</span>
+              </div>
+              <div id="deliverySummary" class="deliverySummary"></div>
+            </div>
+            <div class="deliveryTabs" role="tablist" aria-label="Delivery views">
+              <button type="button" class="deliveryTab active" data-delivery-tab="overview" aria-selected="true" data-i18n="tab.overview">Overview</button>
+              <button type="button" class="deliveryTab" data-delivery-tab="artifacts" aria-selected="false" data-i18n="tab.artifacts">Artifacts</button>
+              <button type="button" class="deliveryTab" data-delivery-tab="readiness" aria-selected="false" data-i18n="tab.evidence_gate">Evidence Gate</button>
+              <button type="button" class="deliveryTab" data-delivery-tab="raw" aria-selected="false" data-i18n="tab.raw_json">Raw JSON</button>
+            </div>
+            <section class="deliveryView active" data-delivery-view="overview" aria-label="Delivery overview">
+              <div id="evidenceCards" class="evidenceCards" aria-label="Delivery evidence cards"></div>
+              <div id="evidenceDetails" class="evidenceDetails" aria-label="Delivery evidence details"></div>
+            </section>
+            <section class="deliveryView" data-delivery-view="artifacts" aria-label="Delivery artifacts">
+              <div id="coverageViz" class="coverageViz" aria-label="Requirement coverage visualization"></div>
+              <div id="artifactPreviews" class="artifactPreviews" aria-label="Delivery artifact previews"></div>
+            </section>
+            <section class="deliveryView" data-delivery-view="readiness" aria-label="Evidence readiness gate">
+              <div class="evidenceWorkbench">
+                <div class="workbenchHeader">
+                  <div>
+                    <h3 data-i18n="gate.title">Evidence Gate</h3>
+                  </div>
+                </div>
+                <div class="evidenceToolGrid">
+                  <label>
+                    <span data-i18n="gate.roots">Evidence roots</span>
+                    <textarea id="evidenceRoot" rows="3" spellcheck="false" placeholder=".alchemy/run_a&#10;.alchemy/run_b" data-i18n-placeholder="placeholder.evidence_roots">.alchemy/v2_47_real_unified_delivery
+.alchemy/v2_48_pr_lifecycle_inspect
+.alchemy/v2_50_benchmark_suite
+.alchemy/v2_52_benchmark_regression</textarea>
+                  </label>
+                  <label>
+                    <span data-i18n="gate.index_output">Index output</span>
+                    <input id="evidenceIndexOutput" type="text" value=".alchemy/ui_evidence_index.json">
+                  </label>
+                  <label>
+                    <span data-i18n="gate.package_output">Package output</span>
+                    <input id="evidencePackageOutput" type="text" value=".alchemy/ui_evidence_package">
+                  </label>
+                  <label>
+                    <span data-i18n="gate.readiness_output">Readiness output</span>
+                    <input id="evidenceReadinessOutput" type="text" value=".alchemy/ui_evidence_readiness">
+                  </label>
+                  <label>
+                    <span data-i18n="gate.index_report">Evidence index report</span>
+                    <input id="evidenceIndexPath" type="text" value=".alchemy/ui_evidence_index.json">
+                  </label>
+                  <label>
+                    <span data-i18n="gate.package_manifest">Evidence package manifest</span>
+                    <input id="evidencePackagePath" type="text" value=".alchemy/ui_evidence_package/evidence_package_manifest.json">
+                  </label>
+                  <label>
+                    <span data-i18n="gate.benchmark_report">Benchmark regression report</span>
+                    <input id="benchmarkRegressionPath" type="text" value=".alchemy/v2_52_benchmark_regression/benchmark_regression_report.json">
+                  </label>
+                </div>
+                <div class="buttonRow evidenceActions">
+                  <button id="runEvidenceIndex" type="button" data-i18n="button.index">Index</button>
+                  <button id="runEvidencePackage" type="button" data-i18n="button.package">Package</button>
+                  <button id="runEvidenceReadiness" type="button" data-i18n="button.readiness">Readiness</button>
+                </div>
+              </div>
+              <div id="readinessOutput" class="readinessOutput" aria-label="Evidence readiness output"></div>
+            </section>
+            <section class="deliveryView" data-delivery-view="raw" aria-label="Raw delivery JSON">
+              <pre id="deliveryOutput">{}</pre>
+            </section>
           </section>
         </div>
       </section>

@@ -1878,3 +1878,21 @@
 - Result: passed; git diff --check only reported CRLF normalization warning for .codex-longrun logs/state.
 - Command: gh run watch 27870781956 --exit-status
 - Result: passed; master CI succeeded for V2.54 commit d95ba027aaf07ff508c1fb90f4625a6ee8094c1a.
+
+
+## 2026-06-20 V2.55 Evidence Console Redesign Verification
+
+- Command: node --check server\static\app.js
+- Result: passed.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_evidence_api tests.test_evidence_readiness
+- Result: passed; 13 tests OK.
+- Command: ProjectService curated evidence smoke for V2.55 UI defaults
+- Result: passed; index status=passed total=7, package status=passed files=32, readiness status=ready with 8/8 checks.
+- Command: Playwright visual smoke for English Evidence Gate
+- Result: passed; readiness=ready, zero console errors, screenshot .alchemy\v2_55_ui_visual_smoke_final\evidence_console.png.
+- Command: Playwright visual smoke for Chinese language switch and Evidence Gate
+- Result: passed; Chinese UI labels and file-upload chrome rendered, readiness=ready, zero console errors, screenshot .alchemy\v2_55_i18n_visual_smoke_final\evidence_console_zh.png.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests
+- Result: passed; 259 tests OK.
+- Command: python -B -m compileall autodev intake context planner runtime server tests; specs/state JSON parse; git diff --check
+- Result: passed; git diff --check only reported the existing CRLF normalization warning for .codex-longrun/state.json.

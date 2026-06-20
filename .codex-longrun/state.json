@@ -1,6 +1,6 @@
 {
   "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
-  "current_phase": "V2.54 evidence readiness gate implementation and verification",
+  "current_phase": "V2.55 evidence console redesign implementation and verification",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -80,12 +80,12 @@
     "V2.51 evidence API service implementation and verification",
     "V2.52 benchmark regression gate implementation and verification",
     "V2.53 benchmark regression API implementation and verification",
-    "V2.54 evidence readiness gate implementation and verification"
+    "V2.54 evidence readiness gate implementation and verification",
+    "V2.55 evidence console redesign implementation and verification"
   ],
   "next_actions": [
-    "UI evidence panel redesign is intentionally deferred until product-design confirmation is available.",
-    "Full mutating real Codex + GitHub benchmark profile is intentionally deferred until a disposable target repository is explicitly approved.",
-    "Optional cleanup: use V2.48 lifecycle controls to close or keep PR #3 after review."
+    "Proceed to the next approved full real test phase when the user is ready; current V2.55 UI evidence console work is complete.",
+    "Optional future polish: add persisted per-project curated evidence root presets after real usage confirms the desired workflow."
   ],
   "tests_run": [
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
@@ -214,7 +214,14 @@
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_readiness tests.test_evidence_api tests.test_real_probe_index tests.test_evidence_package # 19 tests OK",
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.evidence_readiness --evidence-index .alchemy\\v2_54_real_probe_index.json --evidence-package .alchemy\\v2_54_evidence_package\\evidence_package_manifest.json --benchmark-regression .alchemy\\v2_52_benchmark_regression\\benchmark_regression_report.json --output .alchemy\\v2_54_evidence_readiness --summary # ready 8/8 checks",
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 259 tests OK",
-    "gh run watch 27870781956 --exit-status # passed master CI on V2.54 commit d95ba027aaf07ff508c1fb90f4625a6ee8094c1a"
+    "gh run watch 27870781956 --exit-status # passed master CI on V2.54 commit d95ba027aaf07ff508c1fb90f4625a6ee8094c1a",
+    "node --check server\\static\\app.js # passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_evidence_api tests.test_evidence_readiness # 13 tests OK",
+    "ProjectService curated evidence smoke for V2.55 UI defaults # index=passed total=7, package=passed files=32, readiness=ready 8/8 checks",
+    "Playwright visual smoke for English Evidence Gate # ready, no console errors, screenshot .alchemy\\v2_55_ui_visual_smoke_final\\evidence_console.png",
+    "Playwright visual smoke for Chinese language switch and Evidence Gate # ready, no console errors, screenshot .alchemy\\v2_55_i18n_visual_smoke_final\\evidence_console_zh.png",
+    "python -B -m compileall autodev intake context planner runtime server tests # passed",
+    "specs/state JSON parse; git diff --check # passed except existing CRLF warning for .codex-longrun/state.json"
   ],
   "known_bugs": [
     {
@@ -391,9 +398,14 @@
     "V2.54 ProjectService and API expose POST /evidence/readiness for programmatic final evidence gating.",
     "V2.54 current evidence readiness smoke returned ready with 8/8 checks and zero blockers.",
     "V2.54 evidence_readiness_report is indexed by real_probe_index and included by evidence_package.",
-    "V2.54 master GitHub Actions CI passed on commit d95ba027aaf07ff508c1fb90f4625a6ee8094c1a."
+    "V2.54 master GitHub Actions CI passed on commit d95ba027aaf07ff508c1fb90f4625a6ee8094c1a.",
+    "V2.55 browser console Delivery area is redesigned as a tabbed evidence command center with readiness badge, gate score, overview, artifacts, evidence gate, and raw JSON views.",
+    "V2.55 Evidence Gate UI calls the existing evidence index, package, and readiness APIs without changing runtime execution behavior.",
+    "V2.55 Evidence Gate defaults to curated current-review evidence roots instead of scanning the full historical .alchemy cache.",
+    "V2.55 browser console supports one-click English/Chinese switching for console chrome, controls, status text, file-upload chrome, and evidence gate output.",
+    "V2.55 visual smoke verified English and Chinese evidence gate flows with readiness=ready and zero console errors."
   ],
-  "last_verified_at": "2026-06-20T20:12:12+08:00",
+  "last_verified_at": "2026-06-20T21:54:31+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T20:12:12+08:00"
+  "updated_at": "2026-06-20T21:54:31+08:00"
 }

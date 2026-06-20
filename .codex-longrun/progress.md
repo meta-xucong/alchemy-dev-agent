@@ -788,3 +788,13 @@ PY"`
 - Extended real_probe_index and evidence_package to recognize evidence_readiness_report.json.
 - Ran current evidence readiness smoke; status=ready, 8/8 checks passed, zero blockers.
 - Verified focused tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation.
+
+
+## 2026-06-20 V2.55 Evidence Console Redesign
+
+- Added docs/62_v2_55_evidence_console_redesign.md for the operator-ready evidence command center contract.
+- Redesigned the browser console Delivery area with readiness badge, final gate tile, tabbed overview/artifacts/evidence-gate/raw JSON views, and a compact technical visual system.
+- Wired the Evidence Gate tab to existing /evidence/index, /evidence/package, and /evidence/readiness API endpoints.
+- Changed the default evidence roots to curated current-review artifacts instead of the whole historical .alchemy cache after smoke testing showed stale evidence can pollute readiness.
+- Added one-click EN/中文 switching for console chrome, controls, status labels, file-upload chrome, and evidence gate output without changing machine-readable JSON payloads.
+- Verified English and Chinese Playwright visual smokes; both reached readiness=ready with zero console errors.
