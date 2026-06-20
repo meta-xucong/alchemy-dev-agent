@@ -1,6 +1,6 @@
 {
   "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
-  "current_phase": "V2.46 controlled real GitHub PR probe final verification",
+  "current_phase": "V2.47 real unified delivery run implementation and verification",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -72,12 +72,13 @@
     "V2.45 real probe evidence index implementation",
     "V2.45 real probe evidence index final verification",
     "V2.46 controlled real GitHub PR probe implementation",
-    "V2.46 controlled real GitHub PR probe final verification"
+    "V2.46 controlled real GitHub PR probe final verification",
+    "V2.47 real unified delivery run implementation and verification"
   ],
   "next_actions": [
-    "Review or close draft validation PR #3 after human inspection; it was intentionally left open as real GitHub evidence.",
-    "Next optional productization step: expose real_probe_index and real GitHub probe summary in the browser console evidence panel.",
-    "Next optional runtime hardening step: run a full real document-run against an approved disposable app repository with real Codex, real GitHub PR, generated CI, browser verification, and no auto-merge."
+    "Optional next step: expose real_unified_delivery_report and real_probe_index summaries in the browser console evidence panel.",
+    "Optional next step: run V2.47 with real Codex + real GitHub against an explicitly approved disposable app repository.",
+    "Optional next step: add PR lifecycle cleanup controls for validation branches and draft PRs."
   ],
   "tests_run": [
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
@@ -167,7 +168,11 @@
     "='1'; python -B -m autodev.real_delivery_validation --repository-path . --output .alchemy\\v2_46_real_github_pr_probe --branch agent/alchemy-v2-46-pr-probe --base-branch master --ci-wait-seconds 120 --ci-poll-interval-seconds 10 # passed PR #3 CI success",
     "='1'; python -B -m autodev.real_probe_index --root .alchemy --output .alchemy\\v2_46_real_probe_index.json --summary # passed total=6 blocker_count=0",
     "JSON specs parse; git diff --check; validate_state.py --project . # passed",
-    "gh run watch 27868473440 --exit-status # passed master CI on commit 2d078493b1593db393d4dffb4df61af56b1c47f1"
+    "gh run watch 27868473440 --exit-status # passed master CI on commit 2d078493b1593db393d4dffb4df61af56b1c47f1",
+    "='1'; python -B -m unittest tests.test_real_unified_delivery tests.test_real_probe_index # 7 tests OK",
+    "='1'; python -B -m autodev.real_unified_delivery --objective 'Add workspace support' --document .alchemy\\v2_47_real_unified_delivery_fixture\\spec.md --repository-path .alchemy\\v2_47_real_unified_delivery_fixture\\repo --output .alchemy\\v2_47_real_unified_delivery --require-probe-index --summary # passed 7/7 required gates",
+    "='1'; python -B -m unittest discover -s tests # 232 tests OK",
+    "JSON specs parse; git diff --check; validate_state.py --project . # passed"
   ],
   "known_bugs": [
     {
@@ -313,9 +318,11 @@
     "Document-only development packages no longer scan the Alchemy repo as the target repository; they use a run-scoped generated_repository scaffold.",
     "Requirement path extraction preserves source paths followed by sentence punctuation.",
     "Browser console exposes a Unified Run button and source-mode selection wired to POST /runs.",
-    "Browser console Unified Run flow was smoke-tested against a local API server and produced queued/running/done events plus delivery evidence."
+    "Browser console Unified Run flow was smoke-tested against a local API server and produced queued/running/done events plus delivery evidence.",
+    "V2.47 real_unified_delivery harness produces a single gate-based report over unified preflight, unified run, document-run, optional real evidence, and probe index.",
+    "V2.47 local document-plus-repository smoke passed with all required gates and zero blockers."
   ],
-  "last_verified_at": "2026-06-20T18:32:43+08:00",
+  "last_verified_at": "2026-06-20T18:50:23+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T18:32:43+08:00"
+  "updated_at": "2026-06-20T18:50:23+08:00"
 }

@@ -140,6 +140,8 @@ docs/
                               V2.45 real probe evidence index.
   53_v2_46_controlled_real_github_pr_probe.md
                               V2.46 controlled real GitHub PR probe.
+  54_v2_47_real_unified_delivery_run.md
+                              V2.47 unified full-delivery validation harness.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -198,6 +200,7 @@ autodev/
   real_worker_smoke.py       Controlled disposable local real Codex worker smoke.
   real_document_run_smoke.py Controlled real Codex document-run smoke on a local fixture repository.
   real_probe_index.py        Evidence indexer for real readiness, worker, document-run, and GitHub PR reports.
+  real_unified_delivery.py   Unified full-delivery validation harness and gate report.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -539,6 +542,25 @@ auto-merge off, and writes
 `real_probe_index` includes that report as `real_github_pr_probe` evidence.
 
 See `docs/53_v2_46_controlled_real_github_pr_probe.md`.
+
+Run the V2.47 full-delivery validation harness:
+
+```bash
+python -m autodev.real_unified_delivery \
+  --objective "Add workspace support" \
+  --document spec.md \
+  --repository-path ./repo \
+  --output .alchemy/real_unified_delivery \
+  --summary
+```
+
+It drives the unified CLI, reads the generated preflight/run/document reports,
+optionally aggregates `real_probe_index`, and writes
+`.alchemy/real_unified_delivery/real_unified_delivery_report.json` with delivery
+gates for preflight, command execution, final gate, review readiness, real Codex
+worker evidence, real GitHub PR evidence, and browser verification evidence.
+
+See `docs/54_v2_47_real_unified_delivery_run.md`.
 
 ## V2.29 Local And GitHub Source Modes
 

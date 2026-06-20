@@ -8,6 +8,8 @@ __all__ = [
     "ExecutionPreflight",
     "RealDeliveryValidation",
     "DeliveryValidationReport",
+    "RealUnifiedDeliveryHarness",
+    "RealUnifiedDeliveryReport",
     "ExternalDocsOnlyAcceptance",
     "ExternalDocsOnlyAcceptanceReport",
     "LocalRepositoryAcceptanceHarness",
@@ -43,6 +45,14 @@ def __getattr__(name: str):
         exports = {
             "DeliveryValidationReport": DeliveryValidationReport,
             "RealDeliveryValidation": RealDeliveryValidation,
+        }
+        return exports[name]
+    if name in {"RealUnifiedDeliveryHarness", "RealUnifiedDeliveryReport"}:
+        from .real_unified_delivery import RealUnifiedDeliveryHarness, RealUnifiedDeliveryReport
+
+        exports = {
+            "RealUnifiedDeliveryHarness": RealUnifiedDeliveryHarness,
+            "RealUnifiedDeliveryReport": RealUnifiedDeliveryReport,
         }
         return exports[name]
     if name in {"ExternalDocsOnlyAcceptance", "ExternalDocsOnlyAcceptanceReport"}:

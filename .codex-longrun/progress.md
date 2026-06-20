@@ -728,3 +728,9 @@ PY"`
 - Extended real_probe_index to include real_delivery_validation_report.json as real_github_pr_probe evidence.
 - Ran approved real GitHub probe on meta-xucong/alchemy-dev-agent.
 - Result: draft PR #3 opened, branch agent/alchemy-v2-46-pr-probe-20260620102706084177 pushed, CI / tests passed, auto-merge skipped.
+
+## 2026-06-20 18:50:23 +08:00 V2.47 Real Unified Delivery Run
+- Added docs/54_v2_47_real_unified_delivery_run.md aligned with the original document-driven autonomous development objective.
+- Implemented autodev.real_unified_delivery as a total-control validation harness around the existing unified CLI, document-run, delivery gates, and real probe index.
+- Extended real_probe_index to recognize real_unified_delivery_report.json.
+- Ran a local document + repository V2.47 harness smoke; status passed with 7/7 required gates.

@@ -83,13 +83,35 @@ class RealProbeIndexTests(unittest.TestCase):
                 "blockers": [],
             },
         )
+        write_json(
+            root / "unified" / "real_unified_delivery_report.json",
+            {
+                "schema_version": "2.47",
+                "status": "passed",
+                "request": {
+                    "route": "document_run",
+                    "execution_mode": "dry_run",
+                    "delivery_mode": "report_only",
+                },
+                "gates": [
+                    {"name": "preflight_passed", "status": "passed", "required": True},
+                    {"name": "real_github_pr_evidence", "status": "skipped", "required": False},
+                ],
+                "summary": {
+                    "required_gates": 1,
+                    "passed_required_gates": 1,
+                    "failed_required_gates": [],
+                },
+                "blockers": [],
+            },
+        )
         write_json(root / "other" / "unknown.json", {"status": "ignored"})
 
         index = RealProbeIndexer().build(roots=[root], output_path=root / "index.json").to_dict()
 
         self.assertEqual(index["status"], "passed")
-        self.assertEqual(index["schema_version"], "2.46")
-        self.assertEqual(index["summary"]["total"], 4)
+        self.assertEqual(index["schema_version"], "2.47")
+        self.assertEqual(index["summary"]["total"], 5)
         entries = {entry["type"]: entry for entry in index["entries"]}
         self.assertEqual(entries["real_readiness"]["environment_status"], "ready")
         self.assertEqual(entries["real_worker_smoke"]["worker_status"], "completed")
@@ -97,6 +119,9 @@ class RealProbeIndexTests(unittest.TestCase):
         self.assertEqual(entries["real_github_pr_probe"]["github_status"], "pushed")
         self.assertEqual(entries["real_github_pr_probe"]["pull_request_url"], "https://github.example/pull/7")
         self.assertEqual(entries["real_github_pr_probe"]["ci_status"], "passed")
+        self.assertEqual(entries["real_unified_delivery"]["route"], "document_run")
+        self.assertEqual(entries["real_unified_delivery"]["required_gates"], 1)
+        self.assertEqual(entries["real_unified_delivery"]["failed_required_gates"], [])
         self.assertTrue((root / "index.json").exists())
 
     def test_indexer_reports_blocked_when_any_probe_failed(self) -> None:

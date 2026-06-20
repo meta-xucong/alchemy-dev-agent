@@ -16,6 +16,7 @@ KNOWN_REPORTS = {
     "real_worker_smoke_report.json": "real_worker_smoke",
     "real_document_run_smoke_report.json": "real_document_run_smoke",
     "real_delivery_validation_report.json": "real_github_pr_probe",
+    "real_unified_delivery_report.json": "real_unified_delivery",
 }
 
 
@@ -29,7 +30,7 @@ class RealProbeIndex:
 
     def to_dict(self) -> dict[str, object]:
         return {
-            "schema_version": "2.46",
+            "schema_version": "2.47",
             "status": self.status,
             "entries": list(self.entries),
             "roots": list(self.roots),
@@ -93,6 +94,8 @@ class RealProbeIndexer:
             entry.update(document_run_fields(payload))
         elif report_type == "real_github_pr_probe":
             entry.update(real_github_pr_fields(payload))
+        elif report_type == "real_unified_delivery":
+            entry.update(real_unified_delivery_fields(payload))
         return entry
 
 
@@ -146,6 +149,31 @@ def real_github_pr_fields(payload: dict[str, Any]) -> dict[str, object]:
         "ci_status": github.get("ci_status", ""),
         "merge_status": merge.get("status", ""),
         "workspace_status": workspace.get("status", ""),
+    }
+
+
+def real_unified_delivery_fields(payload: dict[str, Any]) -> dict[str, object]:
+    request = as_dict(payload.get("request"))
+    summary = as_dict(payload.get("summary"))
+    gates = [
+        {
+            "name": item.get("name", ""),
+            "status": item.get("status", ""),
+            "required": item.get("required", False),
+        }
+        for item in payload.get("gates", [])
+        if isinstance(item, dict)
+    ]
+    return {
+        "route": request.get("route", ""),
+        "execution_mode": request.get("execution_mode", ""),
+        "delivery_mode": request.get("delivery_mode", ""),
+        "required_gates": summary.get("required_gates", 0),
+        "passed_required_gates": summary.get("passed_required_gates", 0),
+        "failed_required_gates": list(summary.get("failed_required_gates", []))
+        if isinstance(summary.get("failed_required_gates", []), list)
+        else [],
+        "gates": gates,
     }
 
 

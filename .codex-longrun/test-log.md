@@ -1767,3 +1767,13 @@
 ## 2026-06-20 18:32:43 +08:00 V2.46 Master CI Closure
 - Command: gh run watch 27868473440 --exit-status
 - Result: passed; GitHub Actions CI succeeded on master commit 2d078493b1593db393d4dffb4df61af56b1c47f1.
+
+## 2026-06-20 18:50:23 +08:00 V2.47 Real Unified Delivery Run
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_unified_delivery tests.test_real_probe_index
+- Result: passed; 7 tests OK.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_unified_delivery --objective "Add workspace support" --document .alchemy\v2_47_real_unified_delivery_fixture\spec.md --repository-path .alchemy\v2_47_real_unified_delivery_fixture\repo --output .alchemy\v2_47_real_unified_delivery --require-probe-index --summary
+- Result: passed; status=passed, required_gates=7, passed_required_gates=7, blocker_count=0.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests
+- Result: passed; 232 tests OK.
+- Command: JSON specs parse, git diff --check, validate_state.py --project .
+- Result: passed.
