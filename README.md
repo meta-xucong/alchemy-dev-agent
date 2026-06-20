@@ -148,6 +148,8 @@ docs/
                               V2.49 evidence package export for review/archival.
   57_v2_50_benchmark_suite.md
                               V2.50 deterministic benchmark suite.
+  58_v2_51_evidence_api_service.md
+                              V2.51 evidence index/package service API.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -613,6 +615,23 @@ python -m autodev.benchmark_suite \
 Use `--skip-unified-acceptance` for a faster local smoke.
 
 See `docs/57_v2_50_benchmark_suite.md`.
+
+Expose evidence through the local API service:
+
+```bash
+python -m server.api --port 18739
+```
+
+Then use:
+
+- `GET /evidence/index`
+- `POST /evidence/index`
+- `POST /evidence/package`
+
+These endpoints reuse the same real-probe index and evidence-package contracts
+as the CLI tools. They do not run Codex, mutate GitHub, or rerun delivery.
+
+See `docs/58_v2_51_evidence_api_service.md`.
 
 ## V2.29 Local And GitHub Source Modes
 

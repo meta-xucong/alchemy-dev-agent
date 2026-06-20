@@ -1,6 +1,6 @@
 {
   "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
-  "current_phase": "V2.50 benchmark suite implementation and verification",
+  "current_phase": "V2.51 evidence API service implementation and verification",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -76,12 +76,13 @@
     "V2.47 real unified delivery run implementation and verification",
     "V2.48 PR lifecycle controls implementation and verification",
     "V2.49 evidence package export implementation and verification",
-    "V2.50 benchmark suite implementation and verification"
+    "V2.50 benchmark suite implementation and verification",
+    "V2.51 evidence API service implementation and verification"
   ],
   "next_actions": [
-    "Remaining blocker-free work now requires either product-design confirmation for the browser evidence panel or an explicitly approved disposable repository for a full real Codex + real GitHub app benchmark.",
+    "Remaining UI evidence panel work requires product-design confirmation before changing browser UI layout.",
     "Optional cleanup: use V2.48 lifecycle controls to close or keep PR #3 after review.",
-    "Optional next implementation: add opt-in real benchmark profile once a target repository is approved."
+    "Optional next implementation: add an opt-in real benchmark profile once a target repository is approved."
   ],
   "tests_run": [
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
@@ -190,7 +191,13 @@
     "='1'; python -B -m autodev.benchmark_suite --output .alchemy\\v2_50_benchmark_suite --summary # passed 6/6 scenarios",
     "='1'; python -B -m autodev.real_probe_index --root .alchemy --output .alchemy\\v2_50_real_probe_index.json --summary # passed total=15 blocker_count=0",
     "='1'; python -B -m unittest discover -s tests # 243 tests OK",
-    "JSON specs parse; git diff --check; validate_state.py --project . # passed"
+    "JSON specs parse; git diff --check; validate_state.py --project . # passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_api tests.test_api_server # 27 tests OK after V2.51 route/service coverage",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_api_server.ApiServerTests.test_http_api_async_run_and_controls tests.test_evidence_api # 5 tests OK after resumed-state race hardening",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 247 tests OK",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; service smoke via ProjectService evidence index/package # index total=15, package_files=31, blockers=0",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_api tests.test_api_server.ApiServerTests.test_http_api_async_run_and_controls # 5 tests OK clean after HTTP handle closure",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 247 tests OK clean final V2.51 verification"
   ],
   "known_bugs": [
     {
@@ -346,9 +353,14 @@
     "V2.49 current V2.47/V2.48 evidence package generated with zero blockers and no failed gates.",
     "V2.49 evidence_package_manifest is indexed by real_probe_index.",
     "V2.50 benchmark suite runs deterministic dry-run CLI scenarios for core delivery paths.",
-    "V2.50 benchmark suite passed 6/6 scenarios and is indexed by real_probe_index."
+    "V2.50 benchmark suite passed 6/6 scenarios and is indexed by real_probe_index.",
+    "V2.51 ProjectService exposes get_evidence_index and export_evidence_package without running Codex or mutating GitHub.",
+    "V2.51 local API exposes GET/POST /evidence/index and POST /evidence/package.",
+    "V2.51 evidence package exporter includes benchmark_suite_report.json as a known review artifact.",
+    "V2.51 current repository evidence API smoke passed with index_total=15, package_files=31, and zero blockers.",
+    "JobStore preserves resumed source-run status under async pause/resume races."
   ],
-  "last_verified_at": "2026-06-20T19:24:08+08:00",
+  "last_verified_at": "2026-06-20T19:42:49+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T19:24:08+08:00"
+  "updated_at": "2026-06-20T19:42:49+08:00"
 }

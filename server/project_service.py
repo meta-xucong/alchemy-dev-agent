@@ -10,7 +10,9 @@ from typing import Any
 from autodev import AutoDevPipeline, DocumentRunPipeline
 from autodev.artifact_manifest import ArtifactContent, build_artifact_manifest, resolve_artifact_content
 from autodev.delivery_evidence import build_delivery_evidence
+from autodev.evidence_package import EvidencePackageExporter
 from autodev.real_env_check import RealEnvironmentCheck
+from autodev.real_probe_index import RealProbeIndexer
 from autodev.recovery_comparison import build_recovery_comparison
 from autodev.unified_preflight import UnifiedRunPreflight
 from autodev.unified_request import AutoDevRunRequest
@@ -107,8 +109,9 @@ class ProjectRecord:
 class ProjectService:
     """Create, persist, plan, and execute document-driven projects locally."""
 
-    def __init__(self, storage_root: str | Path = ".alchemy/server") -> None:
+    def __init__(self, storage_root: str | Path = ".alchemy/server", evidence_root: str | Path | None = None) -> None:
         self.storage_root = Path(storage_root)
+        self.evidence_root = Path(evidence_root) if evidence_root is not None else Path(".alchemy")
         self.projects_root = self.storage_root / "projects"
         self.projects_root.mkdir(parents=True, exist_ok=True)
 
@@ -840,6 +843,25 @@ class ProjectService:
             "output_dir": run.get("output_dir", ""),
         }
 
+    def get_evidence_index(self, payload: dict[str, Any] | None = None) -> dict[str, object]:
+        payload = payload or {}
+        roots = evidence_roots(payload.get("roots", payload.get("root")), default=self.evidence_root)
+        output = Path(str(payload.get("output", "") or self.storage_root / "evidence" / "real_probe_index.json"))
+        index = RealProbeIndexer().build(roots=roots, output_path=output)
+        return index.to_dict()
+
+    def export_evidence_package(self, payload: dict[str, Any] | None = None) -> dict[str, object]:
+        payload = payload or {}
+        roots = evidence_roots(payload.get("roots", payload.get("root")), default=self.evidence_root)
+        output = Path(str(payload.get("output", "") or self.storage_root / "evidence_package"))
+        report = EvidencePackageExporter().export(
+            roots=roots,
+            output_dir=output,
+            include_unknown_json=bool(payload.get("include_unknown_json", False)),
+            clean_output=bool(payload.get("clean_output", True)),
+        )
+        return report.to_dict()
+
     def load_project(self, project_id: str) -> ProjectRecord:
         path = self.project_dir(project_id) / "project.json"
         if not path.exists():
@@ -1000,6 +1022,7 @@ def normalize_project_payload(payload: dict[str, Any]) -> dict[str, Any]:
         for key, value in payload.get("file_roles", {}).items()
         if value
     }
+
     required_attachments = [str(path) for path in payload.get("required_attachments", [])]
 
     for file_payload in payload.get("files", []):
@@ -1035,6 +1058,17 @@ def normalize_project_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "file_roles": file_roles,
         "required_attachments": required_attachments,
     }
+
+
+def evidence_roots(value: object, *, default: Path) -> list[Path]:
+    if value is None or value == "":
+        return [default]
+    if isinstance(value, (str, Path)):
+        return [Path(value)]
+    if isinstance(value, list):
+        roots = [Path(str(item)) for item in value if str(item)]
+        return roots or [default]
+    return [default]
 
 
 def safe_identifier(value: str, field_name: str) -> str:

@@ -752,3 +752,13 @@ PY"`
 - Implemented autodev.benchmark_suite covering one-line CLI, document-only CLI, local-repo CLI, V2.47 dry-run gate, unified acceptance, and evidence package export.
 - Extended real_probe_index to include benchmark_suite_report.json.
 - Ran .alchemy\v2_50_benchmark_suite; 6/6 scenarios passed and total evidence index reached 15 entries with zero blockers.
+
+## 2026-06-20 V2.51 Evidence API Service
+
+- Added docs/58_v2_51_evidence_api_service.md for the service/API evidence contract.
+- Added ProjectService evidence index and evidence package methods backed by autodev.real_probe_index and autodev.evidence_package.
+- Added GET/POST /evidence/index and POST /evidence/package API routes.
+- Added service, route, and real HTTP tests for evidence endpoints.
+- Added benchmark_suite_report.json to evidence package known reports so V2.50 benchmark output is review-package eligible.
+- Fixed an async resume race by preserving source-run resumed status during late background job writes.
+- Verified V2.51 focused tests, service smoke, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation.

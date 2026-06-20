@@ -98,22 +98,15 @@ class JobStore:
     def save(self, job: RunJob) -> None:
         path = self.job_path(job.run_id)
         path.parent.mkdir(parents=True, exist_ok=True)
-        if path.exists():
-            try:
-                current = RunJob.from_dict(json.loads(path.read_text(encoding="utf-8")))
-            except (OSError, json.JSONDecodeError):
-                current = None
-            if current is not None and current.status == "resumed" and job.status != "failed":
-                job.status = "resumed"
-                job.result_path = job.result_path or current.result_path
-                job.error = job.error or current.error
+        job = self._preserve_resumed_status(path, job)
         job.updated_at = utc_now_iso()
-        payload = json.dumps(job.to_dict(), indent=2, sort_keys=True) + "\n"
         temp_path = path.with_name(f"{path.name}.tmp-{threading.get_ident()}-{uuid.uuid4().hex}")
-        temp_path.write_text(payload, encoding="utf-8")
         try:
             for attempt in range(10):
                 try:
+                    job = self._preserve_resumed_status(path, job)
+                    payload = json.dumps(job.to_dict(), indent=2, sort_keys=True) + "\n"
+                    temp_path.write_text(payload, encoding="utf-8")
                     temp_path.replace(path)
                     return
                 except PermissionError:
@@ -123,6 +116,19 @@ class JobStore:
         finally:
             if temp_path.exists():
                 temp_path.unlink()
+
+    def _preserve_resumed_status(self, path: Path, job: RunJob) -> RunJob:
+        if not path.exists():
+            return job
+        try:
+            current = RunJob.from_dict(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            return job
+        if current.status == "resumed" and job.status != "failed":
+            job.status = "resumed"
+            job.result_path = job.result_path or current.result_path
+            job.error = job.error or current.error
+        return job
 
     def transition(self, run_id: str, status: str, message: str, *, source: str = "runtime", error: str = "") -> RunJob:
         job = self.load(run_id)

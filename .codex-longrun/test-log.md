@@ -1813,3 +1813,25 @@
 - Result: passed; 243 tests OK.
 - Command: JSON specs parse, git diff --check, validate_state.py --project .
 - Result: passed.
+
+## 2026-06-20 V2.51 Evidence API Service Verification
+
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_api
+- Result: passed; 3 tests OK before HTTP-server smoke expansion.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_api tests.test_api_server
+- Result: initially failed because evidence_roots was inserted into normalize_project_payload and benchmark_suite_report.json was not package-eligible; fixed both, then passed 27 tests OK.
+- Command: service smoke through ProjectService evidence index/package on current .alchemy evidence.
+- Result: passed; index_status=passed, index_total=15, package_status=passed, package_files=31, package_blockers=0.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests
+- Result: initially exposed async source-job resumed/paused race; fixed JobStore save protection, then passed 247 tests OK.
+- Command: python -B -m compileall autodev intake context planner runtime server tests; specs/state JSON parse; git diff --check; validate_state.py --project .
+- Result: passed; git diff --check only reported CRLF normalization warning for .codex-longrun/state.json.
+
+## 2026-06-20 V2.51 Final Clean Verification
+
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_api tests.test_api_server.ApiServerTests.test_http_api_async_run_and_controls
+- Result: passed; 5 tests OK with no ResourceWarning after closing HTTP client/server handles.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests
+- Result: passed; 247 tests OK.
+- Command: python -B -m compileall autodev intake context planner runtime server tests; specs/state JSON parse; git diff --check; validate_state.py --project .
+- Result: passed; git diff --check only reported CRLF normalization warning for .codex-longrun logs/state.

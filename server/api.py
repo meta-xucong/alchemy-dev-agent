@@ -197,6 +197,15 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "POST" and parts == ["runs", "preflight"]:
         return service.preflight_unified_request(payload), HTTPStatus.OK
 
+    if method == "GET" and parts == ["evidence", "index"]:
+        return service.get_evidence_index(), HTTPStatus.OK
+
+    if method == "POST" and parts == ["evidence", "index"]:
+        return service.get_evidence_index(payload), HTTPStatus.OK
+
+    if method == "POST" and parts == ["evidence", "package"]:
+        return service.export_evidence_package(payload), HTTPStatus.CREATED
+
     if not parts or parts[0] != "projects":
         raise ApiError(404, "not_found", "Endpoint not found.")
 
