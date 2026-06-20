@@ -18,6 +18,7 @@ KNOWN_REPORTS = {
     "real_delivery_validation_report.json": "real_github_pr_probe",
     "real_unified_delivery_report.json": "real_unified_delivery",
     "github_pr_lifecycle_report.json": "github_pr_lifecycle",
+    "evidence_package_manifest.json": "evidence_package",
 }
 
 
@@ -99,6 +100,8 @@ class RealProbeIndexer:
             entry.update(real_unified_delivery_fields(payload))
         elif report_type == "github_pr_lifecycle":
             entry.update(github_pr_lifecycle_fields(payload))
+        elif report_type == "evidence_package":
+            entry.update(evidence_package_fields(payload))
         return entry
 
 
@@ -193,6 +196,19 @@ def github_pr_lifecycle_fields(payload: dict[str, Any]) -> dict[str, object]:
         "base": pull_request.get("baseRefName", ""),
         "check_count": len(payload.get("checks", [])) if isinstance(payload.get("checks"), list) else 0,
         "warning_count": len(payload.get("warnings", [])) if isinstance(payload.get("warnings"), list) else 0,
+    }
+
+
+def evidence_package_fields(payload: dict[str, Any]) -> dict[str, object]:
+    summary = as_dict(payload.get("summary"))
+    return {
+        "output_dir": payload.get("output_dir", ""),
+        "source_roots": list(payload.get("source_roots", [])) if isinstance(payload.get("source_roots", []), list) else [],
+        "file_count": summary.get("file_count", 0),
+        "package_blocker_count": summary.get("blocker_count", 0),
+        "failed_required_gates": list(summary.get("failed_required_gates", []))
+        if isinstance(summary.get("failed_required_gates", []), list)
+        else [],
     }
 
 

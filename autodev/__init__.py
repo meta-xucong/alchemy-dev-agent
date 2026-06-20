@@ -12,6 +12,8 @@ __all__ = [
     "RealUnifiedDeliveryReport",
     "GitHubPRLifecycle",
     "PullRequestLifecycleReport",
+    "EvidencePackageExporter",
+    "EvidencePackageReport",
     "ExternalDocsOnlyAcceptance",
     "ExternalDocsOnlyAcceptanceReport",
     "LocalRepositoryAcceptanceHarness",
@@ -63,6 +65,14 @@ def __getattr__(name: str):
         exports = {
             "GitHubPRLifecycle": GitHubPRLifecycle,
             "PullRequestLifecycleReport": PullRequestLifecycleReport,
+        }
+        return exports[name]
+    if name in {"EvidencePackageExporter", "EvidencePackageReport"}:
+        from .evidence_package import EvidencePackageExporter, EvidencePackageReport
+
+        exports = {
+            "EvidencePackageExporter": EvidencePackageExporter,
+            "EvidencePackageReport": EvidencePackageReport,
         }
         return exports[name]
     if name in {"ExternalDocsOnlyAcceptance", "ExternalDocsOnlyAcceptanceReport"}:

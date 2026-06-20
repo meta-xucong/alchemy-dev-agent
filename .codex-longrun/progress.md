@@ -740,3 +740,9 @@ PY"`
 - Implemented autodev.github_pr_lifecycle with non-mutating inspect defaults and confirm-required mutation actions.
 - Extended real_probe_index to include github_pr_lifecycle_report.json.
 - Ran non-mutating real inspect against PR #3; status passed, PR remained open draft.
+
+## 2026-06-20 19:15:16 +08:00 V2.49 Evidence Package Export
+- Added docs/56_v2_49_evidence_package_export.md for reviewable evidence package export.
+- Implemented autodev.evidence_package to copy known reports, hash them, and write manifest plus summary.md.
+- Extended real_probe_index to include evidence_package_manifest.json.
+- Generated .alchemy\v2_49_evidence_package from V2.47 and V2.48 evidence; status passed with 7 files and zero blockers.

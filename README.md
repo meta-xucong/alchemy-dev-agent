@@ -144,6 +144,8 @@ docs/
                               V2.47 unified full-delivery validation harness.
   55_v2_48_pr_lifecycle_controls.md
                               V2.48 PR review and cleanup lifecycle controls.
+  56_v2_49_evidence_package_export.md
+                              V2.49 evidence package export for review/archival.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -204,6 +206,7 @@ autodev/
   real_probe_index.py        Evidence indexer for real readiness, worker, document-run, and GitHub PR reports.
   real_unified_delivery.py   Unified full-delivery validation harness and gate report.
   github_pr_lifecycle.py     Safe inspect, ready, close, and branch cleanup controls for PRs.
+  evidence_package.py        Evidence package exporter with manifest and Markdown summary.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -580,6 +583,21 @@ Mutating actions such as `ready` and `close --delete-branch` require
 the mutating GitHub operation.
 
 See `docs/55_v2_48_pr_lifecycle_controls.md`.
+
+Export a compact evidence package:
+
+```bash
+python -m autodev.evidence_package \
+  --root .alchemy/v2_47_real_unified_delivery \
+  --root .alchemy/v2_48_pr_lifecycle_inspect \
+  --output .alchemy/v2_49_evidence_package \
+  --summary
+```
+
+The package writes `evidence_package_manifest.json`, `summary.md`, and copied
+known JSON reports under `reports/`.
+
+See `docs/56_v2_49_evidence_package_export.md`.
 
 ## V2.29 Local And GitHub Source Modes
 

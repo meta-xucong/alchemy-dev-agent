@@ -125,13 +125,24 @@ class RealProbeIndexTests(unittest.TestCase):
                 "blockers": [],
             },
         )
+        write_json(
+            root / "package" / "evidence_package_manifest.json",
+            {
+                "schema_version": "2.49",
+                "status": "passed",
+                "output_dir": "package",
+                "source_roots": ["evidence"],
+                "summary": {"file_count": 3, "blocker_count": 0, "failed_required_gates": []},
+                "blockers": [],
+            },
+        )
         write_json(root / "other" / "unknown.json", {"status": "ignored"})
 
         index = RealProbeIndexer().build(roots=[root], output_path=root / "index.json").to_dict()
 
         self.assertEqual(index["status"], "passed")
         self.assertEqual(index["schema_version"], "2.47")
-        self.assertEqual(index["summary"]["total"], 6)
+        self.assertEqual(index["summary"]["total"], 7)
         entries = {entry["type"]: entry for entry in index["entries"]}
         self.assertEqual(entries["real_readiness"]["environment_status"], "ready")
         self.assertEqual(entries["real_worker_smoke"]["worker_status"], "completed")
@@ -145,6 +156,8 @@ class RealProbeIndexTests(unittest.TestCase):
         self.assertEqual(entries["github_pr_lifecycle"]["action"], "inspect")
         self.assertEqual(entries["github_pr_lifecycle"]["number"], 3)
         self.assertEqual(entries["github_pr_lifecycle"]["check_count"], 1)
+        self.assertEqual(entries["evidence_package"]["file_count"], 3)
+        self.assertEqual(entries["evidence_package"]["package_blocker_count"], 0)
         self.assertTrue((root / "index.json").exists())
 
     def test_indexer_reports_blocked_when_any_probe_failed(self) -> None:

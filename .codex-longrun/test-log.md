@@ -1789,3 +1789,15 @@
 - Result: passed; 236 tests OK.
 - Command: JSON specs parse, git diff --check, validate_state.py --project .
 - Result: passed.
+
+## 2026-06-20 19:15:16 +08:00 V2.49 Evidence Package Export
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_package tests.test_real_probe_index
+- Result: passed; 7 tests OK.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.evidence_package --root .alchemy\v2_47_real_unified_delivery --root .alchemy\v2_48_pr_lifecycle_inspect --output .alchemy\v2_49_evidence_package --summary
+- Result: passed; file_count=7, blocker_count=0, failed_required_gates=[]
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_probe_index --root .alchemy --output .alchemy\v2_49_real_probe_index.json --summary
+- Result: passed; total=11, blocker_count=0.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests
+- Result: passed; 240 tests OK.
+- Command: JSON specs parse, git diff --check, validate_state.py --project .
+- Result: passed.
