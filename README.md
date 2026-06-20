@@ -150,6 +150,8 @@ docs/
                               V2.50 deterministic benchmark suite.
   58_v2_51_evidence_api_service.md
                               V2.51 evidence index/package service API.
+  59_v2_52_benchmark_regression_gate.md
+                              V2.52 benchmark regression comparison gate.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -212,6 +214,7 @@ autodev/
   github_pr_lifecycle.py     Safe inspect, ready, close, and branch cleanup controls for PRs.
   evidence_package.py        Evidence package exporter with manifest and Markdown summary.
   benchmark_suite.py         Deterministic dry-run benchmark matrix for key delivery paths.
+  benchmark_regression.py    Benchmark report comparison and regression gate.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -615,6 +618,22 @@ python -m autodev.benchmark_suite \
 Use `--skip-unified-acceptance` for a faster local smoke.
 
 See `docs/57_v2_50_benchmark_suite.md`.
+
+Compare benchmark runs for regressions:
+
+```bash
+python -m autodev.benchmark_regression \
+  --baseline .alchemy/benchmark_suite_previous/benchmark_suite_report.json \
+  --current .alchemy/benchmark_suite/benchmark_suite_report.json \
+  --output .alchemy/benchmark_regression \
+  --summary
+```
+
+The regression gate blocks missing baseline-passed scenarios, newly failed
+scenarios, increased failed-scenario counts, and current benchmark status other
+than `passed`.
+
+See `docs/59_v2_52_benchmark_regression_gate.md`.
 
 Expose evidence through the local API service:
 

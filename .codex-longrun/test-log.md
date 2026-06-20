@@ -1835,3 +1835,18 @@
 - Result: passed; 247 tests OK.
 - Command: python -B -m compileall autodev intake context planner runtime server tests; specs/state JSON parse; git diff --check; validate_state.py --project .
 - Result: passed; git diff --check only reported CRLF normalization warning for .codex-longrun logs/state.
+- Command: gh run watch 27870132054 --exit-status
+- Result: passed; master CI succeeded for V2.51 commit 11f14271f19764ad261be1c41fba49b6f1cf0c86.
+
+## 2026-06-20 V2.52 Benchmark Regression Gate Verification
+
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_benchmark_regression tests.test_real_probe_index tests.test_evidence_package
+- Result: passed; 11 tests OK.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.benchmark_regression --baseline .alchemy\v2_50_benchmark_suite\benchmark_suite_report.json --current .alchemy\v2_52_current_benchmark\benchmark_suite_report.json --output .alchemy\v2_52_benchmark_regression --summary
+- Result: passed; status=passed, blocker_count=0, baseline_total=6, current_total=6.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_probe_index --root .alchemy --output .alchemy\v2_52_real_probe_index.json --summary
+- Result: passed; total=23, blocked_or_failed=0.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests
+- Result: passed; 251 tests OK.
+- Command: python -B -m compileall autodev intake context planner runtime server tests; specs/state JSON parse; git diff --check; validate_state.py --project .
+- Result: passed; git diff --check only reported CRLF normalization warning for .codex-longrun logs/state.

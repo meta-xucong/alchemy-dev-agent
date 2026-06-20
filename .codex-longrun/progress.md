@@ -762,3 +762,12 @@ PY"`
 - Added benchmark_suite_report.json to evidence package known reports so V2.50 benchmark output is review-package eligible.
 - Fixed an async resume race by preserving source-run resumed status during late background job writes.
 - Verified V2.51 focused tests, service smoke, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation.
+
+## 2026-06-20 V2.52 Benchmark Regression Gate
+
+- Added docs/59_v2_52_benchmark_regression_gate.md for baseline/current benchmark comparison.
+- Implemented autodev.benchmark_regression to produce benchmark_regression_report.json without rerunning benchmark scenarios.
+- Added blockers for current benchmark failure, missing baseline-passed scenarios, newly failed scenarios, and increased failed counts.
+- Extended real_probe_index and evidence_package to recognize benchmark_regression_report.json.
+- Ran a local comparison against the current V2.50 benchmark baseline; status passed with zero blockers.
+- Verified focused tests, evidence indexing, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation.

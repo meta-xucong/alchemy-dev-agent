@@ -1,6 +1,6 @@
 {
   "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
-  "current_phase": "V2.51 evidence API service implementation and verification",
+  "current_phase": "V2.52 benchmark regression gate implementation and verification",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -77,7 +77,8 @@
     "V2.48 PR lifecycle controls implementation and verification",
     "V2.49 evidence package export implementation and verification",
     "V2.50 benchmark suite implementation and verification",
-    "V2.51 evidence API service implementation and verification"
+    "V2.51 evidence API service implementation and verification",
+    "V2.52 benchmark regression gate implementation and verification"
   ],
   "next_actions": [
     "Remaining UI evidence panel work requires product-design confirmation before changing browser UI layout.",
@@ -197,7 +198,12 @@
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 247 tests OK",
     "$env:PYTHONDONTWRITEBYTECODE='1'; service smoke via ProjectService evidence index/package # index total=15, package_files=31, blockers=0",
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_evidence_api tests.test_api_server.ApiServerTests.test_http_api_async_run_and_controls # 5 tests OK clean after HTTP handle closure",
-    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 247 tests OK clean final V2.51 verification"
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 247 tests OK clean final V2.51 verification",
+    "gh run watch 27870132054 --exit-status # passed master CI on V2.51 commit 11f14271f19764ad261be1c41fba49b6f1cf0c86",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_benchmark_regression tests.test_real_probe_index tests.test_evidence_package # 11 tests OK",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.benchmark_regression --baseline .alchemy\\v2_50_benchmark_suite\\benchmark_suite_report.json --current .alchemy\\v2_52_current_benchmark\\benchmark_suite_report.json --output .alchemy\\v2_52_benchmark_regression --summary # passed blocker_count=0",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_probe_index --root .alchemy --output .alchemy\\v2_52_real_probe_index.json --summary # passed total=23 blocker_count=0",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 251 tests OK"
   ],
   "known_bugs": [
     {
@@ -358,9 +364,15 @@
     "V2.51 local API exposes GET/POST /evidence/index and POST /evidence/package.",
     "V2.51 evidence package exporter includes benchmark_suite_report.json as a known review artifact.",
     "V2.51 current repository evidence API smoke passed with index_total=15, package_files=31, and zero blockers.",
-    "JobStore preserves resumed source-run status under async pause/resume races."
+    "JobStore preserves resumed source-run status under async pause/resume races.",
+    "V2.51 master GitHub Actions CI passed on commit 11f14271f19764ad261be1c41fba49b6f1cf0c86.",
+    "V2.52 benchmark_regression compares baseline/current benchmark_suite_report.json files without rerunning benchmarks.",
+    "V2.52 blocks missing baseline-passed scenarios, newly failed scenarios, increased failed-scenario counts, and non-passed current benchmark status.",
+    "V2.52 benchmark_regression_report is indexed by real_probe_index and included by evidence_package.",
+    "V2.52 local comparison against the current V2.50 benchmark baseline passed with zero blockers.",
+    "V2.52 evidence index reached 23 entries with zero blocked/failed evidence reports."
   ],
-  "last_verified_at": "2026-06-20T19:42:49+08:00",
+  "last_verified_at": "2026-06-20T19:51:29+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T19:42:49+08:00"
+  "updated_at": "2026-06-20T19:51:29+08:00"
 }

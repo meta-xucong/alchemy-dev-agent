@@ -20,6 +20,7 @@ KNOWN_REPORTS = {
     "github_pr_lifecycle_report.json": "github_pr_lifecycle",
     "evidence_package_manifest.json": "evidence_package",
     "benchmark_suite_report.json": "benchmark_suite",
+    "benchmark_regression_report.json": "benchmark_regression",
 }
 
 
@@ -105,6 +106,8 @@ class RealProbeIndexer:
             entry.update(evidence_package_fields(payload))
         elif report_type == "benchmark_suite":
             entry.update(benchmark_suite_fields(payload))
+        elif report_type == "benchmark_regression":
+            entry.update(benchmark_regression_fields(payload))
         return entry
 
 
@@ -224,6 +227,23 @@ def benchmark_suite_fields(payload: dict[str, Any]) -> dict[str, object]:
         "scenario_failed": summary.get("failed", 0),
         "failed_scenarios": list(summary.get("failed_scenarios", []))
         if isinstance(summary.get("failed_scenarios", []), list)
+        else [],
+    }
+
+
+def benchmark_regression_fields(payload: dict[str, Any]) -> dict[str, object]:
+    summary = as_dict(payload.get("summary"))
+    return {
+        "output_dir": payload.get("output_dir", ""),
+        "baseline_path": payload.get("baseline_path", ""),
+        "current_path": payload.get("current_path", ""),
+        "baseline_total": summary.get("baseline_total", 0),
+        "current_total": summary.get("current_total", 0),
+        "new_failures": list(summary.get("new_failures", []))
+        if isinstance(summary.get("new_failures", []), list)
+        else [],
+        "missing_baseline_passes": list(summary.get("missing_baseline_passes", []))
+        if isinstance(summary.get("missing_baseline_passes", []), list)
         else [],
     }
 
