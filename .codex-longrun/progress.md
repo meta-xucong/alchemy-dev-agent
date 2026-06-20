@@ -703,3 +703,12 @@ PY"`
 - Added tests for fake successful worker execution, missing-Codex blocked behavior, and compact smoke summaries.
 - Ran a real local Codex CLI smoke using `codex`; result passed with worker status completed, `app.py` changed, lifecycle status completed, and verification passed.
 - Verified related regression tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 15:54:31 +0800.
+
+
+## 2026-06-20 V2.44 Real Document-Run Local Smoke
+
+- Added `docs/51_v2_44_real_document_run_local_smoke.md` for a controlled document-driven real Codex pipeline proof.
+- Added `autodev.real_document_run_smoke`, which creates a disposable Python fixture repository, runs `DocumentRunPipeline` with real Codex and dry-run GitHub, verifies tests, and records delivery evidence.
+- Added tests for blocked preflight behavior and compact smoke summary shape.
+- Ran a real local document-run smoke using `codex`; result passed with document_run status done, verification passed, delivery ready, 3 worker lifecycle records, and app.py diff containing `return a + b`.
+- Verified related regression tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 16:06:32 +0800.
