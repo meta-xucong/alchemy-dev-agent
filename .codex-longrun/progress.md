@@ -684,3 +684,13 @@ PY"`
 - Aligned GitHub URL dry-run acceptance with the honest metadata-only boundary unless `prepare_repository` or `repository_path` is supplied.
 - Added compact `--summary` output for acceptance runs.
 - Verified focused tests, acceptance CLI, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 15:34:24 +0800.
+
+
+## 2026-06-20 V2.42 Real Environment Readiness Probe
+
+- Added `docs/49_v2_42_real_readiness_probe.md` for a non-mutating real Codex/GitHub readiness contract.
+- Added `autodev.real_readiness_probe` to combine RealEnvironmentCheck with real-mode unified request preflights for local repository and optional private GitHub prepared-source scenarios.
+- Added fake-runner tests for ready and blocked readiness outcomes plus compact summary output.
+- Ran a local non-mutating real readiness probe using the installed `codex`, `git`, and authenticated `gh`; result was `ready` with zero blockers.
+- Fixed Windows subprocess output decoding in execution/GitHub auth preflight by using bytes plus safe UTF-8 replacement decoding.
+- Verified focused tests, related regression tests, full unit suite, compileall, JSON parsing, diff hygiene, and long-running state validation at 2026-06-20 15:45:09 +0800.

@@ -130,6 +130,8 @@ docs/
                               V2.40 unified run preflight and start-readiness gate.
   48_v2_41_unified_acceptance_harness.md
                               V2.41 unified acceptance harness for product-facing modes.
+  49_v2_42_real_readiness_probe.md
+                              V2.42 non-mutating real Codex/GitHub readiness probe.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -184,6 +186,7 @@ autodev/
   local_repository_acceptance.py
                              Local repository import and feedback-reopen acceptance harness.
   unified_acceptance.py       Unified entrypoint acceptance harness across one-line, docs-only, local, and GitHub URL modes.
+  real_readiness_probe.py    Non-mutating real Codex/GitHub environment readiness probe.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -455,6 +458,18 @@ python -m autodev.unified_acceptance --output .alchemy/unified_acceptance
 It verifies one-line fallback, document-only generated repository, local
 repository package, and GitHub URL dry-run metadata modes through the same
 preflight/start/evidence contracts.
+
+Run a non-mutating real-environment readiness probe:
+
+```bash
+python -m autodev.real_readiness_probe \
+  --output .alchemy/real_readiness \
+  --codex-executable codex \
+  --summary
+```
+
+This checks local `git`, `gh`, `gh auth status`, Codex CLI, and real-mode unified
+request preflight without starting workers or opening pull requests.
 
 ## V2.29 Local And GitHub Source Modes
 

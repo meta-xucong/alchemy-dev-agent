@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
-from intake.gh_auth import GitHubAuthPreflight
+from intake.gh_auth import GitHubAuthPreflight, safe_text
 
 
 class CommandRunner(Protocol):
@@ -102,9 +102,9 @@ class ExecutionPreflight:
         if not resolved:
             return PreflightCheck(name, "failed", f"Executable not found on PATH: {executable}", required=required)
         try:
-            result = self.runner([executable, "--version"], cwd=None, capture_output=True, text=True, check=False)
+            result = self.runner([executable, "--version"], cwd=None, capture_output=True, text=False, check=False)
         except OSError as exc:
             return PreflightCheck(name, "failed", f"Executable is not launchable: {exc}", required=required)
-        summary = (result.stdout or result.stderr or resolved).strip().splitlines()[0]
+        summary = (safe_text(result.stdout) or safe_text(result.stderr) or resolved).strip().splitlines()[0]
         status = "passed" if result.returncode == 0 else "failed"
         return PreflightCheck(name, status, summary, required=required)

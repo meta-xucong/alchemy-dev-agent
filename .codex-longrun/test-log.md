@@ -1671,3 +1671,27 @@
 
 - Command: `python -B -m compileall autodev server tests`; `python -c specs/state JSON parse`; `git diff --check`; `validate_state.py --project .`
 - Result: passed; compileall OK, JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.
+
+
+## 2026-06-20 V2.42 Real Environment Readiness Probe Verification
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_readiness_probe`
+- Result: passed; 3 tests OK.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_readiness_probe --output .alchemy\v2_42_real_readiness --codex-executable codex --include-private-github --summary`
+- Result: initially reported `ready` but printed a Windows subprocess UnicodeDecodeError, exposing unsafe text-mode output reads.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_execution_preflight tests.test_real_readiness_probe tests.test_private_github_runtime`
+- Result: passed; 11 tests OK after safe-decoding fix.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_readiness_probe --output .alchemy\v2_42_real_readiness_retry2 --codex-executable codex --include-private-github --summary`
+- Result: passed; status ready, environment ready, local_real_pr and private_github_prepared_real_pr preflights passed, zero blockers.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_env_check tests.test_execution_preflight tests.test_real_readiness_probe tests.test_unified_run tests.test_unified_acceptance tests.test_api_server`
+- Result: passed; 56 tests OK.
+
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests`
+- Result: passed; 220 tests OK.
+
+- Command: `python -B -m compileall autodev intake server tests`; `python -c specs/state JSON parse`; `git diff --check`; `validate_state.py --project .`
+- Result: passed; compileall OK, JSON parsed, diff hygiene passed with only CRLF normalization warnings, long-running state schema OK.

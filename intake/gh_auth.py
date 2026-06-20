@@ -63,7 +63,7 @@ class GitHubAuthPreflight:
             GitHubAuthCheck(
                 "gh",
                 "passed" if version.returncode == 0 else "failed",
-                first_line(version.stdout or version.stderr or resolved),
+                first_line(safe_text(version.stdout) or safe_text(version.stderr) or resolved),
                 required=required,
             )
         )
@@ -85,7 +85,7 @@ class GitHubAuthPreflight:
 
     def _run(self, args: list[str]) -> subprocess.CompletedProcess:
         try:
-            return self.runner(args, cwd=None, capture_output=True, text=True, check=False)
+            return self.runner(args, cwd=None, capture_output=True, text=False, check=False)
         except (OSError, UnicodeDecodeError) as exc:
             return subprocess.CompletedProcess(args, 1, "", str(exc))
 
@@ -95,6 +95,8 @@ def first_line(text: str) -> str:
 
 
 def safe_text(value: object) -> str:
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
     return value if isinstance(value, str) else ""
 
 

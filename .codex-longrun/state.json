@@ -1,6 +1,6 @@
 {
   "objective": "Close final production-readiness gaps with V2.38 documentation, implementation, tests, and audit for the autonomous development agent runtime.",
-  "current_phase": "V2.41 unified acceptance harness final verification",
+  "current_phase": "V2.42 real environment readiness probe final verification",
   "phase_status": "done",
   "completed_phases": [
     "V2.7 real execution preflight and configurable document-run adapters",
@@ -58,12 +58,15 @@
     "V2.40 unified request preflight final verification",
     "V2.41 unified acceptance harness planning",
     "V2.41 unified acceptance harness implementation",
-    "V2.41 unified acceptance harness final verification"
+    "V2.41 unified acceptance harness final verification",
+    "V2.42 real environment readiness probe planning",
+    "V2.42 real environment readiness probe implementation",
+    "V2.42 real environment readiness probe final verification"
   ],
   "next_actions": [
-    "Review live CI after V2.41 push.",
-    "Next candidate: real-environment request preflight probe using installed local Codex CLI and GitHub CLI auth without starting mutating work.",
-    "Next candidate: acceptance report size reduction and artifact evidence links for easier human review."
+    "Review live CI after V2.42 push.",
+    "Next candidate: controlled real worker smoke on a disposable local fixture repository with no GitHub mutation.",
+    "Next candidate: controlled real GitHub dry PR probe only after the user explicitly approves mutating a test branch/PR."
   ],
   "tests_run": [
     "$env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_artifact_manifest tests.test_api_server.ApiServerTests.test_project_service_exposes_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_run_artifact_manifest_and_content tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets",
@@ -127,6 +130,11 @@
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.unified_acceptance --output .alchemy\\v2_41_unified_acceptance # passed",
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.unified_acceptance --output .alchemy\\v2_41_unified_acceptance_summary --summary # passed",
     "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 217 tests OK",
+    "compileall; specs/state JSON parse; git diff --check; validate_state.py --project . # passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_readiness_probe # 3 tests OK",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.real_readiness_probe --output .alchemy\\v2_42_real_readiness_retry2 --codex-executable codex --include-private-github --summary # ready",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_real_env_check tests.test_execution_preflight tests.test_real_readiness_probe tests.test_unified_run tests.test_unified_acceptance tests.test_api_server # 56 tests OK",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest discover -s tests # 220 tests OK",
     "compileall; specs/state JSON parse; git diff --check; validate_state.py --project . # passed"
   ],
   "known_bugs": [
@@ -209,6 +217,11 @@
       "id": "RUNNING_WORKER_STOP_ONLY_TASK_BOUNDARY",
       "status": "fixed",
       "summary": "Stop previously only applied before dispatching the next task; V2.38 adds best-effort managed subprocess cancellation while a real Codex worker is running."
+    },
+    {
+      "id": "WINDOWS_PREFLIGHT_OUTPUT_DECODE_ERROR",
+      "status": "fixed",
+      "summary": "Preflight subprocess output now uses bytes plus safe UTF-8 replacement decoding for gh/Codex checks, removing Windows locale reader errors from real readiness probes."
     }
   ],
   "blockers": [],
@@ -270,7 +283,7 @@
     "Browser console exposes a Unified Run button and source-mode selection wired to POST /runs.",
     "Browser console Unified Run flow was smoke-tested against a local API server and produced queued/running/done events plus delivery evidence."
   ],
-  "last_verified_at": "2026-06-20T15:34:24+08:00",
+  "last_verified_at": "2026-06-20T15:45:09+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
   "updated_at": "2026-06-20T13:50:02+08:00"
 }
