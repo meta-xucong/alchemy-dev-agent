@@ -798,3 +798,5 @@ PY"`
 - Changed the default evidence roots to curated current-review artifacts instead of the whole historical .alchemy cache after smoke testing showed stale evidence can pollute readiness.
 - Added one-click EN/中文 switching for console chrome, controls, status labels, file-upload chrome, and evidence gate output without changing machine-readable JSON payloads.
 - Verified English and Chinese Playwright visual smokes; both reached readiness=ready with zero console errors.
+
+- V2.55 master GitHub Actions CI passed on commit a135dc98f7a140d7a715cdc8a26609de8888ecb8 (run 27873272496).

@@ -221,7 +221,8 @@
     "Playwright visual smoke for English Evidence Gate # ready, no console errors, screenshot .alchemy\\v2_55_ui_visual_smoke_final\\evidence_console.png",
     "Playwright visual smoke for Chinese language switch and Evidence Gate # ready, no console errors, screenshot .alchemy\\v2_55_i18n_visual_smoke_final\\evidence_console_zh.png",
     "python -B -m compileall autodev intake context planner runtime server tests # passed",
-    "specs/state JSON parse; git diff --check # passed except existing CRLF warning for .codex-longrun/state.json"
+    "specs/state JSON parse; git diff --check # passed except existing CRLF warning for .codex-longrun/state.json",
+    "gh run watch 27873272496 --exit-status # passed master CI on V2.55 commit a135dc98f7a140d7a715cdc8a26609de8888ecb8"
   ],
   "known_bugs": [
     {
@@ -403,9 +404,10 @@
     "V2.55 Evidence Gate UI calls the existing evidence index, package, and readiness APIs without changing runtime execution behavior.",
     "V2.55 Evidence Gate defaults to curated current-review evidence roots instead of scanning the full historical .alchemy cache.",
     "V2.55 browser console supports one-click English/Chinese switching for console chrome, controls, status text, file-upload chrome, and evidence gate output.",
-    "V2.55 visual smoke verified English and Chinese evidence gate flows with readiness=ready and zero console errors."
+    "V2.55 visual smoke verified English and Chinese evidence gate flows with readiness=ready and zero console errors.",
+    "V2.55 master GitHub Actions CI passed on commit a135dc98f7a140d7a715cdc8a26609de8888ecb8."
   ],
-  "last_verified_at": "2026-06-20T21:54:31+08:00",
+  "last_verified_at": "2026-06-20T21:58:45+08:00",
   "created_at": "2026-06-18T11:10:41+08:00",
-  "updated_at": "2026-06-20T21:54:31+08:00"
+  "updated_at": "2026-06-20T21:58:45+08:00"
 }
