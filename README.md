@@ -138,6 +138,8 @@ docs/
                               V2.44 controlled real document-run local smoke.
   52_v2_45_real_probe_evidence_index.md
                               V2.45 real probe evidence index.
+  53_v2_46_controlled_real_github_pr_probe.md
+                              V2.46 controlled real GitHub PR probe.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -195,7 +197,7 @@ autodev/
   real_readiness_probe.py    Non-mutating real Codex/GitHub environment readiness probe.
   real_worker_smoke.py       Controlled disposable local real Codex worker smoke.
   real_document_run_smoke.py Controlled real Codex document-run smoke on a local fixture repository.
-  real_probe_index.py        Evidence indexer for real readiness and worker smoke reports.
+  real_probe_index.py        Evidence indexer for real readiness, worker, document-run, and GitHub PR reports.
   repair_suggestions.py       Debug Agent repair suggestions from recovery comparison evidence.
   recovery_comparison.py     Source-vs-repair run comparison summaries.
   real_env_check.py          Real git/gh/Codex environment readiness report.
@@ -517,6 +519,26 @@ python -m autodev.real_probe_index \
 
 This creates a compact review index for real readiness, worker smoke, and
 document-run smoke reports.
+
+After explicit approval for a mutating GitHub probe, run a controlled draft PR
+validation:
+
+```bash
+python -m autodev.real_delivery_validation \
+  --repository-path . \
+  --output .alchemy/v2_46_real_github_pr_probe \
+  --branch agent/alchemy-v2-46-pr-probe \
+  --base-branch master \
+  --ci-wait-seconds 120 \
+  --ci-poll-interval-seconds 10
+```
+
+The probe creates a real remote validation branch and draft pull request, keeps
+auto-merge off, and writes
+`.alchemy/v2_46_real_github_pr_probe/real_delivery_validation_report.json`.
+`real_probe_index` includes that report as `real_github_pr_probe` evidence.
+
+See `docs/53_v2_46_controlled_real_github_pr_probe.md`.
 
 ## V2.29 Local And GitHub Source Modes
 

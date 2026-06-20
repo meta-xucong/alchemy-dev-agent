@@ -15,6 +15,7 @@ KNOWN_REPORTS = {
     "real_readiness_report.json": "real_readiness",
     "real_worker_smoke_report.json": "real_worker_smoke",
     "real_document_run_smoke_report.json": "real_document_run_smoke",
+    "real_delivery_validation_report.json": "real_github_pr_probe",
 }
 
 
@@ -28,7 +29,7 @@ class RealProbeIndex:
 
     def to_dict(self) -> dict[str, object]:
         return {
-            "schema_version": "2.45",
+            "schema_version": "2.46",
             "status": self.status,
             "entries": list(self.entries),
             "roots": list(self.roots),
@@ -90,6 +91,8 @@ class RealProbeIndexer:
             entry.update(worker_smoke_fields(payload))
         elif report_type == "real_document_run_smoke":
             entry.update(document_run_fields(payload))
+        elif report_type == "real_github_pr_probe":
+            entry.update(real_github_pr_fields(payload))
         return entry
 
 
@@ -127,6 +130,22 @@ def document_run_fields(payload: dict[str, Any]) -> dict[str, object]:
         "worker_lifecycle_count": document_run.get("worker_lifecycle_count", 0),
         "verification_status": as_dict(payload.get("verification")).get("status", ""),
         "delivery_ready_for_review": document_run.get("delivery_ready_for_review", False),
+    }
+
+
+def real_github_pr_fields(payload: dict[str, Any]) -> dict[str, object]:
+    github = as_dict(payload.get("github"))
+    workspace = as_dict(payload.get("workspace"))
+    merge = as_dict(github.get("merge"))
+    return {
+        "github_status": github.get("status", ""),
+        "branch": payload.get("branch", github.get("branch", "")),
+        "base_branch": payload.get("base_branch", ""),
+        "commit": github.get("commit", ""),
+        "pull_request_url": github.get("pull_request_url", ""),
+        "ci_status": github.get("ci_status", ""),
+        "merge_status": merge.get("status", ""),
+        "workspace_status": workspace.get("status", ""),
     }
 
 

@@ -65,16 +65,38 @@ class RealProbeIndexTests(unittest.TestCase):
                 "blockers": [],
             },
         )
+        write_json(
+            root / "github" / "real_delivery_validation_report.json",
+            {
+                "status": "passed",
+                "branch": "agent/alchemy-v2-46-pr-probe",
+                "base_branch": "master",
+                "github": {
+                    "status": "pushed",
+                    "branch": "agent/alchemy-v2-46-pr-probe",
+                    "commit": "abc123",
+                    "pull_request_url": "https://github.example/pull/7",
+                    "ci_status": "passed",
+                    "merge": {"status": "skipped"},
+                },
+                "workspace": {"status": "ready"},
+                "blockers": [],
+            },
+        )
         write_json(root / "other" / "unknown.json", {"status": "ignored"})
 
         index = RealProbeIndexer().build(roots=[root], output_path=root / "index.json").to_dict()
 
         self.assertEqual(index["status"], "passed")
-        self.assertEqual(index["summary"]["total"], 3)
+        self.assertEqual(index["schema_version"], "2.46")
+        self.assertEqual(index["summary"]["total"], 4)
         entries = {entry["type"]: entry for entry in index["entries"]}
         self.assertEqual(entries["real_readiness"]["environment_status"], "ready")
         self.assertEqual(entries["real_worker_smoke"]["worker_status"], "completed")
         self.assertEqual(entries["real_document_run_smoke"]["worker_lifecycle_count"], 3)
+        self.assertEqual(entries["real_github_pr_probe"]["github_status"], "pushed")
+        self.assertEqual(entries["real_github_pr_probe"]["pull_request_url"], "https://github.example/pull/7")
+        self.assertEqual(entries["real_github_pr_probe"]["ci_status"], "passed")
         self.assertTrue((root / "index.json").exists())
 
     def test_indexer_reports_blocked_when_any_probe_failed(self) -> None:
