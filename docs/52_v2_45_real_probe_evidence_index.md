@@ -37,7 +37,13 @@ network connections.
 real_readiness_report.json
 real_worker_smoke_report.json
 real_document_run_smoke_report.json
+real_worker_probe_report.json
 ```
+
+`real_worker_probe_report.json` is diagnostic evidence. A partial diagnostic probe is indexed and
+shown to reviewers, but it does not block the overall index when all non-diagnostic evidence is
+ready or passed. Failed or blocked diagnostic probes should still be investigated before a release
+claim is made.
 
 ## CLI
 

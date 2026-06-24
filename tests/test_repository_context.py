@@ -80,6 +80,79 @@ class RepositoryIndexerTests(unittest.TestCase):
         self.assertFalse(index.coverage_unknown)
         self.assertEqual(index.blockers, [])
 
+    def test_file_cap_keeps_top_level_representatives_and_nested_packages(self) -> None:
+        with temp_repo_dir() as repo:
+            (repo / "backend" / "internal").mkdir(parents=True)
+            (repo / "frontend" / "src").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            for index in range(20):
+                (repo / "backend" / "internal" / f"service_{index:03d}.go").write_text("package internal\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "router.ts").write_text("export const routes = [];\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps({"scripts": {"test": "vitest run", "build": "vite build", "lint": "eslint ."}}),
+                encoding="utf-8",
+            )
+
+            index = RepositoryIndexer(max_files=3).index(repo)
+
+        indexed_paths = {file.path for file in index.files}
+        self.assertTrue(any(path.startswith("frontend/") for path in indexed_paths))
+        self.assertIn("backend/go.mod", index.package_files)
+        self.assertIn("frontend/package.json", index.package_files)
+        self.assertIn("cd backend && go test ./...", index.test_commands)
+        self.assertIn("npm --prefix frontend test", index.test_commands)
+        self.assertIn("cd backend && go build ./...", index.build_commands)
+        self.assertIn("npm --prefix frontend run build", index.build_commands)
+        self.assertIn("npm --prefix frontend run lint", index.lint_commands)
+
+    def test_pnpm_lock_drives_nested_frontend_commands(self) -> None:
+        with temp_repo_dir() as repo:
+            (repo / "frontend" / "src").mkdir(parents=True)
+            (repo / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "main.ts").write_text("export const app = true;\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps({"scripts": {"test": "vitest run", "build": "vite build", "lint": "eslint ."}}),
+                encoding="utf-8",
+            )
+
+            index = RepositoryIndexer().index(repo)
+
+        self.assertIn("pnpm-lock.yaml", index.package_files)
+        self.assertEqual(index.package_managers, ["pnpm"])
+        self.assertEqual(index.test_commands, ["pnpm --dir frontend test"])
+        self.assertEqual(index.build_commands, ["pnpm --dir frontend run build"])
+        self.assertEqual(index.lint_commands, ["pnpm --dir frontend run lint"])
+
+    def test_generated_runtime_caches_do_not_consume_repository_index(self) -> None:
+        with temp_repo_dir() as repo:
+            (repo / ".gocache" / "00").mkdir(parents=True)
+            (repo / "backend" / ".cache" / "go-build").mkdir(parents=True)
+            (repo / "backend" / ".appdata" / "go" / "telemetry").mkdir(parents=True)
+            (repo / "backend" / ".appdata-local" / "go" / "telemetry").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema" / ".entc").mkdir(parents=True)
+            (repo / "backend").mkdir(exist_ok=True)
+            (repo / "frontend" / "src").mkdir(parents=True)
+            for index in range(20):
+                (repo / ".gocache" / "00" / f"{index:02d}-cache-entry-a").write_text("cache\n", encoding="utf-8")
+                (repo / "backend" / ".cache" / "go-build" / f"{index:02d}-cache-entry-a").write_text("cache\n", encoding="utf-8")
+                (repo / "backend" / ".appdata" / "go" / "telemetry" / f"{index:02d}.count").write_text("cache\n", encoding="utf-8")
+                (repo / "backend" / ".appdata-local" / "go" / "telemetry" / f"{index:02d}.count").write_text("cache\n", encoding="utf-8")
+                (repo / "backend" / "ent" / "schema" / ".entc" / f"{index:02d}.go").write_text("package entc\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps({"scripts": {"test": "vitest run"}}),
+                encoding="utf-8",
+            )
+            (repo / "frontend" / "src" / "router.ts").write_text("export const routes = [];\n", encoding="utf-8")
+
+            index = RepositoryIndexer(max_files=10).index(repo)
+
+        indexed_paths = {file.path for file in index.files}
+        self.assertFalse(any(".gocache" in path or "/.cache/" in path or "/.appdata" in path or "/.entc/" in path for path in indexed_paths))
+        self.assertIn("backend/go.mod", index.package_files)
+        self.assertIn("frontend/package.json", index.package_files)
+        self.assertTrue(any(path.startswith("frontend/") for path in indexed_paths))
+
     def test_missing_repository_path_records_blocker(self) -> None:
         index = RepositoryIndexer().index("missing/path/for/alchemy")
 

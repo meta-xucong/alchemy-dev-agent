@@ -1,0 +1,1458 @@
+from __future__ import annotations
+
+import shutil
+import time
+import unittest
+import json
+from pathlib import Path
+
+from autodev.final_system_audit import FinalSystemAudit
+from autodev.final_verification_loop import FinalVerificationLoop
+from autodev.document_reference_expander import expand_development_documents
+from autodev.full_roadmap_executor import (
+    FullRoadmapExecutor,
+    interrupted_phase_resume_source,
+    next_phase_run_dir,
+    phase_repository_path,
+    phase_run_payload,
+    write_json,
+    write_phase_document,
+)
+from autodev.phase_promotion import final_handoff_allowed, next_ready_phase, phase_promotion_decision
+from autodev.project_analysis_gate import ProjectAnalysisGate
+from autodev.roadmap_auditor import RoadmapAuditor
+from autodev.roadmap_extractor import RoadmapExtractor, classify_constraints
+from autodev.roadmap_models import PhaseExecutionRecord, RoadmapExecutionPlan, RoadmapPhase
+
+
+TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
+_TEMP_RUN_ID = str(time.time_ns())
+_TEMP_COUNTER = 0
+
+
+def temp_root() -> Path:
+    global _TEMP_COUNTER
+    _TEMP_COUNTER += 1
+    TEST_TMP_ROOT.mkdir(exist_ok=True)
+    root = TEST_TMP_ROOT / f"full-roadmap-{_TEMP_RUN_ID}-{_TEMP_COUNTER}"
+    root.mkdir(parents=True, exist_ok=False)
+    return root
+
+
+def write_v3_docs(path: Path) -> None:
+    path.write_text(
+        "\n".join(
+            [
+                "# Creative Agent Roadmap",
+                "",
+                "## V3.0 Foundation",
+                "",
+                "### Goal",
+                "Build independent planning-only core.",
+                "",
+                "### Requirements",
+                "- Must create schemas.",
+                "- Must not import V1/V2 runtime modules.",
+                "- Do not implement real image generation in V3.0 Foundation.",
+                "",
+                "## V3.1 Brand Consistency Foundation",
+                "",
+                "### Requirements",
+                "- Must implement brand memory consistency.",
+                "- Must preserve V3 independence.",
+                "",
+                "## V3.2 Generation Loop MVP",
+                "",
+                "### Requirements",
+                "- Must implement generation loop planning.",
+                "- Must not route V3 generation through V1/V2 APIs.",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+class FakePhaseResult:
+    def __init__(
+        self,
+        phase_title: str,
+        *,
+        score: float = 0.91,
+        blockers: list[str] | None = None,
+        evidence: list[str] | None = None,
+    ) -> None:
+        self.phase_title = phase_title
+        self.score = score
+        self.blockers = list(blockers or [])
+        self.evidence = list(evidence or [])
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "status": "done" if not self.blockers else "blocked",
+            "delivery_report": {
+                "final_gate": {
+                    "score": self.score,
+                    "dimension_scores": {
+                        "test_health": 1.0,
+                        "spec_alignment": self.score,
+                        "graph_completion": 1.0,
+                        "reviewer_approval": 1.0,
+                        "risk_quality": self.score,
+                    },
+                    "hard_failures": list(self.blockers),
+                    "required_changes": [],
+                },
+                "ready_for_review": True,
+            },
+            "runtime_state": {
+                "done": not self.blockers,
+                "blockers": list(self.blockers),
+                "evaluation": {"done": not self.blockers, "final_gate_score": self.score},
+            },
+            "requirement_coverage": {"status": "passed", "covered": True},
+            "scope_boundary": {"status": "passed", "protected_paths": []},
+            "tests_passed": ["deterministic phase tests passed"],
+            "evidence": list(self.evidence),
+            "phase_title": self.phase_title,
+        }
+
+
+class FullRoadmapExecutionTests(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if TEST_TMP_ROOT.exists():
+            shutil.rmtree(TEST_TMP_ROOT, ignore_errors=True)
+
+    def test_roadmap_extractor_finds_later_phases_and_classifies_constraints(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+
+        plan = RoadmapExtractor().extract(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            source_mode="github_repo",
+        )
+
+        self.assertEqual(plan.completion_policy, "full_roadmap")
+        self.assertGreaterEqual(len(plan.phases), 3)
+        titles = [phase.title for phase in plan.phases]
+        self.assertIn("V3.0 Foundation", titles)
+        self.assertIn("V3.1 Brand Consistency Foundation", titles)
+        self.assertIn("V3.2 Generation Loop MVP", titles)
+        self.assertTrue(any("V1/V2" in item for item in plan.global_constraints))
+        v30 = plan.phases[0]
+        self.assertTrue(any("real image generation" in item for item in v30.phase_local_constraints))
+
+    def test_roadmap_extractor_ignores_v3_constraint_sentences_as_phases(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        doc.write_text(
+            "\n".join(
+                [
+                    "# Roadmap",
+                    "V3 may use V1/V2 only as historical reference, not as runtime dependency.",
+                    "V3-owned layer:",
+                    "V3 keeps the central-brain + multi-agent framework.",
+                    "V3 code must not import from V1 or V2 runtime modules.",
+                    "V2 concept: PromptTransformResult",
+                    "",
+                    "## V3.0 Foundation",
+                    "- Must build foundation.",
+                    "",
+                    "## V3.1 Brand Consistency Foundation",
+                    "- Must build brand memory.",
+                    "",
+                    "V3.2 Generation Loop MVP",
+                    "- Must build generation loop.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        plan = RoadmapExtractor().extract(objective="Build the V3 roadmap.", documents=[doc])
+        titles = [phase.title for phase in plan.phases]
+
+        self.assertEqual(titles, ["V3.0 Foundation", "V3.1 Brand Consistency Foundation", "V3.2 Generation Loop MVP"])
+
+    def test_roadmap_extractor_keeps_decimal_phase_sections_distinct(self) -> None:
+        root = temp_root()
+        doc = root / "billing-plan.md"
+        doc.write_text(
+            "\n".join(
+                [
+                    "# Billing Roadmap",
+                    "",
+                    "## Phase 3: Wallet Core",
+                    "- Establish wallet domain contract.",
+                    "",
+                    "## Phase 3.1: Wallet Ledger Schema",
+                    "- Add wallet transaction schema and migration.",
+                    "",
+                    "## Phase 3.2: Wallet Service Atomic Operations",
+                    "- Add idempotent credit and debit service operations.",
+                    "",
+                    "## Phase 4: Metering API",
+                    "- Add meter debit endpoint.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        plan = RoadmapExtractor().extract(objective="Build billing core.", documents=[doc])
+
+        self.assertEqual(
+            [phase.title for phase in plan.phases],
+            [
+                "Phase 3: Wallet Core",
+                "Phase 3.1: Wallet Ledger Schema",
+                "Phase 3.2: Wallet Service Atomic Operations",
+                "Phase 4: Metering API",
+            ],
+        )
+
+    def test_roadmap_extractor_deduplicates_versions_and_ignores_section_labels(self) -> None:
+        root = temp_root()
+        detailed = root / "13_STEP_BY_STEP_DELIVERY_PLAN.md"
+        detailed.write_text(
+            "\n".join(
+                [
+                    "# Plan",
+                    "V3.0 Foundation",
+                    "V3.1 Brand Consistency Foundation",
+                    "V3.2 Generation Loop MVP",
+                    "### V3.1 Out of Scope",
+                    "### V3.1 Acceptance Criteria",
+                    "V3.2 should allow selected vertical packs to influence evaluation policy.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        roadmap = root / "05_DEVELOPMENT_ROADMAP.md"
+        roadmap.write_text(
+            "\n".join(
+                [
+                    "# Roadmap",
+                    "## V3.0 Creative Core foundation",
+                    "## V3.1 Brand Memory + Consistency Engine",
+                    "## V3.2 Candidate Scoring + Auto Refine Loop",
+                    "## V3.3 Layout Engine + External Text Rendering",
+                    "# Phase 2 Prompt: V3.1 Brand Consistency Foundation",
+                    "# Phase 3 Prompt: V3.2 Generation Loop MVP",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        plan = RoadmapExtractor().extract(objective="Build the V3 roadmap.", documents=[roadmap, detailed])
+        titles = [phase.title for phase in plan.phases]
+
+        self.assertEqual(
+            titles,
+            [
+                "V3.0 Foundation",
+                "V3.1 Brand Consistency Foundation",
+                "V3.2 Generation Loop MVP",
+                "V3.3 Layout Engine + External Text Rendering",
+            ],
+        )
+
+    def test_roadmap_extractor_prefers_numbered_headings_over_code_fence_summaries(self) -> None:
+        root = temp_root()
+        plan_doc = root / "13_STEP_BY_STEP_DELIVERY_PLAN.md"
+        plan_doc.write_text(
+            "\n".join(
+                [
+                    "# Plan",
+                    "```text",
+                    "V3.0 Foundation",
+                    "V3.1 Brand Consistency Foundation",
+                    "```",
+                    "",
+                    "## 2. V3.0 Foundation",
+                    "",
+                    "### Requirements",
+                    "- Build independent foundation.",
+                    "- No V1/V2 runtime imports.",
+                    "",
+                    "## 3. V3.1 Brand Consistency Foundation",
+                    "",
+                    "### Requirements",
+                    "- Add persistent brand memory.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        reference_doc = root / "04_OPEN_SOURCE_REFERENCE_MAP.md"
+        reference_doc.write_text(
+            "\n".join(
+                [
+                    "# Reference Map",
+                    "## Priority Recommendation",
+                    "### Phase 1: Study and absorb ideas only",
+                    "### Phase 2: Implement lightweight interfaces",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        plan = RoadmapExtractor().extract(objective="Build the complete V3 roadmap.", documents=[reference_doc, plan_doc])
+
+        self.assertEqual([phase.title for phase in plan.phases], ["V3.0 Foundation", "V3.1 Brand Consistency Foundation"])
+        self.assertIn("Build independent foundation.", plan.phases[0].requirements)
+        self.assertIn("Add persistent brand memory.", plan.phases[1].requirements)
+        self.assertFalse(any(phase.title.startswith("Phase ") for phase in plan.phases))
+
+    def test_auditor_repairs_missing_contract_fields(self) -> None:
+        plan = RoadmapExecutionPlan(root_objective="Build everything", phases=[RoadmapPhase(phase_id="", title="", requirements=[])])
+
+        repaired, audit = RoadmapAuditor().audit_and_repair(plan)
+
+        self.assertEqual(audit.status, "passed")
+        self.assertTrue(audit.repaired)
+        self.assertEqual(repaired.completion_policy, "full_roadmap")
+        self.assertEqual(repaired.phases[0].phase_id, "phase_001")
+        self.assertTrue(repaired.phases[0].promotion_gate)
+
+    def test_project_analysis_gate_allows_clean_v3_roadmap_and_records_ignored_noise(self) -> None:
+        root = temp_root()
+        doc = root / "13_STEP_BY_STEP_DELIVERY_PLAN.md"
+        doc.write_text(
+            "\n".join(
+                [
+                    "# Plan",
+                    "V3 may use V1/V2 only as historical reference, not as runtime dependency.",
+                    "V3 code must not import from V1 or V2 runtime modules.",
+                    "",
+                    "V3.0 Foundation",
+                    "- Must build foundation.",
+                    "V3.1 Brand Consistency Foundation",
+                    "- Must build brand consistency.",
+                    "V3.2 Generation Loop MVP",
+                    "- Must build generation loop.",
+                    "### V3.2 Out of Scope",
+                    "V3.2 should allow selected vertical packs to influence evaluation policy.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        plan = RoadmapExtractor().extract(objective="Build the complete V3 roadmap.", documents=[doc])
+
+        report = ProjectAnalysisGate().analyze(plan=plan, documents=[doc])
+
+        self.assertTrue(report.ready_to_start)
+        self.assertEqual(report.start_decision, "start")
+        self.assertEqual(len(report.valid_phases), 3)
+        ignored_reasons = {candidate.reason for candidate in report.ignored_phase_candidates}
+        self.assertIn("constraint_or_policy_sentence", ignored_reasons)
+        self.assertIn("section_label_out_of_scope", ignored_reasons)
+
+    def test_v3_roadmap_extracts_scope_controls_for_every_phase(self) -> None:
+        root = temp_root()
+        doc = root / "13_STEP_BY_STEP_DELIVERY_PLAN.md"
+        doc.write_text(
+            "\n".join(
+                [
+                    "# Plan",
+                    "Build the independent V3 skeleton under:",
+                    "alchemy_creative_agent_3_0/app/",
+                    "V3.0 must be fully independent from V1/V2.",
+                    "Do not import or call any V1/V2 runtime modules.",
+                    "",
+                    "V3.0 Foundation",
+                    "- Must build foundation.",
+                    "V3.1 Brand Consistency Foundation",
+                    "- Must build brand consistency.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        plan = RoadmapExtractor().extract(objective="Build the complete V3 roadmap.", documents=[doc])
+
+        self.assertGreaterEqual(len(plan.phases), 2)
+        for phase in plan.phases:
+            controls = phase.scope_controls
+            self.assertIn("alchemy_creative_agent_3_0/", controls["allowed_prefixes"])
+            self.assertIn("custom_media_agent_2_0/", controls["protected_prefixes"])
+            self.assertIn("src_skeleton/", controls["protected_prefixes"])
+
+    def test_entry_prompt_reference_expansion_reads_repository_docs(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        docs = repo / "alchemy_creative_agent_3_0" / "docs"
+        docs.mkdir(parents=True)
+        (repo / "alchemy_creative_agent_3_0" / "README.md").write_text("# V3 Readme\n", encoding="utf-8")
+        entry = docs / "06_CODEX_TASK_PROMPT.md"
+        entry.write_text(
+            "\n".join(
+                [
+                    "# Task Prompt",
+                    "Read these first:",
+                    "```text",
+                    "alchemy_creative_agent_3_0/README.md",
+                    "alchemy_creative_agent_3_0/docs/13_STEP_BY_STEP_DELIVERY_PLAN.md",
+                    "```",
+                    "Build under alchemy_creative_agent_3_0/app/.",
+                    "Do not import from V1 or V2 runtime modules.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        delivery_plan = docs / "13_STEP_BY_STEP_DELIVERY_PLAN.md"
+        delivery_plan.write_text(
+            "\n".join(
+                [
+                    "# Plan",
+                    "V3.0 Foundation",
+                    "- Must build foundation.",
+                    "V3.1 Brand Consistency Foundation",
+                    "- Must build brand memory.",
+                    "V3.2 Generation Loop MVP",
+                    "- Must build generation loop.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        expansion = expand_development_documents([entry], repository_path=repo)
+
+        self.assertEqual(Path(expansion.documents[0]), entry.resolve())
+        self.assertIn(str(delivery_plan.resolve()), expansion.documents)
+        self.assertIn(str((repo / "alchemy_creative_agent_3_0" / "README.md").resolve()), expansion.documents)
+
+    def test_executor_uses_entry_prompt_references_for_full_roadmap_analysis(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        docs = repo / "alchemy_creative_agent_3_0" / "docs"
+        docs.mkdir(parents=True)
+        entry = docs / "06_CODEX_TASK_PROMPT.md"
+        entry.write_text(
+            "\n".join(
+                [
+                    "# Task Prompt",
+                    "Read these documents first:",
+                    "```text",
+                    "alchemy_creative_agent_3_0/docs/13_STEP_BY_STEP_DELIVERY_PLAN.md",
+                    "```",
+                    "V3.0 must be fully independent from V1/V2.",
+                    "Build the independent V3 skeleton under:",
+                    "alchemy_creative_agent_3_0/app/",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (docs / "13_STEP_BY_STEP_DELIVERY_PLAN.md").write_text(
+            "\n".join(
+                [
+                    "# Plan",
+                    "V3.0 Foundation",
+                    "- Must build foundation.",
+                    "V3.1 Brand Consistency Foundation",
+                    "- Must build brand memory.",
+                    "V3.2 Generation Loop MVP",
+                    "- Must build generation loop.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        calls: list[str] = []
+
+        def fake_runner(**kwargs):
+            title = Path(kwargs["documents"][-1]).read_text(encoding="utf-8").splitlines()[0].lstrip("# ")
+            calls.append(title)
+            return FakePhaseResult(title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the complete V3 roadmap.",
+            documents=[entry],
+            repository_path=repo,
+            output_dir=root / "run",
+        )
+        payload = result.to_dict()
+
+        self.assertEqual(payload["status"], "done")
+        self.assertEqual(payload["project_analysis"]["start_decision"], "start")
+        self.assertGreaterEqual(len(payload["document_expansion"]["added_documents"]), 1)
+        self.assertEqual(calls[:3], ["V3.0 Foundation", "V3.1 Brand Consistency Foundation", "V3.2 Generation Loop MVP"])
+
+    def test_phase_document_includes_scope_controls(self) -> None:
+        root = temp_root()
+        phase = RoadmapPhase(
+            phase_id="phase_001",
+            title="V3.0 Foundation",
+            requirements=["Must build V3 foundation."],
+            scope_controls={
+                "allowed_prefixes": ["alchemy_creative_agent_3_0/"],
+                "protected_prefixes": ["custom_media_agent_2_0/", "src_skeleton/"],
+                "target_files": [],
+            },
+        )
+        plan = RoadmapExecutionPlan(
+            root_objective="Build V3.",
+            phases=[phase],
+            global_constraints=["V3 imports no V1/V2 runtime modules."],
+        )
+
+        path = write_phase_document(root / "phase.md", root_objective="Build V3.", phase=phase, plan=plan)
+        text = Path(path).read_text(encoding="utf-8")
+
+        self.assertIn("## Scope Controls", text)
+        self.assertIn("Allowed implementation scope:", text)
+        self.assertIn("alchemy_creative_agent_3_0/", text)
+        self.assertIn("Protected paths:", text)
+        self.assertIn("custom_media_agent_2_0/", text)
+        self.assertIn("Treat files outside the allowed implementation scope as read-only", text)
+
+    def test_large_refactor_phase_document_records_boundary_mode(self) -> None:
+        root = temp_root()
+        phase = RoadmapPhase(
+            phase_id="phase_002",
+            title="Phase 1: Product Rename",
+            requirements=["Must update module, README, Docker/service name, and frontend title."],
+            scope_controls={"boundary_mode": "large_refactor"},
+        )
+        plan = RoadmapExecutionPlan(root_objective="Build Billing Core.", phases=[phase])
+
+        path = write_phase_document(root / "phase.md", root_objective="Build Billing Core.", phase=phase, plan=plan)
+        text = Path(path).read_text(encoding="utf-8")
+
+        self.assertIn("## Boundary Mode", text)
+        self.assertIn("Scope boundary mode: large_refactor", text)
+        self.assertIn("bounded product-scale vertical slice", text)
+        self.assertIn("Do not pull requirements from later roadmap phases", text)
+
+    def test_documentation_phase_is_scoped_to_docs_and_does_not_use_large_refactor(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        doc.write_text(
+            "\n".join(
+                [
+                    "# Roadmap",
+                    "## Phase 0: 文档冻结",
+                    "- 本文档确认。",
+                    "- 明确第一版 demo 必须独立运行。",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        plan = RoadmapExtractor().extract(objective="Build Billing Core.", documents=[doc])
+        phase = plan.phases[0]
+        plan.global_constraints = ["后端不能注册 token 中转/API 网关路由。"]
+        path = write_phase_document(root / "phase.md", root_objective="Build Billing Core.", phase=phase, plan=plan)
+        payload = phase_run_payload({"boundary_mode": "large_refactor"}, phase)
+        text = Path(path).read_text(encoding="utf-8")
+
+        self.assertEqual(phase.phase_type, "documentation")
+        self.assertEqual(payload["boundary_mode"], "strict")
+        self.assertIn("Scope boundary mode: strict", payload["constraints"])
+        self.assertNotIn("Scope boundary mode: large_refactor", payload["constraints"])
+        self.assertIn("Allowed implementation scope:", text)
+        self.assertIn("docs/", text)
+        self.assertIn("Documentation Phase Verification", text)
+        self.assertIn("Global Constraints Reference", text)
+        self.assertNotIn("后端不能注册 token 中转/API 网关路由。", text)
+
+    def test_documentation_phase_promotion_accepts_done_with_document_evidence(self) -> None:
+        phase = RoadmapPhase(
+            phase_id="phase_001",
+            title="Phase 0: 文档冻结",
+            phase_type="documentation",
+            promotion_gate={"required_score": 0.85},
+        )
+        result = FakePhaseResult("Phase 0: 文档冻结", score=0.84).to_dict()
+
+        promotion = phase_promotion_decision(phase, result)
+
+        self.assertTrue(promotion["can_promote"])
+        self.assertEqual(promotion["score"], 0.85)
+
+    def test_interrupted_phase_attempt_uses_new_run_directory(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phases" / "phase_002"
+        (phase_dir / "run" / "workers").mkdir(parents=True)
+        (phase_dir / "run" / "state.json").write_text("{}", encoding="utf-8")
+
+        self.assertEqual(next_phase_run_dir(phase_dir), phase_dir / "run_attempt_002")
+
+        (phase_dir / "run_attempt_002").mkdir()
+        self.assertEqual(next_phase_run_dir(phase_dir), phase_dir / "run_attempt_003")
+
+    def test_blocked_phase_record_uses_new_run_directory_on_resume(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phases" / "phase_004"
+        (phase_dir / "run" / "workers").mkdir(parents=True)
+        (phase_dir / "run" / "state.json").write_text("{}", encoding="utf-8")
+        write_json(phase_dir / "phase_record.json", {"phase_id": "phase_004", "status": "blocked"})
+
+        self.assertEqual(next_phase_run_dir(phase_dir), phase_dir / "run_attempt_002")
+
+    def test_interrupted_active_phase_attempt_is_resumable(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phases" / "phase_004"
+        active_run = phase_dir / "run_attempt_006"
+        (active_run / "workers").mkdir(parents=True)
+        write_json(
+            active_run / "state.json",
+            {
+                "active_tasks": ["T002"],
+                "task_graph": {"nodes": [{"id": "T002", "status": "active"}]},
+            },
+        )
+        write_json(
+            active_run / "workers" / "T002.json",
+            {
+                "task_id": "T002",
+                "status": "running",
+                "worker_pid": 99999999,
+            },
+        )
+
+        resume = interrupted_phase_resume_source(phase_dir)
+
+        self.assertEqual(resume.resume_from, active_run)
+        self.assertEqual(resume.active_run_dir, active_run)
+        self.assertEqual(resume.blockers, [])
+
+    def test_completed_phase_record_reuses_stable_run_directory(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phases" / "phase_004"
+        (phase_dir / "run" / "workers").mkdir(parents=True)
+        (phase_dir / "run" / "state.json").write_text("{}", encoding="utf-8")
+        write_json(phase_dir / "phase_record.json", {"phase_id": "phase_004", "status": "done"})
+
+        self.assertEqual(next_phase_run_dir(phase_dir), phase_dir / "run")
+
+    def test_project_analysis_gate_blocks_suspicious_phase_explosion(self) -> None:
+        phases = [
+            RoadmapPhase(phase_id=f"phase_{index:03d}", title=f"V9.{index} Feature Wave", requirements=["Implement feature."])
+            for index in range(1, 23)
+        ]
+        plan = RoadmapExecutionPlan(root_objective="Build too many phases", phases=phases, confidence=0.9)
+
+        report = ProjectAnalysisGate().analyze(plan=plan, max_default_phases=20)
+
+        self.assertFalse(report.ready_to_start)
+        self.assertEqual(report.start_decision, "repair_roadmap")
+        self.assertTrue(any("above the default safe limit" in warning for warning in report.warnings))
+
+    def test_constraint_classifier_does_not_block_on_negative_heavy_provider_rules(self) -> None:
+        _global, local, blockers = classify_constraints(
+            [
+                "\n".join(
+                    [
+                        "### Not Included",
+                        "- real GPU sidecars",
+                        "- real IP-Adapter / InstantStyle",
+                        "- real ControlNet",
+                        "",
+                        "- Do not add heavy GPU dependencies in the first implementation unless required later.",
+                        "- No heavy GPU dependency is required for foundation tests.",
+                        "- Real provider execution requires API key configuration.",
+                    ]
+                )
+            ]
+        )
+
+        self.assertTrue(any("GPU" in item for item in local))
+        self.assertTrue(any("ControlNet" in item for item in local))
+        self.assertEqual(blockers, ["Real provider execution requires API key configuration."])
+
+    def test_constraint_classifier_does_not_block_on_product_automation_requirements(self) -> None:
+        _global, _local, blockers = classify_constraints(
+            [
+                "\n".join(
+                    [
+                        "- The user should not need to manually select models, prompts, seeds, samplers, LoRAs, ControlNet maps, or workflow nodes.",
+                        "- The system should make provider selection automatic.",
+                    ]
+                )
+            ]
+        )
+
+        self.assertEqual(blockers, [])
+
+    def test_constraint_classifier_does_not_block_on_billing_core_migration_work(self) -> None:
+        global_constraints, _local, blockers = classify_constraints(
+            [
+                "\n".join(
+                    [
+                        "- 当前 admin routes 注册了大量账号池、代理、渠道、订阅、配额接口；目标系统必须改成白名单。",
+                        "- 当前 frontend router 和菜单有账号池、代理、渠道、模型、订阅等页面；目标系统必须删除这些 router/service 引用。",
+                        "- 最终 demo 的 fresh migration 不能创建或依赖 token 中转站表。",
+                    ]
+                )
+            ]
+        )
+
+        self.assertEqual(blockers, [])
+        self.assertTrue(any("目标系统必须改成白名单" in item for item in global_constraints))
+        self.assertTrue(any("router/service" in item for item in global_constraints))
+
+    def test_constraint_classifier_does_not_block_on_schema_field_definitions(self) -> None:
+        _global, _local, blockers = classify_constraints(
+            [
+                "\n".join(
+                    [
+                        "```json",
+                        "requires_gpu: bool",
+                        "provider_name: string",
+                        "```",
+                        "Real provider execution requires API key configuration.",
+                    ]
+                )
+            ]
+        )
+
+        self.assertEqual(blockers, ["Real provider execution requires API key configuration."])
+
+    def test_constraint_classifier_treats_secret_redaction_as_policy_not_blocker(self) -> None:
+        global_constraints, _local, blockers = classify_constraints(
+            [
+                "- Normal `CandidateView.metadata` must not expose secrets, raw provider credentials, or hidden reasoning.",
+            ]
+        )
+
+        self.assertEqual(blockers, [])
+        self.assertTrue(any("must not expose secrets" in item for item in global_constraints))
+
+    def test_roadmap_extractor_keeps_general_creative_workspace_phase(self) -> None:
+        root = temp_root()
+        doc = root / "v3-roadmap.md"
+        doc.write_text(
+            "\n".join(
+                [
+                    "# V3 Roadmap",
+                    "V3.6 Scenario Pack Framework and V3 Home UI",
+                    "V3.7 General Creative Workspace and Runtime Flow",
+                    "V3.8 Future Vertical Agent Specialization",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        plan = RoadmapExtractor().extract(objective="Build all V3 phases.", documents=[doc])
+        titles = [phase.title for phase in plan.phases]
+
+        self.assertIn("V3.7 General Creative Workspace and Runtime Flow", titles)
+
+    def test_future_vertical_phase_is_optional_and_not_auto_selected(self) -> None:
+        root = temp_root()
+        doc = root / "v3-roadmap.md"
+        doc.write_text(
+            "\n".join(
+                [
+                    "# V3 Roadmap",
+                    "V3.7 General Creative Workspace and Runtime Flow",
+                    "V3.8 Future Vertical Agent Specialization",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        plan = RoadmapExtractor().extract(objective="Build current V3 product target.", documents=[doc])
+        by_title = {phase.title: phase for phase in plan.phases}
+
+        self.assertTrue(by_title["V3.8 Future Vertical Agent Specialization"].optional)
+        by_title["V3.7 General Creative Workspace and Runtime Flow"].status = "completed"
+        self.assertIsNone(next_ready_phase(plan))
+
+    def test_executor_stops_before_phase_execution_when_analysis_blocks_start(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        doc.write_text(
+            "\n".join(["# Roadmap", *[f"## V9.{index} Feature Wave\n- Must implement feature {index}." for index in range(1, 23)]]),
+            encoding="utf-8",
+        )
+        calls: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            calls.append(kwargs)
+            return FakePhaseResult("should not run")
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Build every phase.",
+            documents=[doc],
+            output_dir=root / "run",
+            max_phases=20,
+        )
+        payload = result.to_dict()
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertFalse(calls)
+        self.assertEqual(payload["project_analysis"]["start_decision"], "repair_roadmap")
+        self.assertTrue((root / "run" / "project_analysis_report.json").exists())
+
+    def test_final_handoff_is_blocked_when_required_phases_remain(self) -> None:
+        plan = RoadmapExecutionPlan(
+            root_objective="Build everything",
+            phases=[
+                RoadmapPhase(phase_id="phase_001", title="Foundation", status="completed"),
+                RoadmapPhase(phase_id="phase_002", title="Generation", status="pending"),
+            ],
+        )
+
+        decision = final_handoff_allowed(plan)
+        audit = FinalSystemAudit().audit(plan, [])
+
+        self.assertFalse(decision["allowed"])
+        self.assertEqual(decision["incomplete_phase_ids"], ["phase_002"])
+        self.assertEqual(audit["status"], "blocked")
+
+    def test_final_verification_report_challenges_audit_and_test_dimensions(self) -> None:
+        plan = RoadmapExecutionPlan(
+            root_objective="Build everything",
+            phases=[RoadmapPhase(phase_id="phase_001", title="Foundation", status="completed", requirements=["Build it."])],
+        )
+        record = PhaseExecutionRecord(
+            phase_id="phase_001",
+            title="Foundation",
+            status="done",
+            output_dir="phase",
+            result=FakePhaseResult("Foundation").to_dict(),
+            promotion={"can_promote": True, "score": 0.91, "required_score": 0.85},
+        )
+
+        report = FinalVerificationLoop().audit(plan, [record], run_payload={"real_codex": False})
+        payload = report.to_dict()
+
+        self.assertEqual(payload["status"], "passed")
+        self.assertTrue(payload["ready_for_final_handoff"])
+        self.assertIn("roadmap_completion", {item["id"] for item in payload["dimensions"]})
+        self.assertIn("deterministic_tests", {item["id"] for item in payload["test_stages"]})
+
+    def test_final_verification_blocks_low_phase_gate_before_handoff(self) -> None:
+        plan = RoadmapExecutionPlan(
+            root_objective="Build everything",
+            phases=[RoadmapPhase(phase_id="phase_001", title="Foundation", status="completed")],
+        )
+        record = PhaseExecutionRecord(
+            phase_id="phase_001",
+            title="Foundation",
+            status="done",
+            output_dir="phase",
+            result=FakePhaseResult("Foundation", score=0.80).to_dict(),
+            promotion={"can_promote": False, "score": 0.80, "required_score": 0.85},
+        )
+
+        audit = FinalSystemAudit().audit(plan, [record])
+
+        self.assertEqual(audit["status"], "blocked")
+        self.assertFalse(audit["ready_for_final_handoff"])
+        self.assertEqual(audit["final_verification"]["status"], "iterate")
+
+    def test_final_verification_requires_supplied_known_findings_to_be_resolved(self) -> None:
+        plan = RoadmapExecutionPlan(
+            root_objective="Build everything",
+            phases=[RoadmapPhase(phase_id="phase_001", title="Foundation", status="completed")],
+        )
+        record = PhaseExecutionRecord(
+            phase_id="phase_001",
+            title="Foundation",
+            status="done",
+            output_dir="phase",
+            result=FakePhaseResult("Foundation").to_dict(),
+            promotion={"can_promote": True, "score": 0.91, "required_score": 0.85},
+        )
+
+        audit = FinalSystemAudit().audit(
+            plan,
+            [record],
+            run_payload={"known_final_audit_findings": ["Scenario X passes tests but violates the product contract."]},
+        )
+        repaired = FinalSystemAudit().audit(
+            plan,
+            [record],
+            worker_verification={"status": "passed"},
+            run_payload={"known_final_audit_findings": ["Scenario X passes tests but violates the product contract."]},
+        )
+
+        self.assertEqual(audit["status"], "blocked")
+        self.assertEqual(audit["final_verification"]["status"], "iterate")
+        self.assertEqual(repaired["status"], "passed")
+
+    def test_executor_runs_all_phases_instead_of_stopping_after_first(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        calls: list[str] = []
+
+        def fake_runner(**kwargs):
+            phase_doc = Path(kwargs["documents"][-1]).read_text(encoding="utf-8")
+            title = phase_doc.splitlines()[0].lstrip("# ")
+            calls.append(title)
+            return FakePhaseResult(title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            repository_path=root / "repo",
+            output_dir=root / "run",
+        )
+
+        payload = result.to_dict()
+        self.assertEqual(payload["status"], "done")
+        self.assertGreaterEqual(len(calls), 3)
+        self.assertEqual(calls[:3], ["V3.0 Foundation", "V3.1 Brand Consistency Foundation", "V3.2 Generation Loop MVP"])
+        self.assertEqual(payload["final_audit"]["status"], "passed")
+        phase_statuses = [phase["status"] for phase in payload["roadmap"]["phases"]]
+        self.assertTrue(all(status == "completed" for status in phase_statuses))
+
+    def test_executor_auto_repairs_low_scoring_phase_before_blocking(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        calls: list[list[str]] = []
+
+        class LowThenPassingResult:
+            def __init__(self, passing: bool) -> None:
+                self.passing = passing
+
+            def to_dict(self) -> dict[str, object]:
+                score = 0.9 if self.passing else 0.84
+                return {
+                    "status": "done",
+                    "delivery_report": {
+                        "final_gate": {
+                            "score": score,
+                            "dimension_scores": {
+                                "test_health": 1.0,
+                                "spec_alignment": 0.8 if not self.passing else 0.9,
+                                "graph_completion": 1.0,
+                                "reviewer_approval": 1.0,
+                                "risk_quality": 0.0 if not self.passing else 1.0,
+                            },
+                            "hard_failures": [],
+                            "required_changes": [],
+                        },
+                        "ready_for_review": True,
+                    },
+                    "runtime_state": {
+                        "done": self.passing,
+                        "blockers": [],
+                        "evaluation": {"done": self.passing, "final_gate_score": score},
+                    },
+                }
+
+        def fake_runner(**kwargs):
+            docs = [str(item) for item in kwargs["documents"]]
+            calls.append(docs)
+            return LowThenPassingResult(any("phase_repair_" in item for item in docs) or len(calls) > 1)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Execute the full roadmap and repair phase gates automatically.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={"max_phase_repair_attempts": 2},
+        )
+        payload = result.to_dict()
+        phase_record = payload["phase_records"][0]
+
+        self.assertEqual(payload["status"], "done")
+        self.assertGreaterEqual(len(calls), 2)
+        self.assertTrue(any("phase_repair_001.md" in item for item in calls[1]))
+        self.assertEqual(phase_record["status"], "done")
+        self.assertEqual(len(phase_record["promotion"]["attempts"]), 2)
+        self.assertEqual(phase_record["promotion"]["attempts"][0]["status"], "blocked")
+        self.assertEqual(phase_record["promotion"]["attempts"][1]["status"], "done")
+        self.assertTrue((root / "run" / "phases" / "phase_001" / "phase_repair_001.md").exists())
+
+    def test_real_codex_phases_continue_in_previous_phase_worktree(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        repositories_seen: list[str] = []
+
+        class WorktreePhaseResult:
+            def __init__(self, title: str, repository_path: str) -> None:
+                self.title = title
+                self.repository_path = repository_path
+
+            def to_dict(self) -> dict[str, object]:
+                return {
+                    "status": "done",
+                    "delivery_report": {
+                        "final_gate": {
+                            "score": 0.91,
+                            "dimension_scores": {
+                                "test_health": 1.0,
+                                "spec_alignment": 0.91,
+                                "graph_completion": 1.0,
+                                "reviewer_approval": 1.0,
+                                "risk_quality": 1.0,
+                            },
+                            "hard_failures": [],
+                            "required_changes": [],
+                        },
+                        "ready_for_review": True,
+                    },
+                    "runtime_state": {
+                        "done": True,
+                        "blockers": [],
+                        "evaluation": {"done": True, "final_gate_score": 0.91},
+                        "repository": {"path": self.repository_path},
+                    },
+                    "workspace": {"execution_path": self.repository_path, "worktree_path": self.repository_path},
+                    "requirement_coverage": {"status": "passed", "covered": True},
+                    "tests_passed": ["phase checks passed"],
+                    "evidence": [self.title],
+                }
+
+        def fake_runner(**kwargs):
+            repo_path = str(kwargs["repository_path"])
+            repositories_seen.append(repo_path)
+            title = Path(kwargs["documents"][-1]).read_text(encoding="utf-8").splitlines()[0].lstrip("# ")
+            if len(repositories_seen) == 1:
+                return WorktreePhaseResult(title, str(root / "phase1-worktree"))
+            return WorktreePhaseResult(title, repo_path)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={"real_codex": True, "full_roadmap": True},
+        )
+
+        payload = result.to_dict()
+        self.assertEqual(payload["status"], "blocked")
+        self.assertGreaterEqual(len(repositories_seen), 3)
+        self.assertEqual(repositories_seen[0], str(repo))
+        self.assertEqual(repositories_seen[1], str(root / "phase1-worktree"))
+        self.assertEqual(repositories_seen[2], str(root / "phase1-worktree"))
+
+    def test_phase_run_payload_disables_fresh_isolation_for_inherited_worktree(self) -> None:
+        phase = RoadmapPhase(
+            phase_id="phase_002",
+            title="Implementation Phase",
+            requirements=["Implement the next feature."],
+            scope_controls={"boundary_mode": "large_refactor"},
+        )
+
+        payload = phase_run_payload(
+            {"real_codex": True, "isolate_real_run": True, "boundary_mode": "large_refactor"},
+            phase,
+            inherited_repository_path="D:/tmp/inherited-worktree",
+        )
+
+        self.assertFalse(payload["isolate_real_run"])
+        self.assertIn("inherited full-roadmap worktree", "\n".join(payload["constraints"]))
+
+    def test_phase_repository_path_prefers_last_completed_phase_runtime_path(self) -> None:
+        record = PhaseExecutionRecord(
+            phase_id="phase_001",
+            title="Phase One",
+            status="done",
+            output_dir="run/phase_001",
+            result={
+                "runtime_state": {"repository": {"path": "D:/tmp/phase-one-worktree"}},
+                "workspace": {"execution_path": "D:/tmp/phase-one-worktree"},
+            },
+            promotion={"can_promote": True},
+        )
+
+        selected = phase_repository_path("D:/tmp/original", [record], run_payload={"real_codex": True})
+
+        self.assertEqual(selected, "D:/tmp/phase-one-worktree")
+
+    def test_executor_generates_document_package_for_one_sentence_mode(self) -> None:
+        root = temp_root()
+        calls: list[str] = []
+
+        def fake_runner(**kwargs):
+            calls.append(Path(kwargs["documents"][-1]).name)
+            return FakePhaseResult("phase")
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Build a simple booking app.",
+            documents=[],
+            primary_input_mode="one_line_fallback",
+            output_dir=root / "run",
+        )
+
+        payload = result.to_dict()
+        self.assertEqual(payload["status"], "done")
+        package = payload["generated_development_package"]
+        self.assertEqual(package["status"], "generated")
+        self.assertTrue((root / "run" / "generated_development_package" / "03_roadmap.md").exists())
+        self.assertGreaterEqual(len(payload["phase_records"]), 3)
+        self.assertTrue(calls)
+
+    def test_real_codex_full_roadmap_runs_final_verification_worker(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        calls: list[str] = []
+
+        def fake_runner(**kwargs):
+            title = Path(kwargs["documents"][-1]).read_text(encoding="utf-8").splitlines()[0].lstrip("# ")
+            calls.append(title)
+            if title == "Final Full-System Audit And Testing":
+                return FakePhaseResult(
+                    title,
+                    evidence=[
+                        "FINAL_AUDIT_STATUS: PASS",
+                        "SIMULATION_TEST_STATUS: PASS",
+                        "REAL_TEST_STATUS: PASS",
+                    ],
+                )
+            return FakePhaseResult(title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={"real_codex": True, "full_roadmap": True},
+        )
+        payload = result.to_dict()
+
+        self.assertEqual(payload["status"], "done")
+        self.assertIn("Final Full-System Audit And Testing", calls)
+        self.assertEqual(payload["final_verification_worker"]["status"], "passed")
+        self.assertEqual(payload["final_audit"]["final_verification"]["worker_verification"]["status"], "passed")
+        self.assertEqual(payload["final_audit"]["final_verification"]["test_status"], "passed")
+
+    def test_strict_real_final_verification_requires_explicit_worker_status_markers(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+
+        def fake_runner(**kwargs):
+            title = Path(kwargs["documents"][-1]).read_text(encoding="utf-8").splitlines()[0].lstrip("# ")
+            return FakePhaseResult(title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={"real_codex": True, "full_roadmap": True},
+        )
+        payload = result.to_dict()
+        final_verification = payload["final_audit"]["final_verification"]
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["final_verification_worker"]["status"], "passed")
+        self.assertEqual(final_verification["status"], "iterate")
+        self.assertEqual(final_verification["audit_status"], "iterate")
+        self.assertEqual(final_verification["test_status"], "iterate")
+        self.assertIn("FINAL_AUDIT_STATUS", "\n".join(final_verification["blockers"]))
+        self.assertIn("FINAL_AUDIT_STATUS", "\n".join(payload["blockers"]))
+
+    def test_strict_real_final_verification_blocks_failed_status_marker(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+
+        def fake_runner(**kwargs):
+            title = Path(kwargs["documents"][-1]).read_text(encoding="utf-8").splitlines()[0].lstrip("# ")
+            if title == "Final Full-System Audit And Testing":
+                return FakePhaseResult(
+                    title,
+                    evidence=[
+                        "FINAL_AUDIT_STATUS: PASS",
+                        "SIMULATION_TEST_STATUS: FAIL",
+                        "REAL_TEST_STATUS: PASS",
+                    ],
+                )
+            return FakePhaseResult(title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={"real_codex": True, "full_roadmap": True},
+        )
+        payload = result.to_dict()
+        final_verification = payload["final_audit"]["final_verification"]
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(final_verification["test_status"], "iterate")
+        simulation_stage = next(item for item in final_verification["test_stages"] if item["id"] == "simulation_tests")
+        self.assertEqual(simulation_stage["status"], "failed")
+        self.assertIn("SIMULATION_TEST_STATUS", "\n".join(payload["blockers"]))
+
+    def test_final_verification_worker_failure_blocks_done(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+
+        def fake_runner(**kwargs):
+            title = Path(kwargs["documents"][-1]).read_text(encoding="utf-8").splitlines()[0].lstrip("# ")
+            if title == "Final Full-System Audit And Testing":
+                return FakePhaseResult(title, score=0.70)
+            return FakePhaseResult(title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={
+                "real_codex": True,
+                "full_roadmap": True,
+                "max_final_verification_attempts": 1,
+            },
+        )
+        payload = result.to_dict()
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["final_verification_worker"]["status"], "failed")
+        self.assertEqual(payload["final_audit"]["status"], "blocked")
+        self.assertIn("Phase score", "\n".join(payload["blockers"]))
+
+    def test_real_dry_run_executor_does_not_stop_after_first_phase_when_later_phases_remain(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        (repo / "README.md").write_text("# Smoke Repo\n", encoding="utf-8")
+        doc = root / "roadmap.md"
+        doc.write_text(
+            "\n".join(
+                [
+                    "# Roadmap",
+                    "## V1.0 Foundation",
+                    "### Requirements",
+                    "- Must create a foundation note in README.md.",
+                    "## V1.1 Core Feature",
+                    "### Requirements",
+                    "- Must create a core feature note in README.md.",
+                    "## V1.2 Verification And Delivery",
+                    "### Requirements",
+                    "- Must verify the final result and record delivery evidence.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = FullRoadmapExecutor().run(
+            objective="Execute every phase in the roadmap.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={"real_codex": False, "real_github": False, "max_iterations": 20},
+        )
+
+        payload = result.to_dict()
+        self.assertGreaterEqual(len(payload["phase_records"]), 2)
+        self.assertEqual(payload["phase_records"][0]["status"], "done")
+        self.assertEqual(payload["phase_records"][1]["status"], "done")
+        self.assertNotEqual(payload["phase_records"][0]["title"], payload["phase_records"][1]["title"])
+
+    def test_executor_resumes_existing_output_after_completed_first_phase(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        plan = RoadmapExtractor().extract(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            source_mode="local_repo",
+        )
+        plan, audit = RoadmapAuditor().audit_and_repair(plan)
+        plan.phases[0].status = "completed"
+        output = root / "run"
+        phase_one = output / "phases" / plan.phases[0].phase_id
+        phase_one.mkdir(parents=True)
+        write_json(output / "roadmap_execution_plan.json", plan.to_dict())
+        write_json(output / "roadmap_audit.json", audit.to_dict())
+        write_json(
+            output / "project_analysis_report.json",
+            ProjectAnalysisGate().analyze(plan=plan, documents=[doc]).to_dict(),
+        )
+        write_json(
+            output / "expanded_document_index.json",
+            {"documents": [str(doc.resolve())], "added_documents": []},
+        )
+        write_json(
+            phase_one / "phase_record.json",
+            {
+                "phase_id": plan.phases[0].phase_id,
+                "title": plan.phases[0].title,
+                "status": "done",
+                "output_dir": str(phase_one),
+                "result": FakePhaseResult(plan.phases[0].title).to_dict(),
+                "promotion": {"can_promote": True, "status": "passed"},
+            },
+        )
+        calls: list[str] = []
+        running_snapshots: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            running_snapshots.append(json.loads((output / "full_roadmap_report.json").read_text(encoding="utf-8")))
+            title = Path(kwargs["documents"][-1]).read_text(encoding="utf-8").splitlines()[0].lstrip("# ")
+            calls.append(title)
+            return FakePhaseResult(title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=output,
+        )
+
+        payload = result.to_dict()
+        self.assertEqual(payload["status"], "done")
+        self.assertEqual(calls, ["V3.1 Brand Consistency Foundation", "V3.2 Generation Loop MVP"])
+        self.assertEqual(len(payload["phase_records"]), 3)
+        self.assertTrue(all(phase["status"] == "completed" for phase in payload["roadmap"]["phases"]))
+
+    def test_executor_resumes_existing_output_after_blocked_report(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        plan = RoadmapExtractor().extract(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            source_mode="local_repo",
+        )
+        plan, audit = RoadmapAuditor().audit_and_repair(plan)
+        output = root / "run"
+        write_json(output / "roadmap_execution_plan.json", plan.to_dict())
+        write_json(output / "roadmap_audit.json", audit.to_dict())
+        write_json(
+            output / "project_analysis_report.json",
+            ProjectAnalysisGate().analyze(plan=plan, documents=[doc]).to_dict(),
+        )
+        write_json(
+            output / "expanded_document_index.json",
+            {"documents": [str(doc.resolve())], "added_documents": []},
+        )
+        for phase in plan.phases[:2]:
+            phase_dir = output / "phases" / phase.phase_id
+            phase_dir.mkdir(parents=True, exist_ok=True)
+            write_json(
+                phase_dir / "phase_record.json",
+                {
+                    "phase_id": phase.phase_id,
+                    "title": phase.title,
+                    "status": "done",
+                    "output_dir": str(phase_dir),
+                    "result": FakePhaseResult(phase.title).to_dict(),
+                    "promotion": {"can_promote": True, "status": "passed"},
+                },
+            )
+        blocked_phase = plan.phases[2]
+        blocked_dir = output / "phases" / blocked_phase.phase_id
+        blocked_dir.mkdir(parents=True, exist_ok=True)
+        write_json(
+            blocked_dir / "phase_record.json",
+            {
+                "phase_id": blocked_phase.phase_id,
+                "title": blocked_phase.title,
+                "status": "blocked",
+                "output_dir": str(blocked_dir),
+                "result": FakePhaseResult(blocked_phase.title, blockers=["old blocked report"]).to_dict(),
+                "promotion": {"can_promote": False, "status": "blocked"},
+            },
+        )
+        write_json(output / "full_roadmap_report.json", {"status": "blocked", "phase_records": []})
+        calls: list[str] = []
+        running_snapshots: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            running_snapshots.append(json.loads((output / "full_roadmap_report.json").read_text(encoding="utf-8")))
+            title = Path(kwargs["documents"][-1]).read_text(encoding="utf-8").splitlines()[0].lstrip("# ")
+            calls.append(title)
+            return FakePhaseResult(title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=output,
+            run_payload={"max_phase_repair_attempts": 0},
+        )
+
+        payload = result.to_dict()
+        self.assertEqual(payload["status"], "done")
+        self.assertEqual(calls, [blocked_phase.title])
+        self.assertEqual(len(payload["phase_records"]), 3)
+        self.assertTrue(all(phase["status"] == "completed" for phase in payload["roadmap"]["phases"]))
+        self.assertEqual(running_snapshots[0]["status"], "running")
+        self.assertEqual(running_snapshots[0]["active_phase"]["phase_id"], blocked_phase.phase_id)
+        self.assertEqual(len(running_snapshots[0]["phase_records"]), 2)
+
+    def test_executor_resumes_latest_interrupted_phase_attempt(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        doc.write_text("# One Phase\n\n## V1\n- Finish frontend.\n", encoding="utf-8")
+        phase = RoadmapPhase(
+            phase_id="phase_001",
+            title="V1",
+            requirements=["Finish frontend."],
+            promotion_gate={"required_score": 0.85},
+        )
+        plan = RoadmapExecutionPlan(root_objective="Resume interrupted work.", phases=[phase], confidence=0.9)
+        output = root / "run"
+        phase_dir = output / "phases" / phase.phase_id
+        interrupted = phase_dir / "run_attempt_006"
+        (interrupted / "workers").mkdir(parents=True)
+        write_json(output / "roadmap_execution_plan.json", plan.to_dict())
+        write_json(output / "roadmap_audit.json", {"status": "passed", "issues": []})
+        write_json(output / "project_analysis_report.json", {"ready_to_start": True})
+        write_json(output / "expanded_document_index.json", {"documents": [str(doc)], "added_documents": []})
+        write_json(
+            phase_dir / "phase_record.json",
+            {
+                "phase_id": phase.phase_id,
+                "title": phase.title,
+                "status": "blocked",
+                "output_dir": str(phase_dir / "run_attempt_003"),
+                "result": FakePhaseResult(phase.title, blockers=["old blocker"]).to_dict(),
+                "promotion": {"can_promote": False, "status": "blocked"},
+            },
+        )
+        write_json(
+            interrupted / "state.json",
+            {
+                "active_tasks": ["T002"],
+                "task_graph": {"nodes": [{"id": "T002", "status": "active"}]},
+            },
+        )
+        write_json(
+            interrupted / "workers" / "T002.json",
+            {"task_id": "T002", "status": "running", "worker_pid": 99999999},
+        )
+        resume_sources: list[object] = []
+
+        def fake_runner(**kwargs):
+            resume_sources.append(kwargs.get("resume_from"))
+            return FakePhaseResult(phase.title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Resume interrupted work.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=output,
+        )
+
+        payload = result.to_dict()
+        self.assertEqual(payload["status"], "done")
+        self.assertEqual(resume_sources, [interrupted])
+        self.assertEqual(payload["phase_records"][0]["promotion"]["attempts"][0]["resume_from"], str(interrupted))
+
+
+if __name__ == "__main__":
+    unittest.main()

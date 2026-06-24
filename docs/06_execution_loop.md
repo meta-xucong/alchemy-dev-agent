@@ -20,7 +20,10 @@ The loop is state-driven. Every iteration reads persistent state, performs a bou
 9. Evaluate graph progress.
 10. Retry, debug, replan, or review.
 11. Run final evaluation gate.
-12. Terminate only when done criteria pass.
+12. Run central review over all available evidence.
+13. If repairable gaps remain, generate a repair plan and re-enter the loop.
+14. For full-roadmap runs, run final audit/test convergence across the whole system.
+15. Terminate only when done criteria pass, central review reaches handoff, and final audit/test convergence passes.
 ```
 
 ## Step 1: Intake
@@ -147,6 +150,8 @@ Possible outcomes:
 - Ask Architect Agent to replan.
 - Ask Test Agent for missing verification.
 - Ask Reviewer Agent for final review.
+- Run central review to decide continue, iterate, blocked, wait-for-input, or handoff.
+- Generate a repair plan when the result is incomplete but repairable.
 - Stop because final gate passed.
 - Stop or pause because of an external blocker.
 
@@ -201,6 +206,45 @@ If changes are requested:
 - Tests run again.
 - Reviewer Agent reviews again.
 
+After reviewer and evaluation evidence exists, the Central Review Agent summarizes whether the
+system should hand off, continue, iterate, block, or wait for input. This central review step is the
+product-facing equivalent of a human Codex operator asking whether the phase is truly done.
+
+## Central Auto-Iteration Loop
+
+When central review returns `decision=iterate`, the orchestrator must not blindly rerun the same
+work. It must create a repair plan.
+
+```text
+central_review.decision = iterate
+      |
+      v
+repair_plan generation
+      |
+      v
+guardrail check
+      |
+      +-- blocked/duplicate/unsafe -> surface blocker or ask human
+      |
+      v
+feedback reopen or graph delta
+      |
+      v
+Codex worker execution
+      |
+      v
+tests, probes, review, recovery comparison
+```
+
+Rules:
+
+- Every repair iteration must have a concrete evidence gap.
+- Duplicate repair signatures must be guarded to prevent endless loops.
+- Auto-iteration must reuse the same intake, task graph, worker, test, evaluation, and delivery
+  evidence contracts.
+- Mutating GitHub actions still require the configured GitHub delivery policy.
+- If no safe automatic repair exists, the run becomes blocked or waits for human input.
+
 ## Termination Condition
 
 The system terminates successfully only when:
@@ -209,6 +253,8 @@ The system terminates successfully only when:
 - Required tests and CI checks pass.
 - Reviewer Agent approves.
 - Final gate score is at least `0.85`.
+- Central review returns a handoff decision.
+- Full-roadmap final audit/test convergence passes when a roadmap exists.
 - No hard fail condition exists.
 - Final state is persisted.
 - GitHub sync evidence is recorded.

@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
+from .subprocess_utils import clean_git_env, run_hidden
+
 
 class WorktreeRunner(Protocol):
     def __call__(
@@ -186,7 +188,7 @@ class RealRunWorkspace:
         return session
 
     def _repo_root(self, path: Path, session: WorktreeSession) -> Path | None:
-        result = self._run(["git", "rev-parse", "--show-toplevel"], cwd=path, session=session)
+        result = self._run(["git", "rev-parse", "--show-toplevel"], cwd=path, session=session, allow_parent_discovery=True)
         if result.returncode != 0:
             return None
         return Path(result.stdout.strip()).resolve()
@@ -214,8 +216,27 @@ class RealRunWorkspace:
                 return candidate
         return f"{base_branch}-{datetime.now(UTC).strftime('%H%M%S')}"
 
-    def _run(self, args: list[str], *, cwd: str | Path, session: WorktreeSession) -> subprocess.CompletedProcess[str]:
-        result = self.runner(args, cwd=cwd, capture_output=True, text=True, check=False)
+    def _run(
+        self,
+        args: list[str],
+        *,
+        cwd: str | Path,
+        session: WorktreeSession,
+        allow_parent_discovery: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        kwargs = {"cwd": cwd, "capture_output": True, "text": True, "check": False}
+        if self.runner is subprocess.run:
+            kwargs["env"] = clean_git_env(None if allow_parent_discovery else cwd)
+            kwargs["timeout"] = 30
+        try:
+            result = run_hidden(self.runner, args, **kwargs)
+        except subprocess.TimeoutExpired as exc:
+            result = subprocess.CompletedProcess(
+                args,
+                124,
+                stdout=str(exc.stdout or ""),
+                stderr=f"Command timed out after {exc.timeout} seconds.",
+            )
         session.commands_run.append(
             WorktreeCommand(
                 command=list(args),

@@ -12,6 +12,7 @@
     "requirement_map",
     "test_profile",
     "risk_profile",
+    "scope_controls",
     "blockers",
     "created_at"
   ],
@@ -165,6 +166,9 @@
       "items": {
         "$ref": "#/$defs/blocker"
       }
+    },
+    "scope_controls": {
+      "$ref": "#/$defs/scope_controls"
     },
     "created_at": {
       "type": "string",
@@ -407,6 +411,43 @@
           "enum": [
             "warning",
             "hard"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "scope_controls": {
+      "type": "object",
+      "required": [
+        "allowed_prefixes",
+        "protected_prefixes",
+        "target_files",
+        "boundary_mode"
+      ],
+      "properties": {
+        "allowed_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "protected_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "target_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "boundary_mode": {
+          "type": "string",
+          "enum": [
+            "strict",
+            "large_refactor"
           ]
         }
       },

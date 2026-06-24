@@ -7,6 +7,16 @@ from dataclasses import dataclass, field
 from intake.models import Blocker, utc_now_iso
 
 
+def normalize_scope_controls(payload: dict[str, object] | None = None) -> dict[str, object]:
+    payload = dict(payload or {})
+    return {
+        "allowed_prefixes": list(payload.get("allowed_prefixes", []) or []),
+        "protected_prefixes": list(payload.get("protected_prefixes", []) or []),
+        "target_files": list(payload.get("target_files", []) or []),
+        "boundary_mode": str(payload.get("boundary_mode", "strict") or "strict"),
+    }
+
+
 @dataclass(slots=True)
 class DocumentSummary:
     id: str
@@ -126,6 +136,7 @@ class ContextBundle:
     blockers: list[Blocker] = field(default_factory=list)
     root_path: str = ""
     code_summaries: list[CodeSummary] = field(default_factory=list)
+    scope_controls: dict[str, object] = field(default_factory=dict)
     created_at: str = field(default_factory=utc_now_iso)
 
     def to_dict(self) -> dict[str, object]:
@@ -158,5 +169,6 @@ class ContextBundle:
                 "risks": [risk.to_dict() for risk in self.risks],
             },
             "blockers": [blocker.to_dict() for blocker in self.blockers],
+            "scope_controls": normalize_scope_controls(self.scope_controls),
             "created_at": self.created_at,
         }

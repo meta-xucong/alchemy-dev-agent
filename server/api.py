@@ -11,7 +11,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Sequence
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from autodev.artifact_manifest import ArtifactContent
 
@@ -26,6 +26,7 @@ class AlchemyApiHandler(BaseHTTPRequestHandler):
     service: ProjectService
 
     server_version = "AlchemyDevAgentAPI/0.1"
+    protocol_version = "HTTP/1.1"
 
     def do_GET(self) -> None:
         self._handle("GET")
@@ -46,7 +47,7 @@ class AlchemyApiHandler(BaseHTTPRequestHandler):
         try:
             if method == "GET" and self._try_static_response():
                 return
-            payload = self._read_body() if method in {"POST", "PATCH"} else {}
+            payload = self._read_body() if method in {"POST", "PATCH", "DELETE"} else {}
             streamed = route_stream_request(self.service, method, self.path, self)
             if streamed:
                 return
@@ -187,6 +188,9 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "GET" and parts == ["health"]:
         return {"status": "ok"}, HTTPStatus.OK
 
+    if method == "GET" and parts == ["environment", "defaults"]:
+        return service.environment_defaults(), HTTPStatus.OK
+
     if method == "POST" and parts == ["environment", "check"]:
         return service.check_environment(payload), HTTPStatus.OK
 
@@ -215,6 +219,9 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if not parts or parts[0] != "projects":
         raise ApiError(404, "not_found", "Endpoint not found.")
 
+    if method == "GET" and len(parts) == 1:
+        return service.list_projects(), HTTPStatus.OK
+
     if method == "POST" and len(parts) == 1:
         return service.create_project(payload), HTTPStatus.CREATED
 
@@ -226,6 +233,8 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
 
     if method == "GET" and not tail:
         return service.get_project(project_id), HTTPStatus.OK
+    if method == "DELETE" and not tail:
+        return service.delete_project(project_id), HTTPStatus.OK
     if method == "POST" and tail == ["files"]:
         if "uploads" in payload:
             return service.upload_files(project_id, payload.get("uploads", []), payload.get("fields", {})), HTTPStatus.OK
@@ -255,6 +264,13 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "GET" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "job":
         run_id = safe_identifier(tail[1], "run_id")
         return service.get_run_job(project_id, run_id), HTTPStatus.OK
+    if method == "GET" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "status":
+        run_id = safe_identifier(tail[1], "run_id")
+        return service.get_run_status(project_id, run_id), HTTPStatus.OK
+    if method == "GET" and len(tail) >= 3 and tail[0] == "runs" and tail[2] == "preview":
+        run_id = safe_identifier(tail[1], "run_id")
+        preview_path = unquote("/".join(tail[3:])) if len(tail) > 3 else "index.html"
+        return service.get_run_preview_content(project_id, run_id, preview_path), HTTPStatus.OK
     if method == "GET" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "artifacts":
         run_id = safe_identifier(tail[1], "run_id")
         return service.get_run_artifacts(project_id, run_id), HTTPStatus.OK
@@ -271,6 +287,14 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "GET" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "delivery":
         run_id = safe_identifier(tail[1], "run_id")
         return service.get_delivery_for_run(project_id, run_id), HTTPStatus.OK
+    if method == "GET" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "auto-iteration":
+        run_id = safe_identifier(tail[1], "run_id")
+        return service.preview_auto_iteration(project_id, run_id), HTTPStatus.OK
+    if method == "POST" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "auto-iteration":
+        run_id = safe_identifier(tail[1], "run_id")
+        result = service.start_auto_iteration(project_id, run_id, payload)
+        status = HTTPStatus.CREATED if result.get("status") == "started" else HTTPStatus.OK
+        return result, status
     if method == "POST" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "pause":
         run_id = safe_identifier(tail[1], "run_id")
         return service.pause_run(project_id, run_id), HTTPStatus.OK
@@ -280,6 +304,9 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "POST" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "stop":
         run_id = safe_identifier(tail[1], "run_id")
         return service.stop_run(project_id, run_id), HTTPStatus.OK
+    if method == "POST" and len(tail) == 3 and tail[0] == "runs" and tail[2] == "open-folder":
+        run_id = safe_identifier(tail[1], "run_id")
+        return service.open_run_result_folder(project_id, run_id), HTTPStatus.OK
     if method == "POST" and tail == ["feedback", "reopen"]:
         return service.reopen_with_feedback(project_id, payload), HTTPStatus.CREATED
     if method == "GET" and tail == ["delivery"]:

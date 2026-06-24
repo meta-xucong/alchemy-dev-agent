@@ -239,6 +239,50 @@ Common output fields:
 - Must not approve if done criteria are unmet.
 - Must not lower standards to terminate a long-running loop.
 
+## Central Review Agent
+
+The Central Review Agent is an orchestrator-level decision agent. It is not one of the normal
+task-graph implementation workers.
+
+### Responsibilities
+
+- Read project status, task graph state, delivery evidence, requirement coverage, artifact reports,
+  development-cycle evidence, reviewer output, and blockers.
+- Map the run to the human development loop: read documents, refine plan, execute, audit, test,
+  iterate, full review, and handoff.
+- Produce one next decision: `continue`, `handoff`, `iterate`, `blocked`, or `wait_for_input`.
+- Produce beginner-readable summary text.
+- When iteration is needed, provide evidence gaps that can become a repair plan.
+
+### Input
+
+- Objective and source mode.
+- Central runtime state.
+- Delivery report.
+- Evaluation result.
+- Requirement coverage.
+- Artifact and browser probe evidence.
+- Development-cycle report.
+- Blockers, known issues, and next actions.
+
+### Output
+
+- Central review status.
+- Next decision.
+- Confidence.
+- Completed and missing loop steps.
+- Human-readable summary.
+- Next actions.
+- Human-help flag.
+
+### Forbidden Behavior
+
+- Must not edit code or run shell commands.
+- Must not replace the Reviewer Agent's quality judgment.
+- Must not mark a run delivered when hard fail conditions exist.
+- Must not create an auto-iteration repair plan without traceable evidence gaps.
+- Must not trigger mutating GitHub operations without the configured delivery policy.
+
 ## Agent Handoff Rules
 
 - Architect Agent creates or revises the graph.
@@ -247,4 +291,5 @@ Common output fields:
 - Test Agent evaluates verification evidence.
 - Debug Agent handles failures and creates repair prompts.
 - Reviewer Agent performs final approval.
+- Central Review Agent turns all run evidence into a handoff, iterate, continue, blocked, or wait-for-input decision.
 - Orchestrator owns state updates and final termination.

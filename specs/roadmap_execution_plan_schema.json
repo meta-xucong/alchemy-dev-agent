@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RoadmapExecutionPlan",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "root_objective",
+    "source_mode",
+    "completion_policy",
+    "global_constraints",
+    "external_blockers",
+    "phases",
+    "final_acceptance",
+    "delivery_policy",
+    "confidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "roadmap_execution_plan_v1"
+    },
+    "root_objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_mode": {
+      "type": "string",
+      "enum": ["one_sentence", "uploaded_docs", "local_repo", "github_repo"]
+    },
+    "completion_policy": {
+      "const": "full_roadmap"
+    },
+    "global_constraints": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "external_blockers": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/phase"}
+    },
+    "final_acceptance": {
+      "type": "object"
+    },
+    "delivery_policy": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["local_only", "local", "branch_only", "pull_request", "github_pr", "auto_merge"]
+        },
+        "requires_user_approval_for_merge": {"type": "boolean"},
+        "allow_public_repository": {"type": "boolean"},
+        "allow_destructive_actions": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "created_at": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "phase": {
+      "type": "object",
+      "required": [
+        "phase_id",
+        "title",
+        "status",
+        "phase_type",
+        "requirements",
+        "promotion_gate"
+      ],
+      "properties": {
+        "phase_id": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "source_references": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "running", "completed", "blocked", "skipped"]
+        },
+        "phase_type": {
+          "type": "string"
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "requirements": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "scope_controls": {
+          "type": "object"
+        },
+        "global_constraints": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "phase_local_constraints": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "verification": {
+          "type": "object"
+        },
+        "promotion_gate": {
+          "type": "object",
+          "properties": {
+            "required_score": {"type": "number"},
+            "required_tests_pass": {"type": "boolean"},
+            "central_review_decision": {"type": "string"}
+          },
+          "additionalProperties": true
+        },
+        "optional": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

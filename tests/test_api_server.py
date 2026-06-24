@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import http.client
 import json
+import os
 import shutil
+import subprocess
+import sys
 import threading
 import time
 import unittest
@@ -12,7 +15,7 @@ from unittest import mock
 
 from server.api import make_handler
 from server.jobs import JobExecutionController, JobStore
-from server.project_service import ProjectService
+from server.project_service import ApiError, ProjectService
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
@@ -110,6 +113,53 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(events["run_id"], "run_001")
         self.assertGreater(len(events["events"]), 0)
 
+    def test_project_service_delete_project_removes_managed_project_folder(self) -> None:
+        root = temp_root()
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+
+        created = service.create_project(
+            {
+                "objective": "Delete unwanted result",
+                "documents": [str(spec)],
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        project_dir = service.project_dir(project_id)
+        generated = project_dir / "runs" / "run_001" / "generated_repository"
+        generated.mkdir(parents=True)
+        (generated / "index.html").write_text("<main>discard me</main>\n", encoding="utf-8")
+
+        result = service.delete_project(project_id)
+
+        self.assertEqual(result["status"], "deleted")
+        self.assertEqual(result["project_id"], project_id)
+        self.assertFalse(project_dir.exists())
+        self.assertEqual(service.list_projects()["projects"], [])
+
+    def test_project_service_delete_project_rejects_active_run(self) -> None:
+        root = temp_root()
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+
+        created = service.create_project(
+            {
+                "objective": "Do not delete while running",
+                "documents": [str(spec)],
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        service.job_store(project_id).create(project_id, "run_001")
+
+        with self.assertRaises(ApiError) as raised:
+            service.delete_project(project_id)
+
+        self.assertEqual(raised.exception.status_code, 409)
+        self.assertEqual(raised.exception.code, "project_has_active_run")
+        self.assertTrue(service.project_dir(project_id).exists())
+
     def test_project_service_exposes_artifact_manifest_and_content(self) -> None:
         root = temp_root()
         repo = root / "repo"
@@ -159,9 +209,176 @@ class ApiServerTests(unittest.TestCase):
         artifact_id = next(str(item["artifact_id"]) for item in manifest["items"] if item["kind"] == "artifact_file")
         content = service.get_run_artifact_content(project_id, str(run["run_id"]), artifact_id)
         self.assertEqual(content.data.decode("utf-8").strip(), "<main>Playable artifact</main>")
-        self.assertEqual(content.media_type, "text/plain; charset=utf-8")
+        self.assertEqual(content.media_type, "text/html; charset=utf-8")
         delivery = service.get_delivery(project_id)
         self.assertEqual(delivery["artifact_manifest"]["items"], manifest["items"])
+
+    def test_project_service_exposes_beginner_run_status_and_delivery_actions(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        (repo / "index.html").write_text("<main>Playable artifact</main>\n", encoding="utf-8")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run = service.run_project(project_id, {})
+        run_dir = service.project_dir(project_id) / "runs" / str(run["run_id"])
+        run["artifact_report"] = {"artifact_files": ["index.html"]}
+        run["runtime_state"]["repository"]["path"] = str(repo)
+        service._write_json(run_dir / "run.json", run)
+
+        status = service.get_run_status(project_id, str(run["run_id"]))
+
+        self.assertEqual(status["status"], "done")
+        self.assertEqual(status["phase"], "ready")
+        self.assertEqual(status["progress_percent"], 100)
+        self.assertEqual(status["central_review"]["status"], "ready")
+        self.assertEqual(status["central_review"]["decision"], "handoff")
+        self.assertGreaterEqual(status["tasks"]["total"], 1)
+        self.assertFalse(status["is_stalled"])
+        actions = {str(action["id"]): action for action in status["delivery_actions"]}
+        self.assertIn("open_result", actions)
+        self.assertTrue(str(actions["open_result"]["url"]).startswith(f"/projects/{project_id}/runs/{run['run_id']}/preview/"))
+        self.assertTrue(str(actions["open_result"]["artifact_url"]).startswith(f"/projects/{project_id}/runs/{run['run_id']}/artifacts/"))
+        self.assertIn("open_folder", actions)
+        self.assertIn("publish_github", actions)
+        self.assertFalse(actions["publish_github"]["enabled"])
+        delivery = service.get_delivery(project_id)
+        self.assertEqual(delivery["central_review"]["status"], "ready")
+        self.assertEqual(delivery["central_review"]["decision"], "handoff")
+
+    def test_project_service_lists_project_history_with_latest_run_summary(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        (repo / "index.html").write_text("<main>Playable artifact</main>\n", encoding="utf-8")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        first = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        first_id = str(first["project"]["project_id"])
+        run = service.run_project(first_id, {})
+        run_dir = service.project_dir(first_id) / "runs" / str(run["run_id"])
+        run["artifact_report"] = {"artifact_files": ["index.html"]}
+        run["runtime_state"]["repository"]["path"] = str(repo)
+        service._write_json(run_dir / "run.json", run)
+        second = service.create_project({"objective": "Second project", "documents": [str(spec)]})
+
+        history = service.list_projects()
+
+        projects = history["projects"]
+        self.assertEqual(len(projects), 2)
+        by_id = {str(project["project_id"]): project for project in projects}
+        first_summary = by_id[first_id]
+        self.assertEqual(first_summary["run_count"], 1)
+        self.assertEqual(first_summary["latest_run_id"], "run_001")
+        self.assertEqual(first_summary["latest_run_status"], "done")
+        self.assertIn("latest_score", first_summary)
+        self.assertTrue(str(first_summary["console_url"]).endswith(f"project_id={first_id}&run_id=run_001"))
+        self.assertTrue(Path(str(first_summary["workspace_path"])).exists())
+        self.assertEqual(by_id[str(second["project"]["project_id"])]["run_count"], 0)
+
+    def test_project_service_open_result_folder_uses_safe_local_folder(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        opened: list[Path] = []
+        service = ProjectService(storage_root=root / "server", folder_opener=lambda path: opened.append(path))
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run = service.run_project(project_id, {})
+
+        result = service.open_run_result_folder(project_id, str(run["run_id"]))
+
+        self.assertEqual(result["status"], "opened")
+        self.assertEqual(opened, [repo.resolve()])
+
+    def test_project_service_open_result_folder_uses_runtime_github_source_folder(self) -> None:
+        root = temp_root()
+        repo = root / "server" / "projects" / "proj_manual" / "repo"
+        repo.mkdir(parents=True)
+        write_repo(repo)
+        opened: list[Path] = []
+        service = ProjectService(storage_root=root / "server", folder_opener=lambda path: opened.append(path))
+        created = service.create_project(
+            {
+                "project_id": "proj_manual",
+                "objective": "Build from GitHub",
+                "primary_input_mode": "document_driven",
+                "repository": "https://github.com/example/repo",
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run_id = "run_001"
+        run_dir = service.project_dir(project_id) / "runs" / run_id
+        run_dir.mkdir(parents=True)
+        (run_dir / "run.json").write_text(
+            json.dumps(
+                {
+                    "project_id": project_id,
+                    "run_id": run_id,
+                    "status": "done",
+                    "runtime_state": {
+                        "repository": {
+                            "source": {
+                                "local_path": str(repo),
+                            }
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = service.open_run_result_folder(project_id, run_id)
+
+        self.assertEqual(result["status"], "opened")
+        self.assertEqual(opened, [repo.resolve()])
+
+    def test_project_service_late_run_status_does_not_override_blocked_intake(self) -> None:
+        root = temp_root()
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "primary_input_mode": "document_driven",
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        stale_record = service.load_project(project_id)
+        blocked = service.load_project(project_id)
+        blocked.status = "intake_blocked"
+        service._write_json(service.project_dir(project_id) / "project.json", blocked.to_dict())
+
+        updated = service._update_project_status(stale_record, "done")
+
+        self.assertEqual(updated.status, "intake_blocked")
+        self.assertEqual(service.load_project(project_id).status, "intake_blocked")
 
     def test_project_service_records_local_repository_provider(self) -> None:
         root = temp_root()
@@ -210,6 +427,146 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(run["status"], "done")
         self.assertEqual(run["workspace"]["status"], "skipped")
         self.assertEqual(run["workspace"]["enabled"], False)
+
+    def test_project_service_unified_run_uses_full_roadmap_mode_by_default(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        spec = root / "roadmap.md"
+        spec.write_text(
+            "\n".join(
+                [
+                    "# Roadmap",
+                    "## V1.0 Foundation",
+                    "- Must build foundation.",
+                    "## V1.1 Core",
+                    "- Must build core.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        captured: dict[str, object] = {}
+
+        class FakeFullRoadmapResult:
+            def to_dict(self) -> dict[str, object]:
+                return {
+                    "status": "done",
+                    "roadmap": {
+                        "root_objective": "Build all phases",
+                        "phases": [
+                            {"phase_id": "phase_001", "title": "V1.0 Foundation", "status": "completed"},
+                            {"phase_id": "phase_002", "title": "V1.1 Core", "status": "completed"},
+                        ],
+                    },
+                    "roadmap_audit": {"status": "passed"},
+                    "project_analysis": {
+                        "start_decision": "start",
+                        "confidence": 0.91,
+                        "ready_to_start": True,
+                        "valid_phases": [
+                            {"phase_id": "phase_001", "title": "V1.0 Foundation"},
+                            {"phase_id": "phase_002", "title": "V1.1 Core"},
+                        ],
+                        "ignored_phase_candidates": [{"text": "V1 should not be treated as policy.", "reason": "constraint_or_policy_sentence"}],
+                    },
+                    "phase_records": [
+                        {"phase_id": "phase_001", "title": "V1.0 Foundation", "status": "done"},
+                        {"phase_id": "phase_002", "title": "V1.1 Core", "status": "done"},
+                    ],
+                    "final_audit": {"status": "passed", "ready_for_final_handoff": True},
+                    "blockers": [],
+                    "output_dir": str(root / "server"),
+                }
+
+        class FakeFullRoadmapExecutor:
+            def run(self, **kwargs):
+                captured.update(kwargs)
+                return FakeFullRoadmapResult()
+
+        service = ProjectService(storage_root=root / "server")
+        with mock.patch("server.project_service.FullRoadmapExecutor", return_value=FakeFullRoadmapExecutor()):
+            result = service.run_unified_request(
+                {
+                    "objective": "Build all phases",
+                    "documents": [str(spec)],
+                    "repository_path": str(repo),
+                    "full_roadmap": True,
+                    "async": False,
+                }
+            )
+
+        self.assertEqual(result["status"], "done")
+        self.assertTrue(captured["run_payload"]["full_roadmap"])
+        run = result["run"]
+        self.assertEqual(run["delivery_report"]["roadmap"]["phase_total"], 2)
+        self.assertEqual(run["delivery_report"]["project_analysis"]["start_decision"], "start")
+        self.assertEqual(run["delivery_report"]["project_analysis"]["valid_phase_count"], 2)
+        self.assertEqual(run["delivery_report"]["project_analysis"]["ignored_candidate_count"], 1)
+        self.assertEqual(run["runtime_state"]["done"], True)
+        self.assertEqual(run["runtime_state"]["project_analysis"]["start_decision"], "start")
+        self.assertEqual(len(run["task_graph"]["nodes"]), 2)
+        status = service.get_run_status(str(result["project_id"]), str(result["run_id"]))
+        self.assertTrue(status["roadmap_progress"]["enabled"])
+        self.assertEqual(status["roadmap_progress"]["total"], 2)
+        self.assertEqual(status["roadmap_progress"]["completed"], 2)
+        self.assertEqual(status["roadmap_progress"]["progress_percent"], 100)
+
+    def test_project_service_full_roadmap_takes_priority_over_one_line_fallback(self) -> None:
+        root = temp_root()
+        captured: dict[str, object] = {}
+
+        class FakeFullRoadmapResult:
+            def to_dict(self) -> dict[str, object]:
+                return {
+                    "status": "done",
+                    "roadmap": {
+                        "root_objective": "Build a complete app",
+                        "phases": [
+                            {"phase_id": "phase_001", "title": "Generated Requirements", "status": "completed"},
+                            {"phase_id": "phase_002", "title": "Implementation", "status": "completed"},
+                        ],
+                    },
+                    "roadmap_audit": {"status": "passed"},
+                    "project_analysis": {
+                        "start_decision": "start",
+                        "confidence": 0.88,
+                        "ready_to_start": True,
+                        "valid_phases": [
+                            {"phase_id": "phase_001", "title": "Generated Requirements"},
+                            {"phase_id": "phase_002", "title": "Implementation"},
+                        ],
+                        "ignored_phase_candidates": [],
+                    },
+                    "phase_records": [
+                        {"phase_id": "phase_001", "title": "Generated Requirements", "status": "done"},
+                        {"phase_id": "phase_002", "title": "Implementation", "status": "done"},
+                    ],
+                    "final_audit": {"status": "passed", "ready_for_final_handoff": True},
+                    "blockers": [],
+                    "output_dir": str(root / "server"),
+                }
+
+        class FakeFullRoadmapExecutor:
+            def run(self, **kwargs):
+                captured.update(kwargs)
+                return FakeFullRoadmapResult()
+
+        service = ProjectService(storage_root=root / "server")
+        with mock.patch("server.project_service.FullRoadmapExecutor", return_value=FakeFullRoadmapExecutor()):
+            result = service.run_unified_request(
+                {
+                    "objective": "Build a complete app",
+                    "expand_one_line": False,
+                    "full_roadmap": True,
+                    "async": False,
+                }
+            )
+
+        self.assertEqual(result["status"], "done")
+        self.assertEqual(captured["primary_input_mode"], "one_line_fallback")
+        self.assertTrue(captured["run_payload"]["full_roadmap"])
+        self.assertEqual(result["run"]["delivery_report"]["roadmap"]["phase_total"], 2)
 
     def test_project_status_maps_in_progress_to_needs_iteration(self) -> None:
         from server.project_service import project_status_for_run
@@ -313,6 +670,324 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(run_delivery["latest_run_id"], "run_002")
         self.assertEqual(run_delivery["delivery_evidence"]["recovery_comparison"]["current_run_id"], "run_002")
 
+    def test_project_service_auto_iteration_generates_repair_plan_and_reopens(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        (repo / "index.html").write_text("<main>Playable artifact</main>\n", encoding="utf-8")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run = service.run_project(project_id, {})
+        run_id = str(run["run_id"])
+        run_dir = service.project_dir(project_id) / "runs" / run_id
+        run["artifact_report"] = {"artifact_files": ["index.html"]}
+        run["runtime_state"]["repository"]["path"] = str(repo)
+        run["delivery_report"]["ready_for_review"] = False
+        run["delivery_report"]["status"] = "needs_iteration"
+        run["delivery_report"]["final_gate"]["score"] = 0.8
+        run["delivery_report"]["final_gate"]["dimension_scores"] = {"test_health": 0.6}
+        service._write_json(run_dir / "run.json", run)
+
+        delivery_preview = service.get_delivery_for_run(project_id, run_id)
+        self.assertEqual(delivery_preview["central_review"]["decision"], "iterate")
+        self.assertEqual(delivery_preview["auto_iteration"]["status"], "skipped")
+        self.assertEqual(delivery_preview["repair_plan"]["status"], "ready")
+        self.assertTrue(delivery_preview["repair_plan"]["auto_execution"]["allowed"])
+        self.assertFalse((run_dir / "repair_plan.json").exists())
+        self.assertFalse((run_dir / "auto_iteration_report.json").exists())
+
+        preview = service.preview_auto_iteration(project_id, run_id)
+
+        self.assertEqual(preview["status"], "skipped")
+        self.assertTrue(preview["auto_execution_available"])
+        self.assertEqual(preview["repair_plan"]["status"], "ready")
+        self.assertTrue(preview["repair_plan"]["items"])
+        self.assertTrue(all("target_files" in item for item in preview["repair_plan"]["items"]))
+
+        started = service.start_auto_iteration(project_id, run_id, {"run": {"auto_browser_verify": False}})
+
+        self.assertEqual(started["status"], "started")
+        self.assertEqual(started["repair_run_id"], "run_002")
+        self.assertEqual(started["repair_plan"]["status"], "started")
+        self.assertTrue((run_dir / "repair_plan.json").exists())
+        self.assertTrue((run_dir / "repair_plan.md").exists())
+        self.assertTrue((run_dir / "auto_feedback.md").exists())
+        self.assertTrue((run_dir / "auto_iteration_report.json").exists())
+        repair_run = service.get_run(project_id, "run_002")
+        self.assertEqual(repair_run["central_auto_iteration"]["source_run_id"], "run_001")
+        self.assertEqual(repair_run["feedback_reopen"]["source_run_id"], "run_001")
+        self.assertEqual(repair_run["recovery_comparison"]["current_run_id"], "run_002")
+        delivery = service.get_delivery_for_run(project_id, "run_001")
+        self.assertEqual(delivery["auto_iteration"]["status"], "started")
+        self.assertEqual(delivery["repair_plan"]["status"], "started")
+
+    def test_project_service_auto_iteration_can_start_async_repair_run(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        (repo / "index.html").write_text("<main>Playable artifact</main>\n", encoding="utf-8")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run = service.run_project(project_id, {})
+        run_id = str(run["run_id"])
+        run_dir = service.project_dir(project_id) / "runs" / run_id
+        run["artifact_report"] = {"artifact_files": ["index.html"]}
+        run["runtime_state"]["repository"]["path"] = str(repo)
+        run["delivery_report"]["ready_for_review"] = False
+        run["delivery_report"]["status"] = "needs_iteration"
+        run["delivery_report"]["final_gate"]["score"] = 0.8
+        run["delivery_report"]["final_gate"]["dimension_scores"] = {"test_health": 0.6}
+        service._write_json(run_dir / "run.json", run)
+
+        started = service.start_auto_iteration(
+            project_id,
+            run_id,
+            {"async": True, "run": {"auto_browser_verify": False}},
+        )
+
+        self.assertEqual(started["status"], "started")
+        self.assertEqual(started["repair_run_id"], "run_002")
+        self.assertEqual(started["job"]["status"], "queued")
+        self.assertTrue((service.project_dir(project_id) / "runs" / "run_002" / "repair_source.json").exists())
+        job = wait_for_job(service, project_id, "run_002")
+        self.assertEqual(job["status"], "done")
+        repair_run = service.get_run(project_id, "run_002")
+        self.assertEqual(repair_run["feedback_reopen"]["source_run_id"], "run_001")
+        self.assertEqual(service.get_delivery_for_run(project_id, "run_001")["auto_iteration"]["status"], "started")
+
+    def test_auto_iteration_feedback_preserves_requirement_target_files(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        (repo / "app.py").write_text("def add(a, b):\n    raise NotImplementedError()\n", encoding="utf-8")
+        spec = root / "add_spec.md"
+        spec.write_text("# Add\n## Requirements\n- Must implement add(a, b) in app.py.\n", encoding="utf-8")
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Implement add",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run = service.run_project(project_id, {})
+        run_id = str(run["run_id"])
+        run_dir = service.project_dir(project_id) / "runs" / run_id
+        run["runtime_state"]["repository"]["path"] = str(repo)
+        run["artifact_report"] = {"artifact_files": ["app.py"], "artifact_profile": {"name": "python_project"}}
+        run["requirement_coverage"] = {
+            "status": "partial",
+            "missing_must_requirement_ids": ["REQ-ADD-001"],
+            "partial_must_requirement_ids": [],
+            "requirement_map": {
+                "requirements": [
+                    {
+                        "id": "REQ-ADD-001",
+                        "priority": "must",
+                        "status": "missing",
+                        "summary": "Implement add(a, b) in app.py.",
+                        "related_files": ["app.py"],
+                    }
+                ]
+            },
+        }
+        run["delivery_report"]["ready_for_review"] = False
+        run["delivery_report"]["status"] = "needs_iteration"
+        run["delivery_report"]["final_gate"]["score"] = 0.72
+        service._write_json(run_dir / "run.json", run)
+
+        preview = service.preview_auto_iteration(project_id, run_id)
+
+        target_items = [item for item in preview["repair_plan"]["items"] if "app.py" in item["target_files"]]
+        self.assertTrue(target_items)
+
+        service.start_auto_iteration(project_id, run_id, {"run": {"auto_browser_verify": False}})
+        auto_feedback = (run_dir / "auto_feedback.md").read_text(encoding="utf-8")
+        self.assertIn("Target files: app.py", auto_feedback)
+        repair_run = service.get_run(project_id, "run_002")
+        convergence = repair_run["runtime_state"]["repository"]["repair_convergence"]
+        self.assertEqual(convergence["status"], "completed")
+        self.assertEqual(convergence["target_files"], ["app.py"])
+        self.assertEqual(convergence["source_run_id"], "run_001")
+        self.assertTrue(repair_run["runtime_state"]["done"])
+
+    def test_auto_iteration_real_codex_repair_converges_after_target_file_and_tests_pass(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+        (repo / "app.py").write_text("def add(a, b):\n    raise NotImplementedError()\n", encoding="utf-8")
+        (repo / "tests").mkdir()
+        (repo / "tests" / "test_app.py").write_text(
+            "import unittest\nfrom app import add\n\nclass AddTests(unittest.TestCase):\n"
+            "    def test_adds_numbers(self):\n        self.assertEqual(add(2, 3), 5)\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "."], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True)
+        spec = root / "add_spec.md"
+        spec.write_text("# Add\n## Requirements\n- Must implement add(a, b) in app.py.\n", encoding="utf-8")
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Implement add",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run = service.run_project(project_id, {})
+        run_id = str(run["run_id"])
+        run_dir = service.project_dir(project_id) / "runs" / run_id
+        run["runtime_state"]["repository"]["path"] = str(repo)
+        run["artifact_report"] = {"artifact_files": ["app.py"], "artifact_profile": {"name": "python_project"}}
+        run["requirement_coverage"] = {
+            "status": "partial",
+            "missing_must_requirement_ids": ["REQ-ADD-001"],
+            "partial_must_requirement_ids": [],
+            "requirement_map": {
+                "requirements": [
+                    {
+                        "id": "REQ-ADD-001",
+                        "priority": "must",
+                        "status": "missing",
+                        "summary": "Implement add(a, b) in app.py.",
+                        "related_files": ["app.py"],
+                    }
+                ]
+            },
+        }
+        run["delivery_report"]["ready_for_review"] = False
+        run["delivery_report"]["status"] = "needs_iteration"
+        run["delivery_report"]["final_gate"]["score"] = 0.72
+        service._write_json(run_dir / "run.json", run)
+
+        fake_codex = root / ("fake-codex.cmd" if os.name == "nt" else "fake-codex")
+        fake_script = root / "fake_codex.py"
+        fake_script.write_text(
+            "import json, pathlib, re, sys\n"
+            "if '--version' in sys.argv or '-V' in sys.argv:\n"
+            "    print('fake-codex 0.1')\n"
+            "    raise SystemExit(0)\n"
+            "repo = pathlib.Path.cwd()\n"
+            "prompt = sys.stdin.read()\n"
+            "match = re.search(r'\"task_id\"\\s*:\\s*\"([^\"]+)\"', prompt)\n"
+            "task_id = match.group(1) if match else 'T000'\n"
+            "if task_id == 'T001':\n"
+            "    print(json.dumps({\n"
+            "        'task_id': task_id,\n"
+            "        'status': 'completed',\n"
+            "        'summary': 'planned repair',\n"
+            "        'files_changed': [],\n"
+            "        'commands_run': [],\n"
+            "        'tests_passed': ['planning evidence'],\n"
+            "        'tests_failed': [],\n"
+            "        'evidence': ['implementation task should edit app.py'],\n"
+            "        'known_issues': [],\n"
+            "        'follow_up_tasks': [],\n"
+            "        'confidence': 0.95,\n"
+            "    }))\n"
+            "    raise SystemExit(0)\n"
+            "(repo / 'app.py').write_text('def add(a, b):\\n    return a + b\\n', encoding='utf-8')\n"
+            "cache = repo / '__pycache__'\n"
+            "cache.mkdir(exist_ok=True)\n"
+            "(cache / 'app.cpython-312.pyc').write_bytes(b'cache')\n"
+            "payload = {\n"
+            "    'task_id': task_id,\n"
+            "    'status': 'completed',\n"
+            "    'summary': 'implemented add',\n"
+            "    'files_changed': ['app.py'],\n"
+            "    'commands_run': [{'command': 'python -m unittest discover -s tests', 'exit_code': 0}],\n"
+            "    'tests_passed': ['python -m unittest discover -s tests'],\n"
+            "    'tests_failed': [],\n"
+            "    'evidence': ['app.py returns a + b'],\n"
+            "    'known_issues': [],\n"
+            "    'follow_up_tasks': [],\n"
+            "    'confidence': 0.95,\n"
+            "}\n"
+            "print(json.dumps(payload))\n",
+            encoding="utf-8",
+        )
+        if os.name == "nt":
+            fake_codex.write_text(f"@echo off\n\"{sys.executable}\" \"{fake_script}\" %*\n", encoding="utf-8")
+        else:
+            fake_codex.write_text(f"#!/bin/sh\nexec \"{sys.executable}\" \"{fake_script}\" \"$@\"\n", encoding="utf-8")
+            fake_codex.chmod(0o755)
+
+        service.start_auto_iteration(
+            project_id,
+            run_id,
+            {
+                "run": {
+                    "real_codex": True,
+                    "codex_executable": str(fake_codex),
+                    "auto_browser_verify": False,
+                    "isolate_real_run": False,
+                }
+            },
+        )
+
+        repair_run = service.get_run(project_id, "run_002")
+        convergence = repair_run["runtime_state"]["repository"]["repair_convergence"]
+        self.assertEqual(convergence["status"], "completed")
+        self.assertEqual(convergence["trigger_task_id"], "T002")
+        self.assertTrue(repair_run["runtime_state"]["done"])
+        self.assertIn("return a + b", (repo / "app.py").read_text(encoding="utf-8"))
+
+    def test_project_service_auto_iteration_blocks_handoff_runs(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        (repo / "index.html").write_text("<main>Playable artifact</main>\n", encoding="utf-8")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run = service.run_project(project_id, {})
+        run_id = str(run["run_id"])
+        run_dir = service.project_dir(project_id) / "runs" / run_id
+        run["artifact_report"] = {"artifact_files": ["index.html"]}
+        run["runtime_state"]["repository"]["path"] = str(repo)
+        service._write_json(run_dir / "run.json", run)
+
+        result = service.start_auto_iteration(project_id, run_id)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIsNone(result["repair_run_id"])
+        self.assertIn("handoff", result["auto_iteration_report"]["reason"].lower())
+        self.assertTrue((run_dir / "auto_iteration_report.json").exists())
+
     def test_project_service_async_run_records_job_controls_and_events(self) -> None:
         root = temp_root()
         repo = root / "repo"
@@ -376,6 +1051,29 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(attempts["count"], 1)
         self.assertEqual(store.load("run_001").status, "running")
         self.assertFalse(list((root / "runs" / "run_001").glob("job.json.tmp-*")))
+
+    def test_project_service_json_helpers_are_atomic_and_retry_partial_reads(self) -> None:
+        root = temp_root()
+        service = ProjectService(storage_root=root / "server")
+        path = root / "payload.json"
+        path.write_text("", encoding="utf-8")
+        original_read_text = Path.read_text
+        attempts = {"count": 0}
+
+        def flaky_read_text(target: Path, *args: object, **kwargs: object) -> str:
+            if target == path and attempts["count"] == 0:
+                attempts["count"] += 1
+                path.write_text('{"status": "ready"}\n', encoding="utf-8")
+                return ""
+            return original_read_text(target, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", flaky_read_text):
+            self.assertEqual(service._read_json(path), {"status": "ready"})
+
+        service._write_json(path, {"status": "done"})
+
+        self.assertEqual(service._read_json(path), {"status": "done"})
+        self.assertFalse(list(root.glob("payload.json.tmp-*")))
 
     def test_project_service_job_controller_stops_at_task_boundary(self) -> None:
         root = temp_root()
@@ -488,12 +1186,57 @@ class ApiServerTests(unittest.TestCase):
             thread.join(timeout=10)
             server.server_close()
 
+    def test_http_api_delete_project_removes_history_and_local_folder(self) -> None:
+        root = temp_root()
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            created = request_json(
+                conn,
+                "POST",
+                "/projects",
+                {
+                    "objective": "Delete through HTTP",
+                    "documents": [str(spec)],
+                },
+                expected=201,
+            )
+            project_id = str(created["project"]["project_id"])
+            project_dir = service.project_dir(project_id)
+            self.assertTrue(project_dir.exists())
+
+            deleted = request_json(conn, "DELETE", f"/projects/{project_id}", expected=200)
+
+            self.assertEqual(deleted["status"], "deleted")
+            self.assertEqual(deleted["project_id"], project_id)
+            self.assertFalse(project_dir.exists())
+            history = request_json(conn, "GET", "/projects", expected=200)
+            self.assertEqual(history["projects"], [])
+            missing = request_json(conn, "GET", f"/projects/{project_id}", expected=404)
+            self.assertEqual(missing["error"]["code"], "project_not_found")
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
     def test_http_api_serves_run_artifact_manifest_and_content(self) -> None:
         root = temp_root()
         repo = root / "repo"
         repo.mkdir()
         write_repo(repo)
-        (repo / "index.html").write_text("<main>HTTP artifact</main>\n", encoding="utf-8")
+        (repo / "index.html").write_text(
+            '<main>HTTP artifact</main><link rel="stylesheet" href="src/styles.css"><script src="src/main.js"></script>\n',
+            encoding="utf-8",
+        )
+        (repo / "src" / "main.js").write_text("window.__artifactLoaded = true;\n", encoding="utf-8")
+        (repo / "src" / "styles.css").write_text("main { color: red; }\n", encoding="utf-8")
         spec = root / "workspace_feature_spec.md"
         write_spec(spec)
         service = ProjectService(storage_root=root / "server")
@@ -526,9 +1269,69 @@ class ApiServerTests(unittest.TestCase):
             manifest = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/artifacts", expected=200)
             self.assertGreaterEqual(len(manifest["items"]), 1)
             artifact_id = next(str(item["artifact_id"]) for item in manifest["items"] if item["kind"] == "artifact_file")
-            body = request_text(conn, "GET", f"/projects/{project_id}/runs/{run_id}/artifacts/{artifact_id}", expected=200)
+            conn.request("GET", f"/projects/{project_id}/runs/{run_id}/artifacts/{artifact_id}")
+            response = conn.getresponse()
+            body = response.read().decode("utf-8")
 
+            self.assertEqual(response.status, 200)
+            self.assertIn("text/html", response.getheader("Content-Type", ""))
             self.assertIn("HTTP artifact", body)
+
+            preview = request_text(conn, "GET", f"/projects/{project_id}/runs/{run_id}/preview/index.html", expected=200)
+            self.assertIn("src/main.js", preview)
+            script = request_text(conn, "GET", f"/projects/{project_id}/runs/{run_id}/preview/src/main.js", expected=200)
+            style = request_text(conn, "GET", f"/projects/{project_id}/runs/{run_id}/preview/src/styles.css", expected=200)
+            self.assertIn("__artifactLoaded", script)
+            self.assertIn("color: red", style)
+            blocked = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/preview/../project.json", expected=404)
+            self.assertEqual(blocked["error"]["code"], "preview_file_not_found")
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
+    def test_http_api_serves_run_status_and_open_folder_action(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        (repo / "index.html").write_text("<main>HTTP result</main>\n", encoding="utf-8")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        opened: list[Path] = []
+        service = ProjectService(storage_root=root / "server", folder_opener=lambda path: opened.append(path))
+        created = service.create_project(
+            {
+                "objective": "Add workspace support",
+                "documents": [str(spec)],
+                "repository_path": str(repo),
+            }
+        )
+        project_id = str(created["project"]["project_id"])
+        run = service.run_project(project_id, {})
+        run_id = str(run["run_id"])
+        run_dir = service.project_dir(project_id) / "runs" / run_id
+        stored = service.get_run(project_id, run_id)
+        stored["artifact_report"] = {"artifact_files": ["index.html"]}
+        stored["runtime_state"]["repository"]["path"] = str(repo)
+        service._write_json(run_dir / "run.json", stored)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            status = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/status", expected=200)
+            self.assertEqual(status["phase"], "ready")
+            self.assertEqual(status["progress_percent"], 100)
+            self.assertEqual(status["central_review"]["decision"], "handoff")
+            self.assertTrue(any(action["id"] == "open_result" for action in status["delivery_actions"]))
+
+            opened_result = request_json(conn, "POST", f"/projects/{project_id}/runs/{run_id}/open-folder", expected=200)
+            self.assertEqual(opened_result["status"], "opened")
+            self.assertEqual(opened, [repo.resolve()])
         finally:
             conn.close()
             server.shutdown()
@@ -589,6 +1392,76 @@ class ApiServerTests(unittest.TestCase):
             thread.join(timeout=10)
             server.server_close()
 
+    def test_http_api_auto_iteration_preview_and_start(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        write_repo(repo)
+        (repo / "index.html").write_text("<main>Playable artifact</main>\n", encoding="utf-8")
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            created = request_json(
+                conn,
+                "POST",
+                "/projects",
+                {
+                    "objective": "Add workspace support",
+                    "documents": [str(spec)],
+                    "repository_path": str(repo),
+                },
+                expected=201,
+            )
+            project_id = str(created["project"]["project_id"])
+            first_run = request_json(conn, "POST", f"/projects/{project_id}/runs", {}, expected=201)
+            run_id = str(first_run["run_id"])
+            run_dir = service.project_dir(project_id) / "runs" / run_id
+            stored = service.get_run(project_id, run_id)
+            stored["artifact_report"] = {"artifact_files": ["index.html"]}
+            stored["runtime_state"]["repository"]["path"] = str(repo)
+            stored["delivery_report"]["ready_for_review"] = False
+            stored["delivery_report"]["status"] = "needs_iteration"
+            stored["delivery_report"]["final_gate"]["score"] = 0.8
+            stored["delivery_report"]["final_gate"]["dimension_scores"] = {"test_health": 0.6}
+            service._write_json(run_dir / "run.json", stored)
+
+            delivery_preview = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/delivery", expected=200)
+            self.assertEqual(delivery_preview["central_review"]["decision"], "iterate")
+            self.assertEqual(delivery_preview["auto_iteration"]["status"], "skipped")
+            self.assertEqual(delivery_preview["repair_plan"]["status"], "ready")
+            self.assertTrue(delivery_preview["repair_plan"]["auto_execution"]["allowed"])
+            self.assertFalse((run_dir / "repair_plan.json").exists())
+
+            preview = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/auto-iteration", expected=200)
+            self.assertTrue(preview["auto_execution_available"])
+            self.assertEqual(preview["repair_plan"]["status"], "ready")
+
+            started = request_json(
+                conn,
+                "POST",
+                f"/projects/{project_id}/runs/{run_id}/auto-iteration",
+                {"async": True, "run": {"auto_browser_verify": False}},
+                expected=201,
+            )
+
+            self.assertEqual(started["status"], "started")
+            self.assertEqual(started["repair_run_id"], "run_002")
+            self.assertEqual(started["job"]["status"], "queued")
+            self.assertEqual(wait_for_http_job(conn, project_id, "run_002")["status"], "done")
+            delivery = request_json(conn, "GET", f"/projects/{project_id}/runs/{run_id}/delivery", expected=200)
+            self.assertEqual(delivery["auto_iteration"]["status"], "started")
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
     def test_project_service_github_inspect_without_prepare_returns_intake(self) -> None:
         root = temp_root()
         service = ProjectService(storage_root=root / "server")
@@ -604,7 +1477,36 @@ class ApiServerTests(unittest.TestCase):
         inspected = service.inspect_github(project_id, {"prepare": False})
 
         self.assertEqual(inspected["brief"]["repository"]["owner"], "example")
-        self.assertNotIn("source", inspected)
+        self.assertEqual(created["project"]["repository_path"], "")
+        self.assertEqual(inspected["project"]["repository_path"], "")
+        self.assertEqual(inspected["brief"]["repository"]["local_path"], "")
+        self.assertFalse((service.project_dir(project_id) / "repo").exists())
+
+    def test_project_service_github_prepare_binds_managed_checkout_path(self) -> None:
+        root = temp_root()
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        payload = {
+            "objective": "Prepare public GitHub source",
+            "documents": [str(spec)],
+            "repository_url": "https://github.com/example/saas-dashboard",
+            "source_mode": "github_public",
+            "prepare_repository": True,
+            "output_dir": str(root / "github-run"),
+        }
+
+        preflight = service.preflight_unified_request(payload)
+        normalized = service._normalize_service_unified_payload(payload)
+        created = service.create_project(normalized)
+        project_id = str(created["project"]["project_id"])
+
+        self.assertEqual(preflight["status"], "passed")
+        self.assertEqual(
+            Path(str(created["project"]["repository_path"])).resolve(),
+            (root / "server" / "projects" / project_id / "repo").resolve(),
+        )
+        self.assertEqual(created["brief"]["repository"]["local_path"], created["project"]["repository_path"])
 
     def test_http_api_async_run_and_controls(self) -> None:
         root = temp_root()
@@ -826,7 +1728,9 @@ class ApiServerTests(unittest.TestCase):
 
             latest_file_id = str(patched["brief"]["documents"][0]["id"])
             deleted = request_json(conn, "DELETE", f"/projects/{project_id}/files/{latest_file_id}", expected=200)
-            self.assertEqual(deleted["project"]["status"], "intake_blocked")
+            self.assertEqual(deleted["project"]["status"], "intake_ready")
+            self.assertEqual(deleted["project"]["documents"], [])
+            self.assertEqual(deleted["project"]["repository_path"], str(repo))
         finally:
             conn.close()
             server.shutdown()
@@ -849,23 +1753,60 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("Alchemy Dev Agent", html)
             self.assertIn("languageEn", html)
             self.assertIn("languageZh", html)
+            self.assertIn("advancedToggle", html)
+            self.assertIn("advancedConfigDetails", html)
+            self.assertIn("advancedRunControls", html)
+            self.assertIn("progressStopRun", html)
+            self.assertIn("projectWorkspacePanel", html)
+            self.assertIn("newProject", html)
+            self.assertIn("refreshProjectHistory", html)
+            self.assertIn("activeProjectSummary", html)
+            self.assertIn("projectHistory", html)
+            self.assertIn("scoreExplanation", html)
+            self.assertIn("deliveryActionFeedback", html)
             self.assertIn("data-i18n", html)
             self.assertIn("data-lang=\"zh\"", html)
             self.assertIn("fileSelection", html)
             self.assertIn("filePicker", html)
             self.assertIn("grid-template-areas", css)
+            self.assertIn("showAdvanced", css)
+            self.assertIn("projectWorkspacePanel", css)
+            self.assertIn("projectHistoryCard", css)
+            self.assertIn("scoreExplanation", css)
+            self.assertIn("deliveryActionFeedback", css)
+            self.assertIn(".sourceCard textarea", css)
+            self.assertIn("body.showAdvanced .sourceCard textarea", css)
             self.assertIn("startRun", js)
             self.assertIn("const I18N", js)
             self.assertIn("setLanguage", js)
             self.assertIn("applyLanguage", js)
+            self.assertIn("toggleAdvancedVisibility", js)
+            self.assertIn("progressStopRun", js)
             self.assertIn("renderFileSelection", js)
-            self.assertIn("文档驱动的自动化软件开发控制台", js)
+            self.assertIn("loadProjectHistory", js)
+            self.assertIn("beginNewProject", js)
+            self.assertIn("openProjectFromHistory", js)
+            self.assertIn("deleteProjectFromHistory", js)
+            self.assertIn("data-delete-project", js)
+            self.assertIn("message.delete_project_confirm", js)
+            self.assertIn("projectHistoryDelete", css)
+            self.assertIn("allDeliveryActions", js)
+            self.assertIn("renderScoreExplanation", js)
+            self.assertIn("给不会写代码的人用的一键生成软件工具", js)
+            self.assertIn("项目工作台", js)
             self.assertIn("未选择文件", js)
             self.assertIn("realCodex", html)
+            self.assertIn("id=\"realCodex\" type=\"checkbox\" checked", html)
             self.assertIn("isolateRealRun", html)
             self.assertIn("githubCiWaitSeconds", html)
             self.assertIn("githubCollectCi", html)
             self.assertIn("deliverySummary", html)
+            self.assertIn("runProgressPanel", html)
+            self.assertIn("progressFill", html)
+            self.assertIn("roadmapProgress", html)
+            self.assertIn("centralReviewProgress", html)
+            self.assertIn("deliveryActions", html)
+            self.assertIn("centralReviewCard", html)
             self.assertIn("readinessBadge", html)
             self.assertIn("gateScore", html)
             self.assertIn("deliveryTabs", html)
@@ -881,7 +1822,23 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("runEvidenceReadiness", html)
             self.assertIn("readinessOutput", html)
             self.assertIn("data-i18n=\"gate.title\"", html)
-            self.assertIn("sourceMode", html)
+            self.assertIn("configPanel", html)
+            self.assertIn("environmentBadge", html)
+            self.assertIn("environmentSummary", html)
+            self.assertIn("modelProvider", html)
+            self.assertIn("modelModeBadge", html)
+            self.assertIn("modelSummary", html)
+            self.assertIn("advancedModelSettings", html)
+            self.assertIn("orchestratorModel", html)
+            self.assertIn("documentExpansionModel", html)
+            self.assertIn("reviewerModel", html)
+            self.assertIn("modelApiKeyEnv", html)
+            self.assertIn("modelBaseUrl", html)
+            self.assertIn("sourceCards", html)
+            self.assertIn("sourceRadio", html)
+            self.assertIn("documentObjective", html)
+            self.assertIn("githubObjective", html)
+            self.assertIn("resetSourceChoice", html)
             self.assertIn("startUnifiedRun", html)
             self.assertIn("preflightUnifiedRun", html)
             self.assertIn("prepareRepository", html)
@@ -895,6 +1852,17 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("github_ci_wait_seconds", js)
             self.assertIn("github_collect_ci", js)
             self.assertIn("source_mode", js)
+            self.assertIn("model_provider", js)
+            self.assertIn("model_access", js)
+            self.assertIn("/environment/defaults", js)
+            self.assertIn("loadEnvironmentDefaults", js)
+            self.assertIn("renderModelSummary", js)
+            self.assertIn("environmentReady", js)
+            self.assertIn("setSourceType", js)
+            self.assertIn("projectPayloadForSource", js)
+            self.assertIn("expand_one_line", js)
+            self.assertIn("primary_input_mode: \"document_driven\"", js)
+            self.assertIn("uploadSelectedFiles", js)
             self.assertIn("/runs", js)
             self.assertIn("/runs/preflight", js)
             self.assertIn("startUnifiedRun", js)
@@ -907,6 +1875,35 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("auto_merge", js)
             self.assertIn("renderDelivery", js)
             self.assertIn("renderDeliveryChrome", js)
+            self.assertIn("renderRunStatus", js)
+            self.assertIn("renderRoadmapProgress", js)
+            self.assertIn("roadmap_progress", js)
+            self.assertIn("full_roadmap", js)
+            self.assertIn("renderCentralReview", js)
+            self.assertIn("central.decision.handoff", js)
+            self.assertIn("renderAutoIteration", js)
+            self.assertIn("startAutoIteration", js)
+            self.assertIn("/auto-iteration", js)
+            self.assertIn("auto_iteration.action", js)
+            self.assertIn("environmentChecking", js)
+            self.assertIn("config.checking", js)
+            self.assertIn("async: true", js)
+            self.assertIn("renderDeliveryStatusFallback", js)
+            self.assertIn("isRunStoppable", js)
+            self.assertIn("refreshRunStatus", js)
+            self.assertIn("handleDeliveryAction", js)
+            self.assertIn("fallbackDeliveryActions", js)
+            self.assertIn("bestDeliveryArtifact", js)
+            self.assertIn("data-delivery-url", js)
+            self.assertIn("artifactItemsForDisplay", js)
+            self.assertIn("isRunnableArtifact", js)
+            self.assertIn("artifact.hidden_sources", js)
+            self.assertIn("delivery.folder_opening", js)
+            self.assertIn("delivery.folder_failed", js)
+            self.assertIn("max_worker_seconds: 0", js)
+            self.assertIn("${state.runId}/status", js)
+            self.assertIn("data-delivery-action", js)
+            self.assertIn("method || \"GET\"", js)
             self.assertIn("renderEvidence", js)
             self.assertIn("renderEvidenceDetails", js)
             self.assertIn("renderArtifactPreviews", js)
@@ -934,6 +1931,14 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("recovery_comparison", js)
             self.assertIn("repair_suggestions", js)
             self.assertIn("deliverySummary", css)
+            self.assertIn("runProgressPanel", css)
+            self.assertIn("progressTrack", css)
+            self.assertIn("roadmapProgress", css)
+            self.assertIn("deliveryActionGrid", css)
+            self.assertIn("deliveryAction", css)
+            self.assertIn("centralReviewCard", css)
+            self.assertIn("centralReviewProgress", css)
+            self.assertIn("autoIterationPrompt", css)
             self.assertIn("languageSwitch", css)
             self.assertIn("languageOption", css)
             self.assertIn("filePicker", css)
@@ -948,8 +1953,16 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("readinessOutput", css)
             self.assertIn("readinessCheck", css)
             self.assertIn("artifactPreviews", css)
+            self.assertIn("artifactHint", css)
             self.assertIn("graphViz", css)
             self.assertIn("coverageViz", css)
+            self.assertIn("configPanel", css)
+            self.assertIn("sourceCards", css)
+            self.assertIn("sourceCard", css)
+            self.assertIn("environmentSummary", css)
+            self.assertIn("modelConfig", css)
+            self.assertIn("modelSummary", css)
+            self.assertIn("advancedModelSettings", css)
         finally:
             conn.close()
             server.shutdown()
@@ -984,6 +1997,53 @@ class ApiServerTests(unittest.TestCase):
             thread.join(timeout=10)
             server.server_close()
 
+    def test_http_api_environment_defaults_returns_detected_recommendations(self) -> None:
+        root = temp_root()
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            defaults = request_json(conn, "GET", "/environment/defaults", expected=200)
+
+            self.assertEqual(defaults["schema_version"], "2.56")
+            self.assertEqual(defaults["model_provider"], "codex_cli")
+            self.assertEqual(defaults["recommended_mode"], "codex_cli")
+            self.assertIn("codex_executable", defaults)
+            self.assertIn("github_cli", defaults)
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
+    def test_http_api_lists_project_history(self) -> None:
+        root = temp_root()
+        spec = root / "workspace_feature_spec.md"
+        write_spec(spec)
+        service = ProjectService(storage_root=root / "server")
+        created = service.create_project({"objective": "Add workspace support", "documents": [str(spec)]})
+        project_id = str(created["project"]["project_id"])
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            history = request_json(conn, "GET", "/projects", expected=200)
+
+            self.assertEqual(len(history["projects"]), 1)
+            self.assertEqual(history["projects"][0]["project_id"], project_id)
+            self.assertEqual(history["projects"][0]["run_count"], 0)
+            self.assertIn("workspace_path", history["projects"][0])
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
     def test_project_service_environment_check_requires_browser_when_auto_verify_is_requested(self) -> None:
         root = temp_root()
         service = ProjectService(storage_root=root / "server")
@@ -1002,12 +2062,18 @@ class ApiServerTests(unittest.TestCase):
                 {
                     "codex_executable": "custom-codex",
                     "auto_browser_verify": True,
+                    "model_provider": "openai",
+                    "model_api_key_env": "OPENAI_API_KEY",
+                    "model_base_url": "https://api.openai.com/v1",
                 }
             )
 
         self.assertEqual(report["status"], "ready")
         self.assertEqual(captured["codex_executable"], "custom-codex")
         self.assertEqual(captured["require_browser"], True)
+        self.assertEqual(captured["model_provider"], "openai")
+        self.assertEqual(captured["model_api_key_env"], "OPENAI_API_KEY")
+        self.assertEqual(captured["model_base_url"], "https://api.openai.com/v1")
 
 
 def request_json(

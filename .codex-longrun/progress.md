@@ -800,3 +800,373 @@ PY"`
 - Verified English and Chinese Playwright visual smokes; both reached readiness=ready with zero console errors.
 
 - V2.55 master GitHub Actions CI passed on commit a135dc98f7a140d7a715cdc8a26609de8888ecb8 (run 27873272496).
+
+## 2026-06-21 V2.57 Beginner Delivery And Progress Loop
+
+- Added docs/64_v2_57_beginner_delivery_and_progress.md for the beginner-friendly delivery/progress contract.
+- Added run status snapshots with phase, progress percent, task counts, recent activity, stall flag, and delivery actions.
+- Added local result folder opening through a safe run-scoped API action and made HTML artifacts open as text/html.
+- Updated the browser console with progress bar, review actions, local-only GitHub messaging, and unlimited worker default for product flows.
+- Verified run_002 smoke on a temporary local API server: progress ready/100%, Open result returned HTML/canvas content, local delivery was correctly isolated from PR actions.
+- Full unit suite passed: 269 tests OK; compileall, JS check, specs JSON parse, and git diff --check passed.
+
+## 2026-06-21 V2.59 Five-Issue Beginner Experience Audit
+- Added docs/66_v2_59_five_issue_experience_audit.md mapping the five original UX issues to concrete acceptance criteria.
+- Hid source-specific form fields until a card is selected, with Advanced Details preserving operator visibility.
+- Added beginner Stop Development action in the progress panel for queued/running/paused states.
+- Filtered disabled delivery actions outside Advanced Details and added frontend fallback Open result/Open folder actions for older delivery payloads.
+- Added delivery-loaded progress fallback so completed deep links show 100% ready-to-review even when status snapshot routes are unavailable.
+- Verified source-card behavior and run_002 deep-link review actions in browser; full unit suite passed with 269 tests.
+
+## 2026-06-21 V2.60 Project Workspace And Frontend Logic Audit
+- Re-audited the beginner console against http://127.0.0.1:18741/ without stopping existing user-facing server processes.
+- Verified project history, run deep-link restore, new-project reset, language switching, environment readiness gate, source-card exclusivity, score explanation, delivery links, and local folder action feedback.
+- Confirmed completed local-only runs expose Open result and Open folder while GitHub publish remains disabled/classified as local delivery.
+- No code defects were found in this pass; the current frontend logic is functioning as intended for the audited flows.
+
+## 2026-06-21 V2.61 Entrypoint Regression And GitHub Intake Stabilization
+- Ran API-level regressions for all three beginner entry modes: one-line idea, uploaded documents, and GitHub URL.
+- Fixed GitHub URL intake so a repository can be the primary source without requiring an uploaded document.
+- Added public GitHub default-branch fallback when the requested branch is missing, covering main/master repositories.
+- Bound prepared GitHub checkouts to each project workspace and fixed open-folder resolution for GitHub checkout deliveries.
+- Fixed a test-order dependency on `unittest.mock` and guarded project status updates so late run completion cannot overwrite a newer intake-blocked state.
+- Verified one-line and uploaded-document flows produce Open result actions, while GitHub URL flow completes and opens the prepared repository folder.
+
+## 2026-06-21 V2.62 Central Auto-Iteration Documentation Package
+- Added docs/69_v2_62_central_auto_iteration_controller.md to define the next implementation phase: central_review.decision=iterate becomes repair_plan, auto_feedback, guarded feedback reopen, and linked repair-run history.
+- Added docs/70_v2_62_repair_plan_contract.md and docs/71_v2_62_acceptance_and_test_plan.md as implementation-ready companion materials.
+- Added central review, repair plan, and auto-iteration report schemas under specs/.
+- Added examples/central_auto_iteration_example.md showing run_001 -> repair_plan -> run_002 -> handoff.
+- Updated README and original master docs (overview, architecture, agent design, evaluation, execution loop) so the new central brain and bounded self-iteration goals are part of the main system contract.
+- Verified JSON specs, long-running state, doc references, and diff hygiene; no runtime code was changed in this phase.
+
+## 2026-06-21 V2.62 Central Auto-Iteration Implementation
+- Added autodev.auto_iteration for deterministic repair plan generation, repair signatures, guardrails, Markdown repair plans, and auto_feedback documents.
+- Added ProjectService preview/start operations for central auto-iteration.
+- Added GET/POST /projects/{project_id}/runs/{run_id}/auto-iteration.
+- Auto-iteration start now writes repair_plan.json, repair_plan.md, auto_feedback.md, auto_iteration_report.json, starts a feedback reopen run, writes repair_source.json, and records central_auto_iteration evidence on the repair run.
+- Delivery payloads now include repair_plan and auto_iteration evidence when present.
+- Beginner UI now shows a Continue optimizing action only when the current run is repairable and auto-executable; advanced mode shows repair plan JSON.
+- Verified focused auto-iteration tests, full API server tests, adjacent unified/document/GitHub/intake/env tests, JS syntax, compileall, JSON specs, long-running state, and diff hygiene.
+
+## 2026-06-21 V2.63 Auto-Iteration UI And Real-Probe Stabilization
+- Fixed delivery payloads so central_review.decision=iterate includes a non-mutating repair_plan/auto_iteration preview before files are persisted; the Continue optimizing button is now visible on first delivery load.
+- Made Continue optimizing configuration-gated and async-first: the page shows progress immediately, waits for the job poller, then loads delivery after run completion instead of blocking on a long HTTP request.
+- Added in-page environment checking feedback so users see Checking... while Codex/GitHub/model readiness probes run.
+- Hardened ProjectService JSON read/write with atomic replace and transient partial-read retry to avoid acceptance/UI races.
+- Added repair target_files to repair plans and auto_feedback, taught requirement extraction to read Target files, and grouped same-file feedback with original implementation requirements into one Debug task to prevent duplicate real-worker loops.
+- Verified browser smokes: needs-iteration run shows Continue optimizing after env gate, starts run_002, progress reaches ready, and handoff runs do not show the button.
+- Ran controlled real Codex auto-iteration probes against disposable local repositories. Real Codex repaired app.py and tests passed; the first probe exposed missing target file propagation and duplicate same-file repair tasks, both now fixed. A dry-run regrouping probe confirms run_002 completes with one debug implementation node and linked auto-iteration metadata.
+
+## 2026-06-22 V2.64 Repair Convergence And Diagnostic Evidence Stabilization
+- Added docs/72_v2_64_repair_convergence_gate.md and schema support for repository.repair_convergence.
+- Implemented orchestrator-level repair convergence so target-file repair runs stop after worker success and passing checks.
+- Passed repair_convergence metadata from ProjectService auto-iteration/feedback reopen into DocumentRunPipeline runtime state.
+- Hardened Codex worker boundary audits so generated cache files such as __pycache__ do not cause out-of-scope rollback.
+- Added real_worker_probe diagnostic report indexing; partial diagnostic probes are visible but do not block non-diagnostic evidence readiness.
+- Ran a controlled real Codex probe; it repaired app.py and tests passed, exposing the cache-boundary bug that V2.64 now fixes.
+- Verified a fake-Codex service-level real path where app.py is repaired, cache files are generated, repair convergence fires, and run_002 reaches done.
+
+## 2026-06-22 Alchemy Media Agent V3 Foundation Scope-Locked Real Run
+- Used Alchemy Dev Agent as controller, with minimal manual intervention, to run the alchemy-media-agent V3.0 Foundation task in an isolated worktree.
+- Fixed controller-side issues exposed by the real run: scope-lock parsing, scoped graph construction, Python artifact profiling, worker boundary auditing for new directories, and evaluator treatment of benign Windows cache/pytest warnings.
+- Final autonomous run output: `.alchemy/v3_foundation_media_agent_run_scoped5`.
+- Generated worktree: `.alchemy/v3_foundation_media_agent_run_scoped5/workspaces/real_run_worktree_20260621194947401885`.
+- Target source repo `D:\AI\Alchemy Dev Agent System\_external\alchemy-media-agent` remained unmodified; generated changes are isolated in the worktree on `agent/v3-foundation-scoped-20260621194947401885`.
+- V3 Foundation status from worker summary: COMPLETE; independence, app boundary, vertical extension, and tests all PASS.
+- Final state score recalculated to 0.94 with DONE condition met after benign known-issue filtering was corrected.
+
+## 2026-06-22T11:09:10.1593817+08:00
+
+- Implemented V2.65 Full Roadmap Execution Mode: roadmap extraction, roadmap audit/repair, phase promotion, final audit, generated one-sentence development package, CLI/API/front-end integration, and roadmap progress status.
+- Fixed contract gaps found during verification: ull_roadmap now reaches run payloads; full-roadmap execution takes priority over one-line fallback; CLI supports --full-roadmap and --max-phases; ContextBundle always serializes schema-valid scope_controls.
+- Added regression tests covering multi-phase execution, one-sentence generated package, service full-roadmap priority, CLI full-roadmap smoke, and static console hooks.
+
+## 2026-06-22T12:14:56.4040601+08:00
+
+- Implemented V2.66 Project Analysis Gate as a mandatory pre-development analysis layer.
+- Added docs/74_v2_66_project_analysis_gate.md and specs/project_analysis_report_schema.json.
+- Added utodev/project_analysis_gate.py to produce project_analysis_report.json with start decision, confidence, valid phases, ignored pseudo-phases, duplicate candidates, constraints, blockers, and required human actions.
+- Integrated the gate into FullRoadmapExecutor before any phase execution. Blocked/repair decisions now stop before Codex workers run.
+- Surfaced project analysis summaries through full-roadmap delivery/runtime reports.
+- Refined roadmap extraction and constraint classification so negative heavy-provider rules do not become false external blockers.
+
+## 2026-06-23T02:11:49+08:00
+
+- Resumed after connection loss and inspected the latest real `alchemy-media-agent` full-roadmap run.
+- Confirmed `real-media-full-roadmap-v269-20260623010240` completed phases 1-5 and stopped at phase 6 because the promotion score was 0.84, below the 0.85 gate.
+- Added V2.70 Phase Gate Auto-Repair so a done phase with no real blockers but a low promotion score generates `phase_repair_*.md` and retries the same phase before blocking.
+- Added docs/78_v2_70_phase_gate_auto_repair.md and linked it from the main full-roadmap execution document.
+- Fixed `document_run_status` so final gate hard failures from missing artifacts or missing must coverage become `blocked` instead of misleading `in_progress`.
+- Verified focused and adjacent regression tests; next step is a new media full-roadmap run using the repaired dev-agent.
+
+## 2026-06-23T11:32:07+08:00
+
+- Resumed after connection loss and inspected the live run `.alchemy/real-media-full-roadmap-v270-auto-repairb-20260623021504`.
+- Confirmed the prior PID had exited after completing the run; the roadmap execution plan shows all 8 phases completed.
+- Verified phase scores: phase_001 0.86, phase_002 0.88, phase_003 0.92, phase_004 0.90, phase_005 0.92, phase_006 0.90, phase_007 0.88, phase_008 0.88.
+- Confirmed `full_roadmap_report.json` status is `done`, blockers are empty, and final audit status is `passed` with `ready_for_final_handoff=true`.
+- Verified the generated media worktree has 149 changed git status lines and 0 changes outside `alchemy_creative_agent_3_0/`.
+- Verified the source `alchemy-media-agent` checkout remains clean on branch `codex/v3-foundation`.
+- Ran generated V3 tests in the isolated media worktree; all 80 tests passed.
+- Ran an AST legacy import audit over generated V3 app/tests; 0 V1/V2 import violations found.
+- Marked the long-running validation objective done. Next human decision is whether to publish the generated worktree changes to GitHub as a PR.
+
+## 2026-06-23T16:00:05+08:00
+
+- Resumed after API/network instability and confirmed the unfinished objective was V2.71 final audit/test convergence hardening in `alchemy-dev-agent`, not direct `alchemy-media-agent` development.
+- Inspected existing V2.71 implementation: `autodev/final_verification_loop.py`, `autodev/final_system_audit.py`, `autodev/full_roadmap_executor.py`, `docs/79_v2_71_final_audit_test_convergence.md`, schema, and regression tests were already present.
+- Found and fixed the remaining reporting gap: final audit failures blocked handoff, but concrete final-verification reasons were not reliably propagated to the top-level full-roadmap result.
+- Updated `FinalSystemAudit` to include final-verification blockers, required actions, and failed check evidence in parent blockers.
+- Updated `FullRoadmapExecutor` to merge final audit blockers into `FullRoadmapExecutionResult.blockers`, so UI, runtime state, delivery reports, and repair logic see the same failure facts.
+- Added regression assertions for missing final worker PASS markers, failed simulation markers, and low final verification worker scores reaching top-level blockers.
+- Verified focused and adjacent checks. The full `tests.test_unified_run` module timed out once without useful output; direct CLI smoke and the specific full-roadmap/API paths passed, so it was treated as an environment/test-runner timeout rather than a code regression.
+
+## 2026-06-24T00:44:28+08:00 V2.73 Large Refactor Execution Mode
+
+- Diagnosed the Billing Core stop point as an Alchemy controller issue: document-driven whole-product work was being split into narrow per-requirement tasks with empty or overly small `allowed_files`, and generated Go/Ent scratch files made worker boundary scans noisy.
+- Added `docs/81_v2_73_large_refactor_execution_mode.md` to define the compatibility-preserving large-refactor mode, acceptance criteria, cache-ignore policy, recovery expectation, and verification plan.
+- Added `scope_controls.boundary_mode` with default `strict` behavior so the existing V2.15/V3 scope-lock path remains unchanged unless a broad refactor is detected or explicitly requested.
+- Implemented conservative `large_refactor` detection from documents, objective text, and explicit CLI/API constraints such as `--boundary-mode large_refactor`.
+- Taught the planner to create one broad integration task for large product conversions, deriving repository-local allowlists such as `backend/**` and `frontend/**` while preserving protected prefixes.
+- Propagated `boundary_mode` through task graph nodes, runtime handoff, orchestrator worker inputs, unified/document-run CLI/API entrypoints, and schema contracts.
+- Hardened worker boundary auditing so Go `.gocache-*` directories and Ent `.entc` scratch directories do not trigger rollback.
+- Added regressions for objective-triggered large-refactor planning, strict scoped-task compatibility, large-refactor worker packages, generated cache ignore behavior, interrupted active-task recovery, and unified-run boundary-mode propagation.
+- Audited compatibility after implementation: default runs remain strict; scoped target-file runs still keep exact allowed files; CLI/API auto mode remains the default; large-refactor mode is opt-in by explicit field or conservative document/objective signals.
+- Verified focused and adjacent test suites. One PowerShell heredoc command failed due shell syntax and was rerun with the correct form. One `tests.test_unified_run` full-suite run had a transient temp-path error, and a subsequent full-suite rerun passed.
+
+## 2026-06-24T02:21:45+08:00 V2.74 Billing Core Phase 0 Hardening
+
+- Diagnosed Billing Core run `_004`: Phase 0 completed its documentation tasks, but the parent document-run coverage gate treated later implementation constraints as missing Phase 0 must requirements.
+- Hardened documentation-phase generation so global implementation constraints remain reference-only for later phases instead of being emitted as current-phase requirement bullets.
+- Kept documentation phases strict and docs-only, while normal implementation phases can still inherit `large_refactor` boundary mode for broad product conversion.
+- Added regressions for Billing Core migration constraints, docs-only task graphs, static document glob verification, documentation-phase promotion, and documentation-phase global constraint filtering.
+- Re-ran focused and full roadmap tests successfully. A single earlier full-roadmap module run showed a transient phase-count assertion, then the same module passed on rerun and a preserved reproduction run passed through the relevant order.
+- Next action: start Billing Core real full-roadmap run `_005`, monitor for controller defects, and pause only to optimize Alchemy if a new automation failure appears.
+
+## 2026-06-24T02:37:47+08:00 V2.74 Documentation Coverage Gate Fix
+
+- `_005` was a launch-script argument quoting failure and did not enter Alchemy execution.
+- `_006` started correctly, extracted 9 Billing Core phases, passed project analysis, and completed all Phase 0 document-only tasks.
+- `_006` still blocked because `RequirementCoverageBuilder` required mapped implementation files even for `documentation_only` artifact profiles; Phase 0 evidence was present but classified as missing.
+- Fixed documentation-only requirement coverage so completed documentation/test/review tasks plus static document evidence cover documentation requirements without demanding code implementation files.
+- Rebuilt `_006` Phase 0 coverage with the patched builder: status `passed`, score `1.0`, no missing must requirements.
+- Next action: launch `_007` with the patched controller and monitor for entry into Phase 1/2 code refactor work.
+
+## 2026-06-24T02:55:57+08:00 V2.74 Large Refactor Constraint Parsing Fix
+
+- `_007` successfully promoted Phase 0 to `done`, proving the documentation coverage fix works in the real Billing Core run.
+- `_007` then exposed a new controller defect in Phase 1: `Scope boundary mode: large_refactor` was parsed as `strict` because the parser recognized `large refactor` but not `large_refactor`.
+- The bad parse caused Phase 1 to be split into 23 strict per-requirement tasks, including tasks with empty relevant files, which would not demonstrate the one-shot large migration capability the user wants to evaluate.
+- Stopped `_007` before it spent time on the wrong task graph.
+- Fixed boundary mode parsing to normalize underscores/hyphens and emit `Scope boundary mode: large_refactor` directly in non-documentation phase documents.
+- Verified the actual `_007` Phase 1 document now produces one broad `large_refactor` integration task with backend/frontend/deploy/docs/.github scope.
+- Next action: start `_008` and monitor that Phase 1 uses the single integration worker path.
+
+## 2026-06-24T03:31:50+08:00 Billing Core `_008` Phase 1 Monitoring
+
+- `_008` promoted Phase 0 and entered Phase 1 with the intended five-node task graph: architecture, one `large_refactor` integration worker, verification, review, and release evidence.
+- Phase 1 `T002` ran from 03:04:49 to 03:27:14 and completed with return code 0. The worktree shows broad identity/module/deploy renaming, including Go module, Docker, systemd, setup/config, and frontend package identity changes.
+- Sampling confirmed this is still Phase 1 identity work, not the full wallet/metering/business closure. That is acceptable only if Alchemy continues into Phase 2-8 after Phase 1 promotion.
+- Phase 1 `T003` verification is running and has started Go/Ent-related checks, including transient `.entc` scratch generation. This also verifies the earlier generated-cache boundary-audit hardening path.
+- Next action: wait for `T003`, inspect Phase 1 report/promotion, and continue to Phase 2 or repair Alchemy if promotion/coverage is wrong.
+
+## 2026-06-24T03:45:00+08:00 V2.75 Cumulative Roadmap Fix
+
+- `_008` completed all Phase 1 task nodes, passed requirement coverage, passed review, and recorded release evidence, but the phase gate scored 0.84 because future-phase known issues and out-of-scope notices drove `risk_quality` to 0.
+- `_008` then attempted an auto-repair run from a fresh original checkout instead of the Phase 1 worktree, causing a worktree-preparation blocker and proving full-roadmap phases were not guaranteed to accumulate changes.
+- Fixed evaluator risk classification so future roadmap work, explicitly out-of-scope phase notes, non-blocking exploratory misses, and Go telemetry/cache warnings do not penalize the current phase.
+- Fixed full-roadmap phase execution so real Codex phases inherit the last completed phase repository/worktree path and disable fresh isolation when continuing inside that inherited worktree.
+- Added regressions for both defects and verified focused plus adjacent tests. `_009` will restart from the latest Alchemy controller because `_008` already wrote a terminal blocked report.
+
+## 2026-06-24T04:05:00+08:00 V2.76 Documentation Static Scheduling
+
+- `_009b` started correctly, but Phase 0 took too long because a `documentation` node with `static document inspection` was dispatched to a real Codex worker.
+- Stopped `_009b` before it spent more time on a deterministic docs-only task.
+- Fixed `Orchestrator._can_execute_deterministically` so documentation tasks with `static document inspection` run through the static document verifier, just like test tasks.
+- Updated the existing docs-only runtime test so no worker is called for documentation, verification, or review nodes, and added a focused regression for documentation glob checks.
+- Next action: start `_010`; expect Phase 0 to complete quickly, then monitor Phase 1 promotion and Phase 2 cumulative worktree inheritance.
+
+## 2026-06-24T04:11:00+08:00 Billing Core `_010` Live Progress
+
+- `_010` Phase 0 completed and promoted with score 0.86. After the T001 planning worker completed, documentation/test/review/release nodes finished deterministically instead of launching extra Codex workers.
+- `_010` entered Phase 1 and its runtime repository path is the Phase 0 worktree, confirming cumulative worktree inheritance is active for later phases.
+- Phase 1 currently has one `large_refactor` integration node after the planning node, with backend/frontend/deploy/docs/.github scope.
+- Next action: monitor Phase 1 promotion, confirm the score no longer stalls at 0.84, then watch Phase 2 start in the Phase 1 worktree.
+
+## 2026-06-24T04:39:30+08:00 Billing Core `_010` Phase 1 Debug
+
+- `_010` Phase 1 `T002` completed with return code 0 but reported `partial`: the identity/module rename advanced, but the worker still found `sub2api` remnants and initially hit Go telemetry/cache write noise before redirecting environment paths.
+- Alchemy created `T002-DEBUG-1`, which is currently active under the inherited Phase 0/Phase 1 worktree. This indicates a real task-local repair loop rather than a stopped controller.
+- While waiting, fixed an Alchemy observability issue: real worker `raw_output` is now truncated after structured JSON parsing so Codex JSONL streams do not inflate `state.json` into multi-megabyte files.
+- Next action: let `T002-DEBUG-1` finish, then inspect whether Phase 1 can promote or whether another controller defect needs repair.
+
+## 2026-06-24T05:05:00+08:00 V2.77 Non-Static Artifact Gate Fix
+
+- `_010` Phase 1 eventually completed all nodes: `T002` completed after debug guidance, `T003` verified `go test ./...` and `go build ./...`, and review/release evidence was recorded.
+- The parent roadmap still blocked instead of entering Phase 2 because Alchemy misclassified completed debug diagnostic `tests_failed` as current required test failures.
+- A second gate defect applied static web/canvas artifact verification to an `unknown` backend/full-stack profile, scanning Go caches and broad repository files as if they were a generated static website. The resulting failure on a protected-game term was irrelevant to Billing Core.
+- Fixed evaluator debug-history handling, architecture planning risk treatment, unknown-profile static verifier skipping, and matching document-run/delivery/development-cycle gates.
+- Offline re-evaluation of `_010` Phase 1 with patched rules now returns `done=true`, score `0.89`, and no hard failures.
+- Next action: start `_011` with the latest controller, confirm Phase 1 promotes, and continue into Phase 2-9 without stopping unless a new Alchemy/controller defect appears.
+
+## 2026-06-24T06:20:00+08:00 Billing Core `_011` Phase 2 Monitor
+
+- `_011` Phase 0 and Phase 1 completed, and the parent roadmap entered `phase_003` / "Phase 2: 后端去中转站化" in the inherited cumulative worktree.
+- Phase 1 passed the business checks (`go test ./...` and `go build ./...`) and recorded delivery evidence. The local Phase 1 state still displayed `Required tests are failing` because completed release dry-run evidence carried delivery-side `tests_failed` text.
+- Fixed the evaluator so completed `release` nodes do not convert dry-run GitHub/CI evidence notes into current business test failures, while real failed or blocked release tasks still gate through node status.
+- Current `_011` Phase 2 `T001` architecture worker is active under the same worktree; continue monitoring and only stop if it times out, stalls beyond its worker budget, or exposes another controller defect.
+
+## 2026-06-24T06:58:00+08:00 V2.78 Timeout Rollback Snapshot Fix
+
+- `_011` Phase 2 `T002` made real backend changes but timed out at the 2400 second worker budget. Alchemy correctly terminated the worker, recorded the lifecycle, spawned `T002-DEBUG-1`, and then started a bounded retry.
+- The debug task recorded `backend/T002_DEBUG_RETRY.md` with failure diagnosis and retry instructions. The retry worker is currently active.
+- While inspecting the timeout path, found a controller reliability bug for cumulative worktrees: timeout rollback compared only changed-file path sets, so a task edit to a file that was already dirty before the task could escape rollback.
+- Fixed rollback to capture per-file snapshots of the task-start dirty worktree and restore those bytes on timeout/cancel/boundary rollback. Focused regression tests now cover already-dirty file restoration.
+
+## 2026-06-24T07:22:00+08:00 V2.79 Conservative Debug Promotion
+
+- `_011` Phase 2 retry returned a `partial` implementation result, then Alchemy promoted `T002` to completed from debug evidence whose known issues explicitly said the large refactor remained incomplete and needed another implementation retry.
+- Stopped `_011` before it could continue into later phases on a false completion foundation.
+- Tightened `_debug_result_can_promote_failed_task`: completed debug nodes no longer promote a parent task when follow-up work exists or when summary/known issues/evidence contain unfinished-repair markers such as `remains incomplete`, `still needs`, or `implementation retry`.
+- Verified both sides: nested debug evidence that genuinely proves target tests pass can still promote, while a diagnostic/retry-instruction debug result cannot.
+- Next action: launch `_012` with the latest Alchemy controller and continue the Billing Core roadmap from a clean cumulative run.
+
+## 2026-06-24T09:23:00+08:00 V2.80 Static Artifact Skip Gate
+
+- `_012` Phase 0 and Phase 1 completed under the latest controller. Phase 1 identity migration passed `go test ./...`; a verification partial caused by Ent `.entc` generation was repaired by changing the test path.
+- `_012` Phase 2 T002 completed the backend de-relay route removal with passing static route checks and Go tests.
+- Phase 2 then blocked because the T003 verification node ran `static artifact inspection` against a backend/unknown profile. The verifier correctly returned `skipped`, but Orchestrator treated that as failure and spawned debug.
+- Fixed deterministic skipped handling: skipped checks now mark tasks as `skipped`, skipped tasks satisfy dependencies, and evaluator treats non-applicable skipped tests as passing for scoring/spec alignment.
+- Next action: resume `_012` from its output directory so Phase 2 can promote and continue to Wallet Core without replaying completed phases.
+
+2026-06-24T13:54:20.6619179+08:00 - Alchemy control-layer fix: live _012 is on phase_007/T002; stale blocked top-level report was diagnosed as outdated. Patched running full-roadmap snapshots, hidden Windows subprocess startup for Git/gh/preflight, clean non-interactive Git env, and worktree Git timeouts. Continuing to monitor old _012 process and will resume with patched Alchemy if it blocks.
+
+- 2026-06-24T15:30:09.390767+08:00: Diagnosed _012 phase_010 T001 result-lag/open-pipe risk, patched ManagedSubprocessRunner pipe-drain recovery, and verified focused worker lifecycle tests. Live run advanced to phase_010 T002; monitoring continues.
+
+- 2026-06-24T15:58:21.229272+08:00: Diagnosed _012 as terminally blocked, not live: Phase 7 "前端收口" was generated as a backend-only large_refactor task because the older repository index was saturated by generated Go cache/appdata files and did not expose frontend package/test evidence. Patched RepositoryIndexer to ignore generated cache/appdata/entc directories and patched large_refactor frontend phase planning to retain frontend/** as a phase hint. Real _012 graph regeneration now assigns T002 to frontend with frontend/** and npm/go verification commands. Next action: resume _012 from the same output directory.
+
+## 2026-06-24T16:42:05.3943913+08:00 Phase 7 scratch-file boundary fix
+
+- Resumed `_012` Phase 7 and confirmed T002 now runs as `frontend` with `frontend/**` in allowed files and `npm --prefix frontend test`/`cd backend && go test ./...` as verification commands.
+- T002 ran for about 32 minutes, then returned through Alchemy cleanly, but the result was falsely failed and rolled back because the boundary audit saw a root `_tmp_<pid>_<hex>` Codex/PowerShell scratch file outside `allowed_files`.
+- Stopped the active resume/debug process before it spent more time under the old boundary logic.
+- Patched the codex worker generated-file filter to ignore only the narrow root `_tmp_<pid>_<hex>` scratch-file pattern while preserving rollback for real out-of-scope changes.
+- Verified focused and adjacent boundary tests. Next action: resume `_012` from the same output directory so Phase 7 T002 reruns under the patched boundary audit.
+
+## 2026-06-24T18:37:37.4434071+08:00 Phase 7 frontend decomposition fix
+
+- `_012` Phase 7 T002 reran after the scratch-file fix and Alchemy correctly timed it out at 2400 seconds, cleaned up the Codex process tree with `taskkill`, and wrote a blocked report.
+- Diagnosis: this was no longer a subprocess cleanup bug. The planner still represented the entire frontend closure as one broad `large_refactor` worker, even though the debug evidence had decomposed the work into router/menu, API service, wallet/payment, redeem, usage/admin-user, and copy/i18n tasks.
+- Patched `planner/task_graph_builder.py` so only recognized frontend large-refactor closure phases decompose into focused frontend workflow tasks. Generic backend/full-stack `large_refactor` phases still keep the single integration node behavior.
+- Real `_012` Phase 7 graph regeneration now produces 7 frontend implementation nodes and a final verifier that depends on all implementation nodes and runs the full npm/go verification set.
+- Next action: resume `_012` from the same output directory so Phase 7 reruns with the decomposed graph.
+
+## 2026-06-24T19:12:24.1164302+08:00 Artifact profile detector fix
+
+- `_012` resume_006 is live on `phase_010/run_attempt_004`; T002 is active as the focused frontend router/menu task and has already modified router, layout, i18n, and user/admin frontend files in the inherited cumulative worktree.
+- Diagnosed a new Alchemy control-layer issue while monitoring: the Billing Core objective word `reconciliation` contains `coin`, and `ArtifactProfileDetector` used substring matching for English game markers, so the CRM/Vue worktree was mislabeled as `canvas_game`.
+- Patched English game marker detection to require token boundaries while preserving substring matching for Chinese game markers.
+- Focused detector/canvas regressions, `py_compile`, `git diff --check`, and a real `_012` worktree detector probe passed. The currently running Python process may still carry the stale in-memory profile until it blocks or is resumed.
+
+## 2026-06-24T19:21:31.3203358+08:00 Manual staged review pause
+
+- User requested stopping Alchemy Dev Agent work and current task processes for a staged review.
+- Stopped the active `_012` resume process tree: `powershell.exe` PID 56528 running `resume_billing_core_001.ps1`, and child `python.exe` PID 52904 running `autodev.run`.
+- Stopped the two remaining local Alchemy UI API servers on ports 18741 and 18739: `python.exe` PIDs 18756 and 36056.
+- Follow-up process scan found no remaining processes whose command line matched `alchemy-dev-agent`, `Alchemy Dev Agent System`, `_012`, `sub2api-billing-core`, or `.alchemy`.
+- State is now intentionally blocked for user review; do not resume `_012` until the user explicitly approves continuing.
+- Stage review evidence: `_012` `phase_010/run_attempt_004` had completed `T001` and `T002`, was active on `T003 Clean frontend API service references`, had `T004`-`T008` ready, and had `T009`-`T011` pending.
+- `T003.json` recorded worker PID 11236, but a direct PID check confirmed it is no longer running. T001/T002 worker PIDs 54932/40964 are also no longer running.
+- The run state still contains stale `artifact_profile=canvas_game`; this was fixed in Alchemy code, but the stopped run had old state. Resume must reload the patched detector and avoid old canvas/game static gates.
+
+## 2026-06-24T19:45:33.8729767+08:00 Alchemy checkpoint before resume
+
+- User approved the revised approach: repair/verify Alchemy first, then use the repaired version to continue the unfinished Billing Core task.
+- Confirmed no matching Alchemy/Billing Core task processes are running before changing state.
+- Cleared the manual-review blocker and moved long-run state to `verifying` for an Alchemy control checkpoint.
+- Next action: audit Alchemy changes and run focused plus broader controller regressions before resuming `_012`.
+
+## 2026-06-24T20:05:05.6001369+08:00 Alchemy checkpoint passed
+
+- Audited the active Alchemy control-layer changes and ran a serialized checkpoint suite instead of parallel pytest workers, because parallel runs can interfere through shared `.test-debug`/`.test-tmp` state.
+- Fixed one additional controller/test-contract issue: `RealRunWorkspace._repo_root()` was using a Git ceiling while trying to discover the repository root, so paths inside a repository could be reported as outside any repository. Repo-root discovery now allows parent discovery, while later Git commands keep the clean non-interactive env and timeout protections.
+- Regression results: document/repository planning `22 passed`; document pipeline/preflight `30 passed`; full-roadmap `43 passed` on serialized rerun; runtime `102 passed`; worktree `6 passed`; API/unified/intake/probe/handoff `100 passed`; `compileall` passed; `git diff --check` passed with only `.codex-longrun` CRLF warnings.
+- State advanced to resume `_012` from the same output directory using the repaired controller.
+
+## 2026-06-24T20:51:29.7812340+08:00 Stale Worker Resume Fix
+
+- Diagnosed the apparent half-stop: `_012` `phase_010/run_attempt_006` recorded `T002` as active with worker PID `5900`, but process scanning found no live worker.
+- Patched Alchemy full-roadmap resume behavior so the next run detects the newest interrupted active phase attempt, checks recorded worker PIDs, blocks if a worker is still alive, and otherwise passes that attempt through `resume_from` so only unfinished tasks are retried.
+- Added a Windows hidden PID liveness probe to the worker lifecycle module and regression coverage for interrupted active phase attempts.
+- Real `_012` probe now selects `phase_010/run_attempt_006` as `resume_from` with no blockers. Next action: launch the repaired resume and monitor that Phase 7 continues from `T002` instead of restarting broad frontend work.
+
+## 2026-06-24T21:02:53+08:00 Repaired resume live monitor
+
+- User asked whether the path is feasible: fix Alchemy first, then continue the unfinished Billing Core task with the repaired version.
+- Confirmed the repaired `_012` resume is already active: `resume_billing_core_001.ps1` -> `python -B -m autodev.run` -> `codex exec --json --sandbox workspace-write`.
+- Confirmed `phase_010/run_attempt_007` was created and active task is `T002`, so Alchemy did not restart from the original checkout or replay the entire roadmap.
+- Confirmed the old `git add -A` processes that matched Codex Desktop were no longer present on the follow-up process check; active task processes are Alchemy/Codex only.
+- Current guardrail: `T002` worker PID 53336 started at 2026-06-24 20:56:36 +08:00 with `timeout_seconds=2400`, so it should complete or be force-cleaned by about 2026-06-24 21:36:36 +08:00.
+- Next action: keep monitoring PID/state/file output; if the worker exits without state convergence, patch Alchemy before resuming again.
+
+## 2026-06-24T21:18:00+08:00 Static artifact profile gate fix
+
+- While monitoring active `_012` T002, found a control-layer defect before it could break T009: Phase 7 artifact detection could still classify a CRM/Vue monorepo as `canvas_game`.
+- Root cause: broad `frontend/**` and backend test artifact scopes fed generic UI/metrics words such as score, jump, level, renderer, and tile into the game heuristic; unmatched glob patterns were also treated as missing literal files; protected game terms were checked for ordinary static CRM apps.
+- Patched `runtime/artifact_profile.py` so score/jump are weak signals, tile is not double-counted with tiles, and one generic strong word plus requestAnimationFrame no longer implies a game.
+- Patched unmatched glob expansion so optional broad patterns that match no files are skipped instead of becoming false missing-file failures.
+- Patched `runtime/artifact_verifier.py` so protected commercial game term enforcement applies only to `canvas_game` artifacts.
+- Added regression coverage for CRM metric/canvas UI false positives and ordinary static apps containing coincidental protected terms.
+- Verification passed: focused artifact profile/verifier pytest subset `6 passed`; real `_012` artifact probe now reports `static_web_app`, `status=completed`, and `tests_failed=[]`.
+- Current active Python process started before this patch, so the next safe boundary should be resumed with fresh code before later T009 verification.
+
+## 2026-06-24T21:27:40+08:00 Current Controller Recheck While T003 Runs
+
+- Re-ran focused Alchemy guardrail tests against the current checkout while `_012` Phase 7 `T003` was active: worker lifecycle/window/timeout tests `5 passed`, interrupted-attempt resume tests `2 passed`, and CRM/static-web artifact profile tests `6 passed`.
+- Confirmed `_012` `run_attempt_007` has completed `T001` and `T002`; active task is `T003 Clean frontend API service references`, with `T004`-`T008` ready and `T009`-`T011` pending.
+- Important control note: the active parent `autodev.run` process was started before the latest artifact-profile patch and still carries stale `artifact_profile=canvas_game` in `run_attempt_007/state.json`. Let the current implementation worker reach a safe boundary, then stop/resume with the fresh controller before final static verification.
+
+## 2026-06-24T21:42:30+08:00 Debug-First Scheduling Fix
+
+- `_012` Phase 7 `T003` returned `partial` at 21:37:23 and created `T003-DEBUG-1`, but the pre-patch parent immediately started `T004`. Stopped the old process tree before it could continue with stale controller state.
+- Patched `runtime/orchestrator.py` so pending debug work interrupts the current ready-task batch. This makes diagnosis/repair run before adjacent implementation tasks, closer to a human-supervised development loop.
+- Added regression coverage in `tests/test_runtime.py`; focused debug-first and adjacent debug promotion tests passed, plus `py_compile` and `git diff --check` passed.
+- Next action: resume `_012` from the same output directory with the fresh controller and verify that recovery prioritizes `T003-DEBUG-1` or a T003 retry before T004.
+
+## 2026-06-24T21:46:00+08:00 Fresh Controller Resume Verification
+
+- Relaunched `_012` with hidden PowerShell using the current Alchemy checkout. One attempted hidden launch (`resume_012`) failed only because the script path was not quoted correctly; `resume_013` launched successfully.
+- `run_attempt_008` was created and selected `T003-DEBUG-1` as the active worker while `T003` and `T004` remained ready. This verifies the debug-first scheduling patch on the real Billing Core state.
+- Active process tree: hidden PowerShell PID 50272, Python `autodev.run` PID 54356, Codex worker PID 56020.
+- `T003-DEBUG-1` completed with return code 0 at 21:53:12, and the fresh controller then started a T003 retry instead of T004. Active T003 retry worker PID is 44832; T004 remains ready.
+- T003 retry completed with return code 0 at 22:29:42 after cleaning frontend API service references. The fresh controller then started T004 (`Convert wallet recharge and payment surfaces`) with worker PID 54892.
+
+## 2026-06-24T23:37:39+08:00 Boundary Glob And Debug-Chain Convergence Fix
+
+- Stopped the active `_012` process tree after it reached `T004-DEBUG-1-DEBUG-1-DEBUG-1-DEBUG-1`, preventing another unbounded debug worker from burning tokens.
+- Diagnosed the root T004 failure as an Alchemy boundary-audit false positive: allowed files included filename globs such as `frontend/src/views/user/*Payment*.vue`, but the audit only supported exact paths and directory globs.
+- Patched `runtime/codex_worker.py` to support segment-aware filename glob patterns and updated the worker prompt so verification dependency installs are allowed only into ignored dependency/cache directories without manifest or lockfile drift.
+- Patched `runtime/orchestrator.py` to collapse failed or nested debug chains back to the original non-debug task retry, including inconsistent states where a debug node is `ready` but still listed in `failed_tasks`.
+- Preserved old correct behavior: completed high-confidence nested debug evidence can still promote a failed parent, and repair convergence now runs before pending-debug interruption.
+- Verification passed: focused glob/debug tests `4 passed`; adjacent boundary/debug tests `11 passed`; full `tests/test_runtime.py` `109 passed`; full-roadmap interrupted resume plus runtime recovery `4 passed`; `py_compile` passed; targeted `git diff --check` passed.
+- Real `_012` in-memory probe with the patched controller collapses the current T004 debug chain to `T004 pending`, all nested debug nodes `skipped`, `active=[]`, and `failed=[]`.
+- Next action: resume `_012` from the same output directory and confirm the fresh attempt retries T004 rather than launching another nested debug worker.
+
+## 2026-06-25T00:02:39+08:00 Recovery-Aware Debug Collapse Fix
+
+- Stopped `resume_015` after the patched controller correctly skipped nested debug nodes but recovery had reset first-level `T004-DEBUG-1` to active.
+- Patched debug convergence to treat first-level debug nodes with `retry_count > 0` or prior partial/failed/blocked worker evidence as already-attempted, so they collapse back to the original non-debug parent instead of running again.
+- Real `_012` `run_attempt_009` in-memory probe now yields `T004 pending`, `T004-DEBUG-1` and all nested debug tasks `skipped`, `active=[]`, and `failed=[]`.
+- Verification passed: focused debug tests `3 passed`; full `tests/test_runtime.py` `109 passed`; interrupted resume/runtime recovery `4 passed`; `py_compile` passed; targeted `git diff --check` passed.
+- Next action: resume `_012` again and verify the fresh attempt dispatches T004 directly.
+
+## 2026-06-25T01:39:40+08:00 V2.74 Alchemy Stability Hardening Checkpoint
+
+- User requested stopping before any further Billing Core resume and hardening Alchemy itself first.
+- Added `docs/82_v2_74_alchemy_stability_hardening.md` documenting package-manager-aware verification, frontend setup, debug convergence, compatibility boundaries, and acceptance checks.
+- Implemented lockfile-aware Node command discovery: pnpm/yarn/bun/npm commands are selected from `package.json` plus nearest/root lockfile evidence, while npm-only projects keep npm behavior.
+- Implemented frontend large-refactor setup command planning so frontend tasks prepend dependency installation such as `pnpm --dir frontend install --frozen-lockfile` before test execution.
+- Implemented debug environment blocker convergence: debug evidence for missing `node_modules`, unavailable `vitest`, or absent frontend dependencies now blocks the root task as an environment issue instead of launching more implementation retries.
+- Regression verification passed: focused 3 tests, adjacent 10 tests, `test_document_to_plan.py + test_runtime.py` 128 tests, targeted full-roadmap 3 tests, full `test_full_roadmap_execution.py` 45 tests, py_compile, compileall, diff-check, and long-run state validation.
+- Billing Core was intentionally not resumed. Next action is manual acceptance of this Alchemy checkpoint before any patched-controller Billing Core run.

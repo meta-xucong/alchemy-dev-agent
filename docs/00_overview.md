@@ -21,6 +21,8 @@ Autonomous software development needs a persistent state model and a task graph 
 
 For v2, the primary input is a document-driven project package: objective, primary development document, supporting files, and optional GitHub repository link. A one-line objective is only a fallback that must be expanded into the same structured intake contract before planning.
 
+Later v2 phases add a central review layer that mirrors the human Codex development loop: read the documents, refine the plan, implement, audit, test, iterate, and hand off only when the evidence is strong enough. The central review result is the bridge between raw engineering evidence and a simple product decision: continue, iterate, block, or hand off.
+
 ## Limits Of Long-Running Codex Tasks
 
 Codex long-running task workflows are strong at sustained coding and debugging, but they are not sufficient as the top-level control plane for an autonomous development system.
@@ -51,6 +53,8 @@ Required separation:
 
 This separation reduces role conflict. The implementer should not be the only judge of whether implementation is complete.
 
+The central review layer is separate from the implementation agents. It does not write code. It reads their evidence and decides whether the system should hand off the result, continue the current run, ask for help, or generate a repair plan for the next iteration.
+
 ## Why Graph Execution
 
 A task graph makes the system operational.
@@ -75,6 +79,21 @@ ProjectBrief -> ContextBundle -> TaskGraph
 
 This keeps document parsing, repository inspection, and requirement extraction separate from task execution.
 
+## Why Central Auto-Iteration
+
+Manual Codex development usually succeeds because a human keeps repeating a disciplined loop:
+
+```text
+read docs -> implement -> audit -> test -> refine -> repeat
+```
+
+An autonomous system needs that loop as a contract, not as an operator habit. Central auto-iteration turns a failed or partial review into a structured repair plan, then re-enters the same task graph and Codex worker path with explicit evidence requirements.
+
+This prevents two failure modes:
+
+- stopping at a barely passing but incomplete result;
+- looping vaguely without a concrete reason, repair scope, or stop condition.
+
 ## Design Position
 
 This repository defines a specification system for autonomous software development agents.
@@ -86,6 +105,7 @@ It is:
 - Worker-agnostic except for the Codex CLI worker contract.
 - Designed for GitHub repository execution.
 - Focused on delivery-quality completion.
+- Explicit about central review, repair planning, and bounded self-iteration.
 
 It is not:
 

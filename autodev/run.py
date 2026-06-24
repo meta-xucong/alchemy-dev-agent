@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .document_run import DocumentRunPipeline
+from .full_roadmap_executor import FullRoadmapExecutor
 from .pipeline import AutoDevPipeline
 from .unified_preflight import UnifiedRunPreflight, unified_preflight_summary, write_unified_preflight_report
 from .unified_request import AutoDevRunRequest, unified_run_summary, write_unified_run_outputs
@@ -48,6 +49,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-generate-static-ci", action="store_true")
     parser.add_argument("--write-native-ui-tests", action="store_true")
     parser.add_argument("--auto-merge", action="store_true")
+    parser.add_argument("--full-roadmap", action="store_true", help="Execute every required roadmap phase before final handoff.")
+    parser.add_argument("--max-phases", type=int, default=50)
+    parser.add_argument("--boundary-mode", choices=["auto", "strict", "large_refactor"], default="auto")
     parser.add_argument("--preflight-only", action="store_true", help="Validate the unified run request without creating or executing a project.")
     parser.add_argument("--constraint", action="append", dest="constraints", default=[])
     parser.add_argument("--acceptance", action="append", dest="acceptance_criteria", default=[])
@@ -89,6 +93,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "generate_static_ci": not args.no_generate_static_ci,
             "write_native_ui_tests": args.write_native_ui_tests,
             "auto_merge": args.auto_merge,
+            "full_roadmap": args.full_roadmap,
+            "max_phases": args.max_phases,
+            "boundary_mode": args.boundary_mode,
             "constraints": args.constraints,
             "acceptance_criteria": args.acceptance_criteria,
         }
@@ -142,7 +149,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(summary, indent=2, sort_keys=True))
         return 1
 
-    if request.route == "one_line_fallback":
+    if request.full_roadmap:
+        result = FullRoadmapExecutor().run(
+            objective=request.objective,
+            documents=request.documents,
+            attachments=request.attachments,
+            primary_input_mode=request.primary_input_mode,
+            repository_url=request.repository_url,
+            repository_path=request.repository_path or None,
+            repository_visibility=request.repository_visibility,
+            output_dir=request.output_dir,
+            max_phases=request.max_phases,
+            run_payload=request.to_run_payload(),
+        )
+        related_report = str(Path(request.output_dir) / "full_roadmap_report.json")
+        result_payload = result.to_dict()
+    elif request.route == "one_line_fallback":
         result = AutoDevPipeline().run(request.objective, Path(request.output_dir))
         related_report = str(Path(request.output_dir) / "autodev_report.json")
         result_payload = result.to_dict()

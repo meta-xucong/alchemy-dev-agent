@@ -6,13 +6,14 @@ import subprocess
 import sys
 import time
 import unittest
+import unittest.mock
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
 from autodev import DocumentRunPipeline
 from autodev.delivery_report import build_delivery_report
-from autodev.document_run import assign_release_branch, build_artifact_report, build_generated_ci_report
+from autodev.document_run import assign_release_branch, artifact_files_from_graph, build_artifact_report, build_generated_ci_report, document_run_status
 from autodev.development_cycle import build_development_cycle_report
 from runtime.models import RuntimeState, TaskGraph, TaskNode
 from runtime.control import ControlDecision
@@ -145,6 +146,96 @@ class DocumentRunPipelineTests(unittest.TestCase):
         step_names = [step["name"] for step in payload["development_cycle"]["steps"]]
         self.assertIn("brain_refinement", step_names)
         self.assertIn("full_review", step_names)
+
+    def test_python_scoped_graph_uses_python_artifacts_not_default_index_html(self) -> None:
+        task_graph = {
+            "nodes": [
+                {
+                    "id": "T001",
+                    "type": "architecture",
+                    "relevant_files": ["docs/spec.md"],
+                },
+                {
+                    "id": "T002",
+                    "type": "integration",
+                    "relevant_files": [
+                        "alchemy_creative_agent_3_0/app/__init__.py",
+                        "alchemy_creative_agent_3_0/app/creative_core/central_brain.py",
+                        "alchemy_creative_agent_3_0/tests/test_end_to_end_planning.py",
+                    ],
+                    "commands_to_run": ["python -m pytest alchemy_creative_agent_3_0/tests"],
+                },
+                {
+                    "id": "T003",
+                    "type": "test",
+                    "relevant_files": ["alchemy_creative_agent_3_0/tests/test_end_to_end_planning.py"],
+                    "commands_to_run": ["python -m pytest alchemy_creative_agent_3_0/tests"],
+                },
+            ]
+        }
+
+        files = artifact_files_from_graph(task_graph)
+
+        self.assertEqual(
+            files,
+            [
+                "alchemy_creative_agent_3_0/app/__init__.py",
+                "alchemy_creative_agent_3_0/app/creative_core/central_brain.py",
+                "alchemy_creative_agent_3_0/tests/test_end_to_end_planning.py",
+            ],
+        )
+        self.assertNotIn("index.html", files)
+
+        with temp_document_run_dir() as root:
+            repo = root / "repo"
+            (repo / "alchemy_creative_agent_3_0" / "app" / "creative_core").mkdir(parents=True)
+            (repo / "alchemy_creative_agent_3_0" / "tests").mkdir(parents=True)
+            (repo / "alchemy_creative_agent_3_0" / "app" / "__init__.py").write_text("", encoding="utf-8")
+            (repo / "alchemy_creative_agent_3_0" / "app" / "creative_core" / "central_brain.py").write_text("class CentralCreativeBrain: pass\n", encoding="utf-8")
+            (repo / "alchemy_creative_agent_3_0" / "tests" / "test_end_to_end_planning.py").write_text("def test_ok():\n    assert True\n", encoding="utf-8")
+
+            report = build_artifact_report(
+                repository_path=repo,
+                task_graph=task_graph,
+                context_bundle={"requirement_map": {"requirements": [{"text": "Build V3 Python planning runtime."}]}},
+                output_dir=root / "out",
+            )
+
+        self.assertEqual(report["artifact_profile"]["name"], "python_project")
+        self.assertEqual(report["static_verification"]["status"], "skipped")
+
+    def test_pipeline_prepares_github_repository_even_with_target_checkout_path(self) -> None:
+        with temp_document_run_dir() as root:
+            checkout = root / "checkout"
+            output = root / "run"
+            calls: list[str] = []
+
+            class FakeSourceResult:
+                blockers: list[object] = []
+
+            class FakeSourceRuntime:
+                def prepare(self, repository):
+                    calls.append(repository.local_path)
+                    checkout.mkdir(parents=True, exist_ok=True)
+                    write_repo(checkout)
+                    repository.access_status = "available"
+                    repository.local_path = str(checkout)
+                    return FakeSourceResult()
+
+            with unittest.mock.patch("autodev.document_run.GitHubSourceRuntime", return_value=FakeSourceRuntime()):
+                result = DocumentRunPipeline().run(
+                    objective="Build from repository",
+                    documents=[],
+                    repository_url="https://github.com/example/repo",
+                    repository_path=checkout,
+                    prepare_repository=True,
+                    output_dir=output,
+                )
+
+        payload = result.to_dict()
+        self.assertEqual(payload["status"], "done")
+        self.assertEqual(calls, [str(checkout)])
+        self.assertEqual(payload["project_brief"]["repository"]["local_path"], str(checkout))
 
     def test_cli_outputs_done_report(self) -> None:
         with temp_document_run_dir() as root:
@@ -661,6 +752,74 @@ class DocumentRunPipelineTests(unittest.TestCase):
         )
 
         statuses = {step["name"]: step["status"] for step in report["steps"]}
+        self.assertEqual(statuses["testing"], "passed")
+
+    def test_document_run_status_ignores_failed_static_gate_for_unknown_profiles(self) -> None:
+        state = RuntimeState(
+            objective="convert backend billing system",
+            task_graph=TaskGraph(
+                graph_id="unknown-profile",
+                version=1,
+                nodes=[
+                    TaskNode(id="T001", title="Plan", description="", type="architecture", assigned_agent="architect", status="completed"),
+                    TaskNode(id="T002", title="Implement", description="", type="integration", assigned_agent="backend", status="completed"),
+                    TaskNode(id="T003", title="Test", description="", type="test", assigned_agent="test", status="completed"),
+                    TaskNode(id="T004", title="Review", description="", type="review", assigned_agent="reviewer", status="completed"),
+                    TaskNode(id="T005", title="Release", description="", type="release", assigned_agent="reviewer", status="completed"),
+                ],
+            ),
+        )
+
+        status = document_run_status(
+            state,
+            requirement_coverage={"status": "passed"},
+            artifact_report={
+                "artifact_profile": {"name": "unknown"},
+                "static_verification": {"status": "failed", "tests_failed": ["Protected terms found in generated artifact: toad"]},
+            },
+        )
+
+        self.assertEqual(status, "done")
+        self.assertTrue(state.done)
+
+    def test_delivery_and_development_cycle_ignore_static_gate_for_unknown_profiles(self) -> None:
+        artifact_report = {
+            "artifact_profile": {"name": "unknown"},
+            "static_verification": {"status": "failed", "tests_failed": ["Protected terms found in generated artifact: toad"]},
+        }
+        delivery = build_delivery_report(
+            status="done",
+            runtime_state={
+                "evaluation": {"done": True, "reason": "DONE condition met.", "final_gate_score": 0.9},
+                "github": {"ci_status": "passed"},
+                "blockers": [],
+            },
+            artifact_report=artifact_report,
+            requirement_coverage={"status": "passed", "entries": []},
+            generated_ci={"status": "skipped"},
+        )
+        cycle = build_development_cycle_report(
+            project_brief={"documents": [{"path": "spec.md"}]},
+            context_bundle={
+                "document_index": {"documents": [{"path": "spec.md"}]},
+                "requirement_map": {"requirements": [{"id": "REQ-001", "planned_task_ids": ["T002"]}]},
+            },
+            task_graph={"nodes": [{"id": "T001", "type": "architecture"}, {"id": "T003", "type": "test"}, {"id": "T004", "type": "review"}]},
+            runtime_state={
+                "completed_tasks": ["T001", "T002", "T003", "T004"],
+                "iteration_history": [{"type": "evaluation"}],
+                "evaluation": {"done": True, "test_pass_rate": 1.0},
+                "github": {"status": "pushed", "pull_request_url": "https://example.test/pr/2", "ci_status": "passed"},
+                "task_graph": {"nodes": [{"id": "T004", "type": "review", "status": "completed"}]},
+            },
+            artifact_report=artifact_report,
+            requirement_coverage={"status": "passed"},
+            delivery_report={"status": "done", "ready_for_review": True, "github": {"ci_status": "passed"}},
+        )
+
+        self.assertTrue(delivery["ready_for_review"])
+        self.assertNotIn("Static artifact verification failed.", delivery["readiness_issues"])
+        statuses = {step["name"]: step["status"] for step in cycle["steps"]}
         self.assertEqual(statuses["testing"], "passed")
 
     def test_delivery_report_does_not_wait_for_generated_ci_after_passed_checks(self) -> None:

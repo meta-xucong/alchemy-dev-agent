@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProjectAnalysisReport",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "root_objective",
+    "completion_scope",
+    "start_decision",
+    "confidence",
+    "valid_phases",
+    "ignored_phase_candidates",
+    "duplicate_phase_candidates",
+    "global_constraints",
+    "phase_local_constraints",
+    "external_blockers",
+    "warnings",
+    "required_human_actions",
+    "ready_to_start",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "project_analysis_report_v1"},
+    "root_objective": {"type": "string", "minLength": 1},
+    "completion_scope": {
+      "type": "string",
+      "enum": ["full_roadmap", "single_phase", "unknown"]
+    },
+    "start_decision": {
+      "type": "string",
+      "enum": ["start", "repair_roadmap", "blocked"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "valid_phases": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/phase_summary"}
+    },
+    "ignored_phase_candidates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/candidate"}
+    },
+    "duplicate_phase_candidates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/candidate"}
+    },
+    "global_constraints": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "phase_local_constraints": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "external_blockers": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "warnings": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "required_human_actions": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "ready_to_start": {"type": "boolean"},
+    "created_at": {"type": "string"}
+  },
+  "$defs": {
+    "phase_summary": {
+      "type": "object",
+      "required": ["phase_id", "title", "phase_type", "source_references"],
+      "properties": {
+        "phase_id": {"type": "string"},
+        "title": {"type": "string"},
+        "phase_type": {"type": "string"},
+        "source_references": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      },
+      "additionalProperties": true
+    },
+    "candidate": {
+      "type": "object",
+      "required": ["text", "reason", "source_reference"],
+      "properties": {
+        "text": {"type": "string"},
+        "reason": {"type": "string"},
+        "source_reference": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

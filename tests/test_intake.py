@@ -135,6 +135,20 @@ class ProjectBriefBuilderTests(unittest.TestCase):
         self.assertEqual(payload["blockers"][0]["code"], "missing_primary_document")
         self.assertEqual(validate_project_brief_contract(payload), [])
 
+    def test_document_driven_mode_accepts_github_repository_as_primary_source(self) -> None:
+        brief = ProjectBriefBuilder().build(
+            objective="Build from repository",
+            primary_input_mode="document_driven",
+            repository_url="https://github.com/example/repo",
+            created_at="2026-06-18T00:00:00+00:00",
+        )
+        payload = brief.to_dict()
+
+        self.assertEqual(payload["documents"], [])
+        self.assertEqual(payload["repository"]["url"], "https://github.com/example/repo")
+        self.assertEqual(payload["blockers"], [])
+        self.assertEqual(validate_project_brief_contract(payload), [])
+
     def test_required_unsupported_file_creates_hard_blocker(self) -> None:
         with temp_intake_dir() as tmp_dir:
             primary = tmp_dir / "spec.md"

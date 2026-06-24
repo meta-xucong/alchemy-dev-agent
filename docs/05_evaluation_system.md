@@ -167,6 +167,24 @@ The evaluation result should be structured.
 }
 ```
 
+## Central Review Projection
+
+The evaluation result is still the numeric and rule-based gate. Central review projects that gate
+into a product decision that the UI and auto-iteration controller can act on.
+
+Decision mapping:
+
+| Condition | Central decision |
+| --- | --- |
+| Run is queued, running, or paused | `continue` |
+| Required input or setup is missing | `wait_for_input` |
+| Hard blockers exist | `blocked` |
+| Gate passes and delivery evidence is reviewable | `handoff` |
+| Gate fails or evidence is incomplete but repairable | `iterate` |
+
+A result can be shippable without being perfect. A score such as `0.87` may pass the final gate, but
+central review should still explain what evidence kept the result from scoring higher.
+
 ## Retry Decision
 
 If evaluation fails, the orchestrator must classify the failure:
@@ -187,6 +205,10 @@ The failure classification determines next action:
 - Quality risk creates refactor, security, or test tasks.
 - External blocker pauses or escalates.
 
+In V2.62, repairable classifications can also feed a `repair_plan` for the central auto-iteration
+controller. The repair plan must preserve the failure classification and required evidence so the
+next run is specific rather than a vague retry.
+
 ## Termination Rule
 
 The system may stop only when:
@@ -196,3 +218,4 @@ The system may stop only when:
 - Hard fail conditions are absent.
 - Persistent state records the final evaluation.
 - GitHub sync layer records final branch, PR, commit, or release evidence.
+- Central review has produced a handoff decision or equivalent final delivery summary.

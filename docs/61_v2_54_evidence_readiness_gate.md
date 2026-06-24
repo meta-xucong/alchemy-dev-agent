@@ -43,6 +43,8 @@ The report is `ready` only when:
 
 - evidence index status is `passed`;
 - evidence index has at least one entry;
+- diagnostic probe entries may be present, but only non-diagnostic entries count toward
+  `blocked_or_failed`;
 - evidence package status is `passed`;
 - evidence package has at least one file;
 - benchmark regression is absent or status `passed`;

@@ -4,7 +4,7 @@
 
 The system is organized into five layers:
 
-- **Orchestrator layer**: owns global state, task scheduling, agent routing, retry policy, and termination.
+- **Orchestrator layer**: owns global state, task scheduling, agent routing, retry policy, central review, auto-iteration control, and termination.
 - **Agent layer**: performs specialized planning, implementation guidance, testing strategy, debugging, and review.
 - **Codex worker runtime**: executes concrete repository work through Codex CLI.
 - **GitHub sync layer**: synchronizes branches, commits, pull requests, CI status, and review metadata.
@@ -35,6 +35,8 @@ V2 adds a pre-execution intake and context boundary in front of the orchestrator
                          | task scheduler     |
                          | retry controller   |
                          | evaluation gate    |
+                         | central review     |
+                         | repair planner     |
                          +---------+----------+
                                    |
                 +------------------+------------------+
@@ -88,9 +90,28 @@ Responsibilities:
 - Collect outputs, patches, test results, CI status, and review evidence.
 - Update persistent state after every meaningful event.
 - Trigger evaluation after task completion.
+- Summarize evidence through central review.
+- Convert repairable review gaps into repair plans when auto-iteration is allowed.
 - Continue retry loops until done criteria pass or a blocker requires escalation.
 
 The orchestrator must not silently mark work complete without evaluation evidence.
+
+## Central Review And Repair Controller
+
+The central review and repair controller is an orchestrator-level function, not a new execution
+worker.
+
+Responsibilities:
+
+- Read run status, task graph evidence, delivery evidence, requirement coverage, artifact reports,
+  development-cycle evidence, and blockers.
+- Produce a simple decision: `continue`, `handoff`, `iterate`, `blocked`, or `wait_for_input`.
+- When the decision is `iterate`, generate a structured repair plan instead of vague retry text.
+- Start a repair run only through existing feedback/reopen and task graph mechanisms.
+- Prevent duplicate or unbounded repair loops through iteration guardrails.
+
+The controller must not edit repository files directly, weaken done criteria, auto-merge pull
+requests, or hide hard blockers.
 
 ## Intake And Context Boundary
 
@@ -208,3 +229,5 @@ Codex workers control:
 Review and evaluation control:
 
 - Whether the work is complete enough to ship.
+- Whether central review should hand off, iterate, continue, block, or wait for input.
+- Whether a repair plan is safe to execute automatically.

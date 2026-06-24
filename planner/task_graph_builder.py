@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from context.models import ContextBundle, Requirement
+from pathlib import Path
+
+from context.models import ContextBundle, RepositoryFile, Requirement
+from context.repository_indexer import node_install_command, package_parent
 from runtime.models import Dependency, TaskGraph, TaskNode
 
 WEB_GAME_SCAFFOLD_FILES = {
@@ -29,6 +32,7 @@ class TaskGraphBuilder:
     def _build_document_driven_graph(self, context_bundle: ContextBundle) -> TaskGraph:
         requirements = context_bundle.requirements
         test_commands = context_bundle.test_commands or ["static artifact inspection"]
+        scope_controls = normalize_scope_controls(context_bundle.scope_controls)
         nodes: list[TaskNode] = [
             TaskNode(
                 id="T001",
@@ -40,26 +44,33 @@ class TaskGraphBuilder:
                     "All requirements are assigned to implementation tasks.",
                     "Known blockers and risks are reflected in task scope.",
                 ],
-                relevant_files=self._top_level_context_files(context_bundle),
+                relevant_files=self._top_level_context_files(context_bundle, scope_controls),
                 commands_to_run=[],
                 priority=95,
             )
         ]
 
-        implementation_nodes, requirement_task_ids = self._implementation_nodes(requirements, test_commands)
+        implementation_nodes, requirement_task_ids = self._implementation_nodes(
+            requirements,
+            test_commands,
+            scope_controls=scope_controls,
+            repository_files=context_bundle.repository_files,
+            package_files=context_bundle.package_files,
+            ci_files=context_bundle.ci_files,
+        )
         nodes.extend(implementation_nodes)
         implementation_ids = [node.id for node in implementation_nodes]
         documentation_only = bool(implementation_nodes) and all(node.type == "documentation" for node in implementation_nodes)
         verification_commands = (
             ["static document inspection"]
             if documentation_only
-            else test_commands + context_bundle.build_commands + context_bundle.lint_commands
+            else scoped_verification_commands(scope_controls, test_commands + context_bundle.build_commands + context_bundle.lint_commands)
         )
         implementation_files = dedupe([file for node in implementation_nodes for file in node.relevant_files])
         verification_files = (
             implementation_files
             if documentation_only or test_commands == ["static artifact inspection"]
-            else self._test_relevant_files(context_bundle)
+            else scoped_files(self._test_relevant_files(context_bundle), scope_controls, fallback=implementation_files)
         )
         verification_criteria = (
             dedupe([criterion for node in implementation_nodes for criterion in node.completion_criteria])
@@ -100,7 +111,7 @@ class TaskGraphBuilder:
                     "Reviewer approval is recorded.",
                     "Final gate score is at least 0.85.",
                 ],
-                relevant_files=self._top_level_context_files(context_bundle),
+                relevant_files=self._top_level_context_files(context_bundle, scope_controls),
                 priority=80,
             )
         )
@@ -114,14 +125,107 @@ class TaskGraphBuilder:
         dependencies.append(Dependency(source=verify_id, target=review_id, type="requires_review"))
         return TaskGraph(graph_id=f"{context_bundle.project_id}-document-plan", version=1, nodes=nodes, dependencies=dependencies)
 
-    def _implementation_nodes(self, requirements: list[Requirement], test_commands: list[str]) -> tuple[list[TaskNode], dict[str, str]]:
+    def _implementation_nodes(
+        self,
+        requirements: list[Requirement],
+        test_commands: list[str],
+        *,
+        scope_controls: dict[str, list[str]] | None = None,
+        repository_files: list[RepositoryFile] | None = None,
+        package_files: list[str] | None = None,
+        ci_files: list[str] | None = None,
+    ) -> tuple[list[TaskNode], dict[str, str]]:
         nodes: list[TaskNode] = []
         requirement_task_ids: dict[str, str] = {}
         if not requirements:
             return nodes, requirement_task_ids
+        scoped_targets = scoped_target_files(scope_controls)
+        if scoped_targets:
+            task_id = "T002"
+            docs_only_scope = is_docs_only_scope(scoped_targets)
+            task_type = "documentation" if docs_only_scope else "integration"
+            assigned_agent = "architect" if docs_only_scope else "backend"
+            nodes.append(
+                TaskNode(
+                    id=task_id,
+                    title="Update scoped documentation target files" if docs_only_scope else "Implement scoped V3 foundation target files",
+                    description=(
+                        "Update documentation inside the declared scope contract. "
+                        "Do not run full repository build or test commands for documentation-only scope."
+                        if docs_only_scope
+                        else (
+                            "Implement all document requirements inside the declared scope contract. "
+                            "Do not edit protected directories or files outside target_files."
+                        )
+                    ),
+                    type=task_type,
+                    assigned_agent=assigned_agent,
+                    dependencies=["T001"],
+                    completion_criteria=dedupe([criterion for item in requirements for criterion in item.acceptance_criteria]),
+                    relevant_files=scoped_targets,
+                    commands_to_run=commands_for_task_type(task_type, scoped_verification_commands(scope_controls, test_commands)),
+                    priority=max(priority_for_requirement(item) for item in requirements),
+                    boundary_mode="strict",
+                )
+            )
+            for item in requirements:
+                requirement_task_ids[item.id] = task_id
+                item.related_files = scoped_files(item.related_files, scope_controls, fallback=scoped_targets)
+            return nodes, requirement_task_ids
+        if boundary_mode(scope_controls) == "large_refactor":
+            relevant_files = large_refactor_relevant_files(
+                repository_files or [],
+                package_files=package_files or [],
+                ci_files=ci_files or [],
+                scope_controls=scope_controls,
+            )
+            assigned_agent = classify_large_refactor_agent(requirements)
+            relevant_files = dedupe(
+                [
+                    *relevant_files,
+                    *large_refactor_phase_hint_files(
+                        requirements,
+                        assigned_agent=assigned_agent,
+                        scope_controls=scope_controls,
+                    ),
+                ]
+            )
+            if should_decompose_large_refactor_frontend_phase(requirements, assigned_agent=assigned_agent):
+                return large_refactor_frontend_nodes(
+                    requirements,
+                    test_commands,
+                    package_files=package_files or [],
+                    scope_controls=scope_controls,
+                    base_relevant_files=relevant_files,
+                )
+
+            task_id = "T002"
+            nodes.append(
+                TaskNode(
+                    id=task_id,
+                    title="Implement large refactor integration",
+                    description=(
+                        "Implement the document requirements as one product-scale repository transformation. "
+                        "Preserve protected paths, remove obsolete product behavior required by the document, "
+                        "and keep the result independently verifiable."
+                    ),
+                    type="integration",
+                    assigned_agent=assigned_agent,
+                    dependencies=["T001"],
+                    completion_criteria=dedupe([criterion for item in requirements for criterion in item.acceptance_criteria]),
+                    relevant_files=relevant_files,
+                    commands_to_run=commands_for_task_type("integration", test_commands),
+                    priority=max(priority_for_requirement(item) for item in requirements),
+                    boundary_mode="large_refactor",
+                )
+            )
+            for item in requirements:
+                requirement_task_ids[item.id] = task_id
+                item.related_files = scoped_files(item.related_files, scope_controls, fallback=relevant_files)
+            return nodes, requirement_task_ids
         for index, grouped_requirements in enumerate(group_implementation_requirements(requirements), start=2):
             requirement = grouped_requirements[0]
-            task_type, agent = classify_requirement_task(requirement)
+            task_type, agent = classify_grouped_requirement_task(grouped_requirements)
             task_id = f"T{index:03d}"
             title = task_title(requirement, task_type) if len(grouped_requirements) == 1 else grouped_task_title(grouped_requirements, task_type)
             description = (
@@ -141,9 +245,13 @@ class TaskGraphBuilder:
                     assigned_agent=agent,
                     dependencies=["T001"],
                     completion_criteria=dedupe([criterion for item in grouped_requirements for criterion in item.acceptance_criteria]),
-                    relevant_files=dedupe([file for item in grouped_requirements for file in item.related_files]),
+                    relevant_files=scoped_files(
+                        dedupe([file for item in grouped_requirements for file in item.related_files]),
+                        scope_controls,
+                    ),
                     commands_to_run=commands_for_task_type(task_type, test_commands),
                     priority=max(priority_for_requirement(item) for item in grouped_requirements),
+                    boundary_mode="strict",
                 )
             )
             for item in grouped_requirements:
@@ -206,14 +314,207 @@ class TaskGraphBuilder:
     def _is_generated_artifact_context(self, context_bundle: ContextBundle) -> bool:
         return bool(context_bundle.requirements and context_bundle.requirements[0].source_document_id == "generated_one_line")
 
-    def _top_level_context_files(self, context_bundle: ContextBundle) -> list[str]:
-        files = [document.path for document in context_bundle.documents]
-        files.extend(context_bundle.package_files)
-        return dedupe(files)
+    def _top_level_context_files(self, context_bundle: ContextBundle, scope_controls: dict[str, list[str]] | None = None) -> list[str]:
+        document_files = [document.path for document in context_bundle.documents]
+        if not scope_controls:
+            return dedupe([*document_files, *context_bundle.package_files])
+        package_files = scoped_files(context_bundle.package_files, scope_controls)
+        return dedupe([*document_files, *package_files])
 
     def _test_relevant_files(self, context_bundle: ContextBundle) -> list[str]:
         test_files = [file.path for file in context_bundle.repository_files if file.kind in {"test", "ci"}]
         return dedupe(test_files + context_bundle.ci_files)
+
+
+def normalize_scope_controls(scope_controls: dict[str, object] | None) -> dict[str, list[str]]:
+    if not scope_controls:
+        return {"allowed_prefixes": [], "protected_prefixes": [], "target_files": [], "boundary_mode": ["strict"]}
+    return {
+        "allowed_prefixes": dedupe(str(item) for item in scope_controls.get("allowed_prefixes", []) or []),
+        "protected_prefixes": dedupe(str(item) for item in scope_controls.get("protected_prefixes", []) or []),
+        "target_files": dedupe(str(item) for item in scope_controls.get("target_files", []) or []),
+        "boundary_mode": [str(scope_controls.get("boundary_mode", "strict") or "strict")],
+    }
+
+
+def boundary_mode(scope_controls: dict[str, list[str]] | None) -> str:
+    values = list((scope_controls or {}).get("boundary_mode", []))
+    return values[0] if values else "strict"
+
+
+def scoped_target_files(scope_controls: dict[str, list[str]] | None) -> list[str]:
+    scoped = scoped_files(list((scope_controls or {}).get("target_files", [])), scope_controls)
+    if scoped:
+        return scoped
+    return dedupe(prefix_to_writable_glob(path) for path in (scope_controls or {}).get("allowed_prefixes", []))
+
+
+def scoped_files(
+    files: list[str],
+    scope_controls: dict[str, list[str]] | None,
+    *,
+    fallback: list[str] | None = None,
+) -> list[str]:
+    if not scope_controls:
+        return dedupe(files)
+    allowed = list(scope_controls.get("allowed_prefixes", []))
+    protected = list(scope_controls.get("protected_prefixes", []))
+    selected: list[str] = []
+    for file_path in files:
+        normalized = normalize_repo_path(file_path)
+        if not normalized:
+            continue
+        if protected and any(path_matches_prefix(normalized, prefix) for prefix in protected):
+            continue
+        if allowed and not any(path_matches_prefix(normalized, prefix) for prefix in allowed):
+            continue
+        selected.append(normalized)
+    result = dedupe(selected)
+    if not result and fallback:
+        return scoped_files(list(fallback), scope_controls)
+    return result
+
+
+def scoped_verification_commands(scope_controls: dict[str, list[str]] | None, commands: list[str]) -> list[str]:
+    if is_docs_only_scope(scoped_target_files(scope_controls)):
+        return ["static document inspection"]
+    normalized_commands = dedupe(commands)
+    target_files = scoped_target_files(scope_controls)
+    joined_targets = "\n".join(target_files)
+    if "alchemy_creative_agent_3_0/" not in joined_targets:
+        return normalized_commands
+    return ["python -B -m pytest alchemy_creative_agent_3_0/tests"]
+
+
+def is_docs_only_scope(paths: list[str]) -> bool:
+    normalized = [normalize_repo_path(path) for path in paths if normalize_repo_path(path)]
+    if not normalized:
+        return False
+    return all(path == "docs" or path.startswith("docs/") or is_external_or_document_context(path) for path in normalized)
+
+
+LARGE_REFACTOR_ROOTS = {
+    ".github",
+    "api",
+    "app",
+    "apps",
+    "autodev",
+    "backend",
+    "cmd",
+    "config",
+    "configs",
+    "database",
+    "db",
+    "deploy",
+    "deployment",
+    "docker",
+    "docs",
+    "ent",
+    "examples",
+    "frontend",
+    "internal",
+    "migrations",
+    "pkg",
+    "runtime",
+    "scripts",
+    "server",
+    "services",
+    "src",
+    "tests",
+    "web",
+}
+
+LARGE_REFACTOR_TOP_LEVEL_FILES = {
+    ".env.example",
+    ".gitignore",
+    "Dockerfile",
+    "Makefile",
+    "README.md",
+    "README",
+    "Cargo.toml",
+    "go.mod",
+    "go.sum",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "pyproject.toml",
+    "requirements.txt",
+    "docker-compose.yml",
+    "docker-compose.yaml",
+}
+
+
+def large_refactor_relevant_files(
+    repository_files: list[RepositoryFile],
+    *,
+    package_files: list[str],
+    ci_files: list[str],
+    scope_controls: dict[str, list[str]] | None,
+) -> list[str]:
+    protected = list((scope_controls or {}).get("protected_prefixes", []))
+    candidates: list[str] = []
+    for file in repository_files:
+        normalized = normalize_repo_path(file.path)
+        if not normalized or (protected and any(path_matches_prefix(normalized, prefix) for prefix in protected)):
+            continue
+        first = normalized.split("/", 1)[0]
+        if first in LARGE_REFACTOR_ROOTS:
+            candidates.append(f"{first}/**")
+        elif "/" not in normalized and (normalized in LARGE_REFACTOR_TOP_LEVEL_FILES or normalized.lower().startswith("readme")):
+            candidates.append(normalized)
+    for path in [*package_files, *ci_files]:
+        normalized = normalize_repo_path(path)
+        if not normalized or (protected and any(path_matches_prefix(normalized, prefix) for prefix in protected)):
+            continue
+        first = normalized.split("/", 1)[0]
+        if "/" in normalized and first in LARGE_REFACTOR_ROOTS:
+            candidates.append(f"{first}/**")
+        elif "/" not in normalized and (normalized in LARGE_REFACTOR_TOP_LEVEL_FILES or normalized.lower().startswith("readme")):
+            candidates.append(normalized)
+    candidates.extend(package_files)
+    candidates.extend(ci_files)
+    result = dedupe(scoped_files(candidates, scope_controls))
+    return result or ["**"]
+
+
+def normalize_repo_path(path: str) -> str:
+    clean = str(path).replace("\\", "/").strip().strip("`").strip()
+    if clean.endswith("."):
+        clean = clean[:-1]
+    return clean.strip("/")
+
+
+def normalize_scope_prefix(path: str) -> str:
+    clean = normalize_repo_path(path)
+    if clean.endswith("/**"):
+        clean = clean[:-3]
+    if clean and not Path(clean).suffix and not clean.endswith("/"):
+        clean += "/"
+    return clean
+
+
+def path_matches_prefix(path: str, prefix: str) -> bool:
+    clean_prefix = normalize_scope_prefix(prefix)
+    if clean_prefix.endswith("/"):
+        return path.startswith(clean_prefix)
+    return path == clean_prefix or path.startswith(clean_prefix + "/")
+
+
+def prefix_to_writable_glob(path: str) -> str:
+    clean = normalize_scope_prefix(path).rstrip("/")
+    if not clean:
+        return ""
+    return clean if Path(clean).suffix else f"{clean}/**"
+
+
+def is_external_or_document_context(path: str) -> bool:
+    normalized = normalize_repo_path(path)
+    if not normalized:
+        return False
+    if ":" in normalized:
+        return True
+    return Path(normalized).suffix.lower() in {".md", ".txt", ".json", ".yaml", ".yml"}
 
 
 def classify_requirement_task(requirement: Requirement) -> tuple[str, str]:
@@ -268,6 +569,375 @@ def classify_requirement_task(requirement: Requirement) -> tuple[str, str]:
     return "backend", "backend"
 
 
+def classify_grouped_requirement_task(requirements: list[Requirement]) -> tuple[str, str]:
+    if any(requirement.source_role == "feedback" for requirement in requirements):
+        return "debug", "debug"
+    return classify_requirement_task(requirements[0])
+
+
+def classify_large_refactor_agent(requirements: list[Requirement]) -> str:
+    if is_large_refactor_frontend_phase(requirements):
+        return "frontend"
+    return "backend"
+
+
+FRONTEND_LARGE_REFACTOR_TASK_SPECS = (
+    {
+        "title": "Close frontend router, menu, and direct pages",
+        "description": (
+            "Remove obsolete old-domain routes, navigation entries, and directly reachable pages while keeping "
+            "CRM billing routes available."
+        ),
+        "markers": (
+            "router",
+            "route",
+            "menu",
+            "navigation",
+            "direct page",
+            "direct url",
+            "删除 router",
+            "删除菜单",
+            "可直达页面",
+            "旧页面",
+            "菜单",
+        ),
+        "files": (
+            "frontend/src/router/**",
+            "frontend/src/components/**",
+            "frontend/src/layouts/**",
+            "frontend/src/views/**",
+            "frontend/src/App.vue",
+            "frontend/src/main.ts",
+            "frontend/src/i18n/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Clean frontend API service references",
+        "description": (
+            "Remove or quarantine old provider, channel, proxy, gateway, subscription, and upstream service "
+            "exports from frontend API barrels and callers."
+        ),
+        "markers": (
+            "api service",
+            "service reference",
+            "service 引用",
+            "api service 引用",
+            "清理 api",
+            "清理 API",
+        ),
+        "files": (
+            "frontend/src/api/**",
+            "frontend/src/types/**",
+            "frontend/src/stores/**",
+            "frontend/src/views/**",
+            "frontend/src/utils/**",
+            "frontend/src/i18n/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Convert wallet recharge and payment surfaces",
+        "description": (
+            "Make wallet, recharge, payment-provider, and order screens support balance recharge only, without "
+            "subscription or model-routing product flows."
+        ),
+        "markers": (
+            "wallet",
+            "recharge",
+            "payment",
+            "payment providers",
+            "order",
+            "余额",
+            "充值",
+            "支付",
+            "订单",
+            "Payment Providers",
+        ),
+        "files": (
+            "frontend/src/views/user/*Payment*.vue",
+            "frontend/src/views/user/*Order*.vue",
+            "frontend/src/views/admin/*Payment*.vue",
+            "frontend/src/views/admin/*Order*.vue",
+            "frontend/src/stores/payment.ts",
+            "frontend/src/api/**",
+            "frontend/src/types/**",
+            "frontend/src/utils/**",
+            "frontend/src/i18n/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Convert redeem code pages to balance-only flows",
+        "description": (
+            "Update user and admin redeem pages so visible creation and redemption paths only handle wallet "
+            "balance recharge."
+        ),
+        "markers": (
+            "redeem",
+            "redemption",
+            "兑换",
+            "兑换码",
+        ),
+        "files": (
+            "frontend/src/views/user/*Redeem*.vue",
+            "frontend/src/views/admin/*Redeem*.vue",
+            "frontend/src/api/**",
+            "frontend/src/types/**",
+            "frontend/src/stores/**",
+            "frontend/src/i18n/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Close usage API key and admin user workflows",
+        "description": (
+            "Keep generic CRM usage, API key, user management, balance adjustment, order query, and admin usage "
+            "workflows while removing quota, channel, provider, and subscription controls."
+        ),
+        "markers": (
+            "usage",
+            "api key",
+            "admin users",
+            "user management",
+            "balance adjustment",
+            "用量",
+            "API Key",
+            "用户管理",
+            "余额调整",
+        ),
+        "files": (
+            "frontend/src/views/user/*Usage*.vue",
+            "frontend/src/views/user/*Key*.vue",
+            "frontend/src/views/admin/*Usage*.vue",
+            "frontend/src/views/admin/*User*.vue",
+            "frontend/src/api/**",
+            "frontend/src/types/**",
+            "frontend/src/stores/**",
+            "frontend/src/i18n/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Sweep frontend product copy and i18n",
+        "description": (
+            "Replace user-facing token relay, gateway, upstream account, channel, model-routing, and subscription "
+            "copy with CRM identity, wallet, metering, billing, reconciliation, analytics, and audit language."
+        ),
+        "markers": (
+            "copy",
+            "i18n",
+            "wording",
+            "token relay",
+            "middle station",
+            "产品文案",
+            "文案",
+            "token 中转",
+            "中转站",
+        ),
+        "files": (
+            "frontend/src/i18n/**",
+            "frontend/src/views/**",
+            "frontend/src/components/**",
+            "frontend/src/styles/**",
+            "frontend/src/stores/**",
+            "frontend/package.json",
+        ),
+    },
+)
+
+
+def should_decompose_large_refactor_frontend_phase(requirements: list[Requirement], *, assigned_agent: str) -> bool:
+    if assigned_agent != "frontend" or not is_large_refactor_frontend_phase(requirements):
+        return False
+    matching_specs = 0
+    for spec in FRONTEND_LARGE_REFACTOR_TASK_SPECS:
+        if any(requirement_matches_markers(requirement, spec["markers"]) for requirement in requirements):
+            matching_specs += 1
+    return matching_specs >= 3
+
+
+def large_refactor_frontend_nodes(
+    requirements: list[Requirement],
+    test_commands: list[str],
+    *,
+    package_files: list[str],
+    scope_controls: dict[str, list[str]] | None,
+    base_relevant_files: list[str],
+) -> tuple[list[TaskNode], dict[str, str]]:
+    nodes: list[TaskNode] = []
+    requirement_task_ids: dict[str, str] = {}
+    frontend_commands = frontend_large_refactor_commands(test_commands, package_files=package_files)
+    task_index = 2
+    matched_requirement_ids: set[str] = set()
+    for spec in FRONTEND_LARGE_REFACTOR_TASK_SPECS:
+        matched_requirements = [
+            requirement
+            for requirement in requirements
+            if requirement_matches_markers(requirement, spec["markers"])
+        ]
+        if not matched_requirements:
+            continue
+        task_id = f"T{task_index:03d}"
+        task_index += 1
+        matched_requirement_ids.update(requirement.id for requirement in matched_requirements)
+        for requirement in matched_requirements:
+            requirement_task_ids.setdefault(requirement.id, task_id)
+        nodes.append(
+            TaskNode(
+                id=task_id,
+                title=str(spec["title"]),
+                description=frontend_large_refactor_description(str(spec["description"]), matched_requirements),
+                type="frontend",
+                assigned_agent="frontend",
+                dependencies=["T001"],
+                completion_criteria=dedupe([criterion for item in matched_requirements for criterion in item.acceptance_criteria])
+                or ["The targeted frontend workflow is closed against the phase requirements."],
+                relevant_files=frontend_large_refactor_relevant_files(
+                    list(spec["files"]),
+                    matched_requirements,
+                    scope_controls=scope_controls,
+                    fallback=base_relevant_files,
+                ),
+                commands_to_run=frontend_commands,
+                priority=max(priority_for_requirement(item) for item in matched_requirements),
+                boundary_mode="large_refactor",
+            )
+        )
+
+    remaining_requirements = [requirement for requirement in requirements if requirement.id not in matched_requirement_ids]
+    if remaining_requirements:
+        task_id = f"T{task_index:03d}"
+        for requirement in remaining_requirements:
+            requirement_task_ids.setdefault(requirement.id, task_id)
+        nodes.append(
+            TaskNode(
+                id=task_id,
+                title="Complete remaining frontend closure requirements",
+                description=frontend_large_refactor_description(
+                    "Implement frontend closure requirements that were not covered by a more specific workflow task.",
+                    remaining_requirements,
+                ),
+                type="frontend",
+                assigned_agent="frontend",
+                dependencies=["T001"],
+                completion_criteria=dedupe([criterion for item in remaining_requirements for criterion in item.acceptance_criteria])
+                or ["The remaining frontend requirements are implemented."],
+                relevant_files=frontend_large_refactor_relevant_files(
+                    ["frontend/**", "frontend/package.json"],
+                    remaining_requirements,
+                    scope_controls=scope_controls,
+                    fallback=base_relevant_files,
+                ),
+                commands_to_run=frontend_commands,
+                priority=max(priority_for_requirement(item) for item in remaining_requirements),
+                boundary_mode="large_refactor",
+            )
+        )
+
+    return nodes, requirement_task_ids
+
+
+def frontend_large_refactor_description(prefix: str, requirements: list[Requirement]) -> str:
+    requirement_refs = "; ".join(f"{requirement.id}: {shorten(requirement.text, 120)}" for requirement in requirements)
+    return f"{prefix} Phase requirements: {requirement_refs}"
+
+
+def frontend_large_refactor_relevant_files(
+    base_files: list[str],
+    requirements: list[Requirement],
+    *,
+    scope_controls: dict[str, list[str]] | None,
+    fallback: list[str],
+) -> list[str]:
+    requirement_files = [
+        file
+        for requirement in requirements
+        for file in requirement.related_files
+        if normalize_repo_path(file).startswith("frontend/")
+    ]
+    files = dedupe([*base_files, *requirement_files, "frontend/package.json"])
+    return scoped_files(files, scope_controls, fallback=fallback)
+
+
+def frontend_large_refactor_commands(test_commands: list[str], *, package_files: list[str] | None = None) -> list[str]:
+    frontend_markers = (
+        "frontend",
+        "npm ",
+        "pnpm ",
+        "yarn ",
+        "vitest",
+        "vite",
+    )
+    commands = [
+        command
+        for command in dedupe(test_commands)
+        if any(marker in command.lower() for marker in frontend_markers)
+    ]
+    selected = commands or dedupe(test_commands)
+    setup_commands = frontend_dependency_setup_commands(selected, package_files or [])
+    return dedupe([*setup_commands, *selected])
+
+
+def frontend_dependency_setup_commands(commands: list[str], package_files: list[str]) -> list[str]:
+    if not commands:
+        return []
+    frontend_package_files = [
+        file
+        for file in package_files
+        if Path(file).name == "package.json" and _package_is_referenced_by_frontend_commands(file, commands)
+    ]
+    return dedupe([node_install_command(file, package_files) for file in frontend_package_files])
+
+
+def _package_is_referenced_by_frontend_commands(package_file: str, commands: list[str]) -> bool:
+    parent = package_parent(package_file)
+    if parent and any(parent in command.replace("\\", "/") for command in commands):
+        return True
+    return parent.startswith("frontend") or any("frontend" in command.lower() for command in commands)
+
+
+def requirement_matches_markers(requirement: Requirement, markers: tuple[str, ...]) -> bool:
+    original = requirement.text
+    lower = original.lower()
+    return any(marker.lower() in lower or marker in original for marker in markers)
+
+
+def is_large_refactor_frontend_phase(requirements: list[Requirement]) -> bool:
+    primary_original = "\n".join(requirement.text for requirement in requirements[:8])
+    primary_text = primary_original.lower()
+    frontend_phase_markers = (
+        "删除 router",
+        "删除菜单",
+        "可直达页面",
+        "前端没有",
+        "前端收口",
+        "frontend closure",
+        "frontend router",
+        "frontend menu",
+        "api service 引用",
+        "wallet、recharge、usage",
+        "admin users",
+        "payment providers 页面",
+    )
+    return any(marker in primary_text or marker in primary_original for marker in frontend_phase_markers)
+
+
+def large_refactor_phase_hint_files(
+    requirements: list[Requirement],
+    *,
+    assigned_agent: str,
+    scope_controls: dict[str, list[str]] | None,
+) -> list[str]:
+    hints: list[str] = []
+    if assigned_agent == "frontend" or is_large_refactor_frontend_phase(requirements):
+        hints.append("frontend/**")
+    text = "\n".join(requirement.text for requirement in requirements).lower()
+    if any(marker in text for marker in ("backend", "api", "route", "schema", "migration", "service", "后端", "接口", "路由")):
+        hints.append("backend/**")
+    return scoped_files(hints, scope_controls)
+
+
 def task_title(requirement: Requirement, task_type: str) -> str:
     label = {
         "backend": "Implement backend requirement",
@@ -301,13 +971,22 @@ def group_implementation_requirements(requirements: list[Requirement]) -> list[l
 
     groups: list[list[Requirement]] = []
     group_index: dict[tuple[str, tuple[str, ...]], int] = {}
+    file_group_index: dict[tuple[str, ...], int] = {}
     for requirement in requirements:
         task_type, _agent = classify_requirement_task(requirement)
-        key = (task_type, tuple(requirement.related_files))
+        files_key = tuple(requirement.related_files)
+        if files_key and files_key in file_group_index:
+            existing_group = groups[file_group_index[files_key]]
+            if requirement.source_role == "feedback" or any(item.source_role == "feedback" for item in existing_group):
+                existing_group.append(requirement)
+                continue
+        key = (task_type, files_key)
         if requirement.related_files and key in group_index:
             groups[group_index[key]].append(requirement)
             continue
         group_index[key] = len(groups)
+        if files_key:
+            file_group_index.setdefault(files_key, len(groups))
         groups.append([requirement])
     return groups
 

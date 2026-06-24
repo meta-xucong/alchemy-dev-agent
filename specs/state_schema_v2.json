@@ -67,6 +67,59 @@
         },
         "path": {
           "type": "string"
+        },
+        "repair_convergence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "completed", "skipped", "disabled"]
+            },
+            "source_run_id": {
+              "type": "string"
+            },
+            "repair_plan_id": {
+              "type": "string"
+            },
+            "feedback_files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "target_files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "required_tests": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            },
+            "trigger_task_id": {
+              "type": "string"
+            },
+            "completed_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "tests_passed": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },
@@ -218,6 +271,18 @@
     },
     "evaluation_result": {
       "$ref": "#/properties/evaluation"
+    },
+    "central_review": {
+      "$ref": "./central_review_schema.json",
+      "description": "Latest central review decision over run, delivery, evaluation, coverage, and blocker evidence."
+    },
+    "repair_plan": {
+      "$ref": "./repair_plan_schema.json",
+      "description": "Latest repair plan generated when central review or delivery evidence requires iteration."
+    },
+    "auto_iteration": {
+      "$ref": "./auto_iteration_report_schema.json",
+      "description": "Latest auto-iteration controller report for the run."
     },
     "blockers": {
       "type": "array",

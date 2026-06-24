@@ -282,6 +282,8 @@ def _media_type(path: Path) -> str:
     suffix = path.suffix.lower()
     if name.endswith(".spec.ts"):
         return "text/plain; charset=utf-8"
+    if suffix in {".htm", ".html"}:
+        return "text/html; charset=utf-8"
     if suffix in TEXT_EXTENSIONS:
         return "text/plain; charset=utf-8"
     media_type, _ = mimetypes.guess_type(str(path))

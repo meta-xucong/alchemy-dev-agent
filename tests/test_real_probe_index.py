@@ -183,13 +183,39 @@ class RealProbeIndexTests(unittest.TestCase):
                 "blockers": [],
             },
         )
+        write_json(
+            root / "diagnostic" / "real_worker_probe_report.json",
+            {
+                "schema_version": "2.64",
+                "status": "partial",
+                "probe_name": "v2_64_repair_convergence_probe",
+                "purpose": "diagnose real Codex repair convergence behavior",
+                "job": {"status": "running"},
+                "worker_result": {
+                    "status": "completed",
+                    "files_changed": ["app.py"],
+                    "tests_passed": ["python -m unittest discover -s tests"],
+                },
+                "runtime_state": {
+                    "repository": {
+                        "repair_convergence": {
+                            "status": "completed",
+                            "target_files": ["app.py"],
+                        }
+                    }
+                },
+                "blockers": [],
+            },
+        )
         write_json(root / "other" / "unknown.json", {"status": "ignored"})
 
         index = RealProbeIndexer().build(roots=[root], output_path=root / "index.json").to_dict()
 
         self.assertEqual(index["status"], "passed")
         self.assertEqual(index["schema_version"], "2.47")
-        self.assertEqual(index["summary"]["total"], 10)
+        self.assertEqual(index["summary"]["total"], 11)
+        self.assertEqual(index["summary"]["diagnostic"], 1)
+        self.assertEqual(index["summary"]["blocked_or_failed"], 0)
         entries = {entry["type"]: entry for entry in index["entries"]}
         self.assertEqual(entries["real_readiness"]["environment_status"], "ready")
         self.assertEqual(entries["real_worker_smoke"]["worker_status"], "completed")
@@ -211,6 +237,11 @@ class RealProbeIndexTests(unittest.TestCase):
         self.assertEqual(entries["benchmark_regression"]["new_failures"], [])
         self.assertEqual(entries["evidence_readiness"]["check_count"], 8)
         self.assertEqual(entries["evidence_readiness"]["failed_checks"], [])
+        self.assertTrue(entries["real_worker_probe"]["diagnostic"])
+        self.assertEqual(entries["real_worker_probe"]["status"], "partial")
+        self.assertEqual(entries["real_worker_probe"]["worker_status"], "completed")
+        self.assertEqual(entries["real_worker_probe"]["repair_convergence_status"], "completed")
+        self.assertEqual(entries["real_worker_probe"]["repair_target_files"], ["app.py"])
         self.assertTrue((root / "index.json").exists())
 
     def test_indexer_reports_blocked_when_any_probe_failed(self) -> None:

@@ -55,6 +55,21 @@ def create_local_remote(root: Path) -> Path:
     return remote
 
 
+def create_master_only_remote(root: Path) -> Path:
+    source = root / "source-master"
+    remote = root / "remote-master.git"
+    source.mkdir()
+    assert_git_ok(run_git(["init"], source))
+    assert_git_ok(run_git(["checkout", "-B", "master"], source))
+    assert_git_ok(run_git(["config", "user.email", "alchemy@example.test"], source))
+    assert_git_ok(run_git(["config", "user.name", "Alchemy Test"], source))
+    (source / "README.md").write_text("# Master Remote Repo\n", encoding="utf-8")
+    assert_git_ok(run_git(["add", "README.md"], source))
+    assert_git_ok(run_git(["commit", "-m", "initial"], source))
+    assert_git_ok(run_git(["clone", "--bare", str(source), str(remote)], root))
+    return remote
+
+
 class GitHubSourceRuntimeTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
@@ -82,6 +97,26 @@ class GitHubSourceRuntimeTests(unittest.TestCase):
             self.assertFalse(result.repository.gh_auth_required)
             self.assertEqual(result.blockers, [])
 
+    def test_clones_default_branch_when_requested_branch_is_missing(self) -> None:
+        with temp_git_dir() as root:
+            remote = create_master_only_remote(root)
+            target = root / "checkout"
+            repository = parse_github_source(
+                "https://github.com/example/repo",
+                project_id="proj_test",
+                visibility="public",
+                local_path=str(target),
+            )
+            repository.url = str(remote)
+
+            result = GitHubSourceRuntime().prepare(repository)
+
+            self.assertEqual(result.status, "available", result.to_dict())
+            self.assertEqual(result.repository.target_branch, "master")
+            self.assertTrue((target / ".git").exists())
+            self.assertTrue((target / "README.md").exists())
+            self.assertIn(["git", "ls-remote", "--symref", str(remote), "HEAD"], result.commands_run)
+
     def test_fetches_existing_public_checkout(self) -> None:
         with temp_git_dir() as root:
             remote = create_local_remote(root)
@@ -101,6 +136,28 @@ class GitHubSourceRuntimeTests(unittest.TestCase):
             self.assertEqual(result.status, "available", result.to_dict())
             self.assertIn(["git", "fetch", "origin", "main"], result.commands_run)
             self.assertIn(["git", "checkout", "-B", "main", "origin/main"], result.commands_run)
+
+    def test_fetches_existing_checkout_default_branch_when_requested_branch_is_missing(self) -> None:
+        with temp_git_dir() as root:
+            remote = create_master_only_remote(root)
+            target = root / "checkout"
+            clone = subprocess.run(["git", "clone", str(remote), str(target)], capture_output=True, text=True, check=False)
+            self.assertEqual(clone.returncode, 0, clone.stderr or clone.stdout)
+            repository = parse_github_source(
+                "https://github.com/example/repo",
+                project_id="proj_test",
+                visibility="public",
+                local_path=str(target),
+            )
+            repository.url = str(remote)
+
+            result = GitHubSourceRuntime().prepare(repository)
+
+            self.assertEqual(result.status, "available", result.to_dict())
+            self.assertEqual(result.repository.target_branch, "master")
+            self.assertIn(["git", "fetch", "origin", "main"], result.commands_run)
+            self.assertIn(["git", "fetch", "origin", "master"], result.commands_run)
+            self.assertIn(["git", "checkout", "-B", "master", "origin/master"], result.commands_run)
 
     def test_private_repository_is_optional_blocked_path(self) -> None:
         repository = parse_github_source(

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .models import utc_now_iso
+from .subprocess_utils import hidden_subprocess_startup_kwargs
 
 
 Terminator = Callable[[int], dict[str, Any]]
@@ -22,7 +23,7 @@ CancellationCheck = Callable[[], bool]
 @dataclass(slots=True)
 class WorkerLifecycleRecord:
     task_id: str
-    timeout_seconds: int
+    timeout_seconds: int | None
     process_group: str
     status: str = "running"
     worker_pid: int | None = None
@@ -62,7 +63,7 @@ class WorkerLifecycleRecorder:
         if self.output_dir:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def start(self, task_id: str, timeout_seconds: int) -> WorkerLifecycleRecord:
+    def start(self, task_id: str, timeout_seconds: int | None) -> WorkerLifecycleRecord:
         process_group = f"alchemy-run-{_safe_id(task_id)}-{int(time.time() * 1000)}"
         record = WorkerLifecycleRecord(task_id=task_id, timeout_seconds=timeout_seconds, process_group=process_group)
         self.persist(record)
@@ -127,11 +128,13 @@ class ManagedSubprocessRunner:
         *,
         cancellation_check: CancellationCheck | None = None,
         poll_interval_seconds: float = 0.1,
+        pipe_drain_grace_seconds: float = 2.0,
     ) -> None:
         self.recorder = recorder
         self.record = record
         self.cancellation_check = cancellation_check
         self.poll_interval_seconds = poll_interval_seconds
+        self.pipe_drain_grace_seconds = pipe_drain_grace_seconds
 
     def __call__(
         self,
@@ -141,16 +144,12 @@ class ManagedSubprocessRunner:
         input: str | bytes,
         capture_output: bool,
         text: bool,
-        timeout: int,
+        timeout: int | None,
         check: bool,
     ) -> subprocess.CompletedProcess[Any]:
         stdout_pipe = subprocess.PIPE if capture_output else None
         stderr_pipe = subprocess.PIPE if capture_output else None
-        creation_kwargs: dict[str, Any] = {}
-        if os.name == "nt":
-            creation_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-        else:
-            creation_kwargs["preexec_fn"] = os.setsid
+        creation_kwargs = _managed_process_startup_kwargs()
 
         process = subprocess.Popen(
             args,
@@ -193,30 +192,77 @@ class ManagedSubprocessRunner:
         process: subprocess.Popen[Any],
         *,
         input: str | bytes,
-        timeout: int | float,
+        timeout: int | float | None,
         args: list[str],
     ) -> tuple[Any, Any]:
-        if self.cancellation_check is None:
-            return process.communicate(input=input, timeout=timeout)
-        deadline = time.monotonic() + float(timeout)
+        deadline = time.monotonic() + float(timeout) if timeout and float(timeout) > 0 else None
+        if self.cancellation_check is None and deadline is None:
+            return process.communicate(input=input, timeout=None)
         sent_input = False
+        last_timeout: subprocess.TimeoutExpired | None = None
         while True:
-            if self.cancellation_check():
+            if self.cancellation_check and self.cancellation_check():
                 raise WorkerCancelled(f"Worker cancellation requested for {self.record.task_id}.")
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise subprocess.TimeoutExpired(args, timeout)
+            remaining = None if deadline is None else deadline - time.monotonic()
+            if remaining is not None and remaining <= 0:
+                raise _timeout_with_partial_output(args, timeout, last_timeout)
             try:
                 return process.communicate(
                     input=input if not sent_input else None,
-                    timeout=min(self.poll_interval_seconds, remaining),
+                    timeout=self.poll_interval_seconds if remaining is None else min(self.poll_interval_seconds, remaining),
                 )
-            except subprocess.TimeoutExpired:
+            except subprocess.TimeoutExpired as exc:
                 sent_input = True
+                last_timeout = exc
+                if process.poll() is not None:
+                    return self._finish_exited_process_with_open_pipes(process, args, exc)
+
+    def _finish_exited_process_with_open_pipes(
+        self,
+        process: subprocess.Popen[Any],
+        args: list[str],
+        first_timeout: subprocess.TimeoutExpired,
+    ) -> tuple[Any, Any]:
+        """Recover when a finished child leaves captured pipes open via descendants."""
+
+        try:
+            return process.communicate(input=None, timeout=self.pipe_drain_grace_seconds)
+        except subprocess.TimeoutExpired as exc:
+            self.record.error = "Process exited before captured pipes closed; salvaged available output."
+            self.recorder.persist(self.record)
+            self._close_process_pipes(process)
+            stdout = exc.output if exc.output is not None else first_timeout.output
+            stderr = exc.stderr if exc.stderr is not None else first_timeout.stderr
+            return stdout, stderr
+
+    def _close_process_pipes(self, process: subprocess.Popen[Any]) -> None:
+        for stream in (process.stdin, process.stdout, process.stderr):
+            if stream is None:
+                continue
+            try:
+                stream.close()
+            except OSError:
+                continue
 
 
 class WorkerCancelled(Exception):
     """Raised when operator stop is requested while the worker is running."""
+
+
+def _timeout_with_partial_output(
+    args: list[str],
+    timeout: int | float | None,
+    last_timeout: subprocess.TimeoutExpired | None,
+) -> subprocess.TimeoutExpired:
+    if last_timeout is None:
+        return subprocess.TimeoutExpired(args, timeout)
+    return subprocess.TimeoutExpired(args, timeout, output=last_timeout.output, stderr=last_timeout.stderr)
+
+
+def _managed_process_startup_kwargs() -> dict[str, Any]:
+    if os.name != "nt":
+        return {"preexec_fn": os.setsid}
+    return hidden_subprocess_startup_kwargs(new_process_group=True)
 
 
 def terminate_process_tree(pid: int) -> dict[str, Any]:
@@ -227,6 +273,7 @@ def terminate_process_tree(pid: int) -> dict[str, Any]:
             text=True,
             timeout=10,
             check=False,
+            **hidden_subprocess_startup_kwargs(),
         )
         return {
             "terminated": result.returncode == 0 or "not found" in (result.stderr + result.stdout).lower(),
@@ -247,5 +294,38 @@ def terminate_process_tree(pid: int) -> dict[str, Any]:
         return {"terminated": False, "method": "killpg", "stderr": str(exc)}
 
 
+def process_exists(pid: int | None) -> bool:
+    """Return whether a recorded worker PID still exists."""
+
+    if not pid or pid <= 0:
+        return False
+    if os.name == "nt":
+        try:
+            result = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+                **hidden_subprocess_startup_kwargs(),
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        output = result.stdout.strip()
+        return result.returncode == 0 and output and "no tasks" not in output.lower() and f'"{pid}"' in output
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+
+
 def _safe_id(value: str) -> str:
-    return re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-") or "worker"
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-") or "worker"
+    if len(safe) <= 96:
+        return safe
+    return safe[:80].rstrip("-_.") + "-" + str(abs(hash(safe)))[-12:]

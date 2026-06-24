@@ -72,11 +72,12 @@ class ProjectBriefBuilder:
             attachment_files.append(project_file)
             blockers.extend(file_blockers)
 
-        if primary_input_mode == "document_driven" and not document_files:
+        has_repository_source = bool(repository_url or repository_path)
+        if primary_input_mode == "document_driven" and not document_files and not has_repository_source:
             blockers.append(
                 Blocker(
                     code="missing_primary_document",
-                    message="Document-driven intake requires at least one primary development document.",
+                    message="Document-driven intake requires at least one primary development document or repository source.",
                     severity="hard",
                 )
             )
@@ -96,6 +97,7 @@ class ProjectBriefBuilder:
                 target_branch=target_branch,
                 base_branch=base_branch,
                 visibility=repository_visibility,
+                local_path=str(repository_path) if repository_path else "",
             )
             if repository is None:
                 blockers.append(

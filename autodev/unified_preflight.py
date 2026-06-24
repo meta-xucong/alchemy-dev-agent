@@ -245,14 +245,14 @@ class UnifiedRunPreflight:
             )
 
     def _repository_plan(self, request: AutoDevRunRequest) -> tuple[str, str, bool, bool]:
+        if request.repository_url and request.prepare_repository:
+            planned = request.repository_path or self._planned_github_checkout_path(request)
+            return planned, planned, False, True
         if request.repository_path:
             return request.repository_path, "", True, False
         if request.route == "document_run" and not request.repository_url:
             planned = str(Path(request.output_dir) / "generated_repository")
             return planned, planned, False, False
-        if request.repository_url and request.prepare_repository:
-            planned = self._planned_github_checkout_path(request)
-            return planned, planned, False, True
         if request.repository_url:
             return str(Path(request.output_dir) / "unprepared_repository"), "", False, False
         return ".", "", False, False

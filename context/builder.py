@@ -57,6 +57,9 @@ class ContextBundleBuilder:
                 for attachment in payload.get("attachments", [])
             )
             requirements = enrich_requirements_with_scaffold_hints(extraction.requirements, objective, repository_files)
+            scope_controls = extraction.scope_controls
+        if self._should_use_generated_artifact_fallback(payload):
+            scope_controls = None
         blockers.extend(detect_requirement_contradictions(requirements))
         code_summaries = summarize_repository_code(root_path, repository_files)
         risks = self._risks_for_objective(objective)
@@ -78,6 +81,7 @@ class ContextBundleBuilder:
             build_commands=repository_index.build_commands if repository_index else [],
             lint_commands=repository_index.lint_commands if repository_index else [],
             coverage_unknown=repository_index.coverage_unknown if repository_index else True,
+            scope_controls=scope_controls_payload(scope_controls),
         )
 
     def _document_summary(
@@ -237,6 +241,17 @@ def dedupe_preserve_order(values: list[str]) -> list[str]:
             seen.add(clean)
             result.append(clean)
     return result
+
+
+def scope_controls_payload(scope_controls: object | None) -> dict[str, object]:
+    if scope_controls is None:
+        return {}
+    return {
+        "allowed_prefixes": list(getattr(scope_controls, "allowed_prefixes", []) or []),
+        "protected_prefixes": list(getattr(scope_controls, "protected_prefixes", []) or []),
+        "target_files": list(getattr(scope_controls, "target_files", []) or []),
+        "boundary_mode": str(getattr(scope_controls, "boundary_mode", "strict") or "strict"),
+    }
 
 
 def detect_requirement_contradictions(requirements: list[Requirement]) -> list[Blocker]:

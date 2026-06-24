@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Protocol
 
 from intake.gh_auth import GitHubAuthPreflight, safe_text
+from runtime.subprocess_utils import run_hidden
 
 
 class CommandRunner(Protocol):
@@ -102,7 +103,7 @@ class ExecutionPreflight:
         if not resolved:
             return PreflightCheck(name, "failed", f"Executable not found on PATH: {executable}", required=required)
         try:
-            result = self.runner([executable, "--version"], cwd=None, capture_output=True, text=False, check=False)
+            result = run_hidden(self.runner, [executable, "--version"], cwd=None, capture_output=True, text=False, check=False)
         except OSError as exc:
             return PreflightCheck(name, "failed", f"Executable is not launchable: {exc}", required=required)
         summary = (safe_text(result.stdout) or safe_text(result.stderr) or resolved).strip().splitlines()[0]

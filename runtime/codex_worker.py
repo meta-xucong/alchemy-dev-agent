@@ -14,11 +14,15 @@ import json
 import os
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Literal, Protocol
 
 from .models import WorkerStatus
+from .subprocess_utils import clean_git_env, run_hidden
 from .worker_lifecycle import ManagedSubprocessRunner, WorkerLifecycleRecorder
+
+
+RAW_OUTPUT_LIMIT = 20_000
 
 
 @dataclass(slots=True)
@@ -49,6 +53,12 @@ class CommandResult:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class FileSnapshot:
+    exists: bool
+    content: bytes = b""
+
+
 @dataclass(slots=True)
 class CodexWorkerInput:
     task_id: str
@@ -65,6 +75,7 @@ class CodexWorkerInput:
     commands_to_run: list[str] = field(default_factory=list)
     expected_output_format: str = "codex_worker_result_v1"
     retry_context: str = ""
+    boundary_mode: str = "strict"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -82,6 +93,7 @@ class CodexWorkerInput:
             "commands_to_run": list(self.commands_to_run),
             "expected_output_format": self.expected_output_format,
             "retry_context": self.retry_context,
+            "boundary_mode": self.boundary_mode,
         }
 
 
@@ -148,7 +160,7 @@ class SubprocessRunner(Protocol):
         input: str | bytes,
         capture_output: bool,
         text: bool,
-        timeout: int,
+        timeout: int | None,
         check: bool,
     ) -> subprocess.CompletedProcess[Any]:
         ...
@@ -163,7 +175,7 @@ class CodexWorkerAdapter:
         executable: str = "codex",
         dry_run: bool = True,
         sandbox: Literal["read-only", "workspace-write", "danger-full-access"] = "workspace-write",
-        timeout_seconds: int = 1800,
+        timeout_seconds: int | None = 1800,
         runner: SubprocessRunner = subprocess.run,
         lifecycle_recorder: WorkerLifecycleRecorder | None = None,
         cancellation_check: Callable[[str], bool] | None = None,
@@ -171,7 +183,7 @@ class CodexWorkerAdapter:
         self.executable = executable
         self.dry_run = dry_run
         self.sandbox = sandbox
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = timeout_seconds if timeout_seconds and timeout_seconds > 0 else None
         self.runner = runner
         self.lifecycle_recorder = lifecycle_recorder
         self.cancellation_check = cancellation_check
@@ -190,6 +202,10 @@ class CodexWorkerAdapter:
             "valid JSON matching codex_worker_result_v1.\n\n"
             "If allowed_files is empty, do not edit repository files. Return blocked or partial if the task "
             "cannot be completed without edits.\n\n"
+            "You may run package-manager install commands when they are needed for verification and existing "
+            "dependency manifests or lockfiles define the dependency set. Keep install output limited to ignored "
+            "dependency/cache directories such as node_modules; do not modify manifests or lockfiles unless those "
+            "files are explicitly listed in allowed_files.\n\n"
             "When a task references a protected commercial game or franchise, preserve only broad genre mechanics. "
             "Do not write protected names, character names, artwork names, exact layout names, or brand names into "
             "generated repository files, even in safety notes. Use original names and neutral descriptions instead.\n\n"
@@ -211,7 +227,7 @@ class CodexWorkerAdapter:
     def _execute_codex(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         prompt = self.build_prompt(worker_input)
         args = [self.executable, "exec", "--json", "--sandbox", self.sandbox]
-        before_changes = self._git_changed_files(worker_input.repository_path)
+        before_snapshot = self._capture_worktree_snapshot(worker_input.repository_path)
         lifecycle_record = None
         runner = self.runner
         if self.lifecycle_recorder is not None and self.runner is subprocess.run:
@@ -244,7 +260,7 @@ class CodexWorkerAdapter:
                 self.lifecycle_recorder.fail(lifecycle_record, str(exc))
             return self._blocked(worker_input, f"Codex executable is not launchable: {exc}", lifecycle_record)
         except subprocess.TimeoutExpired as exc:
-            self._rollback_task_changes(worker_input.repository_path, before_changes)
+            self._rollback_task_changes(worker_input.repository_path, before_snapshot)
             lifecycle_payload = lifecycle_record.to_dict() if lifecycle_record is not None else {}
             if lifecycle_payload.get("status") == "cancelled":
                 return CodexWorkerResult(
@@ -253,7 +269,7 @@ class CodexWorkerAdapter:
                     summary="Codex worker was cancelled by operator stop request.",
                     known_issues=["Worker subprocess was terminated after stop was requested."],
                     confidence=0.0,
-                    raw_output=str(exc),
+                    raw_output=_truncate_raw_output(str(exc)),
                     worker_lifecycle=lifecycle_payload,
                 )
             return CodexWorkerResult(
@@ -262,7 +278,7 @@ class CodexWorkerAdapter:
                 summary=f"Codex worker timed out after {self.timeout_seconds} seconds.",
                 known_issues=[str(exc), "Task-local repository changes were rolled back after timeout."],
                 confidence=0.0,
-                raw_output=str(exc),
+                raw_output=_truncate_raw_output(str(exc)),
                 worker_lifecycle=lifecycle_payload,
             )
 
@@ -270,7 +286,7 @@ class CodexWorkerAdapter:
         stderr = _decode_subprocess_output(completed.stderr)
         raw_output = "\n".join(part for part in [stdout, stderr] if part)
         if lifecycle_record is not None and lifecycle_record.status == "cancelled":
-            self._rollback_task_changes(worker_input.repository_path, before_changes)
+            self._rollback_task_changes(worker_input.repository_path, before_snapshot)
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
                 status="blocked",
@@ -286,13 +302,13 @@ class CodexWorkerAdapter:
                 ],
                 known_issues=["Worker subprocess was terminated after stop was requested."],
                 confidence=0.0,
-                raw_output=raw_output,
+                raw_output=_truncate_raw_output(raw_output),
                 worker_lifecycle=lifecycle_record.to_dict(),
             )
-        changed_files = self._new_or_modified_files(worker_input.repository_path, before_changes)
+        changed_files = self._task_changed_files(worker_input.repository_path, before_snapshot)
         boundary_violation = self._audit_file_boundaries(worker_input, changed_files)
         if boundary_violation:
-            self._rollback_files(worker_input.repository_path, boundary_violation)
+            self._rollback_files(worker_input.repository_path, boundary_violation, before_snapshot)
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
                 status="failed",
@@ -303,7 +319,7 @@ class CodexWorkerAdapter:
                     "Allowed files: " + (", ".join(worker_input.allowed_files) if worker_input.allowed_files else "(none)"),
                 ],
                 confidence=0.0,
-                raw_output=raw_output,
+                raw_output=_truncate_raw_output(raw_output),
                 worker_lifecycle=lifecycle_record.to_dict() if lifecycle_record is not None else {},
             )
         parsed = self._parse_worker_json(stdout) or self._parse_worker_json(raw_output)
@@ -324,7 +340,7 @@ class CodexWorkerAdapter:
                 ],
                 known_issues=["Missing structured worker JSON."],
                 confidence=0.0,
-                raw_output=raw_output,
+                raw_output=_truncate_raw_output(raw_output),
                 worker_lifecycle=lifecycle_record.to_dict() if lifecycle_record is not None else {},
             )
 
@@ -332,7 +348,7 @@ class CodexWorkerAdapter:
         if not result.task_id:
             result.task_id = worker_input.task_id
         result.files_changed = changed_files or result.files_changed
-        result.raw_output = raw_output
+        result.raw_output = _truncate_raw_output(raw_output)
         if lifecycle_record is not None:
             result.worker_lifecycle = lifecycle_record.to_dict()
         if completed.returncode != 0 and result.status == "completed":
@@ -433,15 +449,17 @@ class CodexWorkerAdapter:
         if not (path / ".git").exists():
             return set()
         try:
-            result = self.runner(
-                ["git", "status", "--porcelain"],
-                cwd=path,
-                input="",
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=False,
-            )
+            kwargs = {
+                "cwd": path,
+                "input": "",
+                "capture_output": True,
+                "text": True,
+                "timeout": 30,
+                "check": False,
+            }
+            if self.runner is subprocess.run:
+                kwargs["env"] = clean_git_env(path)
+            result = run_hidden(self.runner, ["git", "status", "--porcelain"], **kwargs)
         except (OSError, subprocess.SubprocessError):
             return set()
         if result.returncode != 0:
@@ -450,7 +468,65 @@ class CodexWorkerAdapter:
 
     def _new_or_modified_files(self, repository_path: str | Path, before: set[str]) -> list[str]:
         after = self._git_changed_files(repository_path)
-        return sorted(after - before)
+        changed: list[str] = []
+        for path in after - before:
+            changed.extend(self._expand_changed_path(repository_path, path))
+        return sorted(path for path in set(changed) if not _is_ignorable_generated_file(path))
+
+    def _capture_worktree_snapshot(self, repository_path: str | Path) -> dict[str, FileSnapshot]:
+        snapshots: dict[str, FileSnapshot] = {}
+        for changed_path in self._git_changed_files(repository_path):
+            for file_path in self._expand_changed_path(repository_path, changed_path):
+                if not _is_ignorable_generated_file(file_path):
+                    snapshots[file_path] = self._snapshot_file(repository_path, file_path)
+        return snapshots
+
+    def _task_changed_files(self, repository_path: str | Path, before: dict[str, FileSnapshot]) -> list[str]:
+        after_paths: set[str] = set()
+        for changed_path in self._git_changed_files(repository_path):
+            after_paths.update(self._expand_changed_path(repository_path, changed_path))
+        candidates = after_paths | set(before)
+        changed: list[str] = []
+        for file_path in candidates:
+            if _is_ignorable_generated_file(file_path):
+                continue
+            previous = before.get(file_path)
+            current = self._snapshot_file(repository_path, file_path)
+            if previous is None:
+                if file_path in after_paths or current.exists:
+                    changed.append(file_path)
+                continue
+            if current != previous:
+                changed.append(file_path)
+        return sorted(set(changed))
+
+    def _snapshot_file(self, repository_path: str | Path, file_path: str) -> FileSnapshot:
+        repo = Path(repository_path)
+        repo_root = repo.resolve()
+        target = (repo / file_path).resolve()
+        try:
+            target.relative_to(repo_root)
+        except ValueError:
+            return FileSnapshot(False)
+        if target.is_file():
+            return FileSnapshot(True, target.read_bytes())
+        return FileSnapshot(False)
+
+    def _expand_changed_path(self, repository_path: str | Path, changed_path: str) -> list[str]:
+        normalized = _normalize_repo_path(changed_path)
+        if not normalized:
+            return []
+        target = Path(repository_path) / normalized
+        if not target.is_dir():
+            return [normalized]
+        expanded: list[str] = []
+        for child in target.rglob("*"):
+            if child.is_file():
+                try:
+                    expanded.append(_normalize_repo_path(str(child.relative_to(repository_path))))
+                except ValueError:
+                    continue
+        return expanded or [normalized]
 
     def _parse_porcelain_paths(self, output: str) -> list[str]:
         paths: list[str] = []
@@ -464,43 +540,67 @@ class CodexWorkerAdapter:
         return [path for path in paths if path]
 
     def _audit_file_boundaries(self, worker_input: CodexWorkerInput, changed_files: list[str]) -> list[str]:
-        allowed = {_normalize_repo_path(path) for path in worker_input.allowed_files}
-        allowed = {path for path in allowed if path}
-        return [path for path in changed_files if path not in allowed]
+        allowed = [_normalize_repo_path(path) for path in worker_input.allowed_files]
+        allowed = [path for path in allowed if path]
+        return [
+            path
+            for path in changed_files
+            if not _is_allowed_changed_path(path, allowed) and not _is_ignorable_generated_file(path)
+        ]
 
-    def _rollback_task_changes(self, repository_path: str | Path, before: set[str]) -> None:
-        self._rollback_files(repository_path, self._new_or_modified_files(repository_path, before))
+    def _rollback_task_changes(self, repository_path: str | Path, before: dict[str, FileSnapshot]) -> None:
+        self._rollback_files(repository_path, self._task_changed_files(repository_path, before), before)
 
-    def _rollback_files(self, repository_path: str | Path, files: list[str]) -> None:
+    def _rollback_files(
+        self,
+        repository_path: str | Path,
+        files: list[str],
+        before: dict[str, FileSnapshot] | None = None,
+    ) -> None:
         if not files:
             return
         repo = Path(repository_path)
+        before = before or {}
+        fallback_files: list[str] = []
+        for file_path in files:
+            snapshot = before.get(file_path)
+            if snapshot is None:
+                fallback_files.append(file_path)
+                continue
+            self._restore_snapshot_file(repo, file_path, snapshot)
+        files = fallback_files
+        if not files:
+            return
         tracked: list[str] = []
         untracked: list[str] = []
         for file_path in files:
-            result = self.runner(
-                ["git", "ls-files", "--error-unmatch", "--", file_path],
-                cwd=repo,
-                input="",
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=False,
-            )
+            kwargs = {
+                "cwd": repo,
+                "input": "",
+                "capture_output": True,
+                "text": True,
+                "timeout": 30,
+                "check": False,
+            }
+            if self.runner is subprocess.run:
+                kwargs["env"] = clean_git_env(repo)
+            result = run_hidden(self.runner, ["git", "ls-files", "--error-unmatch", "--", file_path], **kwargs)
             if result.returncode == 0:
                 tracked.append(file_path)
             else:
                 untracked.append(file_path)
         if tracked:
-            self.runner(
-                ["git", "checkout", "--", *tracked],
-                cwd=repo,
-                input="",
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=False,
-            )
+            kwargs = {
+                "cwd": repo,
+                "input": "",
+                "capture_output": True,
+                "text": True,
+                "timeout": 60,
+                "check": False,
+            }
+            if self.runner is subprocess.run:
+                kwargs["env"] = clean_git_env(repo)
+            run_hidden(self.runner, ["git", "checkout", "--", *tracked], **kwargs)
         repo_root = repo.resolve()
         for file_path in untracked:
             target = (repo / file_path).resolve()
@@ -510,6 +610,20 @@ class CodexWorkerAdapter:
                 continue
             if target.is_file():
                 target.unlink()
+
+    def _restore_snapshot_file(self, repo: Path, file_path: str, snapshot: FileSnapshot) -> None:
+        repo_root = repo.resolve()
+        target = (repo / file_path).resolve()
+        try:
+            target.relative_to(repo_root)
+        except ValueError:
+            return
+        if snapshot.exists:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(snapshot.content)
+            return
+        if target.is_file():
+            target.unlink()
 
     def _find_worker_result(self, payload: Any) -> dict[str, Any] | None:
         if isinstance(payload, dict):
@@ -590,5 +704,91 @@ def _decode_subprocess_output(value: Any) -> str:
     return str(value)
 
 
+def _truncate_raw_output(output: str, *, limit: int = RAW_OUTPUT_LIMIT) -> str:
+    if len(output) <= limit:
+        return output
+    marker = f"\n...[raw output truncated to {limit} chars; omitted {len(output) - limit} chars]...\n"
+    if len(marker) >= limit:
+        return output[-limit:]
+    budget = limit - len(marker)
+    head = budget // 2
+    tail = budget - head
+    return output[:head] + marker + output[-tail:]
+
+
 def _normalize_repo_path(path: str) -> str:
     return path.replace(os.sep, "/").replace("\\", "/").strip("/")
+
+
+def _is_allowed_changed_path(path: str, allowed_files: list[str]) -> bool:
+    normalized = _normalize_repo_path(path)
+    for allowed in allowed_files:
+        if _allowed_pattern_matches(normalized, allowed):
+            return True
+    return False
+
+
+def _allowed_pattern_matches(path: str, allowed: str) -> bool:
+    clean = _normalize_repo_path(allowed)
+    if not clean:
+        return False
+    if clean.endswith("/**"):
+        prefix = clean[:-3].rstrip("/")
+        return path == prefix or path.startswith(prefix + "/")
+    if clean.endswith("/*"):
+        prefix = clean[:-2].rstrip("/")
+        if not (path.startswith(prefix + "/")):
+            return False
+        return "/" not in path[len(prefix) + 1 :]
+    if clean.endswith("/"):
+        return path.startswith(clean)
+    if any(char in clean for char in "*?["):
+        return PurePosixPath(path).match(clean)
+    return path == clean
+
+
+def _is_ignorable_generated_file(path: str) -> bool:
+    normalized = _normalize_repo_path(path)
+    parts = normalized.split("/")
+    if "__pycache__" in parts:
+        return True
+    if ".alchemy" in parts:
+        return True
+    if ".alchemy_tmp" in parts:
+        return True
+    if _is_codex_windows_scratch_file(normalized):
+        return True
+    if normalized.endswith((".pyc", ".pyo", ".pyd")):
+        return True
+    if "node_modules" in parts:
+        return True
+    if any(part.startswith(".gocache") for part in parts):
+        return True
+    if ".entc" in parts:
+        return True
+    if any(part.startswith("pytest-cache-files-") for part in parts):
+        return True
+    if _is_test_runtime_artifact(parts):
+        return True
+    if normalized.endswith((".log", ".tmp")):
+        return True
+    return False
+
+
+def _is_codex_windows_scratch_file(normalized: str) -> bool:
+    if "/" in normalized or not normalized.startswith("_tmp_"):
+        return False
+    chunks = normalized.split("_", 3)
+    if len(chunks) != 4 or chunks[1] != "tmp":
+        return False
+    pid, token = chunks[2], chunks[3]
+    if not pid.isdigit() or len(token) < 12:
+        return False
+    return all(char in "0123456789abcdefABCDEF" for char in token)
+
+
+def _is_test_runtime_artifact(parts: list[str]) -> bool:
+    for index, part in enumerate(parts[:-1]):
+        if part == "tests" and index + 1 < len(parts) and parts[index + 1].startswith("_runtime_"):
+            return True
+    return False

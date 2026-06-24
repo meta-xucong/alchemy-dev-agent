@@ -1899,3 +1899,524 @@
 
 - Command: gh run watch 27873272496 --exit-status
 - Result: passed; master CI succeeded for V2.55 commit a135dc98f7a140d7a715cdc8a26609de8888ecb8.
+
+## 2026-06-21 V2.57 Verification
+- Command: node --check server\static\app.js
+  Result: passed.
+- Command: python -B -m compileall server runtime autodev tests
+  Result: passed.
+- Command: $env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest tests.test_api_server tests.test_unified_run tests.test_runtime tests.test_artifact_manifest tests.test_real_env_check
+  Result: passed; 133 tests OK.
+- Command: HTTP smoke against http://127.0.0.1:18857/?project_id=proj_4b75afa11d55&run_id=run_002
+  Result: passed; page contained progress/actions, status ready/100%, Open result served text/html with canvas content.
+- Command: $env:PYTHONDONTWRITEBYTECODE=1; python -B -m unittest discover -s tests
+  Result: passed; 269 tests OK.
+- Command: specs JSON parse; git diff --check; node --check server/static/app.js
+  Result: passed.
+
+## 2026-06-21 V2.59 Verification
+- Command: node --check server/static/app.js
+  Result: passed.
+- Command: python -B -m unittest tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_api_server.ApiServerTests.test_project_service_exposes_beginner_run_status_and_delivery_actions tests.test_api_server.ApiServerTests.test_http_api_serves_run_status_and_open_folder_action
+  Result: passed; 3 tests OK.
+- Command: Browser audit against http://127.0.0.1:18739/
+  Result: passed; source fields hidden until idea source selected.
+- Command: Browser audit against run_002 deep link
+  Result: passed; progress showed 100% ready-to-review and Open result/Open folder actions rendered without disabled GitHub action.
+- Command: python -B -m unittest discover -s tests
+  Result: passed; 269 tests OK.
+- Command: git diff --check; validate_state.py --project .
+  Result: passed; only existing .codex-longrun CRLF warning from git diff --check.
+
+## 2026-06-21 V2.60 Frontend Logic Audit Verification
+- Command: node --check server/static/app.js
+  Result: passed.
+- Command: python -m py_compile server/api.py server/jobs.py server/project_service.py
+  Result: passed.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_api_server tests.test_real_env_check tests.test_unified_run
+  Result: passed; 56 tests OK in 26.242s.
+- Command: HTTP smoke against http://127.0.0.1:18741/health, /projects, run_002 job/status, and Open result artifact URL
+  Result: passed; service healthy, project history available, run_002 done/100%, artifact link returned 200.
+- Command: Browser audit against http://127.0.0.1:18741/?project_id=proj_4b75afa11d55&run_id=run_002
+  Result: passed; language toggle, new-project reset, environment gate, source exclusivity, history restore, delivery actions, score explanation, and zero console errors verified.
+
+## 2026-06-21 V2.61 Entrypoint Regression Verification
+- Command: API regression against http://127.0.0.1:18742 for one-line idea source
+  Result: passed; generated project completed with progress=100 and Open result returned HTTP 200.
+- Command: API regression against http://127.0.0.1:18742 for uploaded document source
+  Result: passed; multipart upload accepted 2 files, generated project completed with progress=100 and Open result returned HTTP 200.
+- Command: API regression against http://127.0.0.1:18742 for GitHub URL source
+  Result: passed; public repository cloned into project workspace, default branch fallback resolved master, run completed with progress=100, and Open folder opened the checkout.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_github_runtime tests.test_intake tests.test_unified_run tests.test_document_run_pipeline tests.test_api_server.ApiServerTests.test_project_service_github_inspect_without_prepare_returns_intake
+  Result: passed; 38 tests OK.
+- Command: $env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_api_server tests.test_unified_run tests.test_document_run_pipeline tests.test_github_runtime tests.test_intake
+  Result: passed; 89 tests OK.
+- Command: python -m compileall autodev intake server tests; git diff --check
+  Result: passed; git diff --check only reported existing .codex-longrun CRLF warnings.
+
+## 2026-06-21 V2.62 Documentation Package Verification
+- Command: python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('specs').glob('*.json')]; print('spec-json-ok')"
+  Result: passed; all specs, including new central_review, repair_plan, and auto_iteration schemas, parse as JSON.
+- Command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .
+  Result: passed.
+- Command: git diff --check
+  Result: passed; only existing .codex-longrun CRLF warnings were reported.
+- Command: rg -n "Central Auto-Iteration|repair_plan_schema|central_review_schema|auto_iteration_report_schema|Central Review Agent|repair planner" README.md docs specs examples
+  Result: passed; new V2.62 docs and original master docs reference the central review/repair planning contract.
+
+## 2026-06-21 V2.62 Implementation Verification
+- Command: node --check server/static/app.js
+  Result: passed.
+- Command: python -B -m py_compile autodev/auto_iteration.py autodev/central_review.py server/project_service.py server/api.py
+  Result: passed.
+- Command: python -B -m unittest tests.test_api_server.ApiServerTests.test_project_service_auto_iteration_generates_repair_plan_and_reopens tests.test_api_server.ApiServerTests.test_project_service_auto_iteration_blocks_handoff_runs tests.test_api_server.ApiServerTests.test_http_api_auto_iteration_preview_and_start tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets
+  Result: passed; 4 tests OK.
+- Command: python -B -m unittest tests.test_api_server
+  Result: passed; 38 tests OK.
+- Command: python -B -m unittest tests.test_unified_run tests.test_document_run_pipeline tests.test_github_runtime tests.test_intake tests.test_real_env_check
+  Result: passed; 67 tests OK.
+- Command: python -m compileall autodev intake server tests; specs/state JSON parse; validate_state.py --project .; git diff --check
+  Result: passed; git diff --check only reported existing .codex-longrun CRLF warnings.
+
+## 2026-06-21 V2.63 Verification
+- Command: python -B -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_auto_feedback_target_files_seed_debug_task_allowed_files tests.test_api_server.ApiServerTests.test_project_service_auto_iteration_generates_repair_plan_and_reopens tests.test_api_server.ApiServerTests.test_auto_iteration_feedback_preserves_requirement_target_files
+  Result: passed; target file propagation and auto-feedback checks OK.
+- Command: Browser smoke against temporary API server for Continue optimizing env gate and async run_002 handoff
+  Result: passed; button disabled before env check, enabled after ready check, run_002 completed, progress panel showed ready, delivery actions rendered.
+- Command: Real Codex central auto-iteration probes under .alchemy/v2_62_real_auto_iteration_probe* disposable local repos
+  Result: real Codex edited app.py and unittest passed; probes exposed and guided target_files + duplicate same-file repair fixes. No GitHub mutation.
+- Command: Dry-run central auto-iteration regrouping probe under .alchemy/v2_62_dry_auto_iteration_group_probe
+  Result: passed; job_status=done, one implementation/debug node, feedback_reopen and central_auto_iteration metadata present.
+- Command: python -B -m unittest tests.test_api_server tests.test_document_to_plan
+  Result: passed; 51 tests OK.
+- Command: python -B -m unittest tests.test_unified_run tests.test_document_run_pipeline tests.test_github_runtime tests.test_intake tests.test_real_env_check
+  Result: passed; 67 tests OK when run sequentially. A prior parallel run had shared .test-tmp interference and was rerun sequentially.
+- Command: python -B -m unittest discover -s tests
+  Result: passed; 290 tests OK.
+- Command: python -m compileall autodev context intake planner runtime server tests; node --check server/static/app.js; specs JSON parse; validate_state.py --project .; git diff --check
+  Result: passed; git diff --check only reported existing .codex-longrun CRLF warnings.
+
+## 2026-06-22 V2.64 Verification
+- Command: python -B -m unittest tests.test_runtime.OrchestratorTests.test_repair_convergence_stops_remaining_ready_tasks_after_target_check_passes tests.test_api_server.ApiServerTests.test_auto_iteration_feedback_preserves_requirement_target_files tests.test_document_to_plan.DocumentToPlanTests.test_auto_feedback_target_files_seed_debug_task_allowed_files
+  Result: passed; focused repair convergence/target-file tests OK.
+- Command: python -B -m unittest tests.test_real_probe_index tests.test_evidence_readiness
+  Result: passed; 7 tests OK.
+- Command: python -B -m unittest tests.test_api_server.ApiServerTests.test_auto_iteration_real_codex_repair_converges_after_target_file_and_tests_pass tests.test_runtime.CodexWorkerTests.test_real_worker_ignores_generated_cache_files_for_boundary_audit tests.test_real_probe_index.RealProbeIndexTests.test_indexer_collects_known_probe_reports
+  Result: passed; fake-Codex real execution path, cache boundary audit, and diagnostic indexing OK.
+- Command: python -B -m unittest tests.test_runtime tests.test_api_server tests.test_document_to_plan tests.test_real_probe_index tests.test_evidence_readiness
+  Result: passed; 138 tests OK.
+- Command: python -B -m unittest discover -s tests
+  Result: passed; 293 tests OK.
+- Command: python -m compileall runtime autodev server tests; node --check server/static/app.js; specs JSON parse; validate_state.py --project .; git diff --check
+  Result: passed; git diff --check only reported existing .codex-longrun CRLF warnings.
+
+## 2026-06-22 Alchemy Media Agent V3 Foundation Real-Run Verification
+- Command: In generated worktree, `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m pytest alchemy_creative_agent_3_0/tests -q`
+  Result: passed; 34 tests passed in 0.49s.
+- Command: Source target repo status, `git status --short --branch` in `D:\AI\Alchemy Dev Agent System\_external\alchemy-media-agent`
+  Result: passed; branch `codex/v3-foundation`, no working-tree modifications.
+- Command: Generated worktree boundary audit over `git status --short -uall`
+  Result: passed; 73 changed files, zero unsafe paths outside `alchemy_creative_agent_3_0/app/` and `alchemy_creative_agent_3_0/tests/`.
+- Command: AST import audit over generated V3 app/tests Python files
+  Result: passed; 74 Python files checked, zero imports from `custom_media_agent_2_0`, `src_skeleton`, or legacy top-level `app`.
+- Command: Controller focused regression, `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_runtime.EvaluatorTests tests.test_runtime.CodexWorkerTests.test_real_worker_ignores_generated_cache_files_for_boundary_audit tests.test_runtime.CodexWorkerTests.test_real_worker_expands_new_directory_before_boundary_audit tests.test_document_to_plan tests.test_runtime_handoff`
+  Result: passed; 23 tests OK in 15.102s.
+- Command: `python -B -m py_compile context\requirement_extractor.py context\models.py context\builder.py planner\task_graph_builder.py autodev\document_run.py runtime\artifact_profile.py runtime\codex_worker.py runtime\evaluator.py`
+  Result: passed.
+- Command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`
+  Result: passed.
+
+## 2026-06-22T11:09:10.1593817+08:00
+
+- PASS: python -B -m unittest tests.test_unified_run -v (22 tests OK).
+- PASS: python -B -m unittest tests.test_full_roadmap_execution tests.test_api_server.ApiServerTests.test_project_service_unified_run_uses_full_roadmap_mode_by_default tests.test_api_server.ApiServerTests.test_project_service_full_roadmap_takes_priority_over_one_line_fallback tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets tests.test_api_server.ApiServerTests.test_project_service_run_payload_records_workspace_contract tests.test_document_run_pipeline.DocumentRunPipelineTests.test_pipeline_generates_done_report tests.test_document_run_pipeline.DocumentRunPipelineTests.test_docs_only_platformer_document_run_uses_document_requirements -v (12 tests OK).
+- PASS: python -B -m compileall autodev context server tests.
+- PASS: node --check server\\static\\app.js.
+- PASS: JSON parse for specs/context_bundle_schema.json, specs/roadmap_execution_plan_schema.json, specs/state_schema_v2.json.
+- PASS: manual CLI smoke with explicit two-phase roadmap and --full-roadmap completed 2 phases.
+
+## 2026-06-22T12:14:56.4040601+08:00
+
+- PASS: python -B -m unittest tests.test_full_roadmap_execution tests.test_unified_run tests.test_api_server.ApiServerTests.test_project_service_unified_run_uses_full_roadmap_mode_by_default tests.test_api_server.ApiServerTests.test_project_service_full_roadmap_takes_priority_over_one_line_fallback tests.test_api_server.ApiServerTests.test_http_api_serves_console_static_assets -v (37 tests OK).
+- PASS: python -B -m compileall autodev server tests.
+- PASS: JSON parse for specs/project_analysis_report_schema.json, specs/roadmap_execution_plan_schema.json, specs/context_bundle_schema.json, specs/state_schema_v2.json.
+- PASS: alchemy-media-agent V3 docs dry-run with project analysis gate: start_decision=start, valid_phase_count=8, phase_records=8, status=done.
+
+## 2026-06-23T02:11:49+08:00
+
+- PASS: python -B -m unittest tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_executor_auto_repairs_low_scoring_phase_before_blocking -v.
+- PASS: python -B -m py_compile autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py.
+- FAIL then fixed: python -B -m unittest tests.test_document_run_pipeline.DocumentRunPipelineTests.test_docs_only_platformer_document_run_uses_document_requirements -v initially returned status `in_progress` for final gate hard failures. Fixed `document_run_status` to classify finished-but-failed artifact/coverage gates as `blocked`.
+- PASS: python -B -m unittest tests.test_document_run_pipeline.DocumentRunPipelineTests.test_docs_only_platformer_document_run_uses_document_requirements -v.
+- PASS: python -B -m unittest tests.test_full_roadmap_execution tests.test_unified_run tests.test_document_run_pipeline -v (67 tests OK).
+- PASS: python -B -m compileall autodev context planner runtime server tests.
+- PASS: validate_state.py --project .
+
+## 2026-06-23T11:32:07+08:00
+
+- PASS: inspected `.alchemy/real-media-full-roadmap-v270-auto-repairb-20260623021504`; `roadmap_execution_plan.json` shows 8/8 phases completed.
+- PASS: `full_roadmap_report.json` has `status=done`, blockers `[]`, final audit `status=passed`, and `ready_for_final_handoff=true`.
+- PASS: `python -B -m pytest alchemy_creative_agent_3_0/tests -q` in `D:\AI\Alchemy Dev Agent System\_worktrees\alchemy-media-agent-full-v3-1782102044` returned `80 passed in 6.79s`.
+- PASS: AST audit over generated `alchemy_creative_agent_3_0/app` and `alchemy_creative_agent_3_0/tests` found 0 imports from V1/V2 or legacy top-level app modules.
+- PASS: generated worktree git status boundary audit found 149 changed lines and 0 outside `alchemy_creative_agent_3_0/`.
+- PASS: source target checkout `D:\AI\Alchemy Dev Agent System\_external\alchemy-media-agent` is clean on branch `codex/v3-foundation`.
+
+## 2026-06-23T16:00:05+08:00
+
+- PASS: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_full_roadmap_execution -v` returned 29 tests OK after final blocker propagation fixes.
+- TIMEOUT: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_full_roadmap_execution tests.test_unified_run tests.test_document_run_pipeline -v` timed out without useful output. Retried narrower commands.
+- TIMEOUT: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_unified_run -v` timed out without useful output; the leftover test child exited before manual cleanup.
+- PASS: direct CLI smoke, `python -B -m autodev.run --objective "Build a small retro platform game" --output .test-tmp/manual-unified-cli-smoke`, completed successfully.
+- PASS: targeted adjacent checks for full-roadmap CLI/API paths returned 4 tests OK.
+- PASS: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m unittest tests.test_document_run_pipeline.DocumentRunPipelineTests.test_docs_only_platformer_document_run_uses_document_requirements -v`.
+- PASS: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m py_compile autodev\final_system_audit.py autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py`.
+- PASS: JSON parse for `specs/final_verification_report_schema.json`, `specs/roadmap_execution_plan_schema.json`, and `specs/state_schema_v2.json`.
+- PASS: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`.
+- PASS: `git diff --check -- autodev/final_system_audit.py autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py`.
+
+## 2026-06-24T00:44:28+08:00 V2.73 Large Refactor Verification
+
+- PASS: `python -B -m py_compile context\models.py context\builder.py context\requirement_extractor.py planner\task_graph_builder.py runtime\models.py runtime\handoff.py runtime\orchestrator.py runtime\codex_worker.py autodev\pipeline.py autodev\roadmap_extractor.py autodev\full_roadmap_executor.py autodev\unified_request.py autodev\run.py autodev\document_run.py server\project_service.py`.
+- PASS: `python -B -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_large_refactor_document_builds_single_integration_task tests.test_document_to_plan.DocumentToPlanTests.test_scope_lock_constrains_v3_foundation_task_graph -v`.
+- PASS: `python -B -m unittest tests.test_runtime_handoff.RuntimeHandoffTests.test_large_refactor_worker_package_uses_broad_repo_scope tests.test_runtime_handoff.RuntimeHandoffTests.test_scoped_document_plan_worker_allowed_files_stay_in_v3_scope -v`.
+- PASS: `python -B -m unittest tests.test_document_to_plan -v` returned 14 tests OK.
+- PASS: `python -B -m unittest tests.test_runtime_handoff -v` returned 4 tests OK.
+- PASS: `python -B -m unittest tests.test_unified_run.UnifiedRunTests.test_request_preserves_large_refactor_boundary_mode tests.test_unified_run.UnifiedRunTests.test_project_service_passes_large_refactor_boundary_mode_to_document_run -v`.
+- PASS: `python -B -m unittest tests.test_runtime.CodexWorkerTests.test_real_worker_ignores_generated_cache_files_for_boundary_audit tests.test_runtime.ContractAlignmentTests.test_recovery_resets_interrupted_active_task tests.test_runtime.ContractAlignmentTests.test_runtime_task_node_fields_are_declared_in_task_graph_schema tests.test_runtime.ContractAlignmentTests.test_runtime_state_fields_are_declared_in_state_schema -v`.
+- FAIL then corrected: `python -B - <<'PY' ...` JSON parse check failed because Bash heredoc syntax is invalid in PowerShell.
+- PASS: `@' ... '@ | python -B -` JSON parse check for `specs/context_bundle_schema.json`, `specs/task_graph_schema.json`, `specs/roadmap_execution_plan_schema.json`, and `specs/state_schema_v2.json`.
+- PASS: `git diff --check -- context\models.py context\builder.py context\requirement_extractor.py planner\task_graph_builder.py runtime\models.py runtime\handoff.py runtime\orchestrator.py runtime\codex_worker.py autodev\pipeline.py autodev\roadmap_extractor.py autodev\full_roadmap_executor.py autodev\unified_request.py autodev\run.py autodev\document_run.py server\project_service.py specs\context_bundle_schema.json specs\task_graph_schema.json tests\test_document_to_plan.py tests\test_runtime_handoff.py tests\test_runtime.py tests\test_unified_run.py docs\81_v2_73_large_refactor_execution_mode.md`.
+- PASS: `python -B -m unittest tests.test_document_run_pipeline -v` returned 23 tests OK.
+- TRANSIENT FAIL then passed: `python -B -m unittest tests.test_unified_run -v` first returned one temp-path validation error in `test_project_service_unified_request_reopens_with_feedback`; the same test passed alone and the full `tests.test_unified_run -v` rerun returned 24 tests OK.
+- PASS: `python -B -m unittest tests.test_runtime.CodexWorkerTests -v` returned 19 tests OK.
+- Next verification command: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`.
+
+## 2026-06-24T02:21:45+08:00 V2.74 Documentation Phase Hardening
+
+- PASS: `python -B -m unittest tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_documentation_phase_is_scoped_to_docs_and_does_not_use_large_refactor tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_documentation_phase_promotion_accepts_done_with_document_evidence -v` returned 2 tests OK.
+- PASS: `python -B -m py_compile autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py`.
+- PASS: `git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py planner/task_graph_builder.py runtime/orchestrator.py autodev/roadmap_extractor.py autodev/phase_promotion.py tests/test_document_to_plan.py tests/test_runtime.py`.
+- PASS: `python -B -m unittest tests.test_document_to_plan tests.test_runtime_handoff tests.test_runtime.OrchestratorTests.test_static_document_verification_expands_doc_globs tests.test_runtime.OrchestratorTests.test_static_document_verification_and_review_do_not_call_worker tests.test_runtime.OrchestratorTests.test_static_document_verification_requires_target_files -v` returned 22 tests OK.
+- TRANSIENT FAIL then passed: `python -B -m unittest tests.test_full_roadmap_execution -v` initially failed one phase-count assertion in a real dry-run test, then the focused test and a preserved-order reproduction passed, and the full module rerun returned 35 tests OK.
+- PASS: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`.
+- Next verification command: monitor Billing Core full-roadmap real run `_005` and inspect `full_roadmap_report.json`.
+
+## 2026-06-24T02:37:47+08:00 Documentation Coverage Gate Verification
+
+- FAIL then corrected: Billing Core `_006` completed all Phase 0 tasks but `full_roadmap_report.json` blocked with missing must coverage for REQ-001..REQ-004. Root cause: documentation-only requirements were treated as missing because they had no implementation files.
+- PASS: `python -B -m unittest tests.test_runtime.RequirementCoverageTests.test_requirement_coverage_accepts_documentation_only_evidence tests.test_runtime.RequirementCoverageTests.test_requirement_coverage_marks_existing_completed_requirement_covered tests.test_runtime.RequirementCoverageTests.test_requirement_coverage_marks_missing_files_missing -v` returned 3 tests OK.
+- PASS: `python -B -m py_compile runtime\requirement_coverage.py tests\test_runtime.py`.
+- PASS: `git diff --check -- runtime/requirement_coverage.py tests/test_runtime.py`.
+- PASS: `python -B -m unittest tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_documentation_phase_is_scoped_to_docs_and_does_not_use_large_refactor tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_documentation_phase_promotion_accepts_done_with_document_evidence tests.test_document_to_plan.DocumentToPlanTests.test_docs_only_scope_builds_documentation_task_with_lightweight_verification tests.test_runtime.OrchestratorTests.test_static_document_verification_expands_doc_globs tests.test_runtime.OrchestratorTests.test_static_document_verification_and_review_do_not_call_worker -v` returned 5 tests OK.
+- PASS: Rebuilt `_006` Phase 0 requirement coverage from `document_run_report.json`; status `passed`, coverage score `1.0`, missing must list empty.
+- PASS: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`.
+- Next verification command: run Billing Core full-roadmap real run `_007` and confirm phase_001 promotes to done.
+
+## 2026-06-24T02:55:57+08:00 Large Refactor Planning Verification
+
+- PASS: Billing Core `_007` phase_001 record shows status `done`, promotion score `0.85`, `can_promote=true`, and coverage `passed`.
+- FAIL then corrected: `_007` Phase 1 generated 23 strict tasks because `Scope boundary mode: large_refactor` was not detected by the scope parser.
+- PASS: `python -B -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_large_refactor_constraint_with_underscore_builds_single_integration_task tests.test_document_to_plan.DocumentToPlanTests.test_large_refactor_document_builds_single_integration_task tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_large_refactor_phase_document_records_boundary_mode -v` returned 3 tests OK.
+- PASS: `python -B -m py_compile context\requirement_extractor.py autodev\full_roadmap_executor.py tests\test_document_to_plan.py tests\test_full_roadmap_execution.py`.
+- PASS: `git diff --check -- context/requirement_extractor.py autodev/full_roadmap_executor.py tests/test_document_to_plan.py tests/test_full_roadmap_execution.py`.
+- PASS: Real `_007` Phase 1 reproduction now reports scope `large_refactor`, one implementation node, type `integration`, boundary mode `large_refactor`, with backend/frontend/deploy/docs/.github relevant scopes.
+- PASS: `python -B -m unittest tests.test_document_to_plan tests.test_runtime.RequirementCoverageTests tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_documentation_phase_is_scoped_to_docs_and_does_not_use_large_refactor tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_large_refactor_phase_document_records_boundary_mode -v` returned 23 tests OK.
+- PASS: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`.
+- Next verification command: launch Billing Core `_008` and inspect Phase 1 task graph before allowing it to run long.
+
+## 2026-06-24T03:31:50+08:00 Billing Core `_008` Live Verification
+
+- PASS: `_008` phase_002 task graph contains one `integration` node with `boundary_mode=large_refactor` and broad backend/frontend/deploy/docs/.github scope.
+- PASS: `_008` phase_002 `T002` worker completed with return code 0 after producing the Phase 1 identity/deploy/module changes.
+- IN PROGRESS: `_008` phase_002 `T003` verification worker is running and has started Go/Ent-related checks.
+- Next verification command: inspect `_008` phase_002 `document_run_report.json` and promotion record after `T003`/`T004`/`T005` complete.
+
+## 2026-06-24T03:45:00+08:00 V2.75 Controller Verification
+
+- FAIL then corrected: `_008` Phase 1 completed all nodes but final score was 0.84 because future-phase known issues and out-of-scope notices counted as current risk issues.
+- FAIL then corrected: `_008` auto-repair attempted a fresh original worktree instead of inheriting the completed Phase 1 worktree, so the run blocked before reaching Phase 2.
+- PASS: `python -B -m unittest tests.test_runtime.EvaluatorTests.test_evaluator_does_not_penalize_future_phase_known_issues tests.test_runtime.EvaluatorTests.test_evaluator_does_not_fail_completed_run_for_benign_environment_warnings -v` returned 2 tests OK.
+- PASS: `python -B -m unittest tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_phase_run_payload_disables_fresh_isolation_for_inherited_worktree tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_phase_repository_path_prefers_last_completed_phase_runtime_path tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_real_codex_phases_continue_in_previous_phase_worktree -v` returned 3 tests OK.
+- PASS: `python -B -m unittest tests.test_runtime.EvaluatorTests tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_executor_auto_repairs_low_scoring_phase_before_blocking tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_executor_runs_all_phases_instead_of_stopping_after_first tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_large_refactor_phase_document_records_boundary_mode tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_documentation_phase_is_scoped_to_docs_and_does_not_use_large_refactor -v` returned 11 tests OK.
+- PASS: `python -B -m py_compile runtime\evaluator.py autodev\full_roadmap_executor.py tests\test_runtime.py tests\test_full_roadmap_execution.py`.
+- PASS: `git diff --check -- runtime/evaluator.py autodev/full_roadmap_executor.py tests/test_runtime.py tests/test_full_roadmap_execution.py`.
+- PASS: `python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .`.
+- Next verification command: launch Billing Core `_009` and confirm Phase 1 promotes above threshold, then Phase 2 starts inside the Phase 1 worktree.
+
+## 2026-06-24T04:05:00+08:00 Documentation Static Scheduling Verification
+
+- FAIL then corrected: `_009b` Phase 0 documentation node `T002` had `commands_to_run=["static document inspection"]` but was dispatched to a real Codex worker because deterministic routing only handled `test` nodes.
+- PASS: `python -B -m unittest tests.test_runtime.OrchestratorTests.test_static_document_verification_and_review_do_not_call_worker tests.test_runtime.OrchestratorTests.test_documentation_static_document_task_runs_without_worker tests.test_runtime.OrchestratorTests.test_static_document_verification_expands_doc_globs tests.test_runtime.OrchestratorTests.test_static_document_verification_requires_target_files -v` returned 4 tests OK.
+- PASS: `python -B -m py_compile runtime\orchestrator.py tests\test_runtime.py`.
+- PASS: `git diff --check -- runtime/orchestrator.py tests/test_runtime.py`.
+- Next verification command: launch `_010` and verify Phase 0 completes without real Codex documentation workers.
+
+## 2026-06-24T04:39:30+08:00 Worker Output Size Verification
+
+- PASS: `python -B -m unittest tests.test_runtime.CodexWorkerTests.test_real_worker_truncates_large_raw_output_after_parsing tests.test_runtime.CodexWorkerTests.test_real_worker_decodes_bytes_output_with_replacement tests.test_runtime.CodexWorkerTests.test_real_worker_parses_jsonl_event_stream_output -v` returned 3 tests OK.
+- PASS: `python -B -m py_compile runtime\codex_worker.py tests\test_runtime.py`.
+- PASS: `git diff --check -- runtime/codex_worker.py tests/test_runtime.py`.
+- Next verification command: monitor `_010` Phase 1 `T002-DEBUG-1`, then inspect promotion/report output.
+
+## 2026-06-24T05:05:00+08:00 Non-Static Artifact Gate Verification
+
+- FAIL then corrected: `_010` Phase 1 completed every task and `T003` passed `go test ./...` plus `go build ./...`, but the parent report blocked on stale debug `tests_failed` diagnostics and a static web artifact failure for an `unknown` backend/full-stack artifact profile.
+- PASS: `python -B -m unittest tests.test_runtime.EvaluatorTests -v` returned 10 tests OK.
+- PASS: `python -B -m unittest tests.test_document_run_pipeline.DocumentRunPipelineTests.test_document_run_status_ignores_failed_static_gate_for_unknown_profiles tests.test_document_run_pipeline.DocumentRunPipelineTests.test_delivery_and_development_cycle_ignore_static_gate_for_unknown_profiles tests.test_document_run_pipeline.DocumentRunPipelineTests.test_docs_only_platformer_document_run_uses_document_requirements -v` returned 3 tests OK.
+- PASS: `python -B -m py_compile runtime\artifact_verifier.py runtime\evaluator.py autodev\document_run.py autodev\delivery_report.py autodev\development_cycle.py tests\test_runtime.py tests\test_document_run_pipeline.py`.
+- PASS: `git diff --check -- runtime/artifact_verifier.py runtime/evaluator.py autodev/document_run.py autodev/delivery_report.py autodev/development_cycle.py tests/test_runtime.py tests/test_document_run_pipeline.py`.
+- PASS: Offline re-evaluation of `_010` Phase 1 document run with patched rules returned `done=true`, score `0.89`, `hard_failures=[]`.
+- Next verification command: launch Billing Core `_011` and confirm Phase 1 promotion proceeds into Phase 2.
+
+## 2026-06-24T06:20:00+08:00 Release Dry-Run Evaluator Verification
+
+- FAIL then corrected: `_011` Phase 1 promoted in the parent roadmap, but its local phase state still reported `Required tests are failing` because completed release dry-run GitHub evidence included delivery-side `tests_failed` and `known_issues` fields.
+- PASS: `python -B -m unittest tests.test_runtime.EvaluatorTests -v` returned 11 tests OK, including `test_evaluator_ignores_completed_release_dry_run_test_fields`.
+- PASS: `python -B -m py_compile runtime\evaluator.py tests\test_runtime.py`.
+- PASS: `git diff --check -- runtime/evaluator.py tests/test_runtime.py`.
+- Next verification command: monitor `_011` Phase 2 completion and inspect whether T002 integration begins in the inherited worktree.
+
+## 2026-06-24T06:58:00+08:00 Timeout Rollback Snapshot Verification
+
+- FAIL then corrected: `_011` Phase 2 `T002` timed out after writing backend files. The timeout result said changes were rolled back, but the old rollback implementation only compared changed path sets and could miss modifications to already-dirty cumulative-worktree files.
+- FAIL then corrected: the first new regression placed assertions outside the temporary directory lifetime; moved them inside the `with` block.
+- PASS: `python -B -m unittest tests.test_runtime.CodexWorkerTests.test_real_worker_timeout_restores_preexisting_dirty_file_snapshot tests.test_runtime.CodexWorkerTests.test_real_worker_timeout_result_includes_lifecycle_cleanup tests.test_runtime.CodexWorkerTests.test_real_worker_rolls_back_out_of_scope_changes tests.test_runtime.CodexWorkerTests.test_real_worker_truncates_large_raw_output_after_parsing -v` returned 4 tests OK.
+- PASS: `python -B -m py_compile runtime\codex_worker.py tests\test_runtime.py`.
+- PASS: `git diff --check -- runtime/codex_worker.py tests/test_runtime.py`.
+- Next verification command: monitor `_011` Phase 2 T002 retry and decide whether to continue, stop, or relaunch with the latest rollback fix.
+
+## 2026-06-24T07:22:00+08:00 Debug Promotion Gate Verification
+
+- FAIL then corrected: `_011` Phase 2 `T002` retry returned `partial`, but a completed debug diagnosis with `known_issues` saying the refactor remained incomplete promoted the parent task to `completed`.
+- PASS: `python -B -m unittest tests.test_runtime.OrchestratorTests.test_completed_nested_debug_evidence_promotes_failed_parent_and_continues tests.test_runtime.OrchestratorTests.test_debug_diagnosis_with_unfinished_repair_does_not_promote_parent -v` returned 2 tests OK.
+- PASS: `python -B -m py_compile runtime\orchestrator.py tests\test_runtime.py`.
+- PASS: `git diff --check -- runtime/orchestrator.py tests/test_runtime.py`.
+- Next verification command: launch Billing Core `_012` and confirm partial/debug diagnosis no longer creates false completion.
+
+## 2026-06-24T09:23:00+08:00 Static Artifact Skip Gate Verification
+
+- FAIL then corrected: `_012` Phase 2 T003 static artifact inspection returned `skipped` for an unknown/backend profile, but Orchestrator treated the skip as a failed deterministic task and blocked the phase.
+- PASS: `python -B -m unittest tests.test_runtime.OrchestratorTests.test_orchestrator_runs_static_artifact_inspection_deterministically tests.test_runtime.OrchestratorTests.test_orchestrator_skips_non_applicable_static_artifact_inspection_without_debugging tests.test_runtime.EvaluatorTests.test_evaluator_does_not_apply_static_web_gate_to_unknown_artifact_profile -v` returned 3 tests OK.
+- PASS: `python -B -m py_compile runtime\models.py runtime\task_graph_engine.py runtime\orchestrator.py runtime\evaluator.py tests\test_runtime.py`.
+- PASS: `git diff --check -- runtime/models.py runtime/task_graph_engine.py runtime/orchestrator.py runtime/evaluator.py tests/test_runtime.py`.
+- Next verification command: resume `_012` and confirm Phase 2 promotes instead of blocking on a skipped non-applicable static artifact check.
+
+## 2026-06-24T09:31:00+08:00 Full Roadmap Resume Verification
+
+- FAIL then corrected: the first `_012` resume attempt restarted Phase 0 because `load_resume_state()` refused to resume whenever `full_roadmap_report.json` existed, even when that report was `blocked`.
+- FAIL then corrected: blocked phase records were synced back into the plan as permanently blocked, so they were not selected for retry.
+- PASS: `python -B -m unittest tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_executor_resumes_existing_output_after_completed_first_phase tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_executor_resumes_existing_output_after_blocked_report -v` returned 2 tests OK.
+- PASS: `python -B -m py_compile autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py`.
+- PASS: `git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py`.
+- Next verification command: resume `_012` again and confirm it retries Phase 2 rather than starting Phase 0.
+
+2026-06-24T13:54:20.6619179+08:00
+- python -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_existing_output_after_blocked_report -q => passed
+- python -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_cancellation_result_includes_lifecycle_cleanup -q => passed
+- python -m pytest tests/test_execution_preflight.py tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_existing_output_after_blocked_report tests/test_runtime.py::CodexWorkerTests::test_real_worker_cancellation_result_includes_lifecycle_cleanup -q => 7 passed
+- python -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_zero_timeout_means_unlimited tests/test_runtime.py::CodexWorkerTests::test_real_worker_cancellation_result_includes_lifecycle_cleanup -q => 2 passed
+- python -m pytest tests/test_worktree_runtime.py::RealRunWorkspaceTests::test_disabled_workspace_uses_source_path tests/test_worktree_runtime.py::RealRunWorkspaceTests::test_prepare_blocks_when_source_has_uncommitted_changes -q => 2 passed, slow local Git environment
+- python -m pytest tests/test_worktree_runtime.py -q => timed out under local Codex Desktop/Git scanning; mitigated with clean Git env and worktree command timeout.
+
+## 2026-06-24T15:30:09.390767+08:00 worker lifecycle pipe-drain guard
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_recovers_when_exited_process_keeps_pipe_open tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_terminates_on_timeout tests/test_runtime.py::CodexWorkerTests::test_real_worker_timeout_result_includes_lifecycle_cleanup -q
+- result: 3 passed
+- command: python -B -m py_compile runtime\worker_lifecycle.py tests\test_runtime.py
+- result: passed
+- command: git diff --check -- runtime/worker_lifecycle.py tests/test_runtime.py
+- result: passed
+- next verification command: monitor _012 phase_010 T002 and resume with patched runner if needed
+
+## 2026-06-24T15:58:21.229272+08:00 Phase 7 frontend scope planning fix
+- command: python -B -m pytest tests/test_repository_context.py tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap -q
+- result: 6 passed
+- command: real _012 cumulative worktree re-index with patched RepositoryIndexer
+- result: cache paths in index 0; package_files includes backend/go.mod and frontend/package.json; npm/go test/build/lint commands detected
+- command: real _012 phase_010 graph regeneration with patched planner
+- result: T002 assigned_agent=frontend, relevant_files includes frontend/**, commands include npm --prefix frontend test
+- command: python -B -m py_compile context\repository_indexer.py planner\task_graph_builder.py tests\test_repository_context.py tests\test_document_to_plan.py
+- result: passed
+- command: git diff --check -- context/repository_indexer.py planner/task_graph_builder.py tests/test_repository_context.py
+- result: passed
+- command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .
+- result: passed
+- next verification command: resume _012 from the same output directory and confirm Phase 7 reruns with frontend/** allowed
+
+## 2026-06-24T16:42:05.3943913+08:00 Codex scratch boundary verification
+- fail then corrected: real `_012` Phase 7 T002 failed boundary audit only because a root `_tmp_52272_492ee6b655f4904778dec22f2bd6efda` scratch file appeared outside allowed_files.
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_generated_cache_files_for_boundary_audit -q
+- result: 1 passed
+- command: python -B -m py_compile runtime\codex_worker.py tests\test_runtime.py
+- result: passed
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_rolls_back_out_of_scope_changes tests/test_runtime.py::CodexWorkerTests::test_real_worker_timeout_restores_preexisting_dirty_file_snapshot tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_test_runtime_artifacts_for_boundary_audit -q
+- result: 3 passed
+- command: git diff --check -- runtime/codex_worker.py tests/test_runtime.py
+- result: passed
+- next verification command: validate long-run state, then resume _012 Phase 7 from the same output directory
+
+## 2026-06-24T18:37:37.4434071+08:00 Frontend large_refactor decomposition verification
+- fail then corrected: real `_012` Phase 7 T002 timed out twice because the planner packed all frontend closure work into one broad `large_refactor` worker.
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_document_builds_single_integration_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_constraint_with_underscore_builds_single_integration_task -q
+- result: 3 passed
+- command: python -B -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py
+- result: passed
+- command: python -B -m pytest tests/test_document_to_plan.py tests/test_repository_context.py -q
+- result: 22 passed
+- command: git diff --check -- planner/task_graph_builder.py tests/test_document_to_plan.py
+- result: passed
+- command: real `_012` phase_010 graph regeneration with patched planner
+- result: 7 focused frontend implementation nodes; verifier T009 depends on all implementation nodes and keeps npm/go verification commands
+- next verification command: validate long-run state, then resume `_012` Phase 7 from the same output directory
+
+## 2026-06-24T19:12:24.1164302+08:00 Artifact profile detector verification
+- fail then corrected: real `_012` `run_attempt_004` state showed `artifact_profile=canvas_game` because the CRM objective word `reconciliation` matched the old English game marker substring `coin`.
+- command: python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_artifact_profile_detector_classifies_common_projects tests/test_runtime.py::OrchestratorTests::test_static_artifact_verifier_accepts_original_canvas_platformer -q
+- result: 2 passed
+- command: python -B -m py_compile runtime\artifact_profile.py tests\test_runtime.py
+- result: passed
+- command: git diff --check -- runtime/artifact_profile.py tests/test_runtime.py
+- result: passed
+- command: real `_012` worktree detector probe with `frontend/index.html` and CRM reconciliation objective
+- result: static_web_app; evidence=HTML entrypoint detected
+- next verification command: monitor `_012` T002 completion; if the in-memory run later blocks on stale canvas_game profile, resume from the same output directory with the patched detector.
+
+## 2026-06-24T19:21:31.3203358+08:00 Manual process stop verification
+- command: process scan for `alchemy-dev-agent`, `Alchemy Dev Agent System`, `billing_core_v274_20260624_012`, `sub2api-billing-core`, and `.alchemy`
+- result: active task tree identified as `powershell.exe` PID 56528 running `resume_billing_core_001.ps1` with child `python.exe` PID 52904 running `autodev.run`; two local UI API servers also found on PIDs 18756 and 36056
+- command: Stop-Process for PIDs 52904, 56528, 18756, and 36056, then repeat process scan
+- result: all four processes stopped; no matching Alchemy/task processes remain
+- next verification command: wait for user staged-review decision before resuming `_012`
+
+## 2026-06-24T20:05:05.6001369+08:00 Alchemy checkpoint verification
+- command: process scan for Alchemy/Billing Core task processes
+- result: no matching processes remained before checkpoint work began
+- command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .
+- result: first wrapper timed out after printing OK; rerun with 30s timeout exited 0 with OK
+- command: python -B -m pytest tests/test_document_to_plan.py tests/test_repository_context.py tests/test_runtime.py tests/test_full_roadmap_execution.py tests/test_document_run_pipeline.py tests/test_execution_preflight.py -q
+- result: timed out after 304s without useful output; switched to serialized smaller checkpoint suites
+- command: python -B -m pytest tests/test_document_to_plan.py tests/test_repository_context.py -q
+- result: 22 passed
+- command: python -B -m pytest tests/test_document_run_pipeline.py tests/test_execution_preflight.py -q
+- result: 30 passed
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: initial parallel run showed 1 transient failure; isolated failing test passed, then full file rerun passed with 43 passed
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 102 passed
+- fail then corrected: tests/test_worktree_runtime.py found RealRunWorkspace repo-root discovery was using Git ceiling while running `git rev-parse --show-toplevel`, making repository subdirectories appear outside any repository
+- fix: allow parent discovery only for repo-root discovery; keep clean non-interactive env and 30s timeout for later Git commands
+- command: python -B -m pytest tests/test_worktree_runtime.py -q
+- result: 6 passed
+- command: python -B -m py_compile runtime\worktree.py runtime\subprocess_utils.py tests\test_worktree_runtime.py
+- result: passed
+- command: python -B -m pytest tests/test_api_server.py tests/test_unified_run.py tests/test_intake.py tests/test_github_runtime.py tests/test_real_env_check.py tests/test_real_probe_index.py tests/test_runtime_handoff.py -q
+- result: 100 passed
+- command: python -B -m compileall -q autodev context intake planner runtime server tests
+- result: passed
+- command: git diff --check
+- result: passed with only CRLF/LF warnings for `.codex-longrun` logs
+- next verification command: validate state, then resume `_012` from the same output directory
+
+## 2026-06-24T20:51:29.7812340+08:00 Stale active worker resume verification
+- fail then corrected: `_012` `phase_010/run_attempt_006` had active `T002` and worker PID `5900`, but no corresponding live process. The prior controller could leave the roadmap report in `running` while the worker was gone.
+- fix: full-roadmap execution now detects the newest interrupted active phase attempt, checks live worker PIDs with a hidden Windows-safe probe, blocks duplicate resumes when a worker is still alive, and otherwise resumes from the interrupted attempt.
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_latest_interrupted_phase_attempt -q
+- result: 2 passed
+- command: python -B -m py_compile autodev\full_roadmap_executor.py runtime\worker_lifecycle.py tests\test_full_roadmap_execution.py
+- result: passed
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 45 passed
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_hides_windows_console_children tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_terminates_on_timeout tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_recovers_when_exited_process_keeps_pipe_open tests/test_runtime.py::CodexWorkerTests::test_real_worker_timeout_result_includes_lifecycle_cleanup tests/test_runtime.py::CodexWorkerTests::test_real_worker_cancellation_result_includes_lifecycle_cleanup -q
+- result: 5 passed
+- command: python -B -m pytest tests/test_runtime_recovery.py -q
+- result: 2 passed
+- command: real `_012` interrupted phase probe via `interrupted_phase_resume_source`
+- result: selected `phase_010/run_attempt_006` as `resume_from`; blockers=[]
+- command: git diff --check -- autodev/full_roadmap_executor.py runtime/worker_lifecycle.py tests/test_full_roadmap_execution.py
+- result: passed
+- command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project D:\AI\Alchemy Dev Agent System\alchemy-dev-agent
+- result: passed
+- next verification command: run repaired `_012` resume and confirm a new attempt resumes from `run_attempt_006`
+
+## 2026-06-24T21:18:00+08:00 Static artifact profile gate verification
+- fail then corrected: real `_012` Phase 7 artifact report still classified the CRM/Vue monorepo as `canvas_game` because broad frontend/backend artifact scopes exposed generic UI/metrics words; verifier also failed unmatched glob patterns and protected game terms for a normal static web app.
+- command: python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_static_artifact_verifier_expands_python_glob_artifact_scope tests/test_runtime.py::OrchestratorTests::test_static_artifact_verifier_accepts_form_based_static_web_app tests/test_runtime.py::OrchestratorTests::test_static_artifact_verifier_ignores_unmatched_globs_and_game_terms_for_crm_app tests/test_runtime.py::OrchestratorTests::test_artifact_profile_detector_classifies_common_projects tests/test_runtime.py::OrchestratorTests::test_artifact_profile_detector_does_not_treat_crm_frontend_metrics_as_game tests/test_runtime.py::OrchestratorTests::test_static_artifact_verifier_accepts_original_canvas_platformer -q
+- result: 6 passed
+- command: real `_012` build_artifact_report probe against `phase_010/run_attempt_007` task graph and cumulative worktree
+- result: artifact_profile=`static_web_app`; static_verification status=`completed`; tests_failed=[]
+- next verification command: let active T002 reach a boundary, then resume with the fresh controller code before final Phase 7 verification.
+
+## 2026-06-24T21:27:40+08:00 Current-controller focused recheck
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_hides_windows_console_children tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_terminates_on_timeout tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_recovers_when_exited_process_keeps_pipe_open tests/test_runtime.py::CodexWorkerTests::test_real_worker_timeout_result_includes_lifecycle_cleanup tests/test_runtime.py::CodexWorkerTests::test_real_worker_cancellation_result_includes_lifecycle_cleanup -q
+- result: 5 passed
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_latest_interrupted_phase_attempt -q
+- result: 2 passed
+- command: python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_static_artifact_verifier_expands_python_glob_artifact_scope tests/test_runtime.py::OrchestratorTests::test_static_artifact_verifier_accepts_form_based_static_web_app tests/test_runtime.py::OrchestratorTests::test_static_artifact_verifier_ignores_unmatched_globs_and_game_terms_for_crm_app tests/test_runtime.py::OrchestratorTests::test_artifact_profile_detector_classifies_common_projects tests/test_runtime.py::OrchestratorTests::test_artifact_profile_detector_does_not_treat_crm_frontend_metrics_as_game tests/test_runtime.py::OrchestratorTests::test_static_artifact_verifier_accepts_original_canvas_platformer -q
+- result: 6 passed
+- next verification command: monitor active `_012` Phase 7 T003; after the active pre-patch parent process reaches a safe boundary, resume with the fresh controller before T009 static verification.
+
+## 2026-06-24T21:42:30+08:00 Debug-first scheduling verification
+- fail then corrected: `_012` Phase 7 `T003` returned `partial`, but the pre-patch ready-task batch immediately started `T004` while `T003-DEBUG-1` was still pending.
+- fix: Orchestrator now breaks the current ready batch whenever pending debug work exists, forcing the next iteration to prioritize repair/diagnosis before adjacent tasks.
+- command: python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_failed_task_interrupts_current_ready_batch_for_debug -q
+- result: 1 passed
+- command: python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_failed_task_creates_debug_task_and_retries tests/test_runtime.py::OrchestratorTests::test_completed_nested_debug_evidence_promotes_failed_parent_and_continues tests/test_runtime.py::OrchestratorTests::test_debug_diagnosis_with_unfinished_repair_does_not_promote_parent -q
+- result: 3 passed
+- command: python -B -m py_compile runtime\orchestrator.py tests\test_runtime.py
+- result: passed
+- command: git diff --check -- runtime/orchestrator.py tests/test_runtime.py
+- result: passed
+- next verification command: resume `_012` with the fresh controller and confirm it selects `T003-DEBUG-1` or a T003 retry before continuing T004.
+
+## 2026-06-24T23:37:39+08:00 Boundary glob and debug-chain convergence verification
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_allows_filename_glob_scope tests/test_runtime.py::OrchestratorTests::test_failed_debug_task_resets_parent_without_nested_debug_loop tests/test_runtime.py::OrchestratorTests::test_existing_nested_debug_chain_is_collapsed_to_parent_retry tests/test_runtime.py::OrchestratorTests::test_completed_nested_debug_evidence_promotes_failed_parent_and_continues -q
+- result: 4 passed
+- command: python -B -m pytest <boundary/debug adjacent subset> -q
+- result: 11 passed
+- command: real `_012` run_attempt_008 in-memory convergence probe
+- result: T004 pending; T004-DEBUG-1 and nested debug tasks skipped; active=[]; failed=[]
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 109 passed
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_latest_interrupted_phase_attempt tests/test_runtime_recovery.py -q
+- result: 4 passed
+- command: python -B -m py_compile runtime\codex_worker.py runtime\orchestrator.py tests\test_runtime.py
+- result: passed
+- command: git diff --check -- runtime/codex_worker.py runtime/orchestrator.py tests/test_runtime.py
+- result: passed
+- next verification command: resume `_012` and verify fresh controller retries T004 instead of nested debug.
+
+## 2026-06-25T00:02:39+08:00 Recovery-aware debug collapse verification
+- command: python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_failed_debug_task_resets_parent_without_nested_debug_loop tests/test_runtime.py::OrchestratorTests::test_existing_nested_debug_chain_is_collapsed_to_parent_retry tests/test_runtime.py::OrchestratorTests::test_completed_nested_debug_evidence_promotes_failed_parent_and_continues -q
+- result: 3 passed
+- command: real `_012` run_attempt_009 in-memory convergence probe
+- result: T004 pending; T004-DEBUG-1 and nested debug tasks skipped; active=[]; failed=[]
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 109 passed
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_latest_interrupted_phase_attempt tests/test_runtime_recovery.py -q
+- result: 4 passed
+- command: python -B -m py_compile runtime\codex_worker.py runtime\orchestrator.py tests\test_runtime.py
+- result: passed
+- command: git diff --check -- runtime/codex_worker.py runtime/orchestrator.py tests/test_runtime.py
+- result: passed
+- next verification command: resume `_012` and confirm T004 dispatches directly.
+
+## 2026-06-25T01:39:40+08:00 V2.74 Alchemy Stability Hardening Verification
+
+- command: python -B -m pytest tests/test_repository_context.py::RepositoryIndexerTests::test_pnpm_lock_drives_nested_frontend_commands tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_uses_pnpm_lock_commands tests/test_runtime.py::OrchestratorTests::test_debug_environment_blocker_blocks_parent_without_retry -q
+- result: 3 passed
+- command: python -B -m pytest tests/test_repository_context.py tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap tests/test_runtime.py::CodexWorkerTests::test_real_worker_allows_filename_glob_scope tests/test_runtime.py::OrchestratorTests::test_failed_debug_task_resets_parent_without_nested_debug_loop tests/test_runtime.py::OrchestratorTests::test_completed_nested_debug_evidence_promotes_failed_parent_and_continues -q
+- result: 10 passed
+- command: python -B -m pytest tests/test_document_to_plan.py tests/test_runtime.py -q
+- result: 128 passed
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_large_refactor_phase_document_records_boundary_mode tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_latest_interrupted_phase_attempt -q
+- result: 3 passed
+- command: python -B -m py_compile context\repository_indexer.py planner\task_graph_builder.py runtime\orchestrator.py tests\test_repository_context.py tests\test_document_to_plan.py tests\test_runtime.py
+- result: passed
+- command: git diff --check -- docs/82_v2_74_alchemy_stability_hardening.md README.md context/repository_indexer.py planner/task_graph_builder.py runtime/orchestrator.py tests/test_repository_context.py tests/test_document_to_plan.py tests/test_runtime.py
+- result: passed
+- command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project D:\AI\Alchemy Dev Agent System\alchemy-dev-agent
+- result: passed
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 45 passed
+- command: python -B -m compileall -q context planner runtime tests
+- result: passed
+- next verification command: user acceptance review; do not resume Billing Core before approval.

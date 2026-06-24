@@ -2,7 +2,7 @@
 
 `alchemy-dev-agent` is a specification repository and prototype runtime for an autonomous software development agent system.
 
-Its purpose is to define the architecture, protocols, state model, task graph model, worker contract, GitHub execution flow, retry loop, and evaluation gates required to build a multi-agent autonomous development system. The included `runtime/` package is a usable CLI runtime with deterministic dry-run defaults and opt-in real Codex/GitHub adapters.
+Its purpose is to define the architecture, protocols, state model, task graph model, worker contract, GitHub execution flow, retry loop, central review, auto-iteration contracts, and evaluation gates required to build a multi-agent autonomous development system. The included `runtime/` package is a usable CLI runtime with deterministic dry-run defaults and opt-in real Codex/GitHub adapters.
 
 ## Goal
 
@@ -21,6 +21,7 @@ The autonomous development system should then:
 - Use Codex CLI as an execution worker.
 - Write code, run tests, fix failures, and report artifacts.
 - Evaluate completion against explicit delivery criteria.
+- Convert review gaps into repair plans and follow-up iterations when the result is not ready.
 - Stop only after the system reaches delivery quality.
 
 ## Foundation
@@ -38,6 +39,7 @@ The system is centered on:
 - **Multi-agent planning and execution**: architecture, implementation, testing, debugging, and review are separate responsibilities.
 - **Task graph execution**: work is represented as nodes with dependencies, status, ownership, and completion criteria.
 - **Evaluation gate**: test success alone is insufficient; completion requires spec alignment, reviewer approval, and a final gate score of at least `0.85`.
+- **Central review and auto-iteration**: final evidence is summarized into a `handoff|iterate|blocked|continue` decision; repairable gaps become structured repair plans for the next run.
 
 ## Repository Map
 
@@ -156,12 +158,58 @@ docs/
                               V2.53 benchmark regression service/API endpoint.
   61_v2_54_evidence_readiness_gate.md
                               V2.54 final evidence readiness gate.
+  62_v2_55_evidence_console_redesign.md
+                              V2.55 beginner-readable evidence console and i18n controls.
+  63_v2_56_configuration_first_source_intake.md
+                              V2.56 configuration-first source intake.
+  64_v2_57_beginner_delivery_and_progress.md
+                              V2.57 beginner progress and delivery actions.
+  65_v2_58_beginner_first_console.md
+                              V2.58 beginner-first console simplification.
+  66_v2_59_five_issue_experience_audit.md
+                              V2.59 five-issue beginner experience audit.
+  67_v2_60_project_workspace_history_and_score_diagnosis.md
+                              V2.60 project workspace, history, and score diagnosis.
+  68_v2_61_central_review_agent.md
+                              V2.61 central review decision layer.
+  69_v2_62_central_auto_iteration_controller.md
+                              V2.62 central auto-iteration controller plan.
+  70_v2_62_repair_plan_contract.md
+                              V2.62 repair plan contract.
+  71_v2_62_acceptance_and_test_plan.md
+                              V2.62 acceptance and test plan.
+  72_v2_64_repair_convergence_gate.md
+                              V2.64 target-file repair convergence gate.
+  73_v2_65_full_roadmap_execution_mode.md
+                              V2.65 full-roadmap execution mode.
+  74_v2_66_project_analysis_gate.md
+                              V2.66 mandatory pre-development project analysis gate.
+  75_v2_67_entry_document_reference_expansion.md
+                              V2.67 entry prompt referenced-document expansion for full-roadmap analysis.
+  76_v2_68_project_analysis_false_blocker_and_phase_hardening.md
+                              V2.68 false-blocker and phase-extraction hardening for full-roadmap analysis.
+  77_v2_69_runtime_artifact_boundary_hardening.md
+                              V2.69 runtime artifact boundary hardening.
+  78_v2_70_phase_gate_auto_repair.md
+                              V2.70 automatic phase-gate repair.
+  79_v2_71_final_audit_test_convergence.md
+                              V2.71 final audit and test convergence.
+  80_v2_72_one_shot_document_readiness_hardening.md
+                              V2.72 one-shot target document readiness hardening.
+  81_v2_73_large_refactor_execution_mode.md
+                              V2.73 large-refactor execution mode and boundary model.
+  82_v2_74_alchemy_stability_hardening.md
+                              V2.74 package-manager, frontend setup, and debug convergence hardening.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
   context_bundle_schema.json Planner-ready context bundle schema.
   state_schema_v2.json       Persistent project state schema.
   task_graph_schema.json     Task graph schema.
+  central_review_schema.json Central review evidence schema.
+  repair_plan_schema.json    Repair plan schema for auto-iteration.
+  auto_iteration_report_schema.json
+                              Auto-iteration report schema.
 
 examples/
   one_line_game_demo.md       Current one-line generated game demo boundary.
@@ -172,6 +220,8 @@ examples/
                               V2.22 external docs-only delivery acceptance scenario.
   v2_39_unified_entrypoint_checklist.md
                               V2.39 implementation and acceptance checklist.
+  central_auto_iteration_example.md
+                              V2.62 central review to repair-run example.
 
 runtime/
   control.py                 Task-boundary pause/stop control hook.
@@ -271,10 +321,13 @@ Implemented runtime capabilities:
 - Real PR/CI evidence collection through the V2.18 delivery validation harness.
 - Safe delivery artifact manifests for screenshots, generated UI test drafts, artifact files, and generated CI previews.
 - Evidence-consistent readiness gates so partial must coverage or failed browser probes require iteration.
+- Central review evidence that turns run status, delivery evidence, requirement coverage, and development-cycle progress into a beginner-readable next decision.
 - Controlled repository writes for generated Playwright/Cypress acceptance tests when a supported UI test framework is already present.
 - Persistent JSON runtime state under `.alchemy/state.json`.
 
 DONE requires final gate score `>= 0.85`, completed required graph nodes, passing verification evidence, reviewer approval, no hard failures, and GitHub execution evidence.
+
+The V2.62 documentation package defines the next contract: central review decisions that require iteration will become repair plans and feedback-reopen runs instead of waiting for a human to translate the gaps manually.
 
 ## V2.1 Intake
 

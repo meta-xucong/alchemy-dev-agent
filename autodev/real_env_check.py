@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -73,6 +74,9 @@ class RealEnvironmentCheck:
         output_dir: str | Path = ".alchemy/real_env_check",
         codex_executable: str = "codex",
         require_browser: bool = False,
+        model_provider: str = "codex_cli",
+        model_api_key_env: str = "",
+        model_base_url: str = "",
     ) -> EnvironmentReport:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
@@ -82,6 +86,13 @@ class RealEnvironmentCheck:
             self._command_check("gh_auth", ["gh", "auth", "status"]),
             self._command_check("codex", [codex_executable, "--version"]),
         ]
+        checks.append(
+            self._model_check(
+                provider=model_provider,
+                api_key_env=model_api_key_env,
+                base_url=model_base_url,
+            )
+        )
         checks.append(self._browser_check(required=require_browser))
         blockers = []
         for check in checks:
@@ -92,7 +103,7 @@ class RealEnvironmentCheck:
                         "type": "environment",
                         "description": check.summary,
                         "required_resolution": "Install, authenticate, or repair the required local tool before real execution validation.",
-                        "can_continue_partially": check.name != "codex",
+                        "can_continue_partially": check.name not in {"codex", "model_access"},
                     }
                 )
         status = "ready" if not blockers else "blocked"
@@ -130,6 +141,84 @@ class RealEnvironmentCheck:
             required=required,
         )
 
+    def _model_check(self, *, provider: str, api_key_env: str, base_url: str) -> EnvironmentCheck:
+        normalized = provider.strip().lower().replace("-", "_") or "codex_cli"
+        env_name = api_key_env.strip()
+        endpoint = base_url.strip()
+        if normalized in {"codex", "codex_cli", "codex_worker"}:
+            return EnvironmentCheck(
+                "model_access",
+                "passed",
+                "Model access is delegated to the configured Codex CLI worker.",
+                required=True,
+            )
+        if normalized == "openai":
+            return self._api_key_check(env_name or "OPENAI_API_KEY", "OpenAI")
+        if normalized in {"anthropic", "claude"}:
+            return self._api_key_check(env_name or "ANTHROPIC_API_KEY", "Anthropic")
+        if normalized == "custom":
+            env_name = env_name or "CUSTOM_LLM_API_KEY"
+            missing = []
+            if not endpoint:
+                missing.append("custom model base URL")
+            if not os.environ.get(env_name):
+                missing.append(f"{env_name} environment variable")
+            if missing:
+                return EnvironmentCheck(
+                    "model_access",
+                    "failed",
+                    f"Missing {', '.join(missing)} for custom model access.",
+                    required=True,
+                )
+            return EnvironmentCheck(
+                "model_access",
+                "passed",
+                f"Custom model endpoint and {env_name} are configured.",
+                required=True,
+            )
+        return EnvironmentCheck(
+            "model_access",
+            "failed",
+            f"Unsupported model provider: {provider}",
+            required=True,
+        )
+
+    def _api_key_check(self, env_name: str, label: str) -> EnvironmentCheck:
+        if os.environ.get(env_name):
+            return EnvironmentCheck(
+                "model_access",
+                "passed",
+                f"{env_name} is configured for {label} model access.",
+                required=True,
+            )
+        return EnvironmentCheck(
+            "model_access",
+            "failed",
+            f"{env_name} is not set for {label} model access.",
+            required=True,
+        )
+
+
+def detect_environment_defaults() -> dict[str, object]:
+    """Return safe local defaults that the browser console can prefill."""
+
+    codex_path = shutil.which("codex") or "codex"
+    gh_path = shutil.which("gh") or ""
+    return {
+        "schema_version": "2.56",
+        "codex_executable": codex_path,
+        "github_cli": gh_path,
+        "model_provider": "codex_cli",
+        "orchestrator_model": "codex-cli",
+        "document_expansion_model": "codex-cli",
+        "reviewer_model": "codex-cli",
+        "model_api_key_env": "",
+        "model_base_url": "",
+        "openai_api_key_configured": bool(os.environ.get("OPENAI_API_KEY")),
+        "anthropic_api_key_configured": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "recommended_mode": "codex_cli",
+    }
+
 
 def first_line(text: str) -> str:
     return next((line.strip() for line in text.splitlines() if line.strip()), "")
@@ -162,6 +251,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", default=".alchemy/real_env_check")
     parser.add_argument("--codex-executable", default="codex")
     parser.add_argument("--require-browser", action="store_true", help="Treat browser automation readiness as required.")
+    parser.add_argument("--model-provider", default="codex_cli")
+    parser.add_argument("--model-api-key-env", default="")
+    parser.add_argument("--model-base-url", default="")
     return parser
 
 
@@ -171,6 +263,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         output_dir=args.output,
         codex_executable=args.codex_executable,
         require_browser=args.require_browser,
+        model_provider=args.model_provider,
+        model_api_key_env=args.model_api_key_env,
+        model_base_url=args.model_base_url,
     )
     print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
     return 0 if report.status == "ready" else 1

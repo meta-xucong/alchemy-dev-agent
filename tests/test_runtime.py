@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -15,7 +16,7 @@ from runtime.acceptance_scenarios import AcceptanceScenarioPlanner
 from runtime.artifact_profile import ArtifactProfileDetector
 from runtime.artifact_verifier import BrowserArtifactEvidenceVerifier, BrowserArtifactRunner, StaticWebArtifactVerifier
 from runtime.control import ControlDecision
-from runtime.codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult
+from runtime.codex_worker import RAW_OUTPUT_LIMIT, CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult
 from runtime.evaluator import Evaluator
 from runtime.github_flow import GitHubExecutionResult, GitHubFlow
 from runtime.orchestrator import Orchestrator
@@ -24,7 +25,7 @@ from runtime.state_manager import StateManager
 from runtime.task_graph_engine import TaskGraphEngine
 from runtime.requirement_coverage import RequirementCoverageBuilder
 from runtime.generated_ci import StaticWebCIGenerator
-from runtime.worker_lifecycle import ManagedSubprocessRunner, WorkerLifecycleRecorder
+from runtime.worker_lifecycle import ManagedSubprocessRunner, WorkerLifecycleRecorder, _managed_process_startup_kwargs
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
@@ -158,6 +159,20 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertIn("Do not write protected names", prompt)
         self.assertIn("even in safety notes", prompt)
 
+    def test_worker_prompt_allows_dependency_installs_without_manifest_drift(self) -> None:
+        prompt = CodexWorkerAdapter().build_prompt(
+            CodexWorkerInput(
+                task_id="T001",
+                goal="run frontend tests",
+                allowed_files=["frontend/package.json"],
+                commands_to_run=["npm --prefix frontend test"],
+            )
+        )
+
+        self.assertIn("package-manager install commands", prompt)
+        self.assertIn("node_modules", prompt)
+        self.assertIn("do not modify manifests or lockfiles", prompt)
+
     def test_real_worker_parses_structured_subprocess_output(self) -> None:
         calls: list[list[str]] = []
 
@@ -266,6 +281,33 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.summary, "bytes decoded")
         self.assertIn("\ufffd", result.raw_output)
 
+    def test_real_worker_truncates_large_raw_output_after_parsing(self) -> None:
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            payload = {
+                "task_id": "T012D",
+                "status": "completed",
+                "summary": "parsed from final event",
+                "files_changed": [],
+                "commands_run": [],
+                "tests_passed": ["parse before truncate"],
+                "tests_failed": [],
+                "evidence": [],
+                "known_issues": [],
+                "follow_up_tasks": [],
+                "confidence": 0.9,
+            }
+            event_stream = "x" * (RAW_OUTPUT_LIMIT + 5000) + "\n" + json.dumps(payload)
+            return subprocess.CompletedProcess(args, 0, event_stream, "")
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T012D", goal="large output", repository_path="."))
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.summary, "parsed from final event")
+        self.assertLessEqual(len(result.raw_output), RAW_OUTPUT_LIMIT)
+        self.assertIn("raw output truncated", result.raw_output)
+        self.assertIn('"task_id": "T012D"', result.raw_output)
+
     def test_worker_result_coerces_non_dict_command_entries(self) -> None:
         payload = {
             "task_id": "T012B",
@@ -334,32 +376,325 @@ class CodexWorkerTests(unittest.TestCase):
             self.assertIn("outside the task boundary", result.summary)
             self.assertFalse((Path(tmp_dir) / "unexpected.md").exists())
 
-    def test_real_worker_records_lifecycle_for_managed_subprocess(self) -> None:
+    def test_real_worker_allows_glob_scope_and_rolls_back_protected_directory_change(self) -> None:
         with temp_project_dir() as tmp_dir:
             repo = Path(tmp_dir)
             subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
-            lifecycle = WorkerLifecycleRecorder(repo / ".alchemy" / "workers")
-            worker = CodexWorkerAdapter(
-                executable=sys.executable,
-                dry_run=False,
-                timeout_seconds=10,
-                lifecycle_recorder=lifecycle,
-            )
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            (repo / "custom_media_agent_2_0" / "app").mkdir(parents=True)
+            legacy = repo / "custom_media_agent_2_0" / "app" / "runtime.py"
+            legacy.write_text("VALUE = 'legacy'\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True)
 
+            real_run = subprocess.run
+
+            def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+                if args and args[0] == "codex":
+                    Path(cwd, "alchemy_creative_agent_3_0", "app").mkdir(parents=True)
+                    Path(cwd, "alchemy_creative_agent_3_0", "app", "__init__.py").write_text("VALUE = 'v3'\n", encoding="utf-8")
+                    Path(cwd, "custom_media_agent_2_0", "app", "runtime.py").write_text("VALUE = 'mutated'\n", encoding="utf-8")
+                    payload = {
+                        "task_id": "T013S",
+                        "status": "completed",
+                        "summary": "changed v3 and legacy",
+                        "files_changed": [
+                            "alchemy_creative_agent_3_0/app/__init__.py",
+                            "custom_media_agent_2_0/app/runtime.py",
+                        ],
+                        "commands_run": [],
+                        "tests_passed": [],
+                        "tests_failed": [],
+                        "evidence": [],
+                        "known_issues": [],
+                        "follow_up_tasks": [],
+                        "confidence": 1.0,
+                    }
+                    return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+                return real_run(args, cwd=cwd, input=input, capture_output=capture_output, text=text, timeout=timeout, check=check)
+
+            worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
             result = worker.execute(
                 CodexWorkerInput(
-                    task_id="T900",
-                    goal="emit worker json",
-                    repository_path=str(repo),
-                    allowed_files=[],
+                    task_id="T013S",
+                    goal="only edit V3 scope",
+                    repository_path=tmp_dir,
+                    allowed_files=["alchemy_creative_agent_3_0/**"],
                 )
             )
 
             self.assertEqual(result.status, "failed")
-            self.assertEqual(result.worker_lifecycle["task_id"], "T900")
-            self.assertEqual(result.worker_lifecycle["status"], "completed")
-            self.assertIsInstance(result.worker_lifecycle["worker_pid"], int)
+            self.assertTrue((repo / "alchemy_creative_agent_3_0" / "app" / "__init__.py").exists())
+            self.assertEqual(legacy.read_text(encoding="utf-8"), "VALUE = 'legacy'\n")
+
+    def test_real_worker_allows_filename_glob_scope(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            (repo / "frontend" / "src" / "views" / "user").mkdir(parents=True)
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "--allow-empty", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True)
+
+            real_run = subprocess.run
+
+            def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+                if args and args[0] == "codex":
+                    changed = [
+                        "frontend/src/views/user/PaymentView.vue",
+                        "frontend/src/views/user/PaymentResultView.vue",
+                        "frontend/src/views/user/UserOrdersView.vue",
+                    ]
+                    for file_path in changed:
+                        target = Path(cwd, file_path)
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_text("<template>billing</template>\n", encoding="utf-8")
+                    payload = {
+                        "task_id": "T014",
+                        "status": "completed",
+                        "summary": "updated payment views",
+                        "files_changed": changed,
+                        "commands_run": [],
+                        "tests_passed": ["diff check"],
+                        "tests_failed": [],
+                        "evidence": [],
+                        "known_issues": [],
+                        "follow_up_tasks": [],
+                        "confidence": 0.9,
+                    }
+                    return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+                return real_run(args, cwd=cwd, input=input, capture_output=capture_output, text=text, timeout=timeout, check=check)
+
+            worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+            result = worker.execute(
+                CodexWorkerInput(
+                    task_id="T014",
+                    goal="edit payment views",
+                    repository_path=tmp_dir,
+                    allowed_files=[
+                        "frontend/src/views/user/*Payment*.vue",
+                        "frontend/src/views/user/*Order*.vue",
+                    ],
+                )
+            )
+
+            self.assertEqual(result.status, "completed")
+            self.assertTrue((repo / "frontend" / "src" / "views" / "user" / "PaymentView.vue").exists())
+
+    def test_real_worker_ignores_generated_cache_files_for_boundary_audit(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            subprocess.run(["git", "init"], cwd=tmp_dir, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_dir, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_dir, check=True)
+            allowed = Path(tmp_dir) / "app.py"
+            allowed.write_text("def add(a, b):\n    raise NotImplementedError()\n", encoding="utf-8")
+            subprocess.run(["git", "add", "app.py"], cwd=tmp_dir, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_dir, check=True, capture_output=True, text=True)
+
+            real_run = subprocess.run
+
+            def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+                if args and args[0] == "codex":
+                    Path(cwd, "app.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
+                    cache = Path(cwd, "__pycache__")
+                    cache.mkdir()
+                    (cache / "app.cpython-312.pyc").write_bytes(b"cache")
+                    tmp = Path(cwd, ".alchemy_tmp")
+                    tmp.mkdir()
+                    (tmp / "scratch").write_text("tmp\n", encoding="utf-8")
+                    (Path(cwd) / "_tmp_52272_492ee6b655f4904778dec22f2bd6efda").write_text(
+                        "codex scratch\n",
+                        encoding="utf-8",
+                    )
+                    go_cache = Path(cwd, "backend", ".gocache-t013", "00")
+                    go_cache.mkdir(parents=True)
+                    (go_cache / "cache-entry-a").write_text("cache\n", encoding="utf-8")
+                    ent_cache = Path(cwd, "backend", "ent", "schema", ".entc")
+                    ent_cache.mkdir(parents=True)
+                    (ent_cache / "entc.go").write_text("package entc\n", encoding="utf-8")
+                    payload = {
+                        "task_id": "T013A",
+                        "status": "completed",
+                        "summary": "changed allowed file",
+                        "files_changed": ["app.py"],
+                        "commands_run": [],
+                        "tests_passed": ["unit tests"],
+                        "tests_failed": [],
+                        "evidence": [],
+                        "known_issues": [],
+                        "follow_up_tasks": [],
+                        "confidence": 1.0,
+                    }
+                    return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+                return real_run(args, cwd=cwd, input=input, capture_output=capture_output, text=text, timeout=timeout, check=check)
+
+            worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+            result = worker.execute(
+                CodexWorkerInput(
+                    task_id="T013A",
+                    goal="edit app",
+                    repository_path=tmp_dir,
+                    allowed_files=["app.py"],
+                )
+            )
+
+            self.assertEqual(result.status, "completed")
+            self.assertEqual(result.files_changed, ["app.py"])
+            self.assertIn("return a + b", (Path(tmp_dir) / "app.py").read_text(encoding="utf-8"))
+            self.assertTrue((Path(tmp_dir) / "__pycache__" / "app.cpython-312.pyc").exists())
+            self.assertTrue((Path(tmp_dir) / ".alchemy_tmp" / "scratch").exists())
+            self.assertTrue((Path(tmp_dir) / "_tmp_52272_492ee6b655f4904778dec22f2bd6efda").exists())
+            self.assertTrue((Path(tmp_dir) / "backend" / ".gocache-t013" / "00" / "cache-entry-a").exists())
+            self.assertTrue((Path(tmp_dir) / "backend" / "ent" / "schema" / ".entc" / "entc.go").exists())
+
+    def test_real_worker_ignores_test_runtime_artifacts_for_boundary_audit(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            target = repo / "alchemy_creative_agent_3_0" / "app" / "product_api.py"
+            target.parent.mkdir(parents=True)
+            target.write_text("ROUTES = []\n", encoding="utf-8")
+            runtime_artifact = (
+                repo
+                / "alchemy_creative_agent_3_0"
+                / "tests"
+                / "_runtime_product_api"
+                / "select_123"
+                / "brands"
+                / "brand_product_api.json"
+            )
+            pytest_cache = repo / "pytest-cache-files-abc123" / "v" / "cache"
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True)
+
+            real_run = subprocess.run
+
+            def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+                if args and args[0] == "codex":
+                    Path(cwd, "alchemy_creative_agent_3_0", "app", "product_api.py").write_text(
+                        "ROUTES = ['/api/v3/creative-agent/jobs']\n",
+                        encoding="utf-8",
+                    )
+                    runtime_artifact.parent.mkdir(parents=True)
+                    runtime_artifact.write_text('{"selected": true}\n', encoding="utf-8")
+                    pytest_cache.mkdir(parents=True)
+                    (pytest_cache / "nodeids").write_text("[]\n", encoding="utf-8")
+                    payload = {
+                        "task_id": "T013C",
+                        "status": "completed",
+                        "summary": "changed allowed V3 API and ran tests",
+                        "files_changed": ["alchemy_creative_agent_3_0/app/product_api.py"],
+                        "commands_run": ["python -B -m pytest alchemy_creative_agent_3_0/tests"],
+                        "tests_passed": ["v3 tests"],
+                        "tests_failed": [],
+                        "evidence": [],
+                        "known_issues": [],
+                        "follow_up_tasks": [],
+                        "confidence": 1.0,
+                    }
+                    return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+                return real_run(args, cwd=cwd, input=input, capture_output=capture_output, text=text, timeout=timeout, check=check)
+
+            worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+            result = worker.execute(
+                CodexWorkerInput(
+                    task_id="T013C",
+                    goal="edit V3 product API",
+                    repository_path=tmp_dir,
+                    allowed_files=["alchemy_creative_agent_3_0/app/product_api.py"],
+                )
+            )
+
+            self.assertEqual(result.status, "completed")
+            self.assertEqual(result.files_changed, ["alchemy_creative_agent_3_0/app/product_api.py"])
+            self.assertIn("/api/v3/creative-agent/jobs", target.read_text(encoding="utf-8"))
+            self.assertTrue(runtime_artifact.exists())
+            self.assertTrue((pytest_cache / "nodeids").exists())
+
+    def test_real_worker_expands_new_directory_before_boundary_audit(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            (repo / "README.md").write_text("# repo\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True)
+
+            real_run = subprocess.run
+
+            def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+                if args and args[0] == "codex":
+                    Path(cwd, "pkg").mkdir()
+                    Path(cwd, "pkg", "__init__.py").write_text("VALUE = 1\n", encoding="utf-8")
+                    payload = {
+                        "task_id": "T013B",
+                        "status": "completed",
+                        "summary": "created allowed package",
+                        "files_changed": ["pkg/__init__.py"],
+                        "commands_run": [],
+                        "tests_passed": ["unit tests"],
+                        "tests_failed": [],
+                        "evidence": [],
+                        "known_issues": [],
+                        "follow_up_tasks": [],
+                        "confidence": 1.0,
+                    }
+                    return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+                return real_run(args, cwd=cwd, input=input, capture_output=capture_output, text=text, timeout=timeout, check=check)
+
+            worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+            result = worker.execute(
+                CodexWorkerInput(
+                    task_id="T013B",
+                    goal="create package",
+                    repository_path=tmp_dir,
+                    allowed_files=["pkg/__init__.py"],
+                )
+            )
+
+            self.assertEqual(result.status, "completed")
+            self.assertEqual(result.files_changed, ["pkg/__init__.py"])
+            self.assertTrue((repo / "pkg" / "__init__.py").exists())
+
+    def test_real_worker_records_lifecycle_for_managed_subprocess(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            lifecycle = WorkerLifecycleRecorder(repo / ".alchemy" / "workers")
+            record = lifecycle.start("T900", 10)
+            runner = ManagedSubprocessRunner(lifecycle, record)
+
+            result = runner(
+                [sys.executable, "-c", "print('ok')"],
+                cwd=repo,
+                input=b"",
+                capture_output=True,
+                text=False,
+                timeout=10,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(record.task_id, "T900")
+            self.assertEqual(record.status, "completed")
+            self.assertIsInstance(record.worker_pid, int)
             self.assertTrue((repo / ".alchemy" / "workers" / "T900.json").exists())
+
+    def test_managed_subprocess_runner_hides_windows_console_children(self) -> None:
+        kwargs = _managed_process_startup_kwargs()
+
+        if os.name == "nt":
+            self.assertIn("creationflags", kwargs)
+            self.assertTrue(kwargs["creationflags"] & subprocess.CREATE_NEW_PROCESS_GROUP)
+            self.assertTrue(kwargs["creationflags"] & subprocess.CREATE_NO_WINDOW)
+            if "startupinfo" in kwargs:
+                self.assertEqual(kwargs["startupinfo"].wShowWindow, subprocess.SW_HIDE)
+        else:
+            self.assertEqual(kwargs, {"preexec_fn": os.setsid})
 
     def test_managed_subprocess_runner_terminates_on_timeout(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -393,6 +728,53 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertFalse(record.cleanup_required)
         self.assertEqual(record.termination["method"], "fake")
 
+    def test_managed_subprocess_runner_recovers_when_exited_process_keeps_pipe_open(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            recorder = WorkerLifecycleRecorder(Path(tmp_dir) / "workers")
+            record = recorder.start("T901P", 10)
+            runner = ManagedSubprocessRunner(
+                recorder,
+                record,
+                cancellation_check=lambda: False,
+                poll_interval_seconds=0.01,
+                pipe_drain_grace_seconds=0.01,
+            )
+
+            class ExitedProcessWithOpenPipes:
+                returncode = 0
+                stdin = None
+                stdout = None
+                stderr = None
+
+                def __init__(self) -> None:
+                    self.calls = 0
+
+                def communicate(self, input=None, timeout=None):
+                    self.calls += 1
+                    raise subprocess.TimeoutExpired(
+                        ["codex"],
+                        timeout,
+                        output=b'{"task_id":"T901P","status":"completed"}',
+                        stderr=b"",
+                    )
+
+                def poll(self):
+                    return 0
+
+            process = ExitedProcessWithOpenPipes()
+
+            stdout, stderr = runner._communicate_with_control(
+                process,  # type: ignore[arg-type]
+                input=b"",
+                timeout=10,
+                args=["codex"],
+            )
+
+        self.assertEqual(stdout, b'{"task_id":"T901P","status":"completed"}')
+        self.assertEqual(stderr, b"")
+        self.assertEqual(process.calls, 2)
+        self.assertIn("captured pipes", record.error)
+
     def test_real_worker_timeout_result_includes_lifecycle_cleanup(self) -> None:
         with temp_project_dir() as tmp_dir:
             repo = Path(tmp_dir)
@@ -424,6 +806,80 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.worker_lifecycle["status"], "timed_out")
         self.assertFalse(result.worker_lifecycle["cleanup_required"])
         self.assertTrue(terminated)
+
+    def test_real_worker_timeout_restores_preexisting_dirty_file_snapshot(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True)
+            target = repo / "app.txt"
+            target.write_text("committed\n", encoding="utf-8")
+            subprocess.run(["git", "add", "app.txt"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True)
+            target.write_text("phase-one\n", encoding="utf-8")
+
+            def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+                if len(args) >= 2 and args[1] == "exec":
+                    target.write_text("timed-out-worker\n", encoding="utf-8")
+                    raise subprocess.TimeoutExpired(args, timeout)
+                return subprocess.run(
+                    args,
+                    cwd=cwd,
+                    input=input,
+                    capture_output=capture_output,
+                    text=text,
+                    timeout=timeout,
+                    check=check,
+                )
+
+            worker = CodexWorkerAdapter(
+                executable=sys.executable,
+                dry_run=False,
+                timeout_seconds=1,
+                runner=fake_runner,
+            )
+            result = worker.execute(
+                CodexWorkerInput(
+                    task_id="T902B",
+                    goal="timeout",
+                    repository_path=str(repo),
+                    allowed_files=["app.txt"],
+                )
+            )
+
+            self.assertEqual(result.status, "failed")
+            self.assertEqual(target.read_text(encoding="utf-8"), "phase-one\n")
+
+    def test_real_worker_zero_timeout_means_unlimited(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+            observed: dict[str, object] = {}
+
+            def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+                if len(args) >= 2 and args[1] == "exec":
+                    observed["timeout"] = timeout
+                    return subprocess.CompletedProcess(args, 0, b'{"status":"completed","summary":"ok"}', b"")
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            worker = CodexWorkerAdapter(
+                executable=sys.executable,
+                dry_run=False,
+                timeout_seconds=0,
+                runner=fake_runner,
+            )
+            result = worker.execute(
+                CodexWorkerInput(
+                    task_id="T902A",
+                    goal="unlimited timeout",
+                    repository_path=str(repo),
+                    allowed_files=[],
+                )
+            )
+
+        self.assertEqual(result.status, "completed")
+        self.assertIsNone(observed["timeout"])
 
     def test_real_worker_cancellation_result_includes_lifecycle_cleanup(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -868,6 +1324,209 @@ class EvaluatorTests(unittest.TestCase):
         self.assertGreaterEqual(result.final_score, 0.85)
         self.assertEqual(result.reviewer_decision, "approved")
 
+    def test_evaluator_does_not_fail_completed_run_for_benign_environment_warnings(self) -> None:
+        engine = TaskGraphEngine()
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective", engine)
+
+        warning_result = {
+            "status": "completed",
+            "tests_failed": [],
+            "known_issues": [
+                "Pytest emitted cache warnings because it could not create files under .pytest_cache due to WinError 5 access denied.",
+                "A non-required compileall attempt failed due Windows pycache write PermissionError after an import smoke test.",
+                "Root legacy test command python -m pytest tests is listed as a guardrail verification; V3 authoritative verification passed.",
+            ],
+        }
+        for node in state.task_graph.nodes:
+            engine.mark_completed(
+                state.task_graph,
+                node.id,
+                {
+                    "type": "worker_result",
+                    "summary": "done",
+                    "result": warning_result,
+                },
+            )
+        state.github = {"commit": "abc123", "pull_request_url": "https://example.test/pr/1"}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertTrue(result.done)
+        self.assertGreaterEqual(result.final_score, 0.85)
+        self.assertEqual(result.dimension_scores["risk_quality"], 1.0)
+
+    def test_evaluator_does_not_penalize_future_phase_known_issues(self) -> None:
+        engine = TaskGraphEngine()
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective", engine)
+
+        warning_result = {
+            "status": "completed",
+            "tests_failed": [],
+            "known_issues": [
+                "Later roadmap phases still need to remove gateway/upstream/account/proxy/channel/model/subscription routes.",
+                "Preserved later-phase gateway/schema/UI behavior as explicitly out of scope for Phase 1.",
+                "One exploratory read failed because the file does not exist; this was non-blocking and not a requested verification command.",
+            ],
+        }
+        for node in state.task_graph.nodes:
+            engine.mark_completed(
+                state.task_graph,
+                node.id,
+                {
+                    "type": "worker_result",
+                    "summary": "done",
+                    "result": warning_result,
+                },
+            )
+        state.github = {"commit": "abc123", "pull_request_url": "https://example.test/pr/1"}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertTrue(result.done)
+        self.assertGreaterEqual(result.final_score, 0.85)
+        self.assertEqual(result.dimension_scores["risk_quality"], 1.0)
+
+    def test_evaluator_treats_completed_architecture_known_issues_as_planning_notes(self) -> None:
+        engine = TaskGraphEngine()
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective", engine)
+
+        for node in state.task_graph.nodes:
+            result = {"status": "completed", "tests_failed": [], "known_issues": []}
+            if node.type == "architecture":
+                result["known_issues"] = [
+                    "Future implementation must remove backend route registration and old token relay concepts.",
+                    "Payment and redeem flows are high-risk because existing wiring has legacy dependencies.",
+                ]
+            engine.mark_completed(
+                state.task_graph,
+                node.id,
+                {
+                    "type": "worker_result",
+                    "summary": "done",
+                    "result": result,
+                },
+            )
+        state.github = {"commit": "abc123", "pull_request_url": "https://example.test/pr/1"}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertTrue(result.done)
+        self.assertEqual(result.dimension_scores["risk_quality"], 1.0)
+
+    def test_evaluator_ignores_completed_debug_historical_failures(self) -> None:
+        engine = TaskGraphEngine()
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective", engine)
+
+        for node in state.task_graph.nodes:
+            engine.mark_completed(
+                state.task_graph,
+                node.id,
+                {
+                    "type": "worker_result",
+                    "summary": "done",
+                    "result": {"status": "completed", "tests_failed": [], "known_issues": []},
+                },
+            )
+        state.task_graph.nodes.append(
+            TaskNode(
+                id="T002-DEBUG-1",
+                title="Debug T002",
+                description="Diagnose historical environment failure.",
+                type="debug",
+                assigned_agent="debug",
+                status="completed",
+                evidence=[
+                    {
+                        "type": "worker_result",
+                        "summary": "diagnosed",
+                        "result": {
+                            "status": "completed",
+                            "tests_passed": ["go test ./... passed after redirecting Go telemetry/cache paths"],
+                            "tests_failed": ["Initial go test failed because host Go cache path was not writable."],
+                            "known_issues": ["The host Go cache is not writable; workspace-local paths are required."],
+                        },
+                    }
+                ],
+            )
+        )
+        state.github = {"commit": "abc123", "pull_request_url": "https://example.test/pr/1"}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertTrue(result.done)
+        self.assertNotIn("Required tests are failing.", result.hard_failures)
+
+    def test_evaluator_ignores_completed_release_dry_run_test_fields(self) -> None:
+        engine = TaskGraphEngine()
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective", engine)
+
+        for node in state.task_graph.nodes:
+            result = {"status": "completed", "tests_failed": [], "known_issues": []}
+            if node.type == "release":
+                result = {
+                    "status": "recorded",
+                    "tests_passed": ["Dry-run GitHub execution evidence recorded."],
+                    "tests_failed": ["Dry-run delivery did not push a real branch or wait for live CI."],
+                    "known_issues": ["Dry-run delivery remains local evidence only."],
+                    "followups": ["Push a PR when real delivery mode is enabled."],
+                }
+            engine.mark_completed(
+                state.task_graph,
+                node.id,
+                {
+                    "type": "worker_result",
+                    "summary": "done",
+                    "result": result,
+                },
+            )
+        state.github = {"commit": "abc123", "pull_request_url": "dry-run://pr/1"}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertTrue(result.done)
+        self.assertNotIn("Required tests are failing.", result.hard_failures)
+        self.assertEqual(result.dimension_scores["risk_quality"], 1.0)
+
+    def test_evaluator_does_not_apply_static_web_gate_to_unknown_artifact_profile(self) -> None:
+        engine = TaskGraphEngine()
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective", engine)
+
+        for node in state.task_graph.nodes:
+            engine.mark_completed(
+                state.task_graph,
+                node.id,
+                {
+                    "type": "worker_result",
+                    "summary": "done",
+                    "result": {"status": "completed", "tests_failed": []},
+                },
+            )
+        state.github = {"commit": "abc123", "pull_request_url": "https://example.test/pr/1"}
+        state.repository["artifact_report"] = {
+            "artifact_profile": {"name": "unknown"},
+            "static_verification": {
+                "status": "failed",
+                "tests_failed": ["Protected terms found in generated artifact: toad"],
+            },
+        }
+
+        result = Evaluator().evaluate(state)
+
+        self.assertTrue(result.done)
+        self.assertNotIn("Static artifact verification failed.", result.hard_failures)
+
     def test_evaluator_blocks_missing_must_requirement_coverage(self) -> None:
         engine = TaskGraphEngine()
         with temp_project_dir() as tmp_dir:
@@ -1015,6 +1674,456 @@ class OrchestratorTests(unittest.TestCase):
             self.assertTrue(state.done)
             self.assertFalse(state.blockers)
 
+    def test_failed_task_interrupts_current_ready_batch_for_debug(self) -> None:
+        class FailingFirstWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                if worker_input.task_id == "T001":
+                    return CodexWorkerResult(
+                        task_id=worker_input.task_id,
+                        status="partial",
+                        summary="needs focused repair before adjacent work continues",
+                        known_issues=["repair required"],
+                    )
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="completed",
+                    tests_passed=["ok"],
+                )
+
+        graph = TaskGraph(
+            graph_id="debug-priority",
+            version=1,
+            nodes=[
+                TaskNode(id="T001", title="First implementation", description="First", type="frontend", assigned_agent="frontend", priority=90),
+                TaskNode(id="T002", title="Adjacent implementation", description="Second", type="frontend", assigned_agent="frontend", priority=80),
+            ],
+        )
+        worker = FailingFirstWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run("repair before adjacent work", initial_state=RuntimeState(objective="repair before adjacent work", task_graph=graph), max_iterations=1)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(worker.calls, ["T001"])
+        self.assertIn("T001-DEBUG-1", nodes)
+        self.assertEqual(nodes["T001-DEBUG-1"].status, "pending")
+        self.assertEqual(nodes["T002"].status, "ready")
+
+    def test_failed_debug_task_resets_parent_without_nested_debug_loop(self) -> None:
+        class DebugPartialThenRetryWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                if worker_input.task_id == "T002" and self.calls.count("T002") == 1:
+                    return CodexWorkerResult(
+                        task_id=worker_input.task_id,
+                        status="failed",
+                        summary="implementation needs repair",
+                        tests_failed=["unit tests"],
+                    )
+                if worker_input.task_id == "T002-DEBUG-1":
+                    return CodexWorkerResult(
+                        task_id=worker_input.task_id,
+                        status="partial",
+                        summary="diagnosed but did not complete repair",
+                        known_issues=["retry the parent implementation with the new evidence"],
+                    )
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="completed",
+                    tests_passed=["unit tests"],
+                    confidence=0.9,
+                )
+
+        worker = DebugPartialThenRetryWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run("build a todo app with login", reset=True, max_iterations=10)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertTrue(state.done)
+        self.assertIn("T002-DEBUG-1", nodes)
+        self.assertEqual(nodes["T002-DEBUG-1"].status, "skipped")
+        self.assertEqual(nodes["T002"].status, "completed")
+        self.assertNotIn("T002-DEBUG-1-DEBUG-1", nodes)
+        self.assertNotIn("T002-DEBUG-1-DEBUG-1", worker.calls)
+
+    def test_debug_environment_blocker_blocks_parent_without_retry(self) -> None:
+        class NoWorkerShouldRun:
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                raise AssertionError(f"worker should not run for {worker_input.task_id}")
+
+        graph = TaskGraphEngine().create_default_graph("repair frontend verification setup")
+        engine = TaskGraphEngine()
+        engine.mark_completed(graph, "T001", {"type": "worker_result", "result": {"status": "completed"}})
+        implementation = engine.get_node(graph, "T002")
+        implementation.status = "failed"
+        implementation.retry_count = 1
+        graph.nodes.append(
+            TaskNode(
+                id="T002-DEBUG-1",
+                title="Debug T002",
+                description="Diagnose missing frontend dependencies.",
+                type="debug",
+                assigned_agent="debug",
+                status="pending",
+                priority=110,
+                retry_count=1,
+                evidence=[
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "task_id": "T002-DEBUG-1",
+                            "status": "partial",
+                            "summary": "Frontend test runner unavailable because node_modules is missing.",
+                            "tests_failed": [
+                                "vitest is not recognized as an internal or external command.",
+                            ],
+                            "known_issues": [
+                                "frontend dependencies are absent; install dependencies before retrying implementation.",
+                            ],
+                            "follow_up_tasks": [
+                                "Run pnpm --dir frontend install --frozen-lockfile before frontend tests.",
+                            ],
+                        },
+                    }
+                ],
+            )
+        )
+        initial_state = RuntimeState(objective="repair frontend verification setup", task_graph=graph)
+        initial_state.completed_tasks = ["T001"]
+        initial_state.failed_tasks = ["T002", "T002-DEBUG-1"]
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                repository_path=tmp_dir,
+                worker=NoWorkerShouldRun(),  # type: ignore[arg-type]
+            ).run("repair frontend verification setup", initial_state=initial_state, max_iterations=1)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertFalse(state.done)
+        self.assertEqual(nodes["T002"].status, "blocked")
+        self.assertEqual(nodes["T002-DEBUG-1"].status, "skipped")
+        self.assertEqual(state.blockers[0]["type"], "environment")
+        self.assertIn("dependency setup succeeds", state.blockers[0]["description"])
+        self.assertTrue(any(event["type"] == "debug_environment_blocker" for event in state.iteration_history))
+
+    def test_existing_nested_debug_chain_is_collapsed_to_parent_retry(self) -> None:
+        class CompletingWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="completed",
+                    tests_passed=["unit tests"],
+                    confidence=0.9,
+                )
+
+        graph = TaskGraphEngine().create_default_graph("complete every documented roadmap phase")
+        engine = TaskGraphEngine()
+        engine.mark_completed(graph, "T001", {"type": "worker_result", "result": {"status": "completed"}})
+        implementation = engine.get_node(graph, "T002")
+        implementation.status = "failed"
+        implementation.retry_count = 1
+        graph.nodes.extend(
+            [
+                TaskNode(
+                    id="T002-DEBUG-1",
+                    title="Debug T002",
+                    description="First-level debug failed but was reset to ready during recovery.",
+                    type="debug",
+                    assigned_agent="debug",
+                    status="ready",
+                    priority=110,
+                    retry_count=1,
+                ),
+                TaskNode(
+                    id="T002-DEBUG-1-DEBUG-1",
+                    title="Debug T002-DEBUG-1",
+                    description="Nested debug should not run.",
+                    type="debug",
+                    assigned_agent="debug",
+                    status="pending",
+                    priority=120,
+                ),
+            ]
+        )
+        initial_state = RuntimeState(objective="complete roadmap", task_graph=graph)
+        initial_state.completed_tasks = ["T001"]
+        initial_state.failed_tasks = ["T002", "T002-DEBUG-1"]
+
+        worker = CompletingWorker()
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                repository_path=tmp_dir,
+                worker=worker,  # type: ignore[arg-type]
+            ).run("complete roadmap", initial_state=initial_state, max_iterations=8)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertTrue(state.done)
+        self.assertEqual(nodes["T002"].status, "completed")
+        self.assertEqual(nodes["T002-DEBUG-1"].status, "skipped")
+        self.assertEqual(nodes["T002-DEBUG-1-DEBUG-1"].status, "skipped")
+        self.assertNotIn("T002-DEBUG-1-DEBUG-1", worker.calls)
+
+    def test_completed_nested_debug_evidence_promotes_failed_parent_and_continues(self) -> None:
+        class CompletingWorker:
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="downstream task completed",
+                    tests_passed=["python -m pytest target tests"],
+                    evidence=["verification passed"],
+                    confidence=0.9,
+                )
+
+        graph = TaskGraphEngine().create_default_graph("complete every documented roadmap phase")
+        engine = TaskGraphEngine()
+        engine.mark_completed(
+            graph,
+            "T001",
+            {
+                "type": "worker_result",
+                "result": {
+                    "status": "completed",
+                    "tests_failed": [],
+                    "tests_passed": ["planning"],
+                    "confidence": 0.9,
+                },
+            },
+        )
+        implementation = engine.get_node(graph, "T002")
+        implementation.status = "failed"
+        implementation.retry_count = implementation.max_attempts
+        implementation.evidence.append(
+            {
+                "type": "worker_result",
+                "result": {
+                    "status": "failed",
+                    "summary": "Codex worker did not return parseable codex_worker_result_v1 JSON.",
+                    "tests_failed": ["worker output parse"],
+                    "confidence": 0.0,
+                },
+            }
+        )
+        graph.nodes.extend(
+            [
+                TaskNode(
+                    id="T002-DEBUG-1",
+                    title="Debug T002",
+                    description="Diagnose original T002 worker failure.",
+                    type="debug",
+                    assigned_agent="debug",
+                    status="completed",
+                    evidence=[
+                        {
+                            "type": "worker_result",
+                            "result": {
+                                "task_id": "T002-DEBUG-1",
+                                "status": "completed",
+                                "summary": "The requested verification command passes, but this diagnostic had low confidence.",
+                                "commands_run": [{"command": "python -m pytest target", "exit_code": 0}],
+                                "tests_passed": ["python -m pytest target: passed"],
+                                "tests_failed": [],
+                                "known_issues": ["Non-fatal pytest cache warning."],
+                                "confidence": 0.0,
+                            },
+                        }
+                    ],
+                ),
+                TaskNode(
+                    id="T002-DEBUG-1-DEBUG-1",
+                    title="Debug T002-DEBUG-1",
+                    description="Diagnose nested debug response-format failure.",
+                    type="debug",
+                    assigned_agent="debug",
+                    status="completed",
+                    evidence=[
+                        {
+                            "type": "worker_result",
+                            "result": {
+                                "task_id": "T002-DEBUG-1-DEBUG-1",
+                                "status": "completed",
+                                "summary": "Previous failure was a worker response-format issue; target verification passes.",
+                                "commands_run": [{"command": "python -m pytest target", "exit_code": 0}],
+                                "tests_passed": ["python -m pytest target: passed"],
+                                "tests_failed": [],
+                                "known_issues": ["Non-fatal pytest cache warning."],
+                                "confidence": 0.94,
+                            },
+                        }
+                    ],
+                ),
+            ]
+        )
+        initial_state = RuntimeState(objective="complete roadmap", task_graph=graph)
+        initial_state.completed_tasks = ["T001", "T002-DEBUG-1", "T002-DEBUG-1-DEBUG-1"]
+        initial_state.failed_tasks = ["T002"]
+        initial_state.blockers = [
+            {
+                "id": "B-T002-2",
+                "type": "technical_limit",
+                "description": "Retry policy exhausted after 2 attempt(s): Codex worker did not return parseable codex_worker_result_v1 JSON.",
+                "task_ids": ["T002"],
+                "can_continue_partially": False,
+            }
+        ]
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                repository_path=tmp_dir,
+                worker=CompletingWorker(),  # type: ignore[arg-type]
+            ).run("complete roadmap", initial_state=initial_state, max_iterations=8)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertTrue(state.done)
+        self.assertEqual(nodes["T002"].status, "completed")
+        self.assertEqual(nodes["T003"].status, "completed")
+        self.assertEqual(nodes["T004"].status, "completed")
+        self.assertEqual(nodes["T005"].status, "completed")
+        self.assertFalse(state.failed_tasks)
+        self.assertFalse(state.blockers)
+        self.assertTrue(any(event["type"] == "debug_repair_promoted" for event in state.iteration_history))
+
+    def test_debug_diagnosis_with_unfinished_repair_does_not_promote_parent(self) -> None:
+        graph = TaskGraphEngine().create_default_graph("complete every documented roadmap phase")
+        engine = TaskGraphEngine()
+        engine.mark_completed(
+            graph,
+            "T001",
+            {
+                "type": "worker_result",
+                "result": {"status": "completed", "tests_passed": ["planning"], "tests_failed": []},
+            },
+        )
+        implementation = engine.get_node(graph, "T002")
+        implementation.status = "failed"
+        implementation.retry_count = implementation.max_attempts
+        implementation.evidence.append(
+            {
+                "type": "worker_result",
+                "result": {
+                    "status": "partial",
+                    "summary": "Backend slice was started but the implementation remains incomplete.",
+                    "tests_failed": [],
+                    "known_issues": ["The underlying large refactor remains incomplete and still needs a bounded backend implementation retry."],
+                    "confidence": 0.76,
+                },
+            }
+        )
+        graph.nodes.append(
+            TaskNode(
+                id="T002-DEBUG-1",
+                title="Debug T002",
+                description="Diagnose original T002 worker timeout.",
+                type="debug",
+                assigned_agent="debug",
+                status="completed",
+                evidence=[
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "task_id": "T002-DEBUG-1",
+                            "status": "completed",
+                            "summary": "Recorded timeout diagnosis and retry repair instructions.",
+                            "commands_run": [{"command": "static artifact inspection", "exit_code": 0}],
+                            "tests_passed": ["Static artifact inspection completed."],
+                            "tests_failed": [],
+                            "known_issues": [
+                                "The underlying large refactor remains incomplete and still needs a bounded backend implementation retry."
+                            ],
+                            "confidence": 0.87,
+                        },
+                    }
+                ],
+            )
+        )
+        initial_state = RuntimeState(objective="complete roadmap", task_graph=graph)
+        initial_state.completed_tasks = ["T001", "T002-DEBUG-1"]
+        initial_state.failed_tasks = ["T002"]
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                repository_path=tmp_dir,
+            ).run("complete roadmap", initial_state=initial_state, max_iterations=1)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(nodes["T002"].status, "failed")
+        self.assertIn("T002", state.failed_tasks)
+        self.assertFalse(any(event["type"] == "debug_repair_promoted" for event in state.iteration_history))
+
+    def test_obsolete_debug_tasks_are_pruned_after_parent_completes(self) -> None:
+        graph = TaskGraphEngine().create_default_graph("complete every documented roadmap phase")
+        engine = TaskGraphEngine()
+        engine.mark_completed(
+            graph,
+            "T001",
+            {
+                "type": "worker_result",
+                "result": {"status": "completed", "tests_passed": ["planning"], "tests_failed": []},
+            },
+        )
+        graph.nodes.extend(
+            [
+                TaskNode(
+                    id="T001-DEBUG-1",
+                    title="Debug T001",
+                    description="Obsolete debug branch.",
+                    type="debug",
+                    assigned_agent="debug",
+                    status="failed",
+                ),
+                TaskNode(
+                    id="T001-DEBUG-1-DEBUG-1",
+                    title="Debug T001-DEBUG-1",
+                    description="Obsolete nested debug branch.",
+                    type="debug",
+                    assigned_agent="debug",
+                    status="active",
+                ),
+            ]
+        )
+        state = RuntimeState(objective="complete roadmap", task_graph=graph)
+        state.active_tasks = ["T001-DEBUG-1-DEBUG-1"]
+        state.failed_tasks = ["T001-DEBUG-1"]
+
+        with temp_project_dir() as tmp_dir:
+            orchestrator = Orchestrator(StateManager(Path(tmp_dir) / "state.json"), repository_path=tmp_dir)
+            changed = orchestrator._prune_obsolete_debug_tasks(state)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertTrue(changed)
+        self.assertEqual(nodes["T001-DEBUG-1"].status, "skipped")
+        self.assertEqual(nodes["T001-DEBUG-1-DEBUG-1"].status, "skipped")
+        self.assertFalse(state.active_tasks)
+        self.assertFalse(state.failed_tasks)
+        self.assertTrue(any(event["type"] == "obsolete_debug_pruned" for event in state.iteration_history))
+
     def test_stop_controller_blocks_before_dispatching_worker(self) -> None:
         class StopController:
             def before_task(self, task_id: str) -> ControlDecision:
@@ -1132,6 +2241,103 @@ class OrchestratorTests(unittest.TestCase):
         self.assertIn("If allowed_files is empty", " ".join(inputs["T001"].constraints))
         self.assertEqual(inputs[implementation.id].allowed_files, ["src/app.py"])
 
+    def test_repair_convergence_stops_remaining_ready_tasks_after_target_check_passes(self) -> None:
+        class RepairWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="fixed target file and tests pass",
+                    files_changed=["app.py"],
+                    tests_passed=["python -m unittest discover -s tests"],
+                    evidence=["app.py repaired"],
+                    confidence=0.95,
+                )
+
+        graph = TaskGraph(
+            graph_id="repair-convergence",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Fix app.py from feedback",
+                    description="Repair app.py.",
+                    type="debug",
+                    assigned_agent="debug",
+                    completion_criteria=["app.py is repaired and tests pass."],
+                    relevant_files=["app.py"],
+                    commands_to_run=["python -m unittest discover -s tests"],
+                    priority=90,
+                ),
+                TaskNode(
+                    id="T002",
+                    title="Duplicate app.py repair",
+                    description="Another same-file repair that should be covered by convergence.",
+                    type="debug",
+                    assigned_agent="debug",
+                    completion_criteria=["app.py repair scope is covered."],
+                    relevant_files=["app.py"],
+                    commands_to_run=["python -m unittest discover -s tests"],
+                    priority=80,
+                ),
+                TaskNode(
+                    id="T003",
+                    title="Review repair",
+                    description="Review repair evidence.",
+                    type="review",
+                    assigned_agent="reviewer",
+                    dependencies=["T002"],
+                    completion_criteria=["Reviewer approval is recorded."],
+                    priority=70,
+                ),
+                TaskNode(
+                    id="T004",
+                    title="Record local delivery evidence",
+                    description="Record repair delivery evidence.",
+                    type="release",
+                    assigned_agent="reviewer",
+                    dependencies=["T003"],
+                    completion_criteria=["Delivery evidence is recorded."],
+                    priority=60,
+                ),
+            ],
+            dependencies=[
+                Dependency(source="T002", target="T003", type="requires_review"),
+                Dependency(source="T003", target="T004", type="requires_review"),
+            ],
+        )
+        state = RuntimeState(objective="repair app", task_graph=graph)
+        state.repository = {
+            "provider": "local",
+            "path": ".",
+            "repair_convergence": {
+                "enabled": True,
+                "status": "pending",
+                "target_files": ["app.py"],
+                "source_run_id": "run_001",
+            },
+        }
+
+        with temp_project_dir() as tmp_dir:
+            worker = RepairWorker()
+            final_state = Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                repository_path=tmp_dir,
+                worker=worker,  # type: ignore[arg-type]
+            ).run("repair app", reset=True, initial_state=state, max_iterations=3)
+
+        self.assertEqual(worker.calls, ["T001"])
+        self.assertTrue(final_state.done)
+        self.assertEqual(final_state.repository["repair_convergence"]["status"], "completed")
+        self.assertEqual(final_state.repository["repair_convergence"]["trigger_task_id"], "T001")
+        self.assertEqual([node.status for node in final_state.task_graph.nodes], ["completed"] * 4)
+        self.assertEqual(final_state.iteration_history[-2]["type"], "repair_convergence_gate")
+        self.assertTrue(str(final_state.github["pull_request_url"]).startswith("dry-run://repair-convergence/"))
+
     def test_static_document_verification_and_review_do_not_call_worker(self) -> None:
         class DocWorker:
             def __init__(self, repo: Path) -> None:
@@ -1155,6 +2361,8 @@ class OrchestratorTests(unittest.TestCase):
 
         with temp_project_dir() as tmp_dir:
             repo = Path(tmp_dir)
+            (repo / "docs").mkdir()
+            (repo / "docs" / "probe.md").write_text("probe\n", encoding="utf-8")
             graph = TaskGraph(
                 graph_id="doc-only",
                 version=1,
@@ -1212,10 +2420,79 @@ class OrchestratorTests(unittest.TestCase):
             ).run("doc probe", reset=True, task_graph=graph, max_iterations=6)
 
         self.assertTrue(state.done)
-        self.assertEqual(worker.calls, ["T001"])
+        self.assertEqual(worker.calls, [])
         nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(nodes["T001"].evidence[-1]["result"]["commands_run"][0]["command"], "static document inspection")
         self.assertEqual(nodes["T002"].evidence[-1]["result"]["commands_run"][0]["command"], "static document inspection")
         self.assertEqual(nodes["T003"].evidence[-1]["result"]["status"], "completed")
+
+    def test_documentation_static_document_task_runs_without_worker(self) -> None:
+        class FailingWorker:
+            calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="failed",
+                    summary="worker should not be called",
+                    tests_failed=["worker called"],
+                )
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "docs").mkdir()
+            (repo / "docs" / "PLAN.md").write_text("Phase 0 freeze evidence\n", encoding="utf-8")
+            graph = TaskGraph(
+                graph_id="doc-static",
+                version=1,
+                nodes=[
+                    TaskNode(
+                        id="T001",
+                        title="Confirm docs",
+                        description="Confirm docs freeze.",
+                        type="documentation",
+                        assigned_agent="architect",
+                        completion_criteria=["Documentation evidence exists."],
+                        relevant_files=["docs/**"],
+                        commands_to_run=["static document inspection"],
+                    ),
+                    TaskNode(
+                        id="T002",
+                        title="Review docs",
+                        description="Review docs",
+                        type="review",
+                        assigned_agent="reviewer",
+                        dependencies=["T001"],
+                        completion_criteria=["Reviewer approval is recorded."],
+                    ),
+                    TaskNode(
+                        id="T003",
+                        title="Release docs",
+                        description="Record evidence",
+                        type="release",
+                        assigned_agent="reviewer",
+                        dependencies=["T002"],
+                        completion_criteria=["GitHub execution evidence is recorded."],
+                    ),
+                ],
+                dependencies=[
+                    Dependency(source="T001", target="T002", type="requires_review"),
+                    Dependency(source="T002", target="T003", type="requires_review"),
+                ],
+            )
+            worker = FailingWorker()
+            state = Orchestrator(
+                StateManager(repo / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=repo,
+            ).run("doc static", reset=True, task_graph=graph, max_iterations=4)
+
+        self.assertTrue(state.done)
+        self.assertEqual(worker.calls, [])
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(nodes["T001"].status, "completed")
+        self.assertEqual(nodes["T001"].evidence[-1]["result"]["commands_run"][0]["command"], "static document inspection")
 
     def test_static_document_verification_requires_target_files(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -1232,6 +2509,27 @@ class OrchestratorTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
         self.assertIn("No task-specific document files", result.tests_failed[0])
+
+    def test_static_document_verification_expands_doc_globs(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "docs").mkdir()
+            (repo / "docs" / "PLAN.md").write_text("Phase 0 freeze evidence\n", encoding="utf-8")
+            task = TaskNode(
+                id="T001",
+                title="Verify docs glob",
+                description="Verify docs glob evidence.",
+                type="test",
+                assigned_agent="test",
+                completion_criteria=["Documentation evidence exists."],
+                relevant_files=["docs/**"],
+                commands_to_run=["static document inspection"],
+            )
+            result = Orchestrator(StateManager(repo / "state.json"), repository_path=repo)._static_document_result(task)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tests_failed, [])
+        self.assertIn("Found required file: docs\\PLAN.md", "\n".join(result.evidence))
 
     def test_static_artifact_verifier_accepts_original_canvas_platformer(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -1300,6 +2598,46 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result.profile["name"], "node_project")
         self.assertFalse(result.tests_failed)
 
+    def test_static_artifact_verifier_skips_unknown_large_backend_profile(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "backend" / "internal").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.test/billing-core\n", encoding="utf-8")
+            (repo / "backend" / "internal" / "service.go").write_text("package internal\nconst Name = \"toad\"\n", encoding="utf-8")
+
+            result = StaticWebArtifactVerifier().verify(repo, ["backend/**"])
+
+        self.assertEqual(result.status, "skipped")
+        self.assertEqual(result.profile["name"], "unknown")
+        self.assertFalse(result.tests_failed)
+
+    def test_static_artifact_verifier_expands_python_glob_artifact_scope(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            app = repo / "alchemy_creative_agent_3_0" / "app"
+            tests = repo / "alchemy_creative_agent_3_0" / "tests"
+            docs = repo / "alchemy_creative_agent_3_0" / "docs"
+            app.mkdir(parents=True)
+            tests.mkdir(parents=True)
+            docs.mkdir(parents=True)
+            (app / "__init__.py").write_text("", encoding="utf-8")
+            (app / "core.py").write_text("class CentralCreativeBrain: pass\n", encoding="utf-8")
+            (tests / "test_core.py").write_text("def test_ok():\n    assert True\n", encoding="utf-8")
+            (docs / "README.md").write_text("# V3 docs\n", encoding="utf-8")
+
+            result = StaticWebArtifactVerifier().verify(
+                repo,
+                [
+                    "alchemy_creative_agent_3_0/**",
+                    "alchemy_creative_agent_3_0/app/**",
+                ],
+            )
+
+        self.assertEqual(result.status, "skipped")
+        self.assertEqual(result.profile["name"], "python_project")
+        self.assertFalse(result.tests_failed)
+        self.assertNotIn("Missing artifact file", "\n".join(result.tests_failed))
+
     def test_static_artifact_verifier_accepts_form_based_static_web_app(self) -> None:
         with temp_project_dir() as tmp_dir:
             repo = Path(tmp_dir)
@@ -1323,6 +2661,32 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result.profile["name"], "static_web_app")
         self.assertIn("Static web app interactive controls are present.", result.evidence)
 
+    def test_static_artifact_verifier_ignores_unmatched_globs_and_game_terms_for_crm_app(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text(
+                """
+                <!doctype html>
+                <main id="app">Toad risk dashboard</main>
+                """,
+                encoding="utf-8",
+            )
+            src = repo / "src"
+            src.mkdir()
+            (src / "Dashboard.vue").write_text("<template><canvas id='risk-score'></canvas></template>\n", encoding="utf-8")
+
+            result = StaticWebArtifactVerifier().verify(
+                repo,
+                ["index.html", "src/**", "src/views/*Payment*.vue"],
+                objective="Build a CRM billing and risk score dashboard.",
+            )
+
+        self.assertEqual(result.profile["name"], "static_web_app")
+        self.assertEqual(result.status, "completed")
+        failures = "\n".join(result.tests_failed)
+        self.assertNotIn("Missing artifact file", failures)
+        self.assertNotIn("Protected terms", failures)
+
     def test_artifact_profile_detector_classifies_common_projects(self) -> None:
         with temp_project_dir() as tmp_dir:
             repo = Path(tmp_dir)
@@ -1334,11 +2698,59 @@ class OrchestratorTests(unittest.TestCase):
 
         with temp_project_dir() as tmp_dir:
             repo = Path(tmp_dir)
+            frontend = repo / "frontend"
+            frontend.mkdir()
+            (frontend / "index.html").write_text('<!doctype html><div id="app"></div>\n', encoding="utf-8")
+
+            profile = ArtifactProfileDetector().detect(
+                repo,
+                ["frontend/index.html"],
+                objective="Build CRM billing, wallet ledger, invoice/payment, reconciliation, and analytics workflows.",
+            )
+
+        self.assertEqual(profile.name, "static_web_app")
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
             (repo / "README.md").write_text("# Docs\n", encoding="utf-8")
 
             profile = ArtifactProfileDetector().detect(repo, ["README.md"])
 
         self.assertEqual(profile.name, "documentation_only")
+
+    def test_artifact_profile_detector_does_not_treat_crm_frontend_metrics_as_game(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            frontend = repo / "frontend"
+            (frontend / "src" / "views").mkdir(parents=True)
+            (frontend / "index.html").write_text('<!doctype html><div id="app"></div>\n', encoding="utf-8")
+            (frontend / "src" / "views" / "Dashboard.vue").write_text(
+                """
+                <template><canvas id="risk-score"></canvas></template>
+                <script setup lang="ts">
+                requestAnimationFrame(() => {
+                  const score = 98
+                  window.scrollTo({ top: score, behavior: 'smooth' })
+                })
+                </script>
+                """,
+                encoding="utf-8",
+            )
+            backend = repo / "backend" / "internal" / "service"
+            backend.mkdir(parents=True)
+            (backend / "risk_score_test.go").write_text(
+                "package service\n\nfunc TestRiskScoreJump(t *testing.T) {}\n",
+                encoding="utf-8",
+            )
+
+            profile = ArtifactProfileDetector().detect(
+                repo,
+                ["frontend/**", "backend/**"],
+                objective="Build CRM billing, wallet ledger, invoice/payment, reconciliation, and analytics workflows.",
+                requirements=["Admin users can query orders, configure payment providers, and inspect usage analytics."],
+            )
+
+        self.assertEqual(profile.name, "static_web_app")
 
     def test_browser_artifact_evidence_verifier_records_pixel_diff(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -1711,6 +3123,76 @@ class OrchestratorTests(unittest.TestCase):
 
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.commands_run[0].command, "static artifact inspection")
+
+    def test_orchestrator_skips_non_applicable_static_artifact_inspection_without_debugging(self) -> None:
+        graph = TaskGraph(
+            graph_id="backend-static-skip",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Backend implementation",
+                    description="Backend work is complete.",
+                    type="integration",
+                    assigned_agent="backend",
+                    status="completed",
+                    completion_criteria=["Backend implementation completed."],
+                    evidence=[{"type": "worker_result", "result": {"status": "completed", "tests_failed": []}}],
+                ),
+                TaskNode(
+                    id="T002",
+                    title="Verify backend",
+                    description="Static web artifact inspection is not applicable to this backend phase.",
+                    type="test",
+                    assigned_agent="test",
+                    dependencies=["T001"],
+                    completion_criteria=["Non-applicable static web checks are skipped."],
+                    relevant_files=["backend/**"],
+                    commands_to_run=["static artifact inspection"],
+                ),
+                TaskNode(
+                    id="T003",
+                    title="Review",
+                    description="Review evidence.",
+                    type="review",
+                    assigned_agent="reviewer",
+                    dependencies=["T002"],
+                    completion_criteria=["Reviewer approval is recorded."],
+                ),
+                TaskNode(
+                    id="T004",
+                    title="Release",
+                    description="Record evidence.",
+                    type="release",
+                    assigned_agent="reviewer",
+                    dependencies=["T003"],
+                    completion_criteria=["GitHub evidence is recorded."],
+                ),
+            ],
+            dependencies=[
+                Dependency(source="T001", target="T002", type="requires_test_pass"),
+                Dependency(source="T002", target="T003", type="requires_review"),
+                Dependency(source="T003", target="T004", type="requires_review"),
+            ],
+        )
+
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "backend").mkdir()
+            (repo / "backend" / "main.go").write_text("package main\n", encoding="utf-8")
+            state = Orchestrator(StateManager(repo / "state.json"), repository_path=repo).run(
+                "backend-only delivery",
+                reset=True,
+                task_graph=graph,
+                max_iterations=6,
+            )
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertTrue(state.done)
+        self.assertEqual(nodes["T002"].status, "skipped")
+        self.assertFalse(any(node.type == "debug" for node in state.task_graph.nodes))
+        self.assertEqual(nodes["T003"].status, "completed")
+        self.assertEqual(nodes["T004"].status, "completed")
 
     def test_release_task_blocks_when_ci_is_failed(self) -> None:
         class FailedCIFlow:
@@ -2193,6 +3675,45 @@ class ContractAlignmentTests(unittest.TestCase):
         self.assertEqual(state.completed_tasks, ["T002"])
         self.assertEqual(state.failed_tasks, ["T003"])
 
+    def test_recovery_resets_interrupted_active_task(self) -> None:
+        from runtime.recovery import RecoverySource, RuntimeRecovery
+
+        state = RuntimeState(
+            objective="resume interrupted task",
+            task_graph=TaskGraph(
+                graph_id="recovery-active",
+                version=1,
+                nodes=[
+                    TaskNode(
+                        id="T001",
+                        title="Active implementation",
+                        description="Implement",
+                        type="integration",
+                        assigned_agent="backend",
+                        status="active",
+                        completion_criteria=["Implemented."],
+                        relevant_files=["backend/**"],
+                    )
+                ],
+            ),
+            active_tasks=["T001"],
+            worker_lifecycle=[
+                {
+                    "task_id": "T001",
+                    "status": "completed",
+                    "worker_pid": 1234,
+                    "cleanup_required": False,
+                }
+            ],
+        )
+
+        result = RuntimeRecovery().prepare(RecoverySource(state=state, source_path="state.json"))
+
+        self.assertEqual(result.state.task_graph.nodes[0].status, "pending")
+        self.assertEqual(result.state.active_tasks, [])
+        self.assertEqual(result.checkpoint["reset_task_ids"], ["T001"])
+        self.assertEqual(result.blockers, [])
+
 
 class RequirementCoverageTests(unittest.TestCase):
     def test_requirement_coverage_marks_existing_completed_requirement_covered(self) -> None:
@@ -2356,6 +3877,65 @@ class RequirementCoverageTests(unittest.TestCase):
         self.assertEqual(payload["status"], "failed")
         self.assertEqual(payload["entries"][0]["coverage_status"], "missing")
         self.assertEqual(payload["missing_must_requirement_ids"], ["REQ-001"])
+
+    def test_requirement_coverage_accepts_documentation_only_evidence(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "docs").mkdir()
+            (repo / "docs" / "BILLING_CORE_DEV_PLAN.md").write_text("Phase 0 freeze record\n", encoding="utf-8")
+
+            report = RequirementCoverageBuilder().build(
+                repository_path=repo,
+                context_bundle={
+                    "requirement_map": {
+                        "requirements": [
+                            {
+                                "id": "REQ-001",
+                                "priority": "must",
+                                "text": "明确第一版 demo 必须独立运行。",
+                                "related_files": [],
+                                "planned_task_ids": ["T002", "T003", "T004"],
+                            }
+                        ]
+                    }
+                },
+                task_graph={
+                    "nodes": [
+                        {
+                            "id": "T002",
+                            "type": "documentation",
+                            "status": "completed",
+                            "relevant_files": ["docs/**"],
+                            "evidence": [{"summary": "Updated the scoped documentation freeze contract."}],
+                        },
+                        {
+                            "id": "T003",
+                            "type": "test",
+                            "status": "completed",
+                            "relevant_files": ["docs/**"],
+                            "evidence": [{"summary": "Static document inspection passed."}],
+                        },
+                        {
+                            "id": "T004",
+                            "type": "review",
+                            "status": "completed",
+                            "evidence": [{"summary": "Reviewer approved completed task evidence."}],
+                        },
+                    ]
+                },
+                runtime_state={"completed_tasks": ["T002", "T003", "T004"]},
+                artifact_report={
+                    "artifact_profile": {"name": "documentation_only"},
+                    "artifact_files": ["docs/**"],
+                    "static_verification": {"status": "skipped"},
+                },
+            )
+
+        payload = report.to_dict()
+        self.assertEqual(payload["status"], "passed")
+        self.assertEqual(payload["coverage_score"], 1.0)
+        self.assertEqual(payload["entries"][0]["coverage_status"], "covered")
+        self.assertEqual(payload["missing_must_requirement_ids"], [])
 
 
 class GeneratedCITests(unittest.TestCase):

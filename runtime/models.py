@@ -9,7 +9,7 @@ from typing import Any, Literal
 TaskStatus = Literal["pending", "ready", "active", "blocked", "completed", "failed", "skipped"]
 TaskType = Literal["architecture", "backend", "frontend", "test", "debug", "review", "documentation", "integration", "release"]
 AgentName = Literal["architect", "backend", "frontend", "test", "debug", "reviewer"]
-WorkerStatus = Literal["completed", "partial", "failed", "blocked"]
+WorkerStatus = Literal["completed", "partial", "failed", "blocked", "skipped"]
 
 
 def utc_now_iso() -> str:
@@ -35,6 +35,7 @@ class TaskNode:
     priority: int = 50
     relevant_files: list[str] = field(default_factory=list)
     commands_to_run: list[str] = field(default_factory=list)
+    boundary_mode: str = "strict"
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "TaskNode":
@@ -54,6 +55,7 @@ class TaskNode:
             priority=int(payload.get("priority", 50)),
             relevant_files=list(payload.get("relevant_files", [])),
             commands_to_run=list(payload.get("commands_to_run", [])),
+            boundary_mode=str(payload.get("boundary_mode", "strict") or "strict"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -74,6 +76,7 @@ class TaskNode:
                 "requires_debug_after_failure": True,
             },
             "priority": self.priority,
+            "boundary_mode": self.boundary_mode,
         }
         if self.branch:
             payload["branch"] = self.branch

@@ -12,6 +12,7 @@ DEFAULT_ONE_LINE_OBJECTIVE = "Build the requested software system from the suppl
 SOURCE_MODES = {"auto", "none", "local", "github_public", "github_private"}
 EXECUTION_MODES = {"dry_run", "real_codex"}
 DELIVERY_MODES = {"report_only", "local", "github_pr"}
+BOUNDARY_MODES = {"auto", "strict", "large_refactor"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +34,7 @@ class AutoDevRunRequest:
     prepare_repository: bool = False
     max_iterations: int = 50
     codex_executable: str = "codex"
-    max_worker_seconds: int = 1800
+    max_worker_seconds: int = 0
     github_collect_ci: bool = True
     github_ci_wait_seconds: float = 120.0
     github_ci_poll_interval_seconds: float = 10.0
@@ -49,6 +50,9 @@ class AutoDevRunRequest:
     generate_static_ci: bool = True
     write_native_ui_tests: bool = False
     auto_merge: bool = False
+    full_roadmap: bool = False
+    max_phases: int = 50
+    boundary_mode: str = "auto"
     constraints: tuple[str, ...] = ()
     acceptance_criteria: tuple[str, ...] = ()
     files: tuple[dict[str, Any], ...] = field(default_factory=tuple)
@@ -92,6 +96,7 @@ class AutoDevRunRequest:
         resume_tasks = _string_tuple(payload.get("resume_tasks", payload.get("resume_task", execution.get("resume_tasks", ()))))
         feedback_files = _string_tuple(payload.get("feedback_files", payload.get("feedback_file", ())))
         constraints = _string_tuple(payload.get("constraints", ()))
+        boundary_mode = str(payload.get("boundary_mode", execution.get("boundary_mode", "auto")) or "auto")
         acceptance = _string_tuple(payload.get("acceptance_criteria", payload.get("acceptance", ())))
         files = tuple(item for item in payload.get("files", ()) if isinstance(item, dict))
 
@@ -111,7 +116,7 @@ class AutoDevRunRequest:
             prepare_repository=_bool(payload.get("prepare_repository", source.get("prepare_repository")), False),
             max_iterations=_int(payload.get("max_iterations", execution.get("max_iterations")), 50),
             codex_executable=str(payload.get("codex_executable", execution.get("codex_executable", "codex")) or "codex"),
-            max_worker_seconds=_int(payload.get("max_worker_seconds", execution.get("max_worker_seconds")), 1800),
+            max_worker_seconds=_int(payload.get("max_worker_seconds", execution.get("max_worker_seconds")), 0),
             github_collect_ci=_bool(payload.get("github_collect_ci", verification.get("github_collect_ci")), True),
             github_ci_wait_seconds=_float(payload.get("github_ci_wait_seconds", verification.get("github_ci_wait_seconds")), 120.0),
             github_ci_poll_interval_seconds=_float(
@@ -133,6 +138,9 @@ class AutoDevRunRequest:
             generate_static_ci=_bool(payload.get("generate_static_ci", delivery.get("generate_static_ci")), True),
             write_native_ui_tests=_bool(payload.get("write_native_ui_tests", verification.get("write_native_ui_tests")), False),
             auto_merge=_bool(payload.get("auto_merge", delivery.get("auto_merge")), False),
+            full_roadmap=_bool(payload.get("full_roadmap", execution.get("full_roadmap")), False),
+            max_phases=_int(payload.get("max_phases", execution.get("max_phases")), 50),
+            boundary_mode=boundary_mode,
             constraints=constraints,
             acceptance_criteria=acceptance,
             files=files,
@@ -143,6 +151,7 @@ class AutoDevRunRequest:
         source_mode = self.source_mode if self.source_mode in SOURCE_MODES else "auto"
         execution_mode = self.execution_mode if self.execution_mode in EXECUTION_MODES else "dry_run"
         delivery_mode = self.delivery_mode if self.delivery_mode in DELIVERY_MODES else "report_only"
+        boundary_mode = self.boundary_mode if self.boundary_mode in BOUNDARY_MODES else "auto"
         if source_mode == "auto":
             source_mode = self.inferred_source_mode()
         if delivery_mode == "report_only" and self.real_github:
@@ -179,6 +188,9 @@ class AutoDevRunRequest:
             generate_static_ci=self.generate_static_ci,
             write_native_ui_tests=self.write_native_ui_tests,
             auto_merge=self.auto_merge,
+            full_roadmap=self.full_roadmap,
+            max_phases=self.max_phases,
+            boundary_mode=boundary_mode,
             constraints=self.constraints,
             acceptance_criteria=self.acceptance_criteria,
             files=self.files,
@@ -222,7 +234,8 @@ class AutoDevRunRequest:
         for path in self.feedback_files:
             if not Path(path).exists():
                 errors.append(f"Feedback file path does not exist: {path}")
-        if self.repository_path and not Path(self.repository_path).exists():
+        repository_path_is_checkout_target = bool(self.repository_url and self.prepare_repository)
+        if self.repository_path and not repository_path_is_checkout_target and not Path(self.repository_path).exists():
             errors.append(f"Repository path does not exist: {self.repository_path}")
         if self.resume_from and not Path(self.resume_from).exists():
             errors.append(f"Resume source does not exist: {self.resume_from}")
@@ -244,6 +257,7 @@ class AutoDevRunRequest:
             "base_branch": self.base_branch,
             "constraints": list(self.constraints),
             "acceptance_criteria": list(self.acceptance_criteria),
+            "boundary_mode": self.boundary_mode,
             "files": [dict(item) for item in self.files],
         }
 
@@ -270,6 +284,10 @@ class AutoDevRunRequest:
             "generate_static_ci": self.generate_static_ci,
             "write_native_ui_tests": self.write_native_ui_tests,
             "auto_merge": self.auto_merge,
+            "full_roadmap": self.full_roadmap,
+            "max_phases": self.max_phases,
+            "boundary_mode": self.boundary_mode,
+            "constraints": list(self.document_run_constraints()),
         }
 
     def to_document_run_kwargs(self) -> dict[str, Any]:
@@ -300,6 +318,7 @@ class AutoDevRunRequest:
             "generate_static_ci": self.generate_static_ci,
             "write_native_ui_tests": self.write_native_ui_tests,
             "auto_merge": self.auto_merge,
+            "constraints": list(self.document_run_constraints()),
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -336,10 +355,18 @@ class AutoDevRunRequest:
             "generate_static_ci": self.generate_static_ci,
             "write_native_ui_tests": self.write_native_ui_tests,
             "auto_merge": self.auto_merge,
+            "full_roadmap": self.full_roadmap,
+            "max_phases": self.max_phases,
+            "boundary_mode": self.boundary_mode,
             "constraints": list(self.constraints),
             "acceptance_criteria": list(self.acceptance_criteria),
             "files": [dict(item) for item in self.files],
         }
+
+    def document_run_constraints(self) -> tuple[str, ...]:
+        if self.boundary_mode in {"strict", "large_refactor"}:
+            return (*self.constraints, f"Scope boundary mode: {self.boundary_mode}")
+        return self.constraints
 
 
 def build_unified_run_report(

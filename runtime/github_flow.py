@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Protocol
 
 from .models import utc_now_iso
+from .subprocess_utils import clean_git_env, run_hidden
 
 
 @dataclass(slots=True)
@@ -105,13 +106,10 @@ class GitHubFlow:
             [self.git_executable, "checkout", "-B", branch],
             [self.git_executable, "add", "-A"],
         ]:
-            completed = self.runner(
-                command,
-                cwd=repository_path,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            kwargs = {"cwd": repository_path, "capture_output": True, "text": True, "check": False}
+            if self.runner is subprocess.run:
+                kwargs["env"] = clean_git_env(repository_path)
+            completed = run_hidden(self.runner, command, **kwargs)
             command_results.append(
                 {
                     "command": " ".join(command),
@@ -175,13 +173,10 @@ class GitHubFlow:
                 summary="GitHub flow failed to create or locate a pull request.",
             )
 
-        rev_parse = self.runner(
-            [self.git_executable, "rev-parse", "HEAD"],
-            cwd=repository_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        kwargs = {"cwd": repository_path, "capture_output": True, "text": True, "check": False}
+        if self.runner is subprocess.run:
+            kwargs["env"] = clean_git_env(repository_path)
+        rev_parse = run_hidden(self.runner, [self.git_executable, "rev-parse", "HEAD"], **kwargs)
         command_results.append(
             {
                 "command": f"{self.git_executable} rev-parse HEAD",
@@ -443,13 +438,10 @@ class GitHubFlow:
         repository_path: str | Path,
         command_results: list[dict],
     ) -> subprocess.CompletedProcess[str]:
-        completed = self.runner(
-            command,
-            cwd=repository_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        kwargs = {"cwd": repository_path, "capture_output": True, "text": True, "check": False}
+        if self.runner is subprocess.run:
+            kwargs["env"] = clean_git_env(repository_path)
+        completed = run_hidden(self.runner, command, **kwargs)
         command_results.append(
             {
                 "command": " ".join(command),

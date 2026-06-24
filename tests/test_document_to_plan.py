@@ -8,8 +8,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from context import ContextBundleBuilder
-from context.requirement_extractor import explicit_paths_from_text
+from context import ContextBundleBuilder, RepositoryIndexer
+from context.requirement_extractor import explicit_paths_from_text, extract_scope_controls
 from intake import ProjectBriefBuilder
 from intake.schema_validation import validate_context_bundle_contract
 from planner import TaskGraphBuilder
@@ -322,6 +322,61 @@ class DocumentToPlanTests(unittest.TestCase):
         html_file = next(file for file in repository_files if file["path"] == "index.html")
         self.assertEqual(html_file["kind"], "source")
 
+    def test_auto_feedback_target_files_seed_debug_task_allowed_files(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "app.py").write_text("def add(a, b):\n    raise NotImplementedError()\n", encoding="utf-8")
+            primary = root / "spec.md"
+            primary.write_text("# Add\n## Requirements\n- Must implement add(a, b) in app.py.\n", encoding="utf-8")
+            feedback = root / "auto_feedback.md"
+            feedback.write_text(
+                "\n".join(
+                    [
+                        "# Auto Feedback",
+                        "",
+                        "## Required Repairs",
+                        "",
+                        "1. Implement missing must requirement: REQ-ADD-001",
+                        "   - Target files: app.py",
+                        "",
+                        "## Acceptance Evidence Required",
+                        "",
+                        "- Requirement REQ-ADD-001 is covered.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Fix add feedback",
+                documents=[primary],
+                attachments=[feedback],
+                repository_path=repo,
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+            payload = bundle.to_dict()
+
+        feedback_requirements = [
+            requirement
+            for requirement in payload["requirement_map"]["requirements"]
+            if requirement["source_role"] == "feedback"
+        ]
+        self.assertTrue(feedback_requirements)
+        self.assertTrue(all("app.py" in requirement["related_files"] for requirement in feedback_requirements))
+        debug_nodes = [node for node in graph["nodes"] if node["type"] == "debug"]
+        self.assertTrue(debug_nodes)
+        self.assertTrue(all("app.py" in node["relevant_files"] for node in debug_nodes))
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertEqual(len(implementation_nodes), 1)
+        self.assertEqual(implementation_nodes[0]["type"], "debug")
+
     def test_document_driven_platformer_spec_does_not_use_generated_fallback(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"
@@ -409,6 +464,415 @@ class DocumentToPlanTests(unittest.TestCase):
             "tests/static_checks.js",
         ]:
             self.assertIn(expected_file, implementation_files)
+
+    def test_scope_lock_constrains_v3_foundation_task_graph(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "alchemy_creative_agent_3_0" / "docs").mkdir(parents=True)
+            (repo / "alchemy_creative_agent_3_0" / "app").mkdir(parents=True)
+            (repo / "alchemy_creative_agent_3_0" / "tests").mkdir(parents=True)
+            (repo / "custom_media_agent_2_0" / "app" / "agents").mkdir(parents=True)
+            (repo / "src_skeleton" / "app").mkdir(parents=True)
+            (repo / "tests").mkdir()
+            (repo / "pyproject.toml").write_text("[project]\nname='media-agent'\n", encoding="utf-8")
+            (repo / "custom_media_agent_2_0" / "app" / "agents" / "runtime.py").write_text("LEGACY = True\n", encoding="utf-8")
+            (repo / "src_skeleton" / "app" / "schemas.py").write_text("LEGACY = True\n", encoding="utf-8")
+            (repo / "tests" / "test_legacy.py").write_text("def test_legacy():\n    assert True\n", encoding="utf-8")
+            prompt = root / "06_CODEX_TASK_PROMPT.md"
+            prompt.write_text(
+                "\n".join(
+                    [
+                        "# V3 Foundation",
+                        "",
+                        "## Requirements",
+                        "- Must build V3 independent runtime under alchemy_creative_agent_3_0/app/.",
+                        "- Must add V3 tests under alchemy_creative_agent_3_0/tests/.",
+                        "- Do not use custom_media_agent_2_0/app/agents/runtime.py.",
+                        "- Do not use src_skeleton/app/schemas.py.",
+                        "",
+                        "## Acceptance Criteria",
+                        "- V3_FOUNDATION_STATUS: COMPLETE.",
+                        "- INDEPENDENCE_STATUS: PASS.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            scope = root / "scope_lock.md"
+            scope.write_text(
+                "\n".join(
+                    [
+                        "# Scope Lock",
+                        "",
+                        "All implementation code and tests must live under:",
+                        "",
+                        "```text",
+                        "alchemy_creative_agent_3_0/app/",
+                        "alchemy_creative_agent_3_0/tests/",
+                        "```",
+                        "",
+                        "## Protected Areas",
+                        "Do not edit any file under these paths:",
+                        "",
+                        "```text",
+                        "src_skeleton/",
+                        "custom_media_agent_2_0/",
+                        "tests/",
+                        "docs/",
+                        "```",
+                        "",
+                        "## Target Files",
+                        "Target files: alchemy_creative_agent_3_0/app/__init__.py, alchemy_creative_agent_3_0/app/creative_core/central_brain.py, alchemy_creative_agent_3_0/tests/test_end_to_end_planning.py, alchemy_creative_agent_3_0/tests/test_no_v2_imports.py",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Implement Alchemy Creative Agent 3.0 Foundation.",
+                documents=[prompt, scope],
+                repository_path=repo,
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+            payload = bundle.to_dict()
+
+        scope_payload = payload["scope_controls"]
+        self.assertEqual(
+            scope_payload["target_files"],
+            [
+                "alchemy_creative_agent_3_0/app/__init__.py",
+                "alchemy_creative_agent_3_0/app/creative_core/central_brain.py",
+                "alchemy_creative_agent_3_0/tests/test_end_to_end_planning.py",
+                "alchemy_creative_agent_3_0/tests/test_no_v2_imports.py",
+            ],
+        )
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertEqual(len(implementation_nodes), 1)
+        self.assertEqual(implementation_nodes[0]["title"], "Implement scoped V3 foundation target files")
+        for path in implementation_nodes[0]["relevant_files"]:
+            self.assertTrue(path.startswith("alchemy_creative_agent_3_0/app/") or path.startswith("alchemy_creative_agent_3_0/tests/"))
+            self.assertNotIn("custom_media_agent_2_0", path)
+            self.assertNotIn("src_skeleton", path)
+        verify_nodes = [node for node in graph["nodes"] if node["type"] == "test"]
+        self.assertEqual(verify_nodes[0]["commands_to_run"], ["python -B -m pytest alchemy_creative_agent_3_0/tests"])
+        self.assertNotIn("tests/test_legacy.py", verify_nodes[0].get("relevant_files", []))
+        for node in graph["nodes"]:
+            for path in node.get("relevant_files", []):
+                self.assertNotIn("custom_media_agent_2_0", path)
+                self.assertNotIn("src_skeleton", path)
+
+    def test_scope_control_parser_reads_directory_blocks_and_target_files(self) -> None:
+        controls = extract_scope_controls(
+            "\n".join(
+                [
+                    "All implementation code and tests must live under:",
+                    "```text",
+                    "alchemy_creative_agent_3_0/app/",
+                    "alchemy_creative_agent_3_0/tests/",
+                    "```",
+                    "Do not edit any file under these paths:",
+                    "",
+                    "```text",
+                    "custom_media_agent_2_0/",
+                    "src_skeleton/",
+                    "```",
+                    "Target files: alchemy_creative_agent_3_0/app/__init__.py, alchemy_creative_agent_3_0/tests/test_no_v2_imports.py",
+                ]
+            )
+        )
+
+        self.assertIn("alchemy_creative_agent_3_0/app/", controls.allowed_prefixes)
+        self.assertIn("alchemy_creative_agent_3_0/tests/", controls.allowed_prefixes)
+        self.assertIn("custom_media_agent_2_0/", controls.protected_prefixes)
+        self.assertIn("src_skeleton/", controls.protected_prefixes)
+        self.assertEqual(
+            controls.target_files,
+            [
+                "alchemy_creative_agent_3_0/app/__init__.py",
+                "alchemy_creative_agent_3_0/tests/test_no_v2_imports.py",
+            ],
+        )
+
+    def test_v3_independence_text_infers_owned_scope_and_protected_legacy_paths(self) -> None:
+        controls = extract_scope_controls(
+            "\n".join(
+                [
+                    "# Alchemy Creative Agent 3.0",
+                    "Build the independent V3 skeleton under:",
+                    "alchemy_creative_agent_3_0/app/",
+                    "V3.0 must be fully independent from V1/V2.",
+                    "Do not import or call any V1/V2 runtime modules.",
+                ]
+            )
+        )
+
+        self.assertIn("alchemy_creative_agent_3_0/", controls.allowed_prefixes)
+        self.assertIn("alchemy_creative_agent_3_0/app/", controls.allowed_prefixes)
+        self.assertIn("custom_media_agent_2_0/", controls.protected_prefixes)
+        self.assertIn("src_skeleton/", controls.protected_prefixes)
+
+    def test_large_refactor_document_builds_single_integration_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "internal" / "service").mkdir(parents=True)
+            (repo / "frontend" / "src").mkdir(parents=True)
+            (repo / "docs").mkdir()
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "backend" / "internal" / "service" / "gateway.go").write_text("package service\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "App.tsx").write_text("export function App() { return null }\n", encoding="utf-8")
+            spec = root / "billing.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Billing Core Development Plan",
+                        "## Requirements",
+                        "- Must remove token relay gateway behavior from backend and frontend.",
+                        "- Must support identity, billing, wallet, metering, and statistics.",
+                        "- Must boot from its own configuration.",
+                        "",
+                        "## Acceptance Criteria",
+                        "- Fresh install works with only its own config.",
+                        "- No token relay route remains registered.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="整体改造为独立运行的 Billing Core 程序",
+                documents=[spec],
+                repository_path=repo,
+                created_at="2026-06-24T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+            payload = bundle.to_dict()
+
+        self.assertEqual(payload["scope_controls"]["boundary_mode"], "large_refactor")
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertEqual(len(implementation_nodes), 1)
+        implementation = implementation_nodes[0]
+        self.assertEqual(implementation["type"], "integration")
+        self.assertEqual(implementation["boundary_mode"], "large_refactor")
+        self.assertIn("backend/**", implementation["relevant_files"])
+        self.assertIn("frontend/**", implementation["relevant_files"])
+
+    def test_large_refactor_constraint_with_underscore_builds_single_integration_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "internal").mkdir(parents=True)
+            (repo / "frontend" / "src").mkdir(parents=True)
+            (repo / "backend" / "internal" / "gateway.go").write_text("package internal\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "router.ts").write_text("export const routes = []\n", encoding="utf-8")
+            spec = root / "phase.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Phase 1",
+                        "## Requirements",
+                        "- Must update module, README, Docker/service name, and frontend title.",
+                        "- Must keep backend and frontend builds available.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Convert the product into a standalone billing core.",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-24T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+            payload = bundle.to_dict()
+
+        self.assertEqual(payload["scope_controls"]["boundary_mode"], "large_refactor")
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertEqual(len(implementation_nodes), 1)
+        implementation = implementation_nodes[0]
+        self.assertEqual(implementation["type"], "integration")
+        self.assertEqual(implementation["boundary_mode"], "large_refactor")
+        self.assertIn("backend/**", implementation["relevant_files"])
+        self.assertIn("frontend/**", implementation["relevant_files"])
+
+    def test_large_refactor_frontend_phase_survives_repository_index_cap(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "internal").mkdir(parents=True)
+            (repo / "frontend" / "src").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            for index in range(25):
+                (repo / "backend" / "internal" / f"service_{index:03d}.go").write_text("package internal\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "router.ts").write_text("export const routes = [];\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "phase.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Phase 7: 前端收口",
+                        "## Requirements",
+                        "- 删除 router 中旧页面。",
+                        "- 删除菜单和可直达页面。",
+                        "- 清理 API service 引用。",
+                        "- 改造 Wallet、Recharge、Usage、Admin Users、Payment Providers 页面。",
+                        "- 普通用户能完成余额查看、兑换、充值订单、API Key、用量查询。",
+                        "- 管理员能完成用户管理、余额调整、订单查询、支付配置、兑换码管理、用量查询。",
+                        "- 前端没有 token 中转站产品文案。",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Convert Billing Core into a standalone CRM billing product.",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-24T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder(repository_indexer=RepositoryIndexer(max_files=5)).build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertGreaterEqual(len(implementation_nodes), 5)
+        titles = [node["title"] for node in implementation_nodes]
+        self.assertIn("Close frontend router, menu, and direct pages", titles)
+        self.assertIn("Clean frontend API service references", titles)
+        self.assertIn("Convert wallet recharge and payment surfaces", titles)
+        self.assertIn("Convert redeem code pages to balance-only flows", titles)
+        self.assertIn("Close usage API key and admin user workflows", titles)
+        self.assertIn("Sweep frontend product copy and i18n", titles)
+
+        for implementation in implementation_nodes:
+            self.assertEqual(implementation["assigned_agent"], "frontend")
+            self.assertEqual(implementation["boundary_mode"], "large_refactor")
+            self.assertTrue(any(path.startswith("frontend/") for path in implementation["relevant_files"]))
+            self.assertNotEqual(implementation["commands_to_run"], ["static artifact inspection"])
+            self.assertIn("npm --prefix frontend test", implementation["commands_to_run"])
+            self.assertNotIn("cd backend && go test ./...", implementation["commands_to_run"])
+
+        api_task = next(node for node in implementation_nodes if node["title"] == "Clean frontend API service references")
+        self.assertIn("frontend/src/api/**", api_task["relevant_files"])
+        verifier = next(node for node in graph["nodes"] if node["type"] == "test")
+        self.assertIn("cd backend && go test ./...", verifier["commands_to_run"])
+        for implementation in implementation_nodes:
+            self.assertIn(implementation["id"], verifier["dependencies"])
+
+    def test_large_refactor_frontend_phase_uses_pnpm_lock_commands(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend").mkdir(parents=True)
+            (repo / "frontend" / "src").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "router.ts").write_text("export const routes = [];\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "phase.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Phase 7: 前端收口",
+                        "## Requirements",
+                        "- 删除 router 中旧页面。",
+                        "- 删除菜单和可直达页面。",
+                        "- 清理 API service 引用。",
+                        "- 改造 Wallet、Recharge、Usage、Admin Users、Payment Providers 页面。",
+                        "- 普通用户能完成余额查看、兑换、充值订单、API Key、用量查询。",
+                        "- 管理员能完成用户管理、余额调整、订单查询、支付配置、兑换码管理、用量查询。",
+                        "- 前端没有 token 中转站产品文案。",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Convert Billing Core into a standalone CRM billing product.",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-24T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertGreaterEqual(len(implementation_nodes), 5)
+        for implementation in implementation_nodes:
+            self.assertEqual(implementation["commands_to_run"][0], "pnpm --dir frontend install --frozen-lockfile")
+            self.assertIn("pnpm --dir frontend test", implementation["commands_to_run"])
+            self.assertNotIn("npm --prefix frontend test", implementation["commands_to_run"])
+
+    def test_docs_only_scope_builds_documentation_task_with_lightweight_verification(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "docs").mkdir(parents=True)
+            (repo / "backend").mkdir()
+            (repo / "backend" / "go.mod").write_text("module example.com/docs\n", encoding="utf-8")
+            (repo / "docs" / "PLAN.md").write_text("# Plan\n", encoding="utf-8")
+            spec = root / "phase.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Phase 0: Documentation Freeze",
+                        "## Requirements",
+                        "- Must confirm the development plan in docs/PLAN.md.",
+                        "",
+                        "## Scope Controls",
+                        "Allowed implementation scope:",
+                        "```text",
+                        "docs/",
+                        "```",
+                        "",
+                        "Protected paths:",
+                        "```text",
+                        "backend/",
+                        "```",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Freeze planning documentation.",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: strict"],
+                created_at="2026-06-24T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        implementation = next(node for node in graph["nodes"] if node["id"] == "T002")
+        verifier = next(node for node in graph["nodes"] if node["type"] == "test")
+        self.assertEqual(implementation["type"], "documentation")
+        self.assertEqual(implementation["relevant_files"], ["docs/**"])
+        self.assertEqual(implementation["commands_to_run"], ["static document inspection"])
+        self.assertEqual(verifier["commands_to_run"], ["static document inspection"])
+        self.assertEqual(verifier["relevant_files"], ["docs/**"])
 
     def test_real_world_chinese_platformer_document_guidance_lines_are_requirements(self) -> None:
         text = "\n".join(

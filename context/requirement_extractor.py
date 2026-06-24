@@ -89,6 +89,15 @@ PROTECTED_TERM_REWRITES = (
 class RequirementExtraction:
     requirements: list[Requirement] = field(default_factory=list)
     document_key_requirements: dict[str, list[str]] = field(default_factory=dict)
+    scope_controls: "ScopeControls" = field(default_factory=lambda: ScopeControls())
+
+
+@dataclass(slots=True)
+class ScopeControls:
+    allowed_prefixes: list[str] = field(default_factory=list)
+    protected_prefixes: list[str] = field(default_factory=list)
+    target_files: list[str] = field(default_factory=list)
+    boundary_mode: str = "strict"
 
 
 class RequirementExtractor:
@@ -104,27 +113,37 @@ class RequirementExtractor:
         acceptance_by_doc: dict[str, list[str]] = {}
         candidates: list[tuple[str, str, str, str]] = []
         document_key_requirements: dict[str, list[str]] = {}
+        scope_controls = ScopeControls()
 
         for document in documents:
             doc_id = str(document["id"])
             role = str(document.get("role", "supplemental"))
             text = self._read_document_text(document)
+            scope_controls = merge_scope_controls(scope_controls, extract_scope_controls(text))
             requirement_lines = extract_requirement_lines(text)
             acceptance_lines = extract_acceptance_lines(text)
+            target_files = extract_target_files(text)
             if not requirement_lines and document.get("summary"):
                 requirement_lines = [str(document["summary"])]
             acceptance_by_doc[doc_id] = acceptance_lines
             document_key_requirements[doc_id] = normalize_acceptance_lines(requirement_lines)
             for line in requirement_lines:
                 priority = infer_priority(line, role)
-                candidates.append((doc_id, role, line, priority))
+                candidates.append((doc_id, role, line, priority, target_files))
+
+        objective_text = str(payload.get("objective", "")).strip()
+        if objective_text:
+            scope_controls = merge_scope_controls(scope_controls, extract_scope_controls(objective_text))
+
+        constraint_text = "\n".join(str(item) for item in payload.get("constraints", []) if str(item))
+        if constraint_text:
+            scope_controls = merge_scope_controls(scope_controls, extract_scope_controls(constraint_text))
 
         if not candidates:
-            objective = str(payload.get("objective", "")).strip()
-            if objective:
+            if objective_text:
                 source = "generated_one_line" if payload.get("generated_from_one_liner") else "project_brief"
                 priority = "should" if payload.get("generated_from_one_liner") else "must"
-                candidates.append((source, "objective", objective, priority))
+                candidates.append((source, "objective", objective_text, priority, []))
 
         explicit_acceptance = [str(item) for item in payload.get("acceptance_criteria", []) if str(item).strip()]
         acceptance_files_by_doc = {
@@ -133,7 +152,7 @@ class RequirementExtractor:
         }
         requirements: list[Requirement] = []
         seen: set[str] = set()
-        for index, (doc_id, role, text, priority) in enumerate(candidates, start=1):
+        for index, (doc_id, role, text, priority, target_files) in enumerate(candidates, start=1):
             clean_text = normalize_requirement_text(text)
             if not clean_text:
                 continue
@@ -150,7 +169,10 @@ class RequirementExtractor:
             related_files = related_files_for_requirement(
                 clean_text,
                 repository_files,
-                preferred_files=acceptance_files_by_doc.get(doc_id, []),
+                preferred_files=dedupe_preserve_order([*acceptance_files_by_doc.get(doc_id, []), *target_files]),
+                allowed_prefixes=scope_controls.allowed_prefixes,
+                protected_prefixes=scope_controls.protected_prefixes,
+                fallback_target_files=scope_controls.target_files,
             )
             requirements.append(
                 Requirement(
@@ -165,7 +187,11 @@ class RequirementExtractor:
                 )
             )
 
-        return RequirementExtraction(requirements=requirements, document_key_requirements=document_key_requirements)
+        return RequirementExtraction(
+            requirements=requirements,
+            document_key_requirements=document_key_requirements,
+            scope_controls=scope_controls,
+        )
 
     def _read_document_text(self, document: dict[str, Any]) -> str:
         path = Path(str(document.get("path", "")))
@@ -217,6 +243,151 @@ def extract_acceptance_lines(text: str) -> list[str]:
         if in_acceptance_section and is_list_like(line):
             selected.append(strip_leading_marker(line))
     return dedupe_preserve_order(selected)
+
+
+def extract_target_files(text: str) -> list[str]:
+    selected: list[str] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        lowered = line.lower()
+        if "target files" in lowered or "target file" in lowered or "目标文件" in line:
+            selected.extend(explicit_paths_from_text(line))
+    return dedupe_preserve_order(selected)
+
+
+def extract_scope_controls(text: str) -> ScopeControls:
+    allowed: list[str] = []
+    protected: list[str] = []
+    target_files: list[str] = []
+    boundary_mode = detect_boundary_mode(text)
+    mode = ""
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        lowered = line.lower()
+        if not line:
+            continue
+        if (
+            "all implementation code and tests must live under" in lowered
+            or ("only" in lowered and "may be changed" in lowered)
+            or ("only" in lowered and "create or modify" in lowered)
+            or "allowed paths" in lowered
+            or "allowed scope" in lowered
+            or "allowed change scope" in lowered
+            or "allowed implementation scope" in lowered
+            or "limited to" in lowered
+            or "must live under" in lowered
+            or (
+                "build" in lowered
+                and " under" in lowered
+                and any(marker in lowered for marker in ("app/", "tests/", "alchemy_creative_agent_3_0"))
+            )
+        ):
+            mode = "allowed"
+        elif (
+            "do not edit any file under" in lowered
+            or "protected areas" in lowered
+            or "protected paths" in lowered
+            or "protected change scope" in lowered
+            or "reference material only" in lowered
+        ):
+            mode = "protected"
+        elif lowered.startswith("target files"):
+            target_files.extend(explicit_paths_from_text(line))
+            mode = "target"
+        elif line.startswith("```"):
+            if mode == "allowed":
+                mode = "allowed_code"
+            elif mode == "protected":
+                mode = "protected_code"
+            elif mode in {"allowed_code", "protected_code"}:
+                mode = ""
+            continue
+
+        paths = scope_paths_from_line(line)
+        if not paths:
+            continue
+        if mode in {"allowed", "allowed_code"}:
+            allowed.extend(paths)
+        elif mode in {"protected", "protected_code"}:
+            protected.extend(paths)
+        elif mode == "target":
+            target_files.extend(explicit_paths_from_text(line))
+
+    # The explicit target file list is also an implicit allowed scope.
+    for target in target_files:
+        parent = str(Path(target).parent).replace("\\", "/")
+        if parent and parent != ".":
+            allowed.append(parent + "/")
+    apply_known_scope_heuristics(text, allowed, protected)
+    return ScopeControls(
+        allowed_prefixes=dedupe_preserve_order(normalize_scope_prefix(path) for path in allowed),
+        protected_prefixes=dedupe_preserve_order(normalize_scope_prefix(path) for path in protected),
+        target_files=dedupe_preserve_order(normalize_repo_path(path) for path in target_files),
+        boundary_mode=boundary_mode,
+    )
+
+
+def detect_boundary_mode(text: str) -> str:
+    lowered = text.lower()
+    normalized = lowered.replace("_", " ").replace("-", " ")
+    markers = (
+        "large refactor",
+        "whole-repository",
+        "whole repository",
+        "product-scale",
+        "standalone service",
+        "standalone system",
+        "整仓",
+        "大型重构",
+        "整体改造",
+        "独立运行",
+        "独立程序",
+        "脱胎换骨",
+    )
+    return "large_refactor" if any(marker in normalized or marker in lowered or marker in text for marker in markers) else "strict"
+
+
+def scope_paths_from_line(line: str) -> list[str]:
+    clean = line.strip().strip("`").strip()
+    if not clean:
+        return []
+    paths: list[str] = []
+    if (clean.endswith("/") or clean.endswith("/**")) and not any(char.isspace() for char in clean):
+        paths.append(clean)
+    paths.extend(explicit_paths_from_text(clean))
+    return dedupe_preserve_order(paths)
+
+
+def merge_scope_controls(left: ScopeControls, right: ScopeControls) -> ScopeControls:
+    return ScopeControls(
+        allowed_prefixes=dedupe_preserve_order([*left.allowed_prefixes, *right.allowed_prefixes]),
+        protected_prefixes=dedupe_preserve_order([*left.protected_prefixes, *right.protected_prefixes]),
+        target_files=dedupe_preserve_order([*left.target_files, *right.target_files]),
+        boundary_mode="large_refactor" if "large_refactor" in {left.boundary_mode, right.boundary_mode} else "strict",
+    )
+
+
+def apply_known_scope_heuristics(text: str, allowed: list[str], protected: list[str]) -> None:
+    lowered = text.lower()
+    if "alchemy_creative_agent_3_0" not in lowered:
+        return
+    has_independence_rule = any(marker in lowered for marker in ("v1/v2", "v1 or v2", "v1/v2 runtime", "independent"))
+    if not has_independence_rule:
+        return
+    allowed.append("alchemy_creative_agent_3_0/")
+    if "alchemy_creative_agent_3_0/app" in lowered:
+        allowed.append("alchemy_creative_agent_3_0/app/")
+    if "alchemy_creative_agent_3_0/tests" in lowered:
+        allowed.append("alchemy_creative_agent_3_0/tests/")
+    protected.extend(
+        [
+            "custom_media_agent_2_0/",
+            "custom_media_agent_2_0_docs/",
+            "src_skeleton/",
+            "docs/prompt-transform-conjure/",
+            "docs/alchemy_lab/",
+        ]
+    )
 
 
 def normalized_heading(line: str) -> str:
@@ -292,11 +463,22 @@ def related_files_for_requirement(
     repository_files: list[RepositoryFile],
     *,
     preferred_files: list[str] | None = None,
+    allowed_prefixes: list[str] | None = None,
+    protected_prefixes: list[str] | None = None,
+    fallback_target_files: list[str] | None = None,
 ) -> list[str]:
     explicit = explicit_paths_from_text(text)
     preferred = [path for path in list(preferred_files or []) if path not in explicit]
     if preferred and not explicit:
-        return dedupe_preserve_order(preferred)
+        filtered_preferred = filter_scope_paths(
+            dedupe_preserve_order(preferred),
+            allowed_prefixes=allowed_prefixes or [],
+            protected_prefixes=protected_prefixes or [],
+        )
+        if filtered_preferred:
+            return filtered_preferred
+        if fallback_target_files:
+            return list(fallback_target_files)
     paths_by_name = {Path(file.path).name.lower(): file.path for file in repository_files}
     paths_by_stem = {Path(file.path).stem.lower(): file.path for file in repository_files if Path(file.path).stem}
     lowered = text.lower()
@@ -307,14 +489,63 @@ def related_files_for_requirement(
     for stem, path in paths_by_stem.items():
         if stem and len(stem) >= 4 and stem in lowered:
             related.append(path)
-    return dedupe_preserve_order(related)
+    if preferred and not explicit and not any(path for path in related if path not in preferred):
+        related = list(preferred)
+    filtered = filter_scope_paths(
+        dedupe_preserve_order(related),
+        allowed_prefixes=allowed_prefixes or [],
+        protected_prefixes=protected_prefixes or [],
+    )
+    if not filtered and fallback_target_files:
+        return list(fallback_target_files)
+    return filtered
 
 
 def explicit_paths_from_text(text: str) -> list[str]:
     return dedupe_preserve_order([match.group("path") for match in PATH_PATTERN.finditer(text)])
 
 
-def dedupe_preserve_order(values: list[str]) -> list[str]:
+def filter_scope_paths(
+    paths: list[str],
+    *,
+    allowed_prefixes: list[str],
+    protected_prefixes: list[str],
+) -> list[str]:
+    result: list[str] = []
+    for path in paths:
+        normalized = normalize_repo_path(path)
+        if protected_prefixes and any(path_matches_prefix(normalized, prefix) for prefix in protected_prefixes):
+            continue
+        if allowed_prefixes and not any(path_matches_prefix(normalized, prefix) for prefix in allowed_prefixes):
+            continue
+        result.append(normalized)
+    return dedupe_preserve_order(result)
+
+
+def path_matches_prefix(path: str, prefix: str) -> bool:
+    clean_prefix = normalize_scope_prefix(prefix)
+    if clean_prefix.endswith("/"):
+        return path.startswith(clean_prefix)
+    return path == clean_prefix or path.startswith(clean_prefix + "/")
+
+
+def normalize_scope_prefix(path: str) -> str:
+    clean = normalize_repo_path(path)
+    if clean.endswith("/**"):
+        clean = clean[:-3]
+    if clean and not Path(clean).suffix and not clean.endswith("/"):
+        clean += "/"
+    return clean
+
+
+def normalize_repo_path(path: str) -> str:
+    clean = str(path).replace("\\", "/").strip().strip("`").strip()
+    if clean.endswith("."):
+        clean = clean[:-1]
+    return clean.strip("/")
+
+
+def dedupe_preserve_order(values) -> list[str]:
     result: list[str] = []
     seen: set[str] = set()
     for value in values:

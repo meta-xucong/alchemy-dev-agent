@@ -82,15 +82,21 @@ class JobStore:
         self.append_event(job, "queued", "api", "Run queued.")
         return job
 
+    def ensure_created(self, project_id: str, run_id: str) -> RunJob:
+        try:
+            return self.load(run_id)
+        except FileNotFoundError:
+            return self.create(project_id, run_id)
+
     def load(self, run_id: str) -> RunJob:
         path = self.job_path(run_id)
         last_error: json.JSONDecodeError | FileNotFoundError | PermissionError | None = None
-        for _ in range(10):
+        for _ in range(50):
             try:
                 return RunJob.from_dict(json.loads(path.read_text(encoding="utf-8")))
             except (FileNotFoundError, json.JSONDecodeError, PermissionError) as exc:
                 last_error = exc
-                time.sleep(0.01)
+                time.sleep(0.02)
         if last_error:
             raise last_error
         raise FileNotFoundError(path)
@@ -149,9 +155,12 @@ class JobStore:
     def set_result(self, run_id: str, result_path: Path, status: str) -> RunJob:
         job = self.load(run_id)
         job.result_path = str(result_path)
-        job.status = status
+        if status == "paused" and not job.controls.get("pause_requested") and job.status in {"paused", "resumed"}:
+            job.status = "resumed"
+        else:
+            job.status = status
         self.save(job)
-        self.append_event(job, status, "runtime", f"Run finished with status {status}.")
+        self.append_event(job, job.status, "runtime", f"Run finished with status {job.status}.")
         return job
 
     def append_event(

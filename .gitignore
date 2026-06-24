@@ -5,6 +5,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .alchemy/
+.test-debug/
 .test-tmp/
 .codex-longrun/logs/
 .codex-longrun/snapshots/

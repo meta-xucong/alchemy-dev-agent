@@ -137,7 +137,7 @@ def artifact_readiness_issues(artifact_report: dict[str, Any]) -> list[str]:
     browser = artifact_report.get("browser_verification", {})
     profile = artifact_report.get("artifact_profile", {})
     profile_name = str(profile.get("name", "")) if isinstance(profile, dict) else ""
-    if isinstance(static, dict) and static.get("status") == "failed":
+    if profile_name in {"canvas_game", "static_web_app"} and isinstance(static, dict) and static.get("status") == "failed":
         issues.append("Static artifact verification failed.")
     if not isinstance(browser, dict) or not browser:
         return issues

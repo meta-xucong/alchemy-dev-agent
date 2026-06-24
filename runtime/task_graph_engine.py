@@ -75,7 +75,7 @@ class TaskGraphEngine:
 
     def get_ready_tasks(self, graph: TaskGraph) -> list[TaskNode]:
         ready: list[TaskNode] = []
-        completed_ids = {node.id for node in graph.nodes if node.status == "completed"}
+        completed_ids = {node.id for node in graph.nodes if node.status in {"completed", "skipped"}}
         for node in graph.nodes:
             if node.status not in {"pending", "ready"}:
                 continue
@@ -98,6 +98,12 @@ class TaskGraphEngine:
     def mark_completed(self, graph: TaskGraph, task_id: str, evidence: dict) -> TaskNode:
         node = self.get_node(graph, task_id)
         node.status = "completed"
+        node.evidence.append(evidence)
+        return node
+
+    def mark_skipped(self, graph: TaskGraph, task_id: str, evidence: dict) -> TaskNode:
+        node = self.get_node(graph, task_id)
+        node.status = "skipped"
         node.evidence.append(evidence)
         return node
 

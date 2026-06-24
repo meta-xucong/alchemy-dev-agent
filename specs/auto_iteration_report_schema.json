@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alchemy-dev-agent.local/specs/auto_iteration_report_schema.json",
+  "title": "Alchemy Dev Agent Auto Iteration Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "source_run_id",
+    "status",
+    "central_review_decision",
+    "reason",
+    "guardrails",
+    "next_actions",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repair_run_id": {
+      "type": ["string", "null"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["started", "skipped", "blocked", "handoff"]
+    },
+    "central_review_decision": {
+      "type": "string",
+      "enum": ["continue", "handoff", "iterate", "blocked", "wait_for_input"]
+    },
+    "repair_plan_path": {
+      "type": ["string", "null"]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "guardrails": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

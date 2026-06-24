@@ -154,7 +154,8 @@ def _step_testing(runtime_state: dict[str, Any], artifact_report: dict[str, Any]
     scenario_probe = browser.get("scenario_probe", {}) if isinstance(browser, dict) else {}
     scenario_status = scenario_probe.get("status", "") if isinstance(scenario_probe, dict) else ""
     ci_status = delivery_report.get("github", {}).get("ci_status", runtime_state.get("github", {}).get("ci_status", ""))
-    artifact_ok = static_status in {"passed", "completed", "skipped", ""}
+    static_web_profile = profile_name in {"canvas_game", "static_web_app"}
+    artifact_ok = (not static_web_profile) or static_status in {"passed", "completed", "skipped", ""}
     browser_ok = browser_status in {"completed", "passed", "skipped", ""}
     gameplay_ok = profile_name != "canvas_game" or gameplay_status == "completed"
     semantic_ok = semantic_status not in {"failed"}
@@ -174,7 +175,7 @@ def _step_testing(runtime_state: dict[str, Any], artifact_report: dict[str, Any]
     gaps: list[str] = []
     if not evaluation.get("test_pass_rate", 0):
         gaps.append("Evaluator test health is zero or missing.")
-    if static_status == "failed":
+    if static_web_profile and static_status == "failed":
         gaps.append("Static artifact verification failed.")
     if browser_status == "failed":
         gaps.append("Browser artifact verification failed.")

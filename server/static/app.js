@@ -6,22 +6,61 @@ const state = {
   events: [],
   deliveryTab: "overview",
   language: localStorage.getItem("alchemyConsoleLanguage") || "en",
+  advancedVisible: localStorage.getItem("alchemyAdvancedVisible") === "true",
   apiStatus: "checking",
   delivery: null,
   evidenceIndex: null,
   evidencePackage: null,
   evidenceReadiness: null,
   evidenceToolResult: null,
+  environmentReady: false,
+  environmentReport: null,
+  environmentDefaults: null,
+  environmentChecking: false,
+  runStatusSnapshot: null,
+  sourceType: "",
+  sourceLocked: false,
+  projectSourceType: "",
+  uploadedDocumentPaths: [],
+  projects: [],
 };
 
 const el = (id) => document.getElementById(id);
 
+const SOURCE_TYPES = ["idea", "documents", "github"];
+
 const I18N = {
   en: {
-    "app.subtitle": "Document-driven autonomous development console",
-    "api.checking": "Checking API",
-    "api.online": "API Online",
-    "api.offline": "API Offline",
+    "app.subtitle": "One-click software generation for people who do not write code",
+    "advanced.show": "Advanced details",
+    "advanced.hide": "Hide details",
+    "advanced.config": "Advanced configuration",
+    "advanced.run_controls": "Advanced run controls",
+    "api.checking": "Checking Service",
+    "api.online": "Service Ready",
+    "api.offline": "Service Offline",
+    "config.title": "1. Prepare This Computer",
+    "config.simple_help": "Check once before development. Alchemy will use the recommended local setup unless you open advanced configuration.",
+    "config.not_checked": "Not checked",
+    "config.ready": "Ready",
+    "config.blocked": "Blocked",
+    "config.checking": "Checking...",
+    "config.models": "Model Access",
+    "config.model_help": "Recommended mode uses your logged-in Codex CLI. No API key is needed.",
+    "config.recommended": "Recommended",
+    "config.advanced": "Advanced",
+    "config.model_mode": "Model mode",
+    "config.provider_codex": "Recommended: Codex CLI login",
+    "config.provider_openai": "Advanced: OpenAI API key",
+    "config.provider_anthropic": "Advanced: Anthropic API key",
+    "config.provider_custom": "Advanced: Custom endpoint",
+    "config.advanced_model": "Advanced model settings",
+    "config.model_provider": "Provider",
+    "config.orchestrator_model": "Orchestrator model",
+    "config.expansion_model": "Document expansion model",
+    "config.reviewer_model": "Reviewer model",
+    "config.api_key_env": "API key environment variable",
+    "config.base_url": "Base URL",
     "controls.title": "Create Project",
     "controls.objective": "Objective",
     "controls.documents": "Development documents",
@@ -43,6 +82,34 @@ const I18N = {
     "controls.static_ci": "Generate static CI",
     "controls.native_ui_tests": "Write native UI tests",
     "controls.auto_merge": "Auto merge after checks",
+    "workspace.title": "0. Project Workspace",
+    "workspace.simple_help": "Start fresh or reopen a previous result.",
+    "workspace.new_ready": "New project",
+    "workspace.active": "Current project",
+    "workspace.no_active": "No project selected",
+    "workspace.no_active_detail": "Choose an input source below to start a new project.",
+    "workspace.history": "History",
+    "workspace.no_history": "No previous projects yet.",
+    "workspace.latest_run": "Latest run",
+    "workspace.local_folder": "Local folder",
+    "workspace.restored": "Project restored from history.",
+    "button.new_project": "New Project",
+    "button.refresh_history": "Refresh History",
+    "button.delete_project": "Delete",
+    "source.title": "2. Choose What To Build From",
+    "source.simple_help": "Pick exactly one input method. Alchemy will turn it into a development plan and start building.",
+    "source.locked": "Locked",
+    "source.unlocked": "Ready",
+    "source.selected": "Source locked",
+    "source.idea.title": "Idea prompt",
+    "source.idea.subtitle": "Expand one paragraph into a full development document.",
+    "source.idea.placeholder": "Describe what you want to build.",
+    "source.documents.title": "Local documents",
+    "source.documents.subtitle": "Upload one or more development documents from this computer.",
+    "source.documents.objective_placeholder": "Optional delivery goal",
+    "source.github.title": "GitHub repository",
+    "source.github.subtitle": "Use a GitHub repository URL after GitHub login is verified.",
+    "source.github.objective_placeholder": "Optional delivery goal",
     "source.auto": "Auto",
     "source.none": "No repository",
     "source.local": "Local repository",
@@ -52,37 +119,116 @@ const I18N = {
     "button.upload": "Upload",
     "button.feedback_reopen": "Feedback Reopen",
     "button.plan": "Plan",
-    "button.check_env": "Check Env",
+    "button.check_env": "Check And Prepare",
     "button.preflight": "Preflight",
     "button.unified_run": "Unified Run",
     "button.run": "Run",
     "button.pause": "Pause",
     "button.resume": "Resume",
     "button.stop": "Stop",
+    "button.stop_development": "Stop Development",
     "button.index": "Index",
     "button.package": "Package",
     "button.readiness": "Readiness",
     "button.choose_files": "Choose files",
+    "button.change_source": "Choose Again",
+    "button.start_development": "Start Auto Development",
     "file.no_file": "No file selected",
     "file.selected": "files selected",
+    "file.uploaded": "files loaded",
+    "env.git": "Git",
+    "env.gh": "GitHub CLI",
+    "env.gh_auth": "GitHub login",
+    "env.codex": "Codex CLI",
+    "env.model_access": "Model access",
+    "env.browser_automation": "Browser automation",
+    "model.summary_codex": "Uses the Codex CLI account already logged in on this computer. This is the recommended setup.",
+    "model.summary_api": "Uses an API key from an environment variable. Choose this only if you intentionally want an external model API.",
+    "model.codex_path": "Codex CLI",
+    "model.github_path": "GitHub CLI",
+    "model.key_configured": "API key detected",
+    "model.key_missing": "API key not detected",
+    "model.defaults_loaded": "Local defaults loaded",
+    "message.environment_required": "Check and pass configuration before starting development.",
+    "message.select_source": "Select exactly one development source.",
+    "message.select_files": "Choose at least one local development document.",
+    "message.github_required": "Enter a GitHub repository URL.",
+    "message.objective_required": "Enter an objective or idea prompt.",
+    "message.source_reset": "Source selection reset.",
+    "message.new_project_ready": "New project is ready. Choose a source below.",
+    "message.history_loaded": "Project history loaded.",
+    "message.delete_project_confirm": "Delete this project and all Alchemy local files? This cannot be undone.",
+    "message.project_deleted": "Project deleted.",
+    "message.environment_ready": "Environment is ready. Development sources are unlocked.",
+    "message.environment_blocked": "Environment is blocked. Resolve configuration blockers first.",
     "project.title": "Project",
     "project.project_id": "Project ID",
     "project.status": "Status",
     "project.run_id": "Run ID",
     "project.run_status": "Run Status",
+    "progress.title": "3. Development Progress",
+    "progress.waiting": "Waiting to start",
+    "progress.choose_source": "Choose a source and start development.",
+    "progress.delivery_loaded": "Ready to review. The generated result is available below.",
+    "progress.last_activity": "Last activity",
+    "progress.elapsed": "Elapsed",
+    "progress.tasks": "Tasks",
+    "progress.roadmap": "Roadmap",
+    "progress.stalled": "Still running, but no recent activity was detected.",
+    "central.title": "Central review",
+    "central.waiting": "Waiting for a run.",
+    "central.next_actions": "Next actions",
+    "central.missing_steps": "Missing loop steps",
+    "central.completed_steps": "Completed loop steps",
+    "central.decision.continue": "Keep building",
+    "central.decision.handoff": "Ready to inspect",
+    "central.decision.iterate": "Needs another iteration",
+    "central.decision.blocked": "Needs help",
+    "central.decision.wait_for_input": "Waiting for input",
+    "auto_iteration.action": "Continue optimizing",
+    "auto_iteration.starting": "Starting another optimization pass...",
+    "auto_iteration.started": "Started another optimization pass.",
+    "auto_iteration.unavailable": "Automatic optimization is not available for this run.",
+    "auto_iteration.plan": "Optimization plan",
+    "phase.configure": "Configure",
+    "phase.choose_source": "Choose source",
+    "phase.planning": "Planning",
+    "phase.developing": "Developing",
+    "phase.testing": "Testing",
+    "phase.reviewing": "Reviewing",
+    "phase.ready": "Ready to review",
+    "phase.blocked": "Needs attention",
     "panel.intake": "Intake",
     "panel.task_graph": "Task Graph",
     "panel.events": "Events",
-    "delivery.title": "Delivery Command",
-    "delivery.no_delivery": "No delivery",
+    "delivery.title": "4. Review The Result",
+    "delivery.simple_help": "When the run is done, open the result from here. Technical evidence is available in advanced details.",
+    "delivery.no_delivery": "Waiting for result",
     "delivery.ready_for_review": "Ready for review",
     "delivery.needs_iteration": "Needs iteration",
-    "delivery.final_gate": "Final gate",
+    "delivery.final_gate": "Review score",
+    "delivery.actions": "Review actions",
+    "delivery.local_only": "Local delivery. No pull request was created.",
+    "delivery.folder_opening": "Opening the result folder...",
+    "delivery.folder_opened": "Result folder opened.",
+    "delivery.folder_failed": "Could not open the folder automatically. Path or error:",
+    "delivery.result_opened": "Opening result in a browser tab. If nothing appears, use the Result Files tab.",
+    "delivery.action_unavailable": "This action is not available for the current run.",
     "delivery.evidence_index": "Evidence index",
     "delivery.evidence_package": "Evidence package",
     "delivery.evidence_readiness": "Evidence readiness",
-    "tab.overview": "Overview",
-    "tab.artifacts": "Artifacts",
+    "score.title": "Why this score?",
+    "score.excellent": "The delivery evidence is close to complete.",
+    "score.pass_with_gaps": "This passed the delivery gate, but some verification evidence is still incomplete.",
+    "score.needs_work": "This score needs another iteration before handoff.",
+    "score.reason_requirements": "Some must-have requirements are missing or only partially covered.",
+    "score.reason_browser": "Browser, scenario, or gameplay verification is missing or incomplete.",
+    "score.reason_cycle": "The full development cycle has partial or missing steps.",
+    "score.reason_github": "This was a local/dry-run delivery, so real PR, CI, or merge proof is not available.",
+    "score.reason_blockers": "The run still reports blockers or required changes.",
+    "score.improve": "To raise the score, rerun with browser verification and real GitHub/CI evidence when that delivery path is needed.",
+    "tab.overview": "Result",
+    "tab.artifacts": "Result Files",
     "tab.evidence_gate": "Evidence Gate",
     "tab.raw_json": "Raw JSON",
     "gate.title": "Evidence Gate",
@@ -145,6 +291,7 @@ const I18N = {
     "common.no_repair_comparison": "No repair comparison",
     "common.no_repair_suggestions": "No repair suggestions",
     "common.open_preview": "Open preview",
+    "artifact.hidden_sources": "technical files are hidden in simple mode. Turn on advanced details to inspect source files.",
     "common.no_files": "no files",
     "status.passed": "passed",
     "status.ready": "ready",
@@ -167,10 +314,36 @@ const I18N = {
     "check.benchmark_regression_no_blockers": "Benchmark Regression No Blockers",
   },
   zh: {
-    "app.subtitle": "文档驱动的自动化软件开发控制台",
-    "api.checking": "正在检查 API",
-    "api.online": "API 在线",
-    "api.offline": "API 离线",
+    "app.subtitle": "给不会写代码的人用的一键生成软件工具",
+    "advanced.show": "高级详情",
+    "advanced.hide": "收起详情",
+    "advanced.config": "高级配置",
+    "advanced.run_controls": "高级运行控制",
+    "api.checking": "正在检查服务",
+    "api.online": "服务可用",
+    "api.offline": "服务离线",
+    "config.title": "1. 准备这台电脑",
+    "config.simple_help": "开发前检查一次即可。默认使用推荐的本机配置，普通用户不需要改高级配置。",
+    "config.not_checked": "未检查",
+    "config.ready": "已就绪",
+    "config.blocked": "未就绪",
+    "config.checking": "检查中...",
+    "config.models": "大模型接入",
+    "config.model_help": "推荐模式会使用本机已登录的 Codex CLI，不需要填写 API Key。",
+    "config.recommended": "推荐",
+    "config.advanced": "高级",
+    "config.model_mode": "模型模式",
+    "config.provider_codex": "推荐：使用 Codex CLI 登录",
+    "config.provider_openai": "高级：OpenAI API Key",
+    "config.provider_anthropic": "高级：Anthropic API Key",
+    "config.provider_custom": "高级：自定义接口",
+    "config.advanced_model": "高级模型设置",
+    "config.model_provider": "供应商",
+    "config.orchestrator_model": "中枢模型",
+    "config.expansion_model": "文档扩展模型",
+    "config.reviewer_model": "评审模型",
+    "config.api_key_env": "API Key 环境变量",
+    "config.base_url": "Base URL",
     "controls.title": "创建项目",
     "controls.objective": "开发目标",
     "controls.documents": "开发文档",
@@ -192,6 +365,34 @@ const I18N = {
     "controls.static_ci": "生成静态 CI",
     "controls.native_ui_tests": "写入原生 UI 测试",
     "controls.auto_merge": "检查通过后自动合并",
+    "workspace.title": "0. 项目工作台",
+    "workspace.simple_help": "从这里新建项目，或打开之前生成过的项目。",
+    "workspace.new_ready": "新项目",
+    "workspace.active": "当前项目",
+    "workspace.no_active": "还没有选择项目",
+    "workspace.no_active_detail": "在下方选择一种输入方式，即可开始新项目。",
+    "workspace.history": "历史项目",
+    "workspace.no_history": "还没有历史项目。",
+    "workspace.latest_run": "最近运行",
+    "workspace.local_folder": "本地文件夹",
+    "workspace.restored": "已从历史项目恢复。",
+    "button.new_project": "新建项目",
+    "button.refresh_history": "刷新历史",
+    "button.delete_project": "删除",
+    "source.title": "2. 选择你要怎么开始",
+    "source.simple_help": "三种方式只能选一种。Alchemy 会自动把输入整理成开发计划并开始执行。",
+    "source.locked": "已锁定",
+    "source.unlocked": "可选择",
+    "source.selected": "来源已锁定",
+    "source.idea.title": "一句话目标",
+    "source.idea.subtitle": "由 LLM 扩充分析成完整开发文档，再进入开发流程。",
+    "source.idea.placeholder": "描述你想构建的程序。",
+    "source.documents.title": "本地开发文档",
+    "source.documents.subtitle": "从本机选择并上传一份或多份开发文档。",
+    "source.documents.objective_placeholder": "可选交付目标",
+    "source.github.title": "GitHub 仓库",
+    "source.github.subtitle": "验证 GitHub 登录后，直接使用仓库 URL。",
+    "source.github.objective_placeholder": "可选交付目标",
     "source.auto": "自动",
     "source.none": "无仓库",
     "source.local": "本地仓库",
@@ -201,37 +402,116 @@ const I18N = {
     "button.upload": "上传",
     "button.feedback_reopen": "反馈重开",
     "button.plan": "生成计划",
-    "button.check_env": "检查环境",
+    "button.check_env": "检查并准备",
     "button.preflight": "预检",
     "button.unified_run": "统一运行",
     "button.run": "运行",
     "button.pause": "暂停",
     "button.resume": "恢复",
     "button.stop": "停止",
+    "button.stop_development": "停止开发",
     "button.index": "索引",
     "button.package": "打包",
     "button.readiness": "就绪评估",
     "button.choose_files": "选择文件",
+    "button.change_source": "重新选择",
+    "button.start_development": "开始自动开发",
     "file.no_file": "未选择文件",
     "file.selected": "个文件已选择",
+    "file.uploaded": "个文件已加载",
+    "env.git": "Git",
+    "env.gh": "GitHub CLI",
+    "env.gh_auth": "GitHub 登录",
+    "env.codex": "Codex CLI",
+    "env.model_access": "大模型接入",
+    "env.browser_automation": "浏览器自动验收",
+    "model.summary_codex": "使用这台电脑上已经登录的 Codex CLI，这是推荐配置。",
+    "model.summary_api": "使用环境变量里的 API Key。只有你明确要接外部模型 API 时才需要选它。",
+    "model.codex_path": "Codex CLI",
+    "model.github_path": "GitHub CLI",
+    "model.key_configured": "已检测到 API Key",
+    "model.key_missing": "未检测到 API Key",
+    "model.defaults_loaded": "已加载本机默认配置",
+    "message.environment_required": "请先通过配置检查，再开始开发。",
+    "message.select_source": "请选择且只能选择一种开发来源。",
+    "message.select_files": "请至少选择一份本地开发文档。",
+    "message.github_required": "请输入 GitHub 仓库 URL。",
+    "message.objective_required": "请输入目标或一句话想法。",
+    "message.source_reset": "已重置开发来源选择。",
+    "message.new_project_ready": "已准备新项目，请在下方选择开发来源。",
+    "message.history_loaded": "历史项目已加载。",
+    "message.delete_project_confirm": "确定删除这个项目及其本地生成文件吗？此操作不可撤销。",
+    "message.project_deleted": "项目已删除。",
+    "message.environment_ready": "环境已就绪，开发来源已解锁。",
+    "message.environment_blocked": "环境未就绪，请先处理配置阻塞项。",
     "project.title": "项目",
     "project.project_id": "项目 ID",
     "project.status": "项目状态",
     "project.run_id": "运行 ID",
     "project.run_status": "运行状态",
+    "progress.title": "3. 开发进度",
+    "progress.waiting": "等待开始",
+    "progress.choose_source": "选择来源后开始开发。",
+    "progress.delivery_loaded": "可以验收，生成结果已在下方显示。",
+    "progress.last_activity": "最近活动",
+    "progress.elapsed": "已运行",
+    "progress.tasks": "任务",
+    "progress.roadmap": "路线图",
+    "progress.stalled": "仍在运行，但暂时没有检测到新的活动。",
+    "central.title": "中枢复盘",
+    "central.waiting": "等待开始运行。",
+    "central.next_actions": "下一步",
+    "central.missing_steps": "缺失环节",
+    "central.completed_steps": "已完成环节",
+    "central.decision.continue": "继续开发",
+    "central.decision.handoff": "可以验收",
+    "central.decision.iterate": "需要再迭代",
+    "central.decision.blocked": "需要处理",
+    "central.decision.wait_for_input": "等待输入",
+    "auto_iteration.action": "继续优化",
+    "auto_iteration.starting": "正在开始下一轮优化...",
+    "auto_iteration.started": "已开始下一轮优化。",
+    "auto_iteration.unavailable": "当前运行暂时不能自动优化。",
+    "auto_iteration.plan": "优化计划",
+    "phase.configure": "配置",
+    "phase.choose_source": "选择来源",
+    "phase.planning": "规划中",
+    "phase.developing": "开发中",
+    "phase.testing": "测试中",
+    "phase.reviewing": "待复核",
+    "phase.ready": "可以验收",
+    "phase.blocked": "需要处理",
     "panel.intake": "输入解析",
     "panel.task_graph": "任务图",
     "panel.events": "事件",
-    "delivery.title": "交付控制台",
-    "delivery.no_delivery": "暂无交付",
+    "delivery.title": "4. 验收结果",
+    "delivery.simple_help": "开发完成后，从这里打开结果。技术证据和工程细节收在高级详情里。",
+    "delivery.no_delivery": "等待结果",
     "delivery.ready_for_review": "可验收",
     "delivery.needs_iteration": "需迭代",
-    "delivery.final_gate": "最终门禁",
+    "delivery.final_gate": "验收分数",
+    "delivery.actions": "验收入口",
+    "delivery.local_only": "本地交付：本次没有创建拉取请求。",
+    "delivery.folder_opening": "正在打开结果文件夹...",
+    "delivery.folder_opened": "结果文件夹已打开。",
+    "delivery.folder_failed": "无法自动打开文件夹。路径或错误：",
+    "delivery.result_opened": "正在浏览器中打开作品。如果没有弹出，请到“结果文件”页打开。",
+    "delivery.action_unavailable": "当前运行不支持这个操作。",
     "delivery.evidence_index": "证据索引",
     "delivery.evidence_package": "证据包",
     "delivery.evidence_readiness": "证据就绪",
-    "tab.overview": "总览",
-    "tab.artifacts": "产物",
+    "score.title": "为什么是这个分数？",
+    "score.excellent": "交付证据已经接近完整。",
+    "score.pass_with_gaps": "已通过交付门禁，但还有部分验收证据不完整。",
+    "score.needs_work": "这个分数还需要继续迭代后再交付。",
+    "score.reason_requirements": "还有强制需求缺失或只被部分覆盖。",
+    "score.reason_browser": "浏览器、场景或玩法验证缺失/未完成。",
+    "score.reason_cycle": "完整开发闭环里还有部分步骤未完成。",
+    "score.reason_github": "这是本地/模拟交付，因此没有真实 PR、CI 或合并证据。",
+    "score.reason_blockers": "运行结果仍报告阻塞项或必须修改项。",
+    "score.improve": "想提高分数，可以开启浏览器验收；需要 GitHub 交付时，再走真实 PR/CI/合并流程。",
+    "tab.overview": "结果",
+    "tab.artifacts": "结果文件",
     "tab.evidence_gate": "证据门禁",
     "tab.raw_json": "原始 JSON",
     "gate.title": "证据门禁",
@@ -294,6 +574,7 @@ const I18N = {
     "common.no_repair_comparison": "无修复对比",
     "common.no_repair_suggestions": "无修复建议",
     "common.open_preview": "打开预览",
+    "artifact.hidden_sources": "个技术文件已在简洁模式隐藏。打开高级详情可查看源码文件。",
     "common.no_files": "无文件",
     "status.passed": "通过",
     "status.ready": "就绪",
@@ -337,7 +618,9 @@ async function api(path, options = {}) {
 }
 
 function lines(id) {
-  return el(id).value
+  const node = el(id);
+  if (!node) return [];
+  return node.value
     .split(/\r?\n/)
     .map((value) => value.trim())
     .filter(Boolean);
@@ -358,6 +641,28 @@ function statusText(value) {
 
 function translate(key) {
   return escapeHtml(t(key));
+}
+
+function applyAdvancedVisibility() {
+  if (!state.advancedVisible && ["readiness", "raw"].includes(state.deliveryTab)) {
+    setDeliveryTab("overview");
+  }
+  document.body.classList.toggle("showAdvanced", state.advancedVisible);
+  const toggle = el("advancedToggle");
+  if (toggle) {
+    toggle.textContent = state.advancedVisible ? t("advanced.hide") : t("advanced.show");
+    toggle.setAttribute("aria-pressed", state.advancedVisible ? "true" : "false");
+  }
+  if (state.delivery) {
+    renderDeliveryActions(deliveryActionsFor(state.delivery));
+  }
+  renderProjectWorkspace();
+}
+
+function toggleAdvancedVisibility() {
+  state.advancedVisible = !state.advancedVisible;
+  localStorage.setItem("alchemyAdvancedVisible", state.advancedVisible ? "true" : "false");
+  applyAdvancedVisibility();
 }
 
 function applyLanguage() {
@@ -387,6 +692,12 @@ function applyLanguage() {
     renderReadinessReport({});
   }
   renderFileSelection();
+  renderModelSummary();
+  renderEnvironmentSummary(state.environmentReport);
+  renderRunStatus(state.runStatusSnapshot);
+  renderProjectWorkspace();
+  updateSourceCards();
+  applyAdvancedVisibility();
 }
 
 function setLanguage(language) {
@@ -395,9 +706,413 @@ function setLanguage(language) {
   applyLanguage();
 }
 
+async function loadProjectHistory({ quiet = true } = {}) {
+  try {
+    const history = await api("/projects");
+    state.projects = Array.isArray(history.projects) ? history.projects : [];
+    renderProjectWorkspace();
+    if (!quiet) {
+      show("eventOutput", [{ level: "info", message: t("message.history_loaded") }, history]);
+    }
+  } catch (error) {
+    if (!quiet) showError(error);
+  }
+}
+
+function renderProjectWorkspace() {
+  renderActiveProjectSummary();
+  renderProjectHistory();
+}
+
+function renderActiveProjectSummary() {
+  const container = el("activeProjectSummary");
+  const badge = el("workspaceBadge");
+  if (!container || !badge) return;
+  const active = currentProjectSummary();
+  if (!state.projectId) {
+    badge.textContent = t("workspace.new_ready");
+    badge.className = "readinessBadge status-ready";
+    container.innerHTML = `
+      <strong>${translate("workspace.no_active")}</strong>
+      <span>${translate("workspace.no_active_detail")}</span>
+    `;
+    return;
+  }
+  badge.textContent = t("workspace.active");
+  badge.className = "readinessBadge status-ready";
+  const objective = active?.objective || state.projectId;
+  const runLabel = state.runId || active?.latest_run_id || "-";
+  const score = active?.latest_score ?? "-";
+  container.innerHTML = `
+    <strong>${escapeHtml(String(objective))}</strong>
+    <span>${translate("workspace.latest_run")}: ${escapeHtml(String(runLabel))} · ${translate("summary.score")}: ${escapeHtml(String(score))}</span>
+    ${state.advancedVisible ? `<small>${escapeHtml(state.projectId)} · ${escapeHtml(String(active?.workspace_path || ""))}</small>` : ""}
+  `;
+}
+
+function renderProjectHistory() {
+  const container = el("projectHistory");
+  if (!container) return;
+  const projects = Array.isArray(state.projects) ? state.projects : [];
+  if (!projects.length) {
+    container.innerHTML = `
+      <div class="projectHistoryHeader">
+        <strong>${translate("workspace.history")}</strong>
+        <span>${translate("workspace.no_history")}</span>
+      </div>
+    `;
+    return;
+  }
+  container.innerHTML = `
+    <div class="projectHistoryHeader">
+      <strong>${translate("workspace.history")}</strong>
+      <span>${escapeHtml(String(projects.length))}</span>
+    </div>
+    <div class="projectHistoryGrid">
+      ${projects.slice(0, 12).map(renderProjectHistoryCard).join("")}
+    </div>
+  `;
+}
+
+function renderProjectHistoryCard(project) {
+  const projectId = String(project.project_id || "");
+  const runId = String(project.latest_run_id || "");
+  const active = projectId && projectId === state.projectId;
+  const status = statusText(project.latest_run_status || project.status || "-");
+  const score = project.latest_score ?? "-";
+  const updated = formatDateTime(project.updated_at);
+  const label = escapeHtml(shortText(project.objective || projectId, 82));
+  return `
+    <article class="projectHistoryCard ${active ? "active" : ""}">
+      <button type="button" class="projectHistoryOpen" data-open-project="${escapeHtml(projectId)}" data-open-run="${escapeHtml(runId)}" aria-label="${label}">
+        <strong>${label}</strong>
+        <span>${translate("workspace.latest_run")}: ${escapeHtml(runId || "-")} · ${escapeHtml(status)} · ${translate("summary.score")}: ${escapeHtml(String(score))}</span>
+        <small>${escapeHtml(updated)}</small>
+        ${state.advancedVisible ? `<code>${escapeHtml(String(project.workspace_path || projectId))}</code>` : ""}
+      </button>
+      <button type="button" class="projectHistoryDelete" data-delete-project="${escapeHtml(projectId)}" title="${translate("button.delete_project")}" aria-label="${translate("button.delete_project")}">${translate("button.delete_project")}</button>
+    </article>
+  `;
+}
+
+function currentProjectSummary() {
+  return (state.projects || []).find((project) => String(project.project_id || "") === state.projectId) || null;
+}
+
 function renderFileSelection() {
-  const files = Array.from(el("uploadFiles").files || []);
-  el("fileSelection").textContent = files.length ? `${files.length} ${t("file.selected")}` : t("file.no_file");
+  const fileInput = el("uploadFiles");
+  const fileSelection = el("fileSelection");
+  if (!fileInput || !fileSelection) return;
+  const files = Array.from(fileInput.files || []);
+  if (files.length) {
+    fileSelection.textContent = `${files.length} ${t("file.selected")}`;
+  } else if (state.uploadedDocumentPaths.length) {
+    fileSelection.textContent = `${state.uploadedDocumentPaths.length} ${t("file.uploaded")}`;
+  } else {
+    fileSelection.textContent = t("file.no_file");
+  }
+  setControls();
+}
+
+function beginNewProject() {
+  closeEventStream();
+  if (state.pollTimer) {
+    clearInterval(state.pollTimer);
+    state.pollTimer = 0;
+  }
+  state.projectId = "";
+  state.runId = "";
+  state.runStatusSnapshot = null;
+  state.events = [];
+  state.sourceType = "";
+  state.sourceLocked = false;
+  state.projectSourceType = "";
+  state.uploadedDocumentPaths = [];
+  state.deliveryTab = "overview";
+  if (el("uploadFiles")) el("uploadFiles").value = "";
+  ["objective", "documentObjective", "githubObjective", "repository"].forEach((id) => {
+    const node = el(id);
+    if (node) node.value = "";
+  });
+  history.replaceState(null, "", window.location.pathname);
+  setSummary({}, {});
+  show("briefOutput", {});
+  show("graphOutput", {});
+  renderGraphViz({});
+  show("eventOutput", [{ level: "info", message: t("message.new_project_ready") }]);
+  renderRunStatus(null);
+  resetDelivery();
+  setDeliveryTab("overview");
+  renderFileSelection();
+  renderProjectWorkspace();
+  updateSourceCards();
+  setControls();
+}
+
+async function openProjectFromHistory(projectId, runId = "") {
+  if (!projectId) return;
+  setCurrentUrl(projectId, runId);
+  await loadProjectRun(projectId, runId);
+  show("eventOutput", [{ level: "info", message: t("workspace.restored") }]);
+}
+
+async function deleteProjectFromHistory(projectId) {
+  if (!projectId) return;
+  const project = (state.projects || []).find((item) => String(item.project_id || "") === projectId);
+  const label = project?.objective || projectId;
+  if (!window.confirm(`${t("message.delete_project_confirm")}\n\n${label}`)) {
+    return;
+  }
+
+  const result = await api(`/projects/${encodeURIComponent(projectId)}`, { method: "DELETE" });
+  state.projects = (state.projects || []).filter((item) => String(item.project_id || "") !== projectId);
+  if (state.projectId === projectId) {
+    beginNewProject();
+  } else {
+    renderProjectWorkspace();
+  }
+  await loadProjectHistory({ quiet: true });
+  show("eventOutput", [{ level: "info", message: t("message.project_deleted") }, result]);
+}
+
+function syncModelProviderDefaults() {
+  const provider = el("modelProvider").value;
+  const envInput = el("modelApiKeyEnv");
+  const baseUrlInput = el("modelBaseUrl");
+  const orchestrator = el("orchestratorModel");
+  const expansion = el("documentExpansionModel");
+  const reviewer = el("reviewerModel");
+  const advanced = el("advancedModelSettings");
+  if (provider === "codex_cli") {
+    orchestrator.value = "codex-cli";
+    expansion.value = "codex-cli";
+    reviewer.value = "codex-cli";
+    if (["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "CUSTOM_LLM_API_KEY"].includes(envInput.value.trim())) {
+      envInput.value = "";
+    }
+    envInput.placeholder = "";
+    baseUrlInput.placeholder = "";
+    if (advanced) advanced.open = false;
+    renderModelSummary();
+    return;
+  }
+  if (provider === "openai") {
+    envInput.value = defaultModelEnvValue(envInput.value, "OPENAI_API_KEY");
+    envInput.placeholder = "OPENAI_API_KEY";
+    baseUrlInput.placeholder = "https://api.openai.com/v1";
+    orchestrator.value = orchestrator.value === "codex-cli" ? "gpt-5" : orchestrator.value || "gpt-5";
+    expansion.value = expansion.value === "codex-cli" ? "gpt-5" : expansion.value || "gpt-5";
+    reviewer.value = reviewer.value === "codex-cli" ? "gpt-5" : reviewer.value || "gpt-5";
+    if (advanced) advanced.open = true;
+    renderModelSummary();
+    return;
+  }
+  if (provider === "anthropic") {
+    envInput.value = defaultModelEnvValue(envInput.value, "ANTHROPIC_API_KEY");
+    envInput.placeholder = "ANTHROPIC_API_KEY";
+    baseUrlInput.placeholder = "https://api.anthropic.com";
+    orchestrator.value = orchestrator.value === "codex-cli" ? "claude-sonnet-4-5" : orchestrator.value || "claude-sonnet-4-5";
+    expansion.value = expansion.value === "codex-cli" ? "claude-sonnet-4-5" : expansion.value || "claude-sonnet-4-5";
+    reviewer.value = reviewer.value === "codex-cli" ? "claude-sonnet-4-5" : reviewer.value || "claude-sonnet-4-5";
+    if (advanced) advanced.open = true;
+    renderModelSummary();
+    return;
+  }
+  envInput.value = defaultModelEnvValue(envInput.value, "CUSTOM_LLM_API_KEY");
+  envInput.placeholder = "CUSTOM_LLM_API_KEY";
+  baseUrlInput.placeholder = "https://llm.example.com/v1";
+  if (advanced) advanced.open = true;
+  renderModelSummary();
+}
+
+function defaultModelEnvValue(current, fallback) {
+  const clean = String(current || "").trim();
+  const known = ["", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "CUSTOM_LLM_API_KEY"];
+  return known.includes(clean) ? fallback : clean;
+}
+
+function invalidateEnvironment() {
+  if (state.environmentReport || state.environmentReady) {
+    setEnvironmentReport(null);
+  }
+  state.sourceType = "";
+  state.sourceLocked = false;
+  state.projectSourceType = "";
+  state.uploadedDocumentPaths = [];
+  if (el("uploadFiles")) {
+    el("uploadFiles").value = "";
+  }
+  renderFileSelection();
+  updateSourceCards();
+  setControls();
+}
+
+function environmentPayload() {
+  return {
+    codex_executable: el("codexExecutable").value.trim() || "codex",
+    require_browser: el("autoBrowserVerify").checked,
+    model_provider: el("modelProvider").value || "codex_cli",
+    orchestrator_model: el("orchestratorModel").value.trim(),
+    document_expansion_model: el("documentExpansionModel").value.trim(),
+    reviewer_model: el("reviewerModel").value.trim(),
+    model_api_key_env: el("modelApiKeyEnv").value.trim(),
+    model_base_url: el("modelBaseUrl").value.trim(),
+  };
+}
+
+async function loadEnvironmentDefaults() {
+  try {
+    const defaults = await api("/environment/defaults");
+    state.environmentDefaults = defaults;
+    if (defaults.codex_executable) {
+      el("codexExecutable").value = String(defaults.codex_executable);
+    }
+    el("modelProvider").value = String(defaults.model_provider || "codex_cli");
+    el("orchestratorModel").value = String(defaults.orchestrator_model || "codex-cli");
+    el("documentExpansionModel").value = String(defaults.document_expansion_model || "codex-cli");
+    el("reviewerModel").value = String(defaults.reviewer_model || "codex-cli");
+    el("modelApiKeyEnv").value = String(defaults.model_api_key_env || "");
+    el("modelBaseUrl").value = String(defaults.model_base_url || "");
+    syncModelProviderDefaults();
+    show("eventOutput", [{ level: "info", message: t("model.defaults_loaded") }]);
+  } catch (error) {
+    renderModelSummary();
+  }
+}
+
+function renderModelSummary() {
+  const container = el("modelSummary");
+  if (!container) return;
+  const provider = el("modelProvider").value || "codex_cli";
+  const defaults = state.environmentDefaults || {};
+  const keyConfigured = provider === "openai"
+    ? Boolean(defaults.openai_api_key_configured)
+    : provider === "anthropic"
+      ? Boolean(defaults.anthropic_api_key_configured)
+      : Boolean(el("modelApiKeyEnv").value.trim());
+  const rows = [];
+  if (provider === "codex_cli") {
+    rows.push([t("model.summary_codex"), "passed"]);
+    rows.push([`${t("model.codex_path")}: ${el("codexExecutable").value || "codex"}`, "neutral"]);
+    if (defaults.github_cli) rows.push([`${t("model.github_path")}: ${defaults.github_cli}`, "neutral"]);
+  } else {
+    rows.push([t("model.summary_api"), keyConfigured ? "passed" : "failed"]);
+    rows.push([`${el("modelApiKeyEnv").value || "API_KEY"}: ${keyConfigured ? t("model.key_configured") : t("model.key_missing")}`, keyConfigured ? "passed" : "failed"]);
+  }
+  const badge = el("modelModeBadge");
+  if (badge) {
+    const recommended = provider === "codex_cli";
+    badge.textContent = recommended ? t("config.recommended") : t("config.advanced");
+    badge.className = `readinessBadge status-${recommended ? "ready" : "partial"}`;
+  }
+  container.innerHTML = rows
+    .map(([text, status]) => `<div class="modelSummaryRow status-${safeClass(status)}"><span>${escapeHtml(String(text))}</span></div>`)
+    .join("");
+}
+
+function modelConfigPayload() {
+  return {
+    model_provider: el("modelProvider").value || "codex_cli",
+    orchestrator_model: el("orchestratorModel").value.trim(),
+    document_expansion_model: el("documentExpansionModel").value.trim(),
+    reviewer_model: el("reviewerModel").value.trim(),
+    model_base_url: el("modelBaseUrl").value.trim(),
+    model_api_key_env: el("modelApiKeyEnv").value.trim(),
+  };
+}
+
+function renderEnvironmentSummary(report) {
+  const summary = el("environmentSummary");
+  if (!summary) return;
+  if (!report) {
+    summary.innerHTML = `<div class="envEmpty">${translate("message.environment_required")}</div>`;
+    return;
+  }
+  const checks = Array.isArray(report.checks) ? report.checks : [];
+  const blockers = Array.isArray(report.blockers) ? report.blockers : [];
+  summary.innerHTML = [
+    `<div class="envChecks">${checks.map(renderEnvironmentCheck).join("") || `<div class="envEmpty">${translate("common.none")}</div>`}</div>`,
+    blockers.length
+      ? `<div class="envBlockers"><strong>${translate("summary.blockers")}</strong>${blockers
+          .map((blocker) => `<span>${escapeHtml(String(blocker.description || blocker.message || blocker.id || ""))}</span>`)
+          .join("")}</div>`
+      : "",
+  ].join("");
+}
+
+function renderEnvironmentCheck(check) {
+  const status = safeClass(check.status || "unknown");
+  const required = check.required ? "" : ` · ${t("status.skipped")}`;
+  return `
+    <div class="envCheck status-${status}">
+      <strong>${environmentCheckLabel(check.name)}</strong>
+      <span>${statusText(check.status)}${required}</span>
+      <small>${escapeHtml(String(check.summary || ""))}</small>
+    </div>`;
+}
+
+function environmentCheckLabel(name) {
+  const key = `env.${String(name || "")}`;
+  return I18N[state.language]?.[key] || formatLabel(name);
+}
+
+function setEnvironmentReport(report) {
+  state.environmentReport = report;
+  state.environmentReady = Boolean(report && report.status === "ready");
+  const badge = el("environmentBadge");
+  const checking = state.environmentChecking;
+  badge.textContent = checking ? t("config.checking") : state.environmentReady ? t("config.ready") : report ? t("config.blocked") : t("config.not_checked");
+  badge.className = `readinessBadge status-${checking ? "running" : state.environmentReady ? "ready" : report ? "blocked" : "unknown"}`;
+  renderEnvironmentSummary(report);
+  setControls();
+}
+
+function setSourceType(type) {
+  if (!state.environmentReady || !SOURCE_TYPES.includes(type)) return;
+  if (state.sourceLocked && state.sourceType && state.sourceType !== type) return;
+  state.sourceType = type;
+  state.sourceLocked = true;
+  updateSourceCards();
+  setControls();
+}
+
+function resetSourceChoice() {
+  state.sourceType = "";
+  state.sourceLocked = false;
+  state.projectSourceType = "";
+  state.uploadedDocumentPaths = [];
+  if (el("uploadFiles")) {
+    el("uploadFiles").value = "";
+  }
+  renderFileSelection();
+  show("eventOutput", [{ level: "info", message: t("message.source_reset") }]);
+  updateSourceCards();
+  setControls();
+}
+
+function updateSourceCards() {
+  const devPanel = el("sourceCards")?.closest(".devPanel");
+  const lockBadge = el("developmentLockBadge");
+  if (devPanel) {
+    devPanel.classList.toggle("locked", !state.environmentReady);
+  }
+  if (lockBadge) {
+    lockBadge.textContent = state.environmentReady ? (state.sourceLocked ? t("source.selected") : t("source.unlocked")) : t("source.locked");
+    lockBadge.className = `readinessBadge status-${state.environmentReady ? "ready" : "blocked"}`;
+  }
+  document.querySelectorAll("[data-source-card]").forEach((card) => {
+    const type = card.dataset.sourceCard || "";
+    const selected = state.sourceType === type;
+    const disabled = !state.environmentReady || (state.sourceLocked && !selected);
+    card.classList.toggle("selected", selected);
+    card.classList.toggle("unavailable", disabled);
+    card.querySelectorAll("input, textarea").forEach((node) => {
+      if (node.classList.contains("sourceRadio")) {
+        node.checked = selected;
+      }
+      node.disabled = disabled;
+    });
+  });
 }
 
 function renderDelivery(delivery) {
@@ -408,10 +1123,12 @@ function renderDelivery(delivery) {
   const merge = github.merge || {};
   const artifact = report.artifact || {};
   const requirements = report.requirements || {};
+  const prUrl = realPullRequestUrl(github.pull_request_url);
+  const localOnly = Boolean(delivery.local_delivery) && !prUrl;
   const parts = [
     [t("summary.status"), statusText(report.status || delivery.status || "-")],
     [t("summary.gate"), gate.score ?? "-"],
-    [t("summary.pr"), github.pull_request_url || "-"],
+    [t("summary.pr"), prUrl || (localOnly ? t("delivery.local_only") : "-")],
     [t("summary.ci"), statusText(github.ci_status || "-")],
     [t("summary.merge"), statusText(merge.status || "-")],
     [t("summary.artifact"), artifact.profile || "-"],
@@ -424,9 +1141,14 @@ function renderDelivery(delivery) {
   el("deliverySummary").innerHTML = parts
     .map(([label, value]) => `<div><strong>${label}</strong><span>${escapeHtml(String(value))}</span></div>`)
     .join("");
+  renderScoreExplanation(delivery);
+  renderCentralReview(delivery.central_review || null);
+  renderAutoIteration(delivery);
   renderEvidence(delivery.delivery_evidence || fallbackEvidence(delivery));
   renderArtifactPreviews(delivery.artifact_manifest || {});
+  renderDeliveryActions(deliveryActionsFor(delivery));
   renderCoverageViz(delivery.requirement_coverage || {});
+  renderDeliveryStatusFallback(delivery);
   show("deliveryOutput", delivery);
 }
 
@@ -452,9 +1174,386 @@ function resetDelivery() {
   el("evidenceCards").innerHTML = "";
   el("evidenceDetails").innerHTML = "";
   el("artifactPreviews").innerHTML = "";
+  el("deliveryActions").innerHTML = "";
+  if (el("deliveryActionFeedback")) {
+    el("deliveryActionFeedback").innerHTML = "";
+    el("deliveryActionFeedback").classList.remove("visible");
+    delete el("deliveryActionFeedback").dataset.autoIterationActive;
+  }
+  if (el("scoreExplanation")) {
+    el("scoreExplanation").innerHTML = "";
+    el("scoreExplanation").classList.remove("visible");
+  }
+  renderCentralReview(null);
+  renderAutoIteration(null);
   el("coverageViz").innerHTML = "";
   show("deliveryOutput", {});
   renderReadinessReport({});
+}
+
+function renderRunStatus(snapshot) {
+  const panel = el("runProgressPanel");
+  const stopButton = el("progressStopRun");
+  if (!panel) return;
+  if (!snapshot) {
+    panel.className = "runProgressPanel idle";
+    el("progressTitle").textContent = t("progress.waiting");
+    el("progressPercent").textContent = "0%";
+    el("progressFill").style.width = "0%";
+    el("progressSummary").textContent = t("progress.choose_source");
+    renderRoadmapProgress(null);
+    renderCentralReviewProgress(null);
+    el("progressTasks").textContent = "-";
+    el("progressActivity").textContent = "-";
+    if (stopButton) {
+      stopButton.hidden = true;
+      stopButton.disabled = true;
+    }
+    return;
+  }
+  const percent = Math.max(0, Math.min(100, Number(snapshot.progress_percent || 0)));
+  const phase = String(snapshot.phase || "choose_source");
+  const tasks = snapshot.tasks || {};
+  panel.className = `runProgressPanel phase-${safeClass(phase)} status-${safeClass(snapshot.status || "unknown")}${snapshot.is_stalled ? " stalled" : ""}`;
+  el("progressTitle").textContent = t(`phase.${phase}`) || statusText(snapshot.status || "");
+  el("progressPercent").textContent = `${percent}%`;
+  el("progressFill").style.width = `${percent}%`;
+  el("progressSummary").textContent = snapshot.is_stalled ? t("progress.stalled") : String(snapshot.summary || "");
+  renderRoadmapProgress(snapshot.roadmap_progress || null);
+  renderCentralReviewProgress(snapshot.central_review || null);
+  el("progressTasks").textContent = `${t("progress.tasks")}: ${Number(tasks.completed || 0)}/${Number(tasks.total || 0)}`;
+  const elapsed = formatDuration(Number(snapshot.elapsed_seconds || 0));
+  const last = formatDuration(Number(snapshot.last_activity_seconds || 0));
+  el("progressActivity").textContent = `${t("progress.elapsed")}: ${elapsed} · ${t("progress.last_activity")}: ${last}`;
+  if (stopButton) {
+    const running = isRunStoppable(snapshot.status);
+    stopButton.hidden = !running;
+    stopButton.disabled = !running || !state.runId;
+  }
+}
+
+function renderRoadmapProgress(progress) {
+  const node = el("roadmapProgress");
+  if (!node) return;
+  if (!progress || !progress.enabled) {
+    node.hidden = true;
+    node.innerHTML = "";
+    return;
+  }
+  const current = progress.current_phase || {};
+  const title = current.title || "";
+  node.hidden = false;
+  node.innerHTML = `
+    <strong>${escapeHtml(t("progress.roadmap"))}: ${Number(progress.completed || 0)}/${Number(progress.total || 0)}</strong>
+    <span>${escapeHtml(String(title || ""))}</span>
+  `;
+}
+
+function renderCentralReviewProgress(review) {
+  const node = el("centralReviewProgress");
+  if (!node) return;
+  if (!review) {
+    node.innerHTML = "";
+    node.classList.remove("visible");
+    return;
+  }
+  const decision = String(review.decision || "wait_for_input");
+  node.className = `centralReviewProgress visible status-${safeClass(review.status || decision)}`;
+  node.innerHTML = `
+    <strong>${escapeHtml(t(`central.decision.${decision}`) || decision)}</strong>
+    <span>${escapeHtml(String(review.summary || t("central.waiting")))}</span>
+  `;
+}
+
+function renderCentralReview(review) {
+  const node = el("centralReviewCard");
+  if (!node) return;
+  if (!review) {
+    node.innerHTML = "";
+    node.classList.remove("visible");
+    return;
+  }
+  const decision = String(review.decision || "wait_for_input");
+  const missing = Array.isArray(review.missing_loop_steps) ? review.missing_loop_steps : [];
+  const completed = Array.isArray(review.completed_loop_steps) ? review.completed_loop_steps : [];
+  const actions = Array.isArray(review.next_actions) ? review.next_actions : [];
+  node.className = `centralReviewCard visible status-${safeClass(review.status || decision)}`;
+  node.innerHTML = `
+    <header>
+      <div>
+        <strong>${translate("central.title")}</strong>
+        <span>${escapeHtml(t(`central.decision.${decision}`) || decision)} · ${Math.round(Number(review.confidence || 0) * 100)}%</span>
+      </div>
+    </header>
+    <p>${escapeHtml(String(review.summary || t("central.waiting")))}</p>
+    ${state.advancedVisible ? `
+      <div class="centralReviewGrid">
+        ${centralReviewList("central.next_actions", actions)}
+        ${centralReviewList("central.missing_steps", missing)}
+        ${centralReviewList("central.completed_steps", completed.slice(0, 8))}
+      </div>
+    ` : ""}
+  `;
+}
+
+function renderAutoIteration(delivery) {
+  const container = el("deliveryActionFeedback");
+  if (!container) return;
+  const review = delivery?.central_review || {};
+  const plan = delivery?.repair_plan || {};
+  const autoExecution = plan.auto_execution || {};
+  const available = String(review.decision || "") === "iterate" && Boolean(autoExecution.allowed);
+  if (!available) {
+    container.innerHTML = "";
+    container.classList.remove("visible");
+    delete container.dataset.autoIterationActive;
+    return;
+  }
+  container.dataset.autoIterationActive = "true";
+  const itemCount = Array.isArray(plan.items) ? plan.items.length : 0;
+  container.classList.add("visible");
+  container.innerHTML = `
+    <div class="autoIterationPrompt">
+      <div>
+        <strong>${escapeHtml(t("auto_iteration.action"))}</strong>
+        <span>${escapeHtml(plan.summary || review.summary || "")}</span>
+      </div>
+      <button type="button" class="primaryButton" id="continueOptimizing" ${state.environmentReady ? "" : "disabled"}>${escapeHtml(t("auto_iteration.action"))}</button>
+    </div>
+    ${state.advancedVisible ? `
+      <details class="autoIterationDetails">
+        <summary>${escapeHtml(t("auto_iteration.plan"))} · ${itemCount}</summary>
+        <pre>${escapeHtml(JSON.stringify(plan, null, 2))}</pre>
+      </details>
+    ` : ""}
+  `;
+  const button = el("continueOptimizing");
+  if (button) {
+    button.addEventListener("click", () => startAutoIteration().catch(showError));
+  }
+}
+
+function centralReviewList(titleKey, values) {
+  const items = Array.isArray(values) ? values.filter(Boolean).slice(0, 6) : [];
+  return `
+    <section>
+      <h3>${translate(titleKey)}</h3>
+      <ul>${items.length ? items.map((item) => `<li>${escapeHtml(String(item))}</li>`).join("") : `<li>${translate("common.none")}</li>`}</ul>
+    </section>
+  `;
+}
+
+function isRunStoppable(status) {
+  return ["queued", "running", "paused"].includes(String(status || "").toLowerCase());
+}
+
+function renderDeliveryStatusFallback(delivery) {
+  const existingStatus = String(state.runStatusSnapshot?.status || "").toLowerCase();
+  if (existingStatus && existingStatus !== "unknown") return;
+  const status = String(delivery.status || "").toLowerCase();
+  if (!status) return;
+  const tasks = taskCountsFromDelivery(delivery);
+  renderRunStatus({
+    status,
+    phase: status === "done" ? "ready" : "blocked",
+    progress_percent: status === "done" ? 100 : 0,
+    summary: status === "done" ? t("progress.delivery_loaded") : statusText(status),
+    tasks,
+    elapsed_seconds: 0,
+    last_activity_seconds: 0,
+  });
+}
+
+function taskCountsFromDelivery(delivery) {
+  const graph = delivery.runtime_state?.task_graph || {};
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
+  if (!nodes.length) return {};
+  const completed = nodes.filter((node) => ["completed", "done", "passed"].includes(String(node.status || "").toLowerCase())).length;
+  const running = nodes.filter((node) => ["running", "in_progress", "active"].includes(String(node.status || "").toLowerCase())).length;
+  const failed = nodes.filter((node) => ["failed", "blocked"].includes(String(node.status || "").toLowerCase())).length;
+  return { total: nodes.length, completed, running, failed };
+}
+
+function renderDeliveryActions(actions) {
+  const container = el("deliveryActions");
+  if (!container) return;
+  const allActions = Array.isArray(actions) ? actions : [];
+  const list = state.advancedVisible ? allActions : allActions.filter((action) => Boolean(action.enabled));
+  if (!list.length) {
+    container.innerHTML = "";
+    return;
+  }
+  container.innerHTML = `
+    <h3>${translate("delivery.actions")}</h3>
+    <div class="deliveryActionGrid">
+      ${list.map(renderDeliveryAction).join("")}
+    </div>
+  `;
+}
+
+function renderDeliveryAction(action) {
+  const enabled = Boolean(action.enabled);
+  const label = state.language === "zh" ? String(action.label_zh || action.label || action.id || "") : String(action.label || action.id || "");
+  const description = state.language === "zh"
+    ? String(action.description_zh || action.description || "")
+    : String(action.description || "");
+  const className = `deliveryAction ${enabled ? "" : "disabled"} kind-${safeClass(action.kind || action.id)}`;
+  const url = String(action.url || "");
+  const actionId = String(action.id || "");
+  const buttonType = actionId === "open_result" ? "button" : "a";
+  if (enabled && url && String(action.method || "GET").toUpperCase() === "GET") {
+    if (buttonType === "button") {
+      return `
+        <button type="button" class="${className}" data-delivery-action="${escapeHtml(actionId)}" data-delivery-url="${escapeHtml(url)}">
+          <strong>${escapeHtml(label)}</strong>
+          <span>${escapeHtml(description)}</span>
+        </button>
+      `;
+    }
+    return `
+      <a class="${className}" data-delivery-action="${escapeHtml(actionId)}" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">
+        <strong>${escapeHtml(label)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </a>
+    `;
+  }
+  return `
+    <button type="button" class="${className}" data-delivery-action="${escapeHtml(actionId)}" ${enabled ? "" : "disabled"}>
+      <strong>${escapeHtml(label)}</strong>
+      <span>${escapeHtml(description)}</span>
+    </button>
+  `;
+}
+
+function deliveryActionsFor(delivery) {
+  const actions = Array.isArray(delivery.delivery_actions) ? delivery.delivery_actions : [];
+  return actions.length ? actions : fallbackDeliveryActions(delivery);
+}
+
+function allDeliveryActions() {
+  const fromDelivery = state.delivery ? deliveryActionsFor(state.delivery) : [];
+  const fromStatus = state.runStatusSnapshot && Array.isArray(state.runStatusSnapshot.delivery_actions)
+    ? state.runStatusSnapshot.delivery_actions
+    : [];
+  const seen = new Set();
+  return [...fromDelivery, ...fromStatus].filter((action) => {
+    const id = String(action.id || "");
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function fallbackDeliveryActions(delivery) {
+  const actions = [];
+  const artifact = bestDeliveryArtifact(delivery.artifact_manifest || {});
+  if (artifact && artifact.url) {
+    actions.push({
+      id: "open_result",
+      kind: "browser",
+      label: "Open result",
+      label_zh: "打开作品",
+      enabled: true,
+      url: artifact.url,
+      description: "Open the generated result in a browser tab.",
+      description_zh: "在浏览器中打开生成结果。",
+    });
+  }
+  const runId = state.runId || delivery.latest_run_id || "";
+  if (state.projectId && runId) {
+    actions.push({
+      id: "open_folder",
+      kind: "local_folder",
+      label: "Open folder",
+      label_zh: "打开结果文件夹",
+      enabled: true,
+      url: `/projects/${state.projectId}/runs/${runId}/open-folder`,
+      method: "POST",
+      description: "Open the folder that contains the generated result.",
+      description_zh: "打开保存生成结果的文件夹。",
+    });
+  }
+  return actions;
+}
+
+function bestDeliveryArtifact(manifest) {
+  const items = Array.isArray(manifest.items) ? manifest.items : [];
+  if (!items.length) return null;
+  const htmlIndex = items.find((item) => String(item.path || "").toLowerCase().endsWith("index.html") && item.url);
+  if (htmlIndex) return htmlIndex;
+  const html = items.find((item) => String(item.media_type || "").startsWith("text/html") && item.url);
+  if (html) return html;
+  return items.find((item) => item.url && ["text", "image"].includes(String(item.preview || ""))) || items.find((item) => item.url) || null;
+}
+
+function renderScoreExplanation(delivery) {
+  const container = el("scoreExplanation");
+  if (!container) return;
+  const report = delivery.delivery_report || {};
+  const gate = report.final_gate || {};
+  const score = Number(gate.score ?? report.score ?? 0);
+  const reasons = scoreReasonsForDelivery(delivery);
+  if (!score && !reasons.length) {
+    container.innerHTML = "";
+    container.classList.remove("visible");
+    return;
+  }
+  const title = score >= 0.95
+    ? t("score.excellent")
+    : score >= 0.85
+      ? t("score.pass_with_gaps")
+      : t("score.needs_work");
+  container.innerHTML = `
+    <header>
+      <strong>${translate("score.title")}</strong>
+      <span>${translate("summary.score")}: ${escapeHtml(String(score || "-"))}</span>
+    </header>
+    <span>${escapeHtml(title)}</span>
+    ${reasons.length ? `<ul>${reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("\n")}</ul>` : ""}
+    <span>${translate("score.improve")}</span>
+  `;
+  container.classList.add("visible");
+}
+
+function scoreReasonsForDelivery(delivery) {
+  const report = delivery.delivery_report || {};
+  const gate = report.final_gate || {};
+  const requirements = report.requirements || {};
+  const artifact = report.artifact || {};
+  const github = report.github || {};
+  const cycle = delivery.development_cycle || report.development_cycle || {};
+  const reasons = [];
+  const missingMust = Array.isArray(requirements.missing_must_requirement_ids) ? requirements.missing_must_requirement_ids.length : Number(requirements.missing_must || 0);
+  const partialMust = Array.isArray(requirements.partial_must_requirement_ids) ? requirements.partial_must_requirement_ids.length : Number(requirements.partial_must || 0);
+  if (missingMust || partialMust || String(requirements.status || "").toLowerCase() === "failed") {
+    reasons.push(t("score.reason_requirements"));
+  }
+  const browserStatus = artifact.browser_status || artifact.browser_probe?.status || "";
+  const scenarioStatus = artifact.scenario_status || artifact.scenario_probe?.status || artifact.acceptance_scenarios?.status || "";
+  const gameplayStatus = artifact.gameplay_status || artifact.gameplay_probe?.status || "";
+  const hasCanvasGame = String(artifact.profile || "").includes("canvas") || String(artifact.profile || "").includes("game");
+  if (["failed", "missing", "partial", "blocked"].some((status) => [browserStatus, scenarioStatus, gameplayStatus].map((value) => String(value).toLowerCase()).includes(status))) {
+    reasons.push(t("score.reason_browser"));
+  } else if ((!browserStatus || !gameplayStatus) && hasCanvasGame) {
+    reasons.push(t("score.reason_browser"));
+  } else if (String(scenarioStatus).toLowerCase() === "generated" && !browserStatus) {
+    reasons.push(t("score.reason_browser"));
+  }
+  if (cycle && !["", "passed", "done", "completed"].includes(String(cycle.status || "").toLowerCase())) {
+    reasons.push(t("score.reason_cycle"));
+  }
+  const prUrl = realPullRequestUrl(github.pull_request_url);
+  const mergeStatus = github.merge?.status || github.merge_status || "";
+  if (delivery.local_delivery || !prUrl || ["skipped", "dry_run", "unavailable"].includes(String(mergeStatus).toLowerCase())) {
+    reasons.push(t("score.reason_github"));
+  }
+  const hardFailures = Array.isArray(gate.hard_failures) ? gate.hard_failures : [];
+  const requiredChanges = Array.isArray(gate.required_changes) ? gate.required_changes : [];
+  const blockers = Array.isArray(delivery.delivery_evidence?.blockers) ? delivery.delivery_evidence.blockers : [];
+  if (hardFailures.length || requiredChanges.length || blockers.length) {
+    reasons.push(t("score.reason_blockers"));
+  }
+  return [...new Set(reasons)].slice(0, 5);
 }
 
 function renderEvidence(evidence) {
@@ -505,7 +1604,7 @@ function renderEvidenceDetails(evidence) {
     <section>
       <h3>${translate("evidence.github")}</h3>
       <p>${escapeHtml(String(github.branch || "-"))} · CI ${escapeHtml(statusText(github.ci_status || "-"))} · Merge ${escapeHtml(statusText(github.merge_status || "-"))}</p>
-      <p>${github.pull_request_url ? `<a href="${escapeHtml(String(github.pull_request_url))}" target="_blank" rel="noreferrer">${translate("evidence.pull_request")}</a>` : "-"}</p>
+      <p>${realPullRequestUrl(github.pull_request_url) ? `<a href="${escapeHtml(realPullRequestUrl(github.pull_request_url))}" target="_blank" rel="noreferrer">${translate("evidence.pull_request")}</a>` : "-"}</p>
     </section>
     <section>
       <h3>${translate("evidence.development_cycle")}</h3>
@@ -534,16 +1633,32 @@ function renderEvidenceDetails(evidence) {
 function renderArtifactPreviews(manifest) {
   const items = Array.isArray(manifest.items) ? manifest.items : [];
   const container = el("artifactPreviews");
-  if (!items.length) {
+  const visibleItems = artifactItemsForDisplay(items);
+  if (!visibleItems.length) {
     container.innerHTML = "";
     return;
   }
+  const hiddenCount = Math.max(0, items.length - visibleItems.length);
   container.innerHTML = `
     <h3>${translate("evidence.artifacts")}</h3>
+    ${hiddenCount > 0 && !state.advancedVisible ? `<p class="artifactHint">${escapeHtml(String(hiddenCount))} ${translate("artifact.hidden_sources")}</p>` : ""}
     <div class="artifactGrid">
-      ${items.map(renderArtifactItem).join("")}
+      ${visibleItems.map(renderArtifactItem).join("")}
     </div>
   `;
+}
+
+function artifactItemsForDisplay(items) {
+  const list = Array.isArray(items) ? items : [];
+  if (state.advancedVisible) return list;
+  const runnable = list.filter((item) => isRunnableArtifact(item));
+  return runnable.length ? runnable : list.filter((item) => String(item.preview || "") === "image");
+}
+
+function isRunnableArtifact(item) {
+  const path = String(item.path || "").toLowerCase();
+  const mediaType = String(item.media_type || "").toLowerCase();
+  return Boolean(item.url) && (mediaType.startsWith("text/html") || path.endsWith("index.html") || path.endsWith(".html") || path.endsWith(".htm"));
 }
 
 function renderArtifactItem(item) {
@@ -927,6 +2042,40 @@ function formatDelta(value) {
   return `${number >= 0 ? "+" : ""}${number.toFixed(2)}`;
 }
 
+function realPullRequestUrl(value) {
+  const url = String(value || "");
+  return url && !url.startsWith("dry-run://") ? url : "";
+}
+
+function formatDuration(seconds) {
+  const value = Math.max(0, Math.round(Number(seconds || 0)));
+  if (value < 60) return `${value}s`;
+  const minutes = Math.floor(value / 60);
+  const remainingSeconds = value % 60;
+  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
+}
+
+function formatDateTime(value) {
+  const raw = String(value || "");
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString(state.language === "zh" ? "zh-CN" : "en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function shortText(value, limit = 80) {
+  const text = String(value || "");
+  return text.length > limit ? `${text.slice(0, Math.max(0, limit - 1))}...` : text;
+}
+
 function formatLabel(value) {
   return String(value || "-")
     .replace(/[_-]+/g, " ")
@@ -960,15 +2109,52 @@ function setSummary(project = {}, run = {}) {
 }
 
 function setControls() {
+  updateSourceCards();
+  const envReady = state.environmentReady;
+  const hasSource = Boolean(state.sourceType);
+  const sourceReady = isSourceReadyForStart();
   const hasProject = Boolean(state.projectId);
   const hasRun = Boolean(state.runId);
-  el("uploadSelected").disabled = !hasProject;
-  el("reopenFeedback").disabled = !hasProject || !hasRun;
-  el("buildPlan").disabled = !hasProject;
-  el("startRun").disabled = !hasProject;
+  const checking = state.environmentChecking;
+  const layout = document.querySelector(".layout");
+  if (layout) {
+    layout.classList.toggle("envLocked", !envReady);
+  }
+  el("resetSourceChoice").disabled = !hasSource;
+  el("checkEnvironment").disabled = checking;
+  el("preflightUnifiedRun").disabled = !envReady || !hasSource || !sourceReady;
+  el("startUnifiedRun").disabled = !envReady || !hasSource || !sourceReady;
+  el("reopenFeedback").disabled = !envReady || !hasProject || !hasRun;
+  el("buildPlan").disabled = !envReady || !hasProject;
+  el("startRun").disabled = !envReady || !hasProject;
   el("pauseRun").disabled = !hasRun;
   el("resumeRun").disabled = !hasRun;
   el("stopRun").disabled = !hasRun;
+  ["runEvidenceIndex", "runEvidencePackage", "runEvidenceReadiness"].forEach((id) => {
+    const node = el(id);
+    if (node) node.disabled = !envReady;
+  });
+  const deliveryPanel = document.querySelector(".deliveryPanel");
+  if (deliveryPanel) {
+    deliveryPanel.classList.toggle("lockedByEnv", !envReady);
+  }
+  const continueButton = el("continueOptimizing");
+  if (continueButton) {
+    continueButton.disabled = !envReady;
+  }
+}
+
+function isSourceReadyForStart() {
+  if (state.sourceType === "idea") {
+    return Boolean(el("objective").value.trim());
+  }
+  if (state.sourceType === "documents") {
+    return Boolean((el("uploadFiles").files || []).length || state.uploadedDocumentPaths.length);
+  }
+  if (state.sourceType === "github") {
+    return Boolean(el("repository").value.trim());
+  }
+  return false;
 }
 
 async function checkHealth() {
@@ -984,62 +2170,172 @@ async function checkHealth() {
   }
 }
 
-async function createProject() {
-  const payload = {
-    objective: el("objective").value.trim(),
-    documents: lines("documents"),
-    attachments: lines("attachments"),
-    repository: el("repository").value.trim(),
-    repository_path: el("repositoryPath").value.trim(),
-  };
-  const result = await api("/projects", { method: "POST", body: payload });
-  state.projectId = result.project.project_id;
-  state.runId = "";
-  closeEventStream();
-  state.events = [];
-  show("briefOutput", result.brief);
-  show("graphOutput", {});
-  renderGraphViz({});
-  show("eventOutput", []);
-  resetDelivery();
-  setSummary(result.project, {});
-  setControls();
-}
-
 async function startUnifiedRun() {
+  ensureEnvironmentReady();
+  ensureSourceSelected();
+  if (state.sourceType === "documents") {
+    await startDocumentRun();
+    return;
+  }
   const payload = unifiedRunPayload();
   const result = await api("/runs", { method: "POST", body: payload });
   state.projectId = result.project_id;
   state.runId = result.run_id;
+  setCurrentUrl(state.projectId, state.runId);
   closeEventStream();
   state.events = [];
+  state.runStatusSnapshot = null;
   show("briefOutput", result);
   show("graphOutput", {});
   renderGraphViz({});
   show("eventOutput", []);
+  renderRunStatus(null);
   resetDelivery();
   setSummary(result.project || {}, result.job || {});
   setControls();
+  loadProjectHistory().catch(showError);
   startPolling();
 }
 
 async function preflightUnifiedRun() {
+  ensureEnvironmentReady();
+  ensureSourceSelected();
+  if (state.sourceType === "documents") {
+    await ensureDocumentProject();
+  }
   const result = await api("/runs/preflight", { method: "POST", body: unifiedRunPayload() });
   show("eventOutput", result);
 }
 
 function unifiedRunPayload() {
   const payload = {
-    objective: el("objective").value.trim(),
-    documents: lines("documents"),
-    attachments: lines("attachments"),
-    repository: el("repository").value.trim(),
-    repository_path: el("repositoryPath").value.trim(),
-    source_mode: el("sourceMode").value,
+    ...projectPayloadForSource(),
+    ...modelConfigPayload(),
     async: true,
     ...runPayload(),
   };
+  if (state.sourceType === "github") {
+    payload.prepare_repository = true;
+  }
   return payload;
+}
+
+function projectPayloadForSource() {
+  if (state.sourceType === "idea") {
+    const objective = el("objective").value.trim();
+    if (!objective) throw new Error(t("message.objective_required"));
+    return {
+      objective,
+      documents: [],
+      attachments: [],
+      repository: "",
+      repository_path: "",
+      source_mode: "none",
+      primary_input_mode: "document_driven",
+      expand_one_line: true,
+    };
+  }
+  if (state.sourceType === "documents") {
+    const objective = el("documentObjective").value.trim() || "Build from uploaded development documents.";
+    return {
+      objective,
+      documents: listUploadedDocumentPaths(),
+      attachments: [],
+      repository: "",
+      repository_path: "",
+      source_mode: "none",
+      primary_input_mode: "document_driven",
+    };
+  }
+  if (state.sourceType === "github") {
+    const repository = el("repository").value.trim();
+    if (!repository) throw new Error(t("message.github_required"));
+    return {
+      objective: el("githubObjective").value.trim() || "Build from the supplied GitHub repository.",
+      documents: [],
+      attachments: [],
+      repository,
+      repository_path: "",
+      repository_visibility: "public",
+      source_mode: "github_public",
+      primary_input_mode: "document_driven",
+    };
+  }
+  throw new Error(t("message.select_source"));
+}
+
+function listUploadedDocumentPaths() {
+  return [...state.uploadedDocumentPaths];
+}
+
+function ensureEnvironmentReady() {
+  if (!state.environmentReady) throw new Error(t("message.environment_required"));
+}
+
+function ensureSourceSelected() {
+  if (!state.sourceType) throw new Error(t("message.select_source"));
+}
+
+async function startDocumentRun() {
+  await ensureDocumentProject();
+  const result = await api(`/projects/${state.projectId}/runs`, {
+    method: "POST",
+    body: {
+      async: true,
+      ...modelConfigPayload(),
+      ...runPayload(),
+    },
+  });
+  state.runId = result.run_id;
+  setCurrentUrl(state.projectId, state.runId);
+  closeEventStream();
+  state.events = [];
+  state.runStatusSnapshot = null;
+  resetDelivery();
+  renderRunStatus(null);
+  setSummary({}, result.job);
+  setControls();
+  loadProjectHistory().catch(showError);
+  startPolling();
+}
+
+async function ensureDocumentProject() {
+  const files = Array.from(el("uploadFiles").files || []);
+  if (!state.projectId || state.projectSourceType !== "documents") {
+    const created = await api("/projects", {
+      method: "POST",
+      body: {
+        ...projectPayloadForSource(),
+        documents: [],
+      },
+    });
+    state.projectId = created.project.project_id;
+    state.projectSourceType = "documents";
+    state.runId = "";
+    state.uploadedDocumentPaths = [];
+    show("briefOutput", created.brief);
+    show("graphOutput", {});
+    renderGraphViz({});
+    resetDelivery();
+    setSummary(created.project, {});
+    loadProjectHistory().catch(showError);
+  }
+  if (files.length) {
+    const uploaded = await uploadSelectedFiles("primary_requirements", true);
+    state.uploadedDocumentPaths = Array.isArray(uploaded.project?.documents)
+      ? uploaded.project.documents
+      : (uploaded.uploaded_files || [])
+          .filter((file) => file.role === "primary_requirements")
+          .map((file) => file.path);
+    show("briefOutput", uploaded.brief);
+    show("eventOutput", uploaded.uploaded_files || []);
+    setSummary(uploaded.project, {});
+    el("uploadFiles").value = "";
+    renderFileSelection();
+  }
+  if (!state.uploadedDocumentPaths.length) {
+    throw new Error(t("message.select_files"));
+  }
 }
 
 async function buildPlan() {
@@ -1051,23 +2347,19 @@ async function buildPlan() {
   setControls();
 }
 
-async function uploadSelected() {
-  if (!state.projectId) return;
+async function uploadSelectedFiles(role = "", required = false) {
   const files = Array.from(el("uploadFiles").files || []);
   if (!files.length) {
-    show("eventOutput", [{ level: "warning", message: "No files selected." }]);
-    return;
+    throw new Error(t("message.select_files"));
   }
   const formData = new FormData();
   files.forEach((file) => formData.append("file", file, file.name));
-  const result = await api(`/projects/${state.projectId}/files`, {
+  if (role) formData.append("role", role);
+  if (required) formData.append("required", "true");
+  return api(`/projects/${state.projectId}/files`, {
     method: "POST",
     formData,
   });
-  show("briefOutput", result.brief);
-  show("eventOutput", result.uploaded_files || []);
-  setSummary(result.project, {});
-  setControls();
 }
 
 async function reopenWithFeedback() {
@@ -1095,6 +2387,7 @@ async function reopenWithFeedback() {
     },
   });
   state.runId = result.run_id;
+  setCurrentUrl(state.projectId, state.runId);
   closeEventStream();
   state.events = [];
   show("briefOutput", result.context_bundle || {});
@@ -1103,6 +2396,38 @@ async function reopenWithFeedback() {
   renderDelivery(result);
   setSummary({}, { status: result.status });
   setControls();
+  loadProjectHistory().catch(showError);
+}
+
+async function startAutoIteration() {
+  ensureEnvironmentReady();
+  if (!state.projectId || !state.runId) return;
+  setDeliveryActionFeedback(t("auto_iteration.starting"));
+  const result = await api(`/projects/${state.projectId}/runs/${state.runId}/auto-iteration`, {
+    method: "POST",
+    body: {
+      async: true,
+      run: runPayload(),
+    },
+  });
+  if (result.status !== "started" || !result.repair_run_id) {
+    show("eventOutput", [result]);
+    setDeliveryActionFeedback(result.auto_iteration_report?.reason || t("auto_iteration.unavailable"));
+    return;
+  }
+  state.runId = result.repair_run_id;
+  setCurrentUrl(state.projectId, state.runId);
+  closeEventStream();
+  state.events = [];
+  state.runStatusSnapshot = null;
+  resetDelivery();
+  show("eventOutput", [{ level: "info", message: t("auto_iteration.started") }, result.auto_iteration_report || result]);
+  show("graphOutput", result.run?.task_graph || {});
+  renderGraphViz(result.run?.task_graph || {});
+  setSummary({}, result.job || { status: result.run?.status || "running" });
+  setControls();
+  loadProjectHistory().catch(showError);
+  startPolling();
 }
 
 async function startRun() {
@@ -1114,23 +2439,32 @@ async function startRun() {
     },
   });
   state.runId = result.run_id;
+  setCurrentUrl(state.projectId, state.runId);
   closeEventStream();
   state.events = [];
   resetDelivery();
   setSummary({}, result.job);
   setControls();
+  loadProjectHistory().catch(showError);
   startPolling();
 }
 
 async function checkEnvironment() {
-  const result = await api("/environment/check", {
-    method: "POST",
-    body: {
-      codex_executable: el("codexExecutable").value.trim() || "codex",
-      require_browser: el("autoBrowserVerify").checked,
-    },
-  });
-  show("eventOutput", result);
+  state.environmentChecking = true;
+  setEnvironmentReport(state.environmentReport);
+  try {
+    const result = await api("/environment/check", {
+      method: "POST",
+      body: environmentPayload(),
+    });
+    state.environmentChecking = false;
+    setEnvironmentReport(result);
+    show("eventOutput", [{ level: result.status === "ready" ? "info" : "warning", message: t(result.status === "ready" ? "message.environment_ready" : "message.environment_blocked") }, result]);
+  } catch (error) {
+    state.environmentChecking = false;
+    setEnvironmentReport(state.environmentReport);
+    throw error;
+  }
 }
 
 async function controlRun(action) {
@@ -1142,20 +2476,24 @@ async function controlRun(action) {
   });
   if (result.resumed_run_id) {
     state.runId = result.resumed_run_id;
+    setCurrentUrl(state.projectId, state.runId);
     setSummary({}, result.resumed_job || {});
+    loadProjectHistory().catch(showError);
     startPolling();
     return;
   }
   setSummary({}, result.job);
+  await refreshRunStatus();
   await refreshEvents();
 }
 
 function runPayload() {
-  return {
+  const payload = {
     real_codex: el("realCodex").checked,
     real_github: el("realGithub").checked,
     prepare_repository: el("prepareRepository").checked,
     codex_executable: el("codexExecutable").value.trim() || "codex",
+    max_worker_seconds: 0,
     github_collect_ci: el("githubCollectCi").checked,
     github_ci_wait_seconds: Number(el("githubCiWaitSeconds").value || 0),
     github_ci_poll_interval_seconds: Number(el("githubCiPollSeconds").value || 10),
@@ -1165,7 +2503,13 @@ function runPayload() {
     generate_static_ci: el("generateStaticCi").checked,
     write_native_ui_tests: el("writeNativeUiTests").checked,
     auto_merge: el("autoMerge").checked,
+    full_roadmap: true,
+    max_phases: 50,
   };
+  if (state.sourceType === "github") {
+    payload.prepare_repository = true;
+  }
+  return payload;
 }
 
 function startPolling() {
@@ -1181,6 +2525,7 @@ async function refreshRun() {
   if (!state.projectId || !state.runId) return;
   const job = await api(`/projects/${state.projectId}/runs/${state.runId}/job`);
   setSummary({}, job);
+  await refreshRunStatus();
   await refreshEvents();
   if (!["queued", "running", "paused"].includes(job.status)) {
     clearInterval(state.pollTimer);
@@ -1188,9 +2533,30 @@ async function refreshRun() {
     try {
       const delivery = await api(`/projects/${state.projectId}/delivery`);
       renderDelivery(delivery);
+      loadProjectHistory().catch(showError);
     } catch (error) {
       show("deliveryOutput", { error: error.message });
     }
+  }
+}
+
+async function refreshRunStatus() {
+  if (!state.projectId || !state.runId) return;
+  try {
+    const snapshot = await api(`/projects/${state.projectId}/runs/${state.runId}/status`);
+    state.runStatusSnapshot = snapshot;
+    renderRunStatus(snapshot);
+    if (snapshot.artifact_manifest && snapshot.artifact_manifest.items) {
+      renderArtifactPreviews(snapshot.artifact_manifest);
+    }
+  } catch (error) {
+    renderRunStatus({
+      status: "unknown",
+      phase: "blocked",
+      progress_percent: 0,
+      summary: error.message,
+      tasks: {},
+    });
   }
 }
 
@@ -1240,15 +2606,87 @@ function closeEventStream() {
   }
 }
 
+async function handleDeliveryAction(event) {
+  const button = event.target.closest("[data-delivery-action]");
+  if (!button || button.disabled) return;
+  const actionId = button.dataset.deliveryAction || "";
+  const actions = allDeliveryActions();
+  const action = actions.find((item) => String(item.id || "") === actionId);
+  if (!action || !action.enabled) {
+    show("eventOutput", [{ level: "warning", message: t("delivery.action_unavailable") }]);
+    setDeliveryActionFeedback(t("delivery.action_unavailable"));
+    return;
+  }
+  const url = String(button.dataset.deliveryUrl || action.url || "");
+  if (String(action.method || "GET").toUpperCase() === "POST") {
+    event.preventDefault();
+    setDeliveryActionFeedback(t("delivery.folder_opening"));
+    try {
+      const result = await api(url, { method: "POST", body: {} });
+      show("eventOutput", [{ level: "info", message: t("delivery.folder_opened") }, result]);
+      setDeliveryActionFeedback(`${t("delivery.folder_opened")} ${result.path || ""}`);
+    } catch (error) {
+      show("eventOutput", [{ level: "error", message: error.message }]);
+      setDeliveryActionFeedback(`${t("delivery.folder_failed")} ${error.message}`);
+    }
+    return;
+  }
+  event.preventDefault();
+  if (url) {
+    const opened = window.open(url, "_blank", "noreferrer");
+    setDeliveryActionFeedback(t("delivery.result_opened"));
+    if (!opened) {
+      window.location.href = url;
+    }
+  }
+}
+
+function setDeliveryActionFeedback(message) {
+  const container = el("deliveryActionFeedback");
+  if (!container) return;
+  delete container.dataset.autoIterationActive;
+  container.textContent = message;
+  container.classList.add("visible");
+}
+
 function bind() {
   document.querySelectorAll("[data-lang]").forEach((button) => {
     button.addEventListener("click", () => setLanguage(button.dataset.lang || "en"));
   });
   el("uploadFiles").addEventListener("change", renderFileSelection);
-  el("createProject").addEventListener("click", () => createProject().catch(showError));
+  ["objective", "documentObjective", "githubObjective", "repository"].forEach((id) => {
+    el(id).addEventListener("input", setControls);
+  });
+  document.querySelectorAll(".sourceRadio").forEach((radio) => {
+    radio.addEventListener("change", () => setSourceType(radio.value));
+  });
+  document.querySelectorAll("[data-source-card]").forEach((card) => {
+    card.addEventListener("click", () => setSourceType(card.dataset.sourceCard || ""));
+  });
+  el("resetSourceChoice").addEventListener("click", resetSourceChoice);
+  el("advancedToggle").addEventListener("click", toggleAdvancedVisibility);
+  el("modelProvider").addEventListener("change", () => {
+    syncModelProviderDefaults();
+    setEnvironmentReport(null);
+  });
+  [
+    "codexExecutable",
+    "autoBrowserVerify",
+    "modelApiKeyEnv",
+    "modelBaseUrl",
+    "orchestratorModel",
+    "documentExpansionModel",
+    "reviewerModel",
+  ].forEach((id) => {
+    const node = el(id);
+    const eventName = node.type === "checkbox" ? "change" : "input";
+    node.addEventListener(eventName, () => {
+      renderModelSummary();
+      invalidateEnvironment();
+    });
+  });
   el("preflightUnifiedRun").addEventListener("click", () => preflightUnifiedRun().catch(showError));
   el("startUnifiedRun").addEventListener("click", () => startUnifiedRun().catch(showError));
-  el("uploadSelected").addEventListener("click", () => uploadSelected().catch(showError));
   el("reopenFeedback").addEventListener("click", () => reopenWithFeedback().catch(showError));
   el("buildPlan").addEventListener("click", () => buildPlan().catch(showError));
   el("checkEnvironment").addEventListener("click", () => checkEnvironment().catch(showError));
@@ -1256,9 +2694,25 @@ function bind() {
   el("pauseRun").addEventListener("click", () => controlRun("pause").catch(showError));
   el("resumeRun").addEventListener("click", () => controlRun("resume").catch(showError));
   el("stopRun").addEventListener("click", () => controlRun("stop").catch(showError));
+  el("progressStopRun").addEventListener("click", () => controlRun("stop").catch(showError));
   el("runEvidenceIndex").addEventListener("click", () => runEvidenceIndex().catch(showError));
   el("runEvidencePackage").addEventListener("click", () => runEvidencePackage().catch(showError));
   el("runEvidenceReadiness").addEventListener("click", () => runEvidenceReadiness().catch(showError));
+  el("deliveryActions").addEventListener("click", (event) => handleDeliveryAction(event).catch(showError));
+  el("newProject").addEventListener("click", beginNewProject);
+  el("refreshProjectHistory").addEventListener("click", () => loadProjectHistory({ quiet: false }).catch(showError));
+  el("projectHistory").addEventListener("click", (event) => {
+    const deleteButton = event.target.closest("[data-delete-project]");
+    if (deleteButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      deleteProjectFromHistory(deleteButton.dataset.deleteProject || "").catch(showError);
+      return;
+    }
+    const button = event.target.closest("[data-open-project]");
+    if (!button) return;
+    openProjectFromHistory(button.dataset.openProject || "", button.dataset.openRun || "").catch(showError);
+  });
   bindDeliveryTabs();
 }
 
@@ -1272,8 +2726,20 @@ async function loadFromUrl() {
   const runId = params.get("run_id") || params.get("runId") || "";
   if (!projectId) return;
 
+  await loadProjectRun(projectId, runId);
+}
+
+async function loadProjectRun(projectId, runId = "") {
   state.projectId = projectId;
   state.runId = runId;
+  state.runStatusSnapshot = null;
+  closeEventStream();
+  if (state.pollTimer) {
+    clearInterval(state.pollTimer);
+    state.pollTimer = 0;
+  }
+  resetDelivery();
+  renderRunStatus(null);
   setControls();
 
   const project = await api(`/projects/${state.projectId}`);
@@ -1283,10 +2749,28 @@ async function loadFromUrl() {
   setSummary(project, runId ? { status: "loaded" } : {});
 
   if (runId) {
+    await refreshRunStatus();
     const delivery = await api(`/projects/${state.projectId}/runs/${state.runId}/delivery`);
     renderDelivery(delivery);
     setSummary(project, { status: delivery.status || "loaded" });
   }
+  renderProjectWorkspace();
+  setControls();
+}
+
+function setCurrentUrl(projectId, runId = "") {
+  const url = new URL(window.location.href);
+  if (projectId) {
+    url.searchParams.set("project_id", projectId);
+  } else {
+    url.searchParams.delete("project_id");
+  }
+  if (runId) {
+    url.searchParams.set("run_id", runId);
+  } else {
+    url.searchParams.delete("run_id");
+  }
+  history.replaceState(null, "", `${url.pathname}${url.search}`);
 }
 
 bind();
@@ -1294,4 +2778,9 @@ setControls();
 setDeliveryTab(state.deliveryTab);
 applyLanguage();
 checkHealth();
-loadFromUrl().catch(showError);
+loadEnvironmentDefaults()
+  .finally(() => {
+    setControls();
+    return loadProjectHistory().then(loadFromUrl);
+  })
+  .catch(showError);

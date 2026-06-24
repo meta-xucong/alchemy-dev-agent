@@ -82,6 +82,7 @@ class RuntimeHandoff:
             allowed_files=allowed_files_for_task(task),
             constraints=[*boundary_constraints_for_task(task), *list(constraints or [])],
             commands_to_run=list(task.commands_to_run),
+            boundary_mode=task.boundary_mode,
         )
 
     def build_worker_inputs(
@@ -113,7 +114,7 @@ def default_branch_for_task(task: TaskNode) -> str:
 def allowed_files_for_task(task: TaskNode) -> list[str]:
     if task.type in {"architecture", "review", "test"}:
         return []
-    return list(task.relevant_files)
+    return _dedupe_paths(task.relevant_files)
 
 
 def boundary_constraints_for_task(task: TaskNode) -> list[str]:
@@ -121,9 +122,24 @@ def boundary_constraints_for_task(task: TaskNode) -> list[str]:
         "Do not edit files outside allowed_files.",
         "If allowed_files is empty, do not edit repository files.",
     ]
+    if task.boundary_mode == "large_refactor":
+        constraints.append(
+            "This is a large_refactor integration task: implement cross-module changes within allowed_files as one coherent product migration."
+        )
     if not allowed_files_for_task(task):
         constraints.append("Return partial or blocked if the task requires repository edits.")
     return constraints
+
+
+def _dedupe_paths(paths: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for path in paths:
+        clean = str(path).replace("\\", "/").strip().strip("/")
+        if clean and clean not in seen:
+            seen.add(clean)
+            result.append(clean)
+    return result
 
 
 def ensure_release_task(task_graph: TaskGraph) -> TaskGraph:

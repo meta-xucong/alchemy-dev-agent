@@ -133,6 +133,121 @@ class RuntimeHandoffTests(unittest.TestCase):
         completed_ids = set(payload["completed_tasks"])
         self.assertTrue({"T001", "T002", "T003", "T004", "T005", "T006"}.issubset(completed_ids))
 
+    def test_scoped_document_plan_worker_allowed_files_stay_in_v3_scope(self) -> None:
+        with temp_handoff_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            (repo / "alchemy_creative_agent_3_0" / "app").mkdir(parents=True)
+            (repo / "alchemy_creative_agent_3_0" / "tests").mkdir(parents=True)
+            (repo / "custom_media_agent_2_0").mkdir()
+            (repo / "src_skeleton").mkdir()
+            (repo / "tests").mkdir()
+            (repo / "pyproject.toml").write_text("[project]\nname='media-agent'\n", encoding="utf-8")
+            (repo / "custom_media_agent_2_0" / "legacy.py").write_text("LEGACY=True\n", encoding="utf-8")
+            (repo / "src_skeleton" / "schemas.py").write_text("LEGACY=True\n", encoding="utf-8")
+            (repo / "tests" / "test_legacy.py").write_text("def test_legacy():\n    assert True\n", encoding="utf-8")
+            spec = root / "v3.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# V3 Foundation",
+                        "## Requirements",
+                        "- Must implement V3 foundation in alchemy_creative_agent_3_0/app/.",
+                        "- Must not edit custom_media_agent_2_0/legacy.py or src_skeleton/schemas.py.",
+                        "",
+                        "All implementation code and tests must live under:",
+                        "```text",
+                        "alchemy_creative_agent_3_0/app/",
+                        "alchemy_creative_agent_3_0/tests/",
+                        "```",
+                        "Do not edit any file under these paths:",
+                        "```text",
+                        "custom_media_agent_2_0/",
+                        "src_skeleton/",
+                        "tests/",
+                        "```",
+                        "Target files: alchemy_creative_agent_3_0/app/__init__.py, alchemy_creative_agent_3_0/app/creative_core/central_brain.py, alchemy_creative_agent_3_0/tests/test_end_to_end_planning.py",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Implement V3 Foundation",
+                documents=[spec],
+                repository_path=repo,
+                created_at="2026-06-18T00:00:00+00:00",
+            )
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle)
+            state = RuntimeHandoff().build_state(
+                project_brief=brief,
+                context_bundle=bundle,
+                task_graph=graph,
+                repository_path=repo,
+            )
+            packages = RuntimeHandoff().build_worker_inputs(state=state)
+
+        package_by_id = {package.task_id: package for package in packages}
+        implementation = package_by_id["T002"]
+        self.assertEqual(
+            implementation.allowed_files,
+            [
+                "alchemy_creative_agent_3_0/app/__init__.py",
+                "alchemy_creative_agent_3_0/app/creative_core/central_brain.py",
+                "alchemy_creative_agent_3_0/tests/test_end_to_end_planning.py",
+            ],
+        )
+        self.assertEqual(implementation.allowed_files, implementation.relevant_files)
+        self.assertTrue(all(path.startswith("alchemy_creative_agent_3_0/") for path in implementation.allowed_files))
+        self.assertNotIn("custom_media_agent_2_0/legacy.py", implementation.allowed_files)
+        self.assertEqual(package_by_id["T003"].allowed_files, [])
+        self.assertEqual(package_by_id["T003"].commands_to_run, ["python -B -m pytest alchemy_creative_agent_3_0/tests"])
+
+    def test_large_refactor_worker_package_uses_broad_repo_scope(self) -> None:
+        with temp_handoff_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "internal").mkdir(parents=True)
+            (repo / "frontend" / "src").mkdir(parents=True)
+            (repo / "backend" / "internal" / "billing.go").write_text("package internal\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "App.tsx").write_text("export const App = () => null;\n", encoding="utf-8")
+            (repo / "go.mod").write_text("module example.com/app\n", encoding="utf-8")
+            spec = root / "billing.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Standalone Billing Core",
+                        "## Requirements",
+                        "- Must perform a whole-repository large refactor into a standalone service.",
+                        "- Must remove token relay UI and backend routes.",
+                        "- Must support wallet transactions and metering.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Large refactor into standalone Billing Core",
+                documents=[spec],
+                repository_path=repo,
+                created_at="2026-06-24T00:00:00+00:00",
+            )
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle)
+            state = RuntimeHandoff().build_state(
+                project_brief=brief,
+                context_bundle=bundle,
+                task_graph=graph,
+                repository_path=repo,
+            )
+            packages = RuntimeHandoff().build_worker_inputs(state=state)
+
+        package_by_id = {package.task_id: package for package in packages}
+        implementation = package_by_id["T002"]
+        self.assertEqual(implementation.boundary_mode, "large_refactor")
+        self.assertIn("backend/**", implementation.allowed_files)
+        self.assertIn("frontend/**", implementation.allowed_files)
+        self.assertIn("large_refactor integration task", " ".join(implementation.constraints))
+        self.assertEqual(package_by_id["T003"].allowed_files, [])
+
 
 if __name__ == "__main__":
     unittest.main()

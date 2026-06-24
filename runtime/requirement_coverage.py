@@ -133,7 +133,18 @@ class RequirementCoverageBuilder:
         if not implementation_done:
             gaps.append("No planned task is completed for this requirement.")
 
-        if not planned or (implementation_files and not existing_files) or not implementation_done:
+        if _is_documentation_only_report(artifact_report) and implementation_done and verification:
+            status = "covered"
+            gaps = [
+                gap
+                for gap in gaps
+                if gap
+                not in {
+                    "Requirement has no mapped implementation files.",
+                    "No implementation files exist for this requirement.",
+                }
+            ]
+        elif not planned or (implementation_files and not existing_files) or not implementation_done:
             status = "missing"
         elif gaps:
             status = "partial"
@@ -191,6 +202,21 @@ def _verification_evidence(nodes: dict[str, dict[str, Any]], task_ids: list[str]
     if native_ui_status == "generated":
         evidence.append("Native UI acceptance tests: generated.")
     return _dedupe(evidence)
+
+
+def _is_documentation_only_report(artifact_report: dict[str, Any]) -> bool:
+    profile = artifact_report.get("artifact_profile", {})
+    if isinstance(profile, dict) and str(profile.get("name", "")) == "documentation_only":
+        return True
+    artifact_files = [str(item) for item in artifact_report.get("artifact_files", []) if str(item)]
+    return bool(artifact_files) and all(_is_document_path(item) for item in artifact_files)
+
+
+def _is_document_path(path: str) -> bool:
+    clean = path.replace("\\", "/").strip().lower()
+    if clean in {"docs", "docs/"} or clean.startswith("docs/"):
+        return True
+    return clean.endswith((".md", ".markdown", ".txt", ".rst"))
 
 
 def _coverage_score(entries: list[RequirementCoverageEntry]) -> float:

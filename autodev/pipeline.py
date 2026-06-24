@@ -51,6 +51,15 @@ class AutoDevPipeline:
         brief_payload = brief.to_dict()
         context_bundle = ContextBundleBuilder().build(brief)
         context_payload = context_bundle.to_dict()
+        scope_controls = context_payload.get("scope_controls")
+        if not isinstance(scope_controls, dict):
+            scope_controls = {}
+        context_payload["scope_controls"] = {
+            "allowed_prefixes": list(scope_controls.get("allowed_prefixes", []) or []),
+            "protected_prefixes": list(scope_controls.get("protected_prefixes", []) or []),
+            "target_files": list(scope_controls.get("target_files", []) or []),
+            "boundary_mode": str(scope_controls.get("boundary_mode", "strict") or "strict"),
+        }
 
         validation_errors = []
         validation_errors.extend(validate_project_brief_contract(brief_payload))

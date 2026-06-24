@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alchemy-dev-agent.local/specs/central_review_schema.json",
+  "title": "Alchemy Dev Agent Central Review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "decision",
+    "confidence",
+    "summary",
+    "completed_loop_steps",
+    "missing_loop_steps",
+    "next_actions",
+    "human_help_needed"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["running", "ready", "needs_iteration", "blocked", "waiting"]
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["continue", "handoff", "iterate", "blocked", "wait_for_input"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "summary": {
+      "type": "string"
+    },
+    "completed_loop_steps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/loop_step"
+      }
+    },
+    "missing_loop_steps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/loop_step"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "human_help_needed": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "loop_step": {
+      "type": "string",
+      "enum": [
+        "read_documents",
+        "brain_refinement",
+        "execution",
+        "audit",
+        "testing",
+        "iteration",
+        "full_review",
+        "handoff"
+      ]
+    }
+  }
+}

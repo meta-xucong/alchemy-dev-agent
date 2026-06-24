@@ -22,7 +22,10 @@ KNOWN_REPORTS = {
     "benchmark_suite_report.json": "benchmark_suite",
     "benchmark_regression_report.json": "benchmark_regression",
     "evidence_readiness_report.json": "evidence_readiness",
+    "real_worker_probe_report.json": "real_worker_probe",
 }
+
+DIAGNOSTIC_REPORT_TYPES = {"real_worker_probe"}
 
 
 @dataclass(slots=True)
@@ -34,6 +37,7 @@ class RealProbeIndex:
     output_path: str = ""
 
     def to_dict(self) -> dict[str, object]:
+        blocking_entries = [entry for entry in self.entries if not entry_is_diagnostic(entry)]
         return {
             "schema_version": "2.47",
             "status": self.status,
@@ -44,7 +48,11 @@ class RealProbeIndex:
             "summary": {
                 "total": len(self.entries),
                 "passed": sum(1 for entry in self.entries if entry.get("status") in {"ready", "passed"}),
-                "blocked_or_failed": sum(1 for entry in self.entries if entry.get("status") in {"blocked", "failed"}),
+                "diagnostic": sum(1 for entry in self.entries if entry_is_diagnostic(entry)),
+                "blocking_total": len(blocking_entries),
+                "blocked_or_failed": sum(
+                    1 for entry in blocking_entries if entry.get("status") in {"blocked", "failed"}
+                ),
             },
         }
 
@@ -66,7 +74,12 @@ class RealProbeIndexer:
                 if entry:
                     entries.append(entry)
         entries = dedupe_entries(entries)
-        status = "passed" if entries and all(entry.get("status") in {"ready", "passed"} for entry in entries) else "blocked"
+        blocking_entries = [entry for entry in entries if not entry_is_diagnostic(entry)]
+        status = (
+            "passed"
+            if entries and all(entry.get("status") in {"ready", "passed"} for entry in blocking_entries)
+            else "blocked"
+        )
         index = RealProbeIndex(
             status=status,
             entries=entries,
@@ -111,6 +124,9 @@ class RealProbeIndexer:
             entry.update(benchmark_regression_fields(payload))
         elif report_type == "evidence_readiness":
             entry.update(evidence_readiness_fields(payload))
+        elif report_type == "real_worker_probe":
+            entry.update(real_worker_probe_fields(payload))
+            entry["diagnostic"] = True
         return entry
 
 
@@ -267,8 +283,32 @@ def evidence_readiness_fields(payload: dict[str, Any]) -> dict[str, object]:
     }
 
 
+def real_worker_probe_fields(payload: dict[str, Any]) -> dict[str, object]:
+    worker = as_dict(payload.get("worker_result"))
+    runtime_state = as_dict(payload.get("runtime_state"))
+    repository = as_dict(runtime_state.get("repository"))
+    convergence = as_dict(repository.get("repair_convergence"))
+    job = as_dict(payload.get("job"))
+    return {
+        "probe_name": payload.get("probe_name", ""),
+        "purpose": payload.get("purpose", ""),
+        "job_status": job.get("status", ""),
+        "worker_status": worker.get("status", ""),
+        "tests_passed": list(worker.get("tests_passed", [])) if isinstance(worker.get("tests_passed", []), list) else [],
+        "files_changed": list(worker.get("files_changed", [])) if isinstance(worker.get("files_changed", []), list) else [],
+        "repair_convergence_status": convergence.get("status", ""),
+        "repair_target_files": list(convergence.get("target_files", []))
+        if isinstance(convergence.get("target_files", []), list)
+        else [],
+    }
+
+
 def as_dict(value: Any) -> dict[str, Any]:
     return dict(value) if isinstance(value, dict) else {}
+
+
+def entry_is_diagnostic(entry: dict[str, object]) -> bool:
+    return bool(entry.get("diagnostic")) or str(entry.get("type", "")) in DIAGNOSTIC_REPORT_TYPES
 
 
 def dedupe_entries(entries: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -289,6 +329,7 @@ def index_summary(payload: dict[str, object]) -> dict[str, object]:
                 "status": entry.get("status", ""),
                 "path": entry.get("path", ""),
                 "blocker_count": entry.get("blocker_count", 0),
+                "diagnostic": bool(entry.get("diagnostic", False)),
             }
             for entry in payload.get("entries", [])
             if isinstance(entry, dict)

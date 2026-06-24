@@ -25,6 +25,14 @@ __all__ = [
     "LocalRepositoryAcceptanceHarness",
     "LocalRepositoryAcceptanceResult",
     "build_development_cycle_report",
+    "FullRoadmapExecutor",
+    "FullRoadmapExecutionResult",
+    "ProjectAnalysisGate",
+    "ProjectAnalysisReport",
+    "RoadmapExtractor",
+    "RoadmapAuditor",
+    "FinalVerificationLoop",
+    "FinalVerificationReport",
 ]
 
 
@@ -125,4 +133,36 @@ def __getattr__(name: str):
         from .development_cycle import build_development_cycle_report
 
         return build_development_cycle_report
+    if name in {"FullRoadmapExecutor", "FullRoadmapExecutionResult"}:
+        from .full_roadmap_executor import FullRoadmapExecutionResult, FullRoadmapExecutor
+
+        exports = {
+            "FullRoadmapExecutor": FullRoadmapExecutor,
+            "FullRoadmapExecutionResult": FullRoadmapExecutionResult,
+        }
+        return exports[name]
+    if name in {"ProjectAnalysisGate", "ProjectAnalysisReport"}:
+        from .project_analysis_gate import ProjectAnalysisGate, ProjectAnalysisReport
+
+        exports = {
+            "ProjectAnalysisGate": ProjectAnalysisGate,
+            "ProjectAnalysisReport": ProjectAnalysisReport,
+        }
+        return exports[name]
+    if name == "RoadmapExtractor":
+        from .roadmap_extractor import RoadmapExtractor
+
+        return RoadmapExtractor
+    if name == "RoadmapAuditor":
+        from .roadmap_auditor import RoadmapAuditor
+
+        return RoadmapAuditor
+    if name in {"FinalVerificationLoop", "FinalVerificationReport"}:
+        from .final_verification_loop import FinalVerificationLoop, FinalVerificationReport
+
+        exports = {
+            "FinalVerificationLoop": FinalVerificationLoop,
+            "FinalVerificationReport": FinalVerificationReport,
+        }
+        return exports[name]
     raise AttributeError(f"module 'autodev' has no attribute {name!r}")

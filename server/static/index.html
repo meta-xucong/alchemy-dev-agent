@@ -19,126 +19,203 @@
               <button id="languageEn" type="button" class="languageOption active" data-lang="en">EN</button>
               <button id="languageZh" type="button" class="languageOption" data-lang="zh">中文</button>
             </div>
+            <button id="advancedToggle" type="button" class="advancedToggle" aria-pressed="false" data-i18n="advanced.show">Advanced details</button>
             <span id="apiStatus" class="status" data-i18n="api.checking">Checking API</span>
           </div>
         </header>
 
         <div class="layout">
-          <section class="panel controls" aria-label="Project controls">
-            <h2 data-i18n="controls.title">Create Project</h2>
-            <label>
-              <span data-i18n="controls.objective">Objective</span>
-              <textarea id="objective" rows="4" spellcheck="false">Add workspace support</textarea>
-            </label>
-            <label>
-              <span data-i18n="controls.documents">Development documents</span>
-              <textarea id="documents" rows="3" spellcheck="false" placeholder="One local path per line" data-i18n-placeholder="placeholder.paths"></textarea>
-            </label>
-            <label>
-              <span data-i18n="controls.attachments">Supporting files</span>
-              <textarea id="attachments" rows="3" spellcheck="false" placeholder="One local path per line" data-i18n-placeholder="placeholder.paths"></textarea>
-            </label>
-            <label>
-              <span data-i18n="controls.upload_files">Upload files</span>
-              <span class="filePicker">
-                <span class="filePickerButton" data-i18n="button.choose_files">Choose files</span>
-                <input id="uploadFiles" type="file" multiple>
-              </span>
-              <span id="fileSelection" class="fileSelection" data-i18n="file.no_file">No file selected</span>
-            </label>
-            <label>
-              <span data-i18n="controls.github_source">GitHub repository source</span>
-              <input id="repository" type="url" placeholder="https://github.com/org/repo">
-            </label>
-            <label>
-              <span data-i18n="controls.local_source">Local repository source</span>
-              <input id="repositoryPath" type="text" placeholder="D:\path\to\repo">
-            </label>
-            <label>
-              <span data-i18n="controls.source_mode">Source mode</span>
-              <select id="sourceMode">
-                <option value="auto" selected data-i18n="source.auto">Auto</option>
-                <option value="none" data-i18n="source.none">No repository</option>
-                <option value="local" data-i18n="source.local">Local repository</option>
-                <option value="github_public" data-i18n="source.github_public">Public GitHub</option>
-                <option value="github_private" data-i18n="source.github_private">Private GitHub</option>
-              </select>
-            </label>
-            <label>
-              <span data-i18n="controls.codex_executable">Codex CLI executable</span>
-              <input id="codexExecutable" type="text" value="codex" placeholder="D:\AI\Tools\CodexCLI\bin\codex.exe">
-            </label>
-            <label>
-              <span data-i18n="controls.ci_wait">CI wait seconds</span>
-              <input id="githubCiWaitSeconds" type="number" min="0" step="1" value="120">
-            </label>
-            <label>
-              <span data-i18n="controls.ci_poll">CI poll seconds</span>
-              <input id="githubCiPollSeconds" type="number" min="1" step="1" value="10">
-            </label>
-            <label class="check">
-              <input id="prepareRepository" type="checkbox">
-              <span data-i18n="controls.prepare_repository">Prepare GitHub source</span>
-            </label>
-            <label class="check">
-              <input id="realCodex" type="checkbox">
-              <span data-i18n="controls.real_codex">Real Codex worker</span>
-            </label>
-            <label class="check">
-              <input id="realGithub" type="checkbox">
-              <span data-i18n="controls.real_github">Real GitHub flow</span>
-            </label>
-            <label class="check">
-              <input id="githubCollectCi" type="checkbox" checked>
-              <span data-i18n="controls.collect_ci">Collect GitHub CI</span>
-            </label>
-            <label class="check">
-              <input id="isolateRealRun" type="checkbox" checked>
-              <span data-i18n="controls.isolated_worktree">Isolated worktree</span>
-            </label>
-            <label class="check">
-              <input id="keepWorktree" type="checkbox" checked>
-              <span data-i18n="controls.keep_worktree">Keep worktree</span>
-            </label>
-            <label class="check">
-              <input id="autoBrowserVerify" type="checkbox">
-              <span data-i18n="controls.auto_browser">Auto browser verify</span>
-            </label>
-            <label class="check">
-              <input id="generateStaticCi" type="checkbox" checked>
-              <span data-i18n="controls.static_ci">Generate static CI</span>
-            </label>
-            <label class="check">
-              <input id="writeNativeUiTests" type="checkbox">
-              <span data-i18n="controls.native_ui_tests">Write native UI tests</span>
-            </label>
-            <label class="check">
-              <input id="autoMerge" type="checkbox">
-              <span data-i18n="controls.auto_merge">Auto merge after checks</span>
-            </label>
+          <section class="panel projectWorkspacePanel" aria-label="Project workspace">
+            <header class="panelHeader">
+              <div>
+                <h2 data-i18n="workspace.title">Project Workspace</h2>
+                <p data-i18n="workspace.simple_help">Start a new project or reopen a previous generated result.</p>
+              </div>
+              <span id="workspaceBadge" class="readinessBadge status-ready" data-i18n="workspace.new_ready">New project</span>
+            </header>
+            <div class="workspaceActions">
+              <button id="newProject" type="button" data-i18n="button.new_project">New Project</button>
+              <button id="refreshProjectHistory" type="button" class="secondaryButton" data-i18n="button.refresh_history">Refresh History</button>
+            </div>
+            <div id="activeProjectSummary" class="activeProjectSummary"></div>
+            <div id="projectHistory" class="projectHistory" aria-label="Project history"></div>
+          </section>
+
+          <section class="panel configPanel" aria-label="Configuration">
+            <header class="panelHeader">
+              <div>
+                <h2 data-i18n="config.title">Configuration</h2>
+              </div>
+              <span id="environmentBadge" class="readinessBadge status-unknown" data-i18n="config.not_checked">Not checked</span>
+            </header>
+            <p class="simpleHint" data-i18n="config.simple_help">First check whether this computer is ready. Most users do not need to edit advanced settings.</p>
+            <details id="advancedConfigDetails" class="advancedConfigDetails">
+              <summary data-i18n="advanced.config">Advanced configuration</summary>
+              <div class="advancedConfigBody">
+                <label>
+                  <span data-i18n="controls.codex_executable">Codex CLI executable</span>
+                  <input id="codexExecutable" type="text" value="codex" placeholder="D:\AI\Tools\CodexCLI\bin\codex.exe">
+                </label>
+                <section class="modelConfig" aria-label="Model access">
+                  <div class="modelHeader">
+                    <div>
+                      <h3 data-i18n="config.models">Model Access</h3>
+                      <p data-i18n="config.model_help">Recommended mode uses your logged-in Codex CLI. No API key is needed.</p>
+                    </div>
+                    <span id="modelModeBadge" class="readinessBadge status-ready" data-i18n="config.recommended">Recommended</span>
+                  </div>
+                  <label>
+                    <span data-i18n="config.model_mode">Model mode</span>
+                    <select id="modelProvider">
+                      <option value="codex_cli" data-i18n="config.provider_codex">Recommended: Codex CLI login</option>
+                      <option value="openai" data-i18n="config.provider_openai">Advanced: OpenAI API key</option>
+                      <option value="anthropic" data-i18n="config.provider_anthropic">Advanced: Anthropic API key</option>
+                      <option value="custom" data-i18n="config.provider_custom">Advanced: Custom endpoint</option>
+                    </select>
+                  </label>
+                  <div id="modelSummary" class="modelSummary"></div>
+                  <details id="advancedModelSettings" class="advancedModelSettings">
+                    <summary data-i18n="config.advanced_model">Advanced model settings</summary>
+                    <div class="configGrid">
+                      <label>
+                        <span data-i18n="config.orchestrator_model">Orchestrator model</span>
+                        <input id="orchestratorModel" type="text" value="codex-cli">
+                      </label>
+                      <label>
+                        <span data-i18n="config.expansion_model">Document expansion model</span>
+                        <input id="documentExpansionModel" type="text" value="codex-cli">
+                      </label>
+                      <label>
+                        <span data-i18n="config.reviewer_model">Reviewer model</span>
+                        <input id="reviewerModel" type="text" value="codex-cli">
+                      </label>
+                      <label>
+                        <span data-i18n="config.api_key_env">API key environment variable</span>
+                        <input id="modelApiKeyEnv" type="text" placeholder="OPENAI_API_KEY">
+                      </label>
+                    </div>
+                    <label>
+                      <span data-i18n="config.base_url">Base URL</span>
+                      <input id="modelBaseUrl" type="url" placeholder="https://api.openai.com/v1">
+                    </label>
+                  </details>
+                </section>
+                <div class="configGrid">
+                  <label>
+                    <span data-i18n="controls.ci_wait">CI wait seconds</span>
+                    <input id="githubCiWaitSeconds" type="number" min="0" step="1" value="120">
+                  </label>
+                  <label>
+                    <span data-i18n="controls.ci_poll">CI poll seconds</span>
+                    <input id="githubCiPollSeconds" type="number" min="1" step="1" value="10">
+                  </label>
+                </div>
+                <div class="configChecks">
+                  <label class="check">
+                    <input id="autoBrowserVerify" type="checkbox">
+                    <span data-i18n="controls.auto_browser">Auto browser verify</span>
+                  </label>
+                  <label class="check">
+                    <input id="prepareRepository" type="checkbox">
+                    <span data-i18n="controls.prepare_repository">Prepare GitHub source</span>
+                  </label>
+                  <label class="check">
+                    <input id="realCodex" type="checkbox" checked>
+                    <span data-i18n="controls.real_codex">Real Codex worker</span>
+                  </label>
+                  <label class="check">
+                    <input id="realGithub" type="checkbox">
+                    <span data-i18n="controls.real_github">Real GitHub flow</span>
+                  </label>
+                  <label class="check">
+                    <input id="githubCollectCi" type="checkbox" checked>
+                    <span data-i18n="controls.collect_ci">Collect GitHub CI</span>
+                  </label>
+                  <label class="check">
+                    <input id="isolateRealRun" type="checkbox" checked>
+                    <span data-i18n="controls.isolated_worktree">Isolated worktree</span>
+                  </label>
+                  <label class="check">
+                    <input id="keepWorktree" type="checkbox" checked>
+                    <span data-i18n="controls.keep_worktree">Keep worktree</span>
+                  </label>
+                  <label class="check">
+                    <input id="generateStaticCi" type="checkbox" checked>
+                    <span data-i18n="controls.static_ci">Generate static CI</span>
+                  </label>
+                  <label class="check">
+                    <input id="writeNativeUiTests" type="checkbox">
+                    <span data-i18n="controls.native_ui_tests">Write native UI tests</span>
+                  </label>
+                  <label class="check">
+                    <input id="autoMerge" type="checkbox">
+                    <span data-i18n="controls.auto_merge">Auto merge after checks</span>
+                  </label>
+                </div>
+              </div>
+            </details>
             <div class="buttonRow">
-              <button id="createProject" data-i18n="button.create">Create</button>
-              <button id="uploadSelected" disabled data-i18n="button.upload">Upload</button>
-              <button id="reopenFeedback" disabled data-i18n="button.feedback_reopen">Feedback Reopen</button>
-              <button id="buildPlan" disabled data-i18n="button.plan">Plan</button>
-            </div>
-            <div class="buttonRow secondary">
               <button id="checkEnvironment" data-i18n="button.check_env">Check Env</button>
-              <button id="preflightUnifiedRun" data-i18n="button.preflight">Preflight</button>
-              <button id="startUnifiedRun" data-i18n="button.unified_run">Unified Run</button>
             </div>
-            <div class="buttonRow secondary">
-              <button id="startRun" disabled data-i18n="button.run">Run</button>
-              <button id="pauseRun" disabled data-i18n="button.pause">Pause</button>
-              <button id="resumeRun" disabled data-i18n="button.resume">Resume</button>
+            <div id="environmentSummary" class="environmentSummary" aria-label="Environment checks"></div>
+          </section>
+
+          <section class="panel sourcePanel devPanel locked" aria-label="Development source">
+            <header class="panelHeader">
+              <div>
+                <h2 data-i18n="source.title">Development Source</h2>
+                <p data-i18n="source.simple_help">Pick one way to tell Alchemy what to build.</p>
+              </div>
+              <span id="developmentLockBadge" class="readinessBadge status-blocked" data-i18n="source.locked">Locked</span>
+            </header>
+            <div id="sourceCards" class="sourceCards">
+              <label class="sourceCard" data-source-card="idea">
+                <input class="sourceRadio" type="radio" name="sourceType" value="idea">
+                <strong data-i18n="source.idea.title">Idea prompt</strong>
+                <span data-i18n="source.idea.subtitle">Expand one paragraph into a full development document.</span>
+                <textarea id="objective" rows="5" spellcheck="false" data-i18n-placeholder="source.idea.placeholder" placeholder="Describe what you want to build."></textarea>
+              </label>
+              <label class="sourceCard" data-source-card="documents">
+                <input class="sourceRadio" type="radio" name="sourceType" value="documents">
+                <strong data-i18n="source.documents.title">Local documents</strong>
+                <span data-i18n="source.documents.subtitle">Upload one or more development documents from this computer.</span>
+                <input id="documentObjective" type="text" data-i18n-placeholder="source.documents.objective_placeholder" placeholder="Optional delivery goal">
+                <span class="filePicker">
+                  <span class="filePickerButton" data-i18n="button.choose_files">Choose files</span>
+                  <input id="uploadFiles" type="file" multiple>
+                </span>
+                <span id="fileSelection" class="fileSelection" data-i18n="file.no_file">No file selected</span>
+              </label>
+              <label class="sourceCard" data-source-card="github">
+                <input class="sourceRadio" type="radio" name="sourceType" value="github">
+                <strong data-i18n="source.github.title">GitHub repository</strong>
+                <span data-i18n="source.github.subtitle">Use a GitHub repository URL after GitHub login is verified.</span>
+                <input id="githubObjective" type="text" data-i18n-placeholder="source.github.objective_placeholder" placeholder="Optional delivery goal">
+                <input id="repository" type="url" placeholder="https://github.com/org/repo">
+              </label>
             </div>
-            <div class="buttonRow secondary">
-              <button id="stopRun" disabled data-i18n="button.stop">Stop</button>
+            <div class="sourceActions">
+              <button id="resetSourceChoice" class="secondaryButton" disabled data-i18n="button.change_source">Change Source</button>
+              <button id="preflightUnifiedRun" class="secondaryButton" disabled data-i18n="button.preflight">Preflight</button>
+              <button id="startUnifiedRun" disabled data-i18n="button.start_development">Start Development</button>
             </div>
+            <details id="advancedRunControls" class="advancedRunControls">
+              <summary data-i18n="advanced.run_controls">Advanced run controls</summary>
+              <div class="buttonRow secondary runControls">
+                <button id="buildPlan" disabled data-i18n="button.plan">Plan</button>
+                <button id="reopenFeedback" disabled data-i18n="button.feedback_reopen">Feedback Reopen</button>
+                <button id="startRun" disabled data-i18n="button.run">Run</button>
+              </div>
+              <div class="buttonRow secondary runControls">
+                <button id="pauseRun" disabled data-i18n="button.pause">Pause</button>
+                <button id="resumeRun" disabled data-i18n="button.resume">Resume</button>
+                <button id="stopRun" disabled data-i18n="button.stop">Stop</button>
+              </div>
+            </details>
           </section>
 
           <section class="panel summary" aria-label="Project summary">
-            <h2 data-i18n="project.title">Project</h2>
+            <h2 data-i18n="progress.title">Development Progress</h2>
             <dl>
               <dt data-i18n="project.project_id">Project ID</dt>
               <dd id="projectId">-</dd>
@@ -149,6 +226,25 @@
               <dt data-i18n="project.run_status">Run Status</dt>
               <dd id="runStatus">-</dd>
             </dl>
+            <div id="runProgressPanel" class="runProgressPanel idle" aria-label="Development progress">
+              <div class="progressHeader">
+                <strong id="progressTitle" data-i18n="progress.waiting">Waiting to start</strong>
+                <span id="progressPercent">0%</span>
+              </div>
+              <div class="progressTrack" aria-hidden="true">
+                <span id="progressFill" style="width: 0%"></span>
+              </div>
+              <p id="progressSummary" data-i18n="progress.choose_source">Choose a source and start development.</p>
+              <div id="roadmapProgress" class="roadmapProgress" hidden></div>
+              <div id="centralReviewProgress" class="centralReviewProgress"></div>
+              <div class="progressMeta">
+                <span id="progressTasks">-</span>
+                <span id="progressActivity">-</span>
+              </div>
+              <div class="progressActions">
+                <button id="progressStopRun" type="button" class="secondaryButton" hidden disabled data-i18n="button.stop_development">Stop Development</button>
+              </div>
+            </div>
           </section>
 
           <section class="panel output briefPanel">
@@ -171,6 +267,7 @@
             <header class="panelHeader deliveryHeader">
               <div>
                 <h2 data-i18n="delivery.title">Delivery Command</h2>
+                <p data-i18n="delivery.simple_help">Open the result, inspect it, and review the final gate.</p>
               </div>
               <span id="readinessBadge" class="readinessBadge status-unknown" data-i18n="delivery.no_delivery">No delivery</span>
             </header>
@@ -181,6 +278,8 @@
               </div>
               <div id="deliverySummary" class="deliverySummary"></div>
             </div>
+            <div id="scoreExplanation" class="scoreExplanation"></div>
+            <div id="centralReviewCard" class="centralReviewCard"></div>
             <div class="deliveryTabs" role="tablist" aria-label="Delivery views">
               <button type="button" class="deliveryTab active" data-delivery-tab="overview" aria-selected="true" data-i18n="tab.overview">Overview</button>
               <button type="button" class="deliveryTab" data-delivery-tab="artifacts" aria-selected="false" data-i18n="tab.artifacts">Artifacts</button>
@@ -188,6 +287,8 @@
               <button type="button" class="deliveryTab" data-delivery-tab="raw" aria-selected="false" data-i18n="tab.raw_json">Raw JSON</button>
             </div>
             <section class="deliveryView active" data-delivery-view="overview" aria-label="Delivery overview">
+              <div id="deliveryActions" class="deliveryActions" aria-label="Delivery review actions"></div>
+              <div id="deliveryActionFeedback" class="deliveryActionFeedback"></div>
               <div id="evidenceCards" class="evidenceCards" aria-label="Delivery evidence cards"></div>
               <div id="evidenceDetails" class="evidenceDetails" aria-label="Delivery evidence details"></div>
             </section>

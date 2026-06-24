@@ -87,6 +87,13 @@ class GitHubSourceRuntime:
         command = ["git", "clone", "--branch", repository.target_branch, "--single-branch", repository.url, str(target)]
         commands_run.append(command)
         result = self._run(command, cwd=None)
+        if result.returncode != 0 and branch_not_found(result.stderr or result.stdout):
+            default_branch = self._remote_default_branch(repository, commands_run)
+            if default_branch and default_branch != repository.target_branch:
+                repository.target_branch = default_branch
+                command = ["git", "clone", "--branch", repository.target_branch, "--single-branch", repository.url, str(target)]
+                commands_run.append(command)
+                result = self._run(command, cwd=None)
         if result.returncode != 0:
             return self._failed(repository, commands_run, "repository_clone_failed", result.stderr or result.stdout)
         repository.access_status = "available"
@@ -103,6 +110,14 @@ class GitHubSourceRuntime:
         checkout = ["git", "checkout", "-B", repository.target_branch, f"origin/{repository.target_branch}"]
         commands_run.extend([fetch, checkout])
         fetch_result = self._run(fetch, cwd=str(target))
+        if fetch_result.returncode != 0 and branch_not_found(fetch_result.stderr or fetch_result.stdout):
+            default_branch = self._remote_default_branch(repository, commands_run)
+            if default_branch and default_branch != repository.target_branch:
+                repository.target_branch = default_branch
+                fetch = ["git", "fetch", "origin", repository.target_branch]
+                checkout = ["git", "checkout", "-B", repository.target_branch, f"origin/{repository.target_branch}"]
+                commands_run.extend([fetch, checkout])
+                fetch_result = self._run(fetch, cwd=str(target))
         if fetch_result.returncode != 0:
             return self._failed(repository, commands_run, "repository_fetch_failed", fetch_result.stderr or fetch_result.stdout)
         checkout_result = self._run(checkout, cwd=str(target))
@@ -119,6 +134,17 @@ class GitHubSourceRuntime:
 
     def _run(self, command: list[str], *, cwd: str | None) -> subprocess.CompletedProcess:
         return self.runner(command, cwd=cwd, capture_output=True, text=True, check=False)
+
+    def _remote_default_branch(self, repository: RepositorySource, commands_run: list[list[str]]) -> str:
+        command = ["git", "ls-remote", "--symref", repository.url, "HEAD"]
+        commands_run.append(command)
+        result = self._run(command, cwd=None)
+        if result.returncode != 0:
+            return ""
+        for line in (result.stdout or "").splitlines():
+            if line.startswith("ref: refs/heads/") and line.rstrip().endswith("\tHEAD"):
+                return line.split("refs/heads/", 1)[1].split("\t", 1)[0].strip()
+        return ""
 
     def _failed(
         self,
@@ -141,6 +167,14 @@ class GitHubSourceRuntime:
             ],
             summary="Repository source preparation failed.",
         )
+
+
+def branch_not_found(output: str) -> bool:
+    normalized = output.lower()
+    return (
+        "remote branch" in normalized
+        and "not found" in normalized
+    ) or "couldn't find remote ref" in normalized
 
 
 def build_arg_parser() -> argparse.ArgumentParser:

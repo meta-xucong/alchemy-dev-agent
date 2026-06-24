@@ -10,7 +10,7 @@ from typing import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .artifact_profile import ArtifactProfile, ArtifactProfileDetector
+from .artifact_profile import ArtifactProfile, ArtifactProfileDetector, _candidate_files
 
 
 BrowserRunner = Callable[[dict[str, object]], dict[str, object]]
@@ -97,9 +97,9 @@ class StaticWebArtifactVerifier:
         requirements: list[str] | None = None,
     ) -> ArtifactVerification:
         repo = Path(repository_path).resolve()
-        selected_files = dedupe(files or ["index.html"])
+        selected_files = _candidate_files(repo, dedupe(files or ["index.html"]))
         profile = self.profile_detector.detect(repo, selected_files, objective=objective, requirements=requirements)
-        if profile.name not in {"canvas_game", "static_web_app", "unknown"}:
+        if profile.name not in {"canvas_game", "static_web_app"}:
             return ArtifactVerification(
                 status="skipped",
                 summary=f"Static web artifact inspection skipped for {profile.name} profile.",
@@ -181,11 +181,12 @@ class StaticWebArtifactVerifier:
                 else:
                     evidence.append(f"Canvas game gameplay probe includes {hook_name}().")
 
-        protected = [term for term in PROTECTED_TERMS if term in lowered]
-        if protected:
-            failures.append("Protected terms found in generated artifact: " + ", ".join(protected))
-        else:
-            evidence.append("No protected commercial game terms were found in generated artifact files.")
+        if profile.name == "canvas_game":
+            protected = [term for term in PROTECTED_TERMS if term in lowered]
+            if protected:
+                failures.append("Protected terms found in generated artifact: " + ", ".join(protected))
+            else:
+                evidence.append("No protected commercial game terms were found in generated artifact files.")
 
         status = "failed" if failures else "completed"
         return ArtifactVerification(

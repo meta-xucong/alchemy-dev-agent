@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from runtime import RealRunWorkspace
+from runtime.subprocess_utils import clean_git_env, run_hidden
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
@@ -25,12 +26,16 @@ def temp_root() -> Path:
 
 def init_git_repo(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True, text=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=path, check=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True)
+    git(["git", "init"], cwd=path, check=True, capture_output=True, text=True)
+    git(["git", "config", "user.email", "test@example.com"], cwd=path, check=True)
+    git(["git", "config", "user.name", "Test"], cwd=path, check=True)
     (path / "README.md").write_text("# fixture\n", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=path, check=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=path, check=True, capture_output=True, text=True)
+    git(["git", "add", "README.md"], cwd=path, check=True)
+    git(["git", "commit", "-m", "init"], cwd=path, check=True, capture_output=True, text=True)
+
+
+def git(args: list[str], *, cwd: Path, **kwargs: object) -> subprocess.CompletedProcess[str]:
+    return run_hidden(subprocess.run, args, cwd=cwd, env=clean_git_env(cwd), **kwargs)
 
 
 class RealRunWorkspaceTests(unittest.TestCase):
@@ -76,7 +81,7 @@ class RealRunWorkspaceTests(unittest.TestCase):
         self.assertEqual(cleaned.status, "cleaned", cleaned.to_dict())
         self.assertFalse(Path(session.worktree_path).exists())
 
-        branch_check = subprocess.run(
+        branch_check = git(
             ["git", "rev-parse", "--verify", session.branch],
             cwd=repo,
             check=False,

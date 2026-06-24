@@ -158,6 +158,11 @@
           "minimum": 0,
           "maximum": 100,
           "default": 50
+        },
+        "boundary_mode": {
+          "type": "string",
+          "enum": ["strict", "large_refactor"],
+          "default": "strict"
         }
       }
     },
