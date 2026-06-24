@@ -784,7 +784,7 @@ class DocumentToPlanTests(unittest.TestCase):
             (repo / "backend").mkdir(parents=True)
             (repo / "frontend" / "src").mkdir(parents=True)
             (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
-            (repo / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+            (repo / "frontend" / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
             (repo / "frontend" / "src" / "router.ts").write_text("export const routes = [];\n", encoding="utf-8")
             (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
             spec = root / "phase.md"
@@ -825,6 +825,8 @@ class DocumentToPlanTests(unittest.TestCase):
             self.assertEqual(implementation["commands_to_run"][0], "pnpm --dir frontend install --frozen-lockfile")
             self.assertIn("pnpm --dir frontend test", implementation["commands_to_run"])
             self.assertNotIn("npm --prefix frontend test", implementation["commands_to_run"])
+        payment_task = next(node for node in implementation_nodes if node["title"] == "Convert wallet recharge and payment surfaces")
+        self.assertIn("frontend/src/views/admin/orders/**", payment_task["relevant_files"])
 
     def test_docs_only_scope_builds_documentation_task_with_lightweight_verification(self) -> None:
         with temp_plan_dir() as root:

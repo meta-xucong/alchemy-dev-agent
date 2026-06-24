@@ -549,6 +549,50 @@ class CodexWorkerTests(unittest.TestCase):
             self.assertTrue((Path(tmp_dir) / "backend" / ".gocache-t013" / "00" / "cache-entry-a").exists())
             self.assertTrue((Path(tmp_dir) / "backend" / "ent" / "schema" / ".entc" / "entc.go").exists())
 
+    def test_real_worker_removes_nested_codex_scratch_before_execution(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            target = repo / "frontend" / "app.ts"
+            target.parent.mkdir()
+            target.write_text("export const value = 1\n", encoding="utf-8")
+            scratch = repo / "frontend" / "_tmp_33208_ac37a7662ad1779c7d17ab44429701d1"
+            scratch.write_text("codex scratch\n", encoding="utf-8")
+            subprocess.run(["git", "add", "frontend/app.ts"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True)
+
+            def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+                if args and args[0] == "codex":
+                    self.assertFalse(scratch.exists())
+                    payload = {
+                        "task_id": "T013D",
+                        "status": "completed",
+                        "summary": "scratch cleaned",
+                        "files_changed": [],
+                        "commands_run": [],
+                        "tests_passed": ["scratch cleanup"],
+                        "tests_failed": [],
+                        "evidence": [],
+                        "known_issues": [],
+                        "follow_up_tasks": [],
+                        "confidence": 1.0,
+                    }
+                    return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+                return subprocess.run(args, cwd=cwd, input=input, capture_output=capture_output, text=text, timeout=timeout, check=check)
+
+            result = CodexWorkerAdapter(dry_run=False, runner=fake_runner).execute(
+                CodexWorkerInput(
+                    task_id="T013D",
+                    goal="clean scratch",
+                    repository_path=str(repo),
+                    allowed_files=["frontend/app.ts"],
+                )
+            )
+
+        self.assertEqual(result.status, "completed")
+
     def test_real_worker_ignores_test_runtime_artifacts_for_boundary_audit(self) -> None:
         with temp_project_dir() as tmp_dir:
             repo = Path(tmp_dir)

@@ -2420,3 +2420,32 @@
 - command: python -B -m compileall -q context planner runtime tests
 - result: passed
 - next verification command: user acceptance review; do not resume Billing Core before approval.
+
+## 2026-06-25T02:54:20+08:00 V2.75 Resume Migration Hardening Verification
+
+- fail then corrected: Billing Core `_012` `run_attempt_011` T004 returned `partial` after old resumed task graph commands still used `npm --prefix frontend test`, dependency install hit a nested `_tmp_*` scratch file, and nested admin order pages were outside T004 allowed scope.
+- fix: resumed frontend task graph migration now refreshes package-manager commands from the live repository, prepends frontend dependency setup, expands payment/order scope to `frontend/src/views/admin/orders/**`, and gives migrated failed max-attempt frontend tasks one extra retry.
+- fix: Codex worker startup now removes inherited nested `_tmp_*` scratch files before execution.
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_uses_pnpm_lock_commands tests/test_document_run_pipeline.py::DocumentRunPipelineTests::test_resumed_frontend_task_graph_migration_refreshes_stale_commands_and_boundaries tests/test_runtime.py::CodexWorkerTests::test_real_worker_removes_nested_codex_scratch_before_execution -q
+- result: 3 passed
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_uses_pnpm_lock_commands tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_document_builds_single_integration_task -q
+- result: 3 passed
+- command: python -B -m pytest tests/test_document_run_pipeline.py::DocumentRunPipelineTests::test_pipeline_can_resume_from_stopped_run_state tests/test_document_run_pipeline.py::DocumentRunPipelineTests::test_resumed_frontend_task_graph_migration_refreshes_stale_commands_and_boundaries -q
+- result: 2 passed
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_allows_filename_glob_scope tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_generated_cache_files_for_boundary_audit tests/test_runtime.py::CodexWorkerTests::test_real_worker_removes_nested_codex_scratch_before_execution tests/test_runtime.py::OrchestratorTests::test_debug_environment_blocker_blocks_parent_without_retry -q
+- result: 4 passed
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 45 passed
+- command: python -B -m pytest tests/test_document_to_plan.py -q
+- result: 18 passed
+- command: python -B -m pytest tests/test_document_run_pipeline.py -q
+- result: 26 passed
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 111 passed
+- command: python -B -m compileall -q planner autodev runtime tests
+- result: passed
+- command: git diff --check
+- result: passed with only `.codex-longrun/state.json` CRLF warning
+- command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project D:\AI\Alchemy Dev Agent System\alchemy-dev-agent
+- result: passed
+- next verification command: commit/push V2.75, then resume Billing Core `_012` from `run_attempt_011`.

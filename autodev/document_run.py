@@ -11,6 +11,7 @@ from typing import Sequence
 from context import ContextBundleBuilder
 from intake import Blocker, GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
 from planner import TaskGraphBuilder
+from planner.task_graph_builder import migrate_resumed_frontend_tasks_for_repository
 from runtime.control import ExecutionController
 from runtime import (
     AcceptanceScenarioPlanner,
@@ -442,6 +443,7 @@ class DocumentRunPipeline:
         recovery_result = recovery.prepare(source, task_ids=resume_tasks)
         state = recovery_result.state
         repository_path = state.repository.get("path", ".")
+        apply_resumed_task_graph_migrations(state, repository_path)
         apply_repair_convergence_config(state, repair_convergence, real_github=real_github)
         workspace = dict(source.workspace)
         preflight = ExecutionPreflight().check(
@@ -611,6 +613,37 @@ class DocumentRunPipeline:
             encoding="utf-8",
         )
         return result
+
+
+def apply_resumed_task_graph_migrations(state, repository_path: str | Path) -> list[str]:
+    migrated_task_ids = migrate_resumed_frontend_tasks_for_repository(state.task_graph, repository_path)
+    if not migrated_task_ids:
+        return []
+
+    migrated_set = set(migrated_task_ids)
+    reset_task_ids: list[str] = []
+    for task in state.task_graph.nodes:
+        if task.id not in migrated_set:
+            continue
+        if task.status == "failed" and task.retry_count >= task.max_attempts:
+            task.max_attempts = task.retry_count + 1
+            task.status = "pending"
+            reset_task_ids.append(task.id)
+
+    if reset_task_ids:
+        state.failed_tasks = [task_id for task_id in state.failed_tasks if task_id not in set(reset_task_ids)]
+        state.active_tasks = [task_id for task_id in state.active_tasks if task_id not in set(reset_task_ids)]
+
+    migration = {
+        "type": "resumed_task_graph_migration",
+        "summary": "Refreshed resumed frontend task graph with current package-manager and boundary rules.",
+        "task_ids": migrated_task_ids,
+        "reset_task_ids": reset_task_ids,
+    }
+    state.iteration_history.append(migration)
+    if isinstance(state.recovery, dict):
+        state.recovery["task_graph_migration"] = migration
+    return migrated_task_ids
 
 
 def build_parser() -> argparse.ArgumentParser:

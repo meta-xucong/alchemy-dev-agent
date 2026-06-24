@@ -1170,3 +1170,14 @@ PY"`
 - Implemented debug environment blocker convergence: debug evidence for missing `node_modules`, unavailable `vitest`, or absent frontend dependencies now blocks the root task as an environment issue instead of launching more implementation retries.
 - Regression verification passed: focused 3 tests, adjacent 10 tests, `test_document_to_plan.py + test_runtime.py` 128 tests, targeted full-roadmap 3 tests, full `test_full_roadmap_execution.py` 45 tests, py_compile, compileall, diff-check, and long-run state validation.
 - Billing Core was intentionally not resumed. Next action is manual acceptance of this Alchemy checkpoint before any patched-controller Billing Core run.
+
+## 2026-06-25T02:54:20+08:00 V2.75 Resume Migration Hardening
+
+- Committed and pushed Alchemy V2.74 as `d260ce9` with tag `v2.74-stability-hardening`, then resumed Billing Core `_012` using hidden PowerShell with logs `resume_018.*`.
+- Real resume probe selected `phase_010/run_attempt_010` with no blockers, and `run_attempt_011` correctly dispatched T004 directly while keeping nested `T004-DEBUG-*` nodes skipped.
+- T004 completed at the worker lifecycle level but returned `partial`: it used stale `npm --prefix frontend test`, hit missing `vitest`, failed `pnpm --dir frontend install --frozen-lockfile` on a nested `_tmp_*` file, and reported `frontend/src/views/admin/orders/*` was outside allowed scope.
+- Paused the active T005 worker to avoid burning tokens on the stale resumed task graph.
+- Patched resumed task graph migration so old frontend tasks are refreshed from the current repository package manager/lockfile, frontend setup commands are prepended, nested admin order/payment pages are included, and failed max-attempt frontend tasks receive one extra retry when the migration changes their package.
+- Patched Codex worker startup to remove inherited nested `_tmp_*` scratch files before capturing the worktree snapshot, while preserving boundary ignore behavior for scratch files created during a worker.
+- Verification passed: focused 3 tests, adjacent 3/2/4 tests, full `test_document_to_plan.py` 18 passed, full `test_document_run_pipeline.py` 26 passed, full `test_runtime.py` 111 passed, full `test_full_roadmap_execution.py` 45 passed, compileall, diff-check, and long-run state validation.
+- Next action: commit and push V2.75, then resume `_012` from `run_attempt_011`; recovery should reset stale T005 and retry migrated T004 with pnpm commands and expanded scope.

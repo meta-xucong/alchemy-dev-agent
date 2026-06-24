@@ -13,7 +13,14 @@ from typing import Iterator
 
 from autodev import DocumentRunPipeline
 from autodev.delivery_report import build_delivery_report
-from autodev.document_run import assign_release_branch, artifact_files_from_graph, build_artifact_report, build_generated_ci_report, document_run_status
+from autodev.document_run import (
+    apply_resumed_task_graph_migrations,
+    assign_release_branch,
+    artifact_files_from_graph,
+    build_artifact_report,
+    build_generated_ci_report,
+    document_run_status,
+)
 from autodev.development_cycle import build_development_cycle_report
 from runtime.models import RuntimeState, TaskGraph, TaskNode
 from runtime.control import ControlDecision
@@ -346,6 +353,78 @@ class DocumentRunPipelineTests(unittest.TestCase):
             self.assertIn("recovery", resumed.to_dict())
             self.assertTrue(resumed.recovery["checkpoint"]["continued_task_ids"])
             self.assertTrue((resumed_output / "state.json").exists())
+
+    def test_resumed_frontend_task_graph_migration_refreshes_stale_commands_and_boundaries(self) -> None:
+        with temp_document_run_dir() as root:
+            repo = root / "repo"
+            (repo / "frontend").mkdir(parents=True)
+            (repo / "backend").mkdir()
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps({"scripts": {"test": "vitest run", "build": "vite build", "lint": "eslint ."}}),
+                encoding="utf-8",
+            )
+            (repo / "frontend" / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            state = RuntimeState(
+                objective="resume billing frontend",
+                task_graph=TaskGraph(
+                    graph_id="frontend-resume",
+                    version=1,
+                    nodes=[
+                        TaskNode(
+                            id="T004",
+                            title="Convert wallet recharge and payment surfaces",
+                            description="Make payment and order screens balance-only.",
+                            type="frontend",
+                            assigned_agent="frontend",
+                            status="failed",
+                            retry_count=2,
+                            max_attempts=2,
+                            relevant_files=[
+                                "frontend/src/views/user/*Payment*.vue",
+                                "frontend/src/views/admin/*Order*.vue",
+                                "frontend/package.json",
+                            ],
+                            commands_to_run=["npm --prefix frontend test"],
+                            boundary_mode="large_refactor",
+                        ),
+                        TaskNode(
+                            id="T009",
+                            title="Verify implementation",
+                            description="Run project checks.",
+                            type="test",
+                            assigned_agent="test",
+                            relevant_files=["frontend/**", "backend/**"],
+                            commands_to_run=[
+                                "npm --prefix frontend test",
+                                "cd backend && go test ./...",
+                                "npm --prefix frontend run build",
+                                "npm --prefix frontend run lint",
+                            ],
+                            boundary_mode="large_refactor",
+                        ),
+                    ],
+                ),
+                failed_tasks=["T004"],
+                recovery={},
+            )
+
+            migrated = apply_resumed_task_graph_migrations(state, repo)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertIn("T004", migrated)
+        self.assertEqual(nodes["T004"].status, "pending")
+        self.assertEqual(nodes["T004"].max_attempts, 3)
+        self.assertEqual(nodes["T004"].commands_to_run[0], "pnpm --dir frontend install --frozen-lockfile")
+        self.assertIn("pnpm --dir frontend test", nodes["T004"].commands_to_run)
+        self.assertIn("frontend/src/views/admin/orders/**", nodes["T004"].relevant_files)
+        self.assertNotIn("T004", state.failed_tasks)
+        self.assertEqual(nodes["T009"].commands_to_run[0], "pnpm --dir frontend install --frozen-lockfile")
+        self.assertIn("pnpm --dir frontend test", nodes["T009"].commands_to_run)
+        self.assertIn("pnpm --dir frontend run build", nodes["T009"].commands_to_run)
+        self.assertIn("pnpm --dir frontend run lint", nodes["T009"].commands_to_run)
+        self.assertIn("cd backend && go test ./...", nodes["T009"].commands_to_run)
+        self.assertTrue(any(event["type"] == "resumed_task_graph_migration" for event in state.iteration_history))
 
     def test_docs_only_platformer_document_run_uses_document_requirements(self) -> None:
         with temp_document_run_dir() as root:

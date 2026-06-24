@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from context.models import ContextBundle, RepositoryFile, Requirement
-from context.repository_indexer import node_install_command, package_parent
+from context.repository_indexer import RepositoryIndexer, node_install_command, package_parent
 from runtime.models import Dependency, TaskGraph, TaskNode
 
 WEB_GAME_SCAFFOLD_FILES = {
@@ -659,6 +659,7 @@ FRONTEND_LARGE_REFACTOR_TASK_SPECS = (
             "frontend/src/views/user/*Order*.vue",
             "frontend/src/views/admin/*Payment*.vue",
             "frontend/src/views/admin/*Order*.vue",
+            "frontend/src/views/admin/orders/**",
             "frontend/src/stores/payment.ts",
             "frontend/src/api/**",
             "frontend/src/types/**",
@@ -895,6 +896,119 @@ def _package_is_referenced_by_frontend_commands(package_file: str, commands: lis
     if parent and any(parent in command.replace("\\", "/") for command in commands):
         return True
     return parent.startswith("frontend") or any("frontend" in command.lower() for command in commands)
+
+
+def migrate_resumed_frontend_tasks_for_repository(task_graph: TaskGraph, repository_path: str | Path) -> list[str]:
+    """Refresh persisted frontend tasks with current package-manager and boundary rules."""
+
+    index = RepositoryIndexer().index(Path(repository_path))
+    package_files = list(index.package_files)
+    frontend_test_commands = frontend_package_commands(index.test_commands)
+    frontend_build_commands = frontend_package_commands(index.build_commands)
+    frontend_lint_commands = frontend_package_commands(index.lint_commands)
+    frontend_setup_commands = frontend_dependency_setup_commands(
+        [*frontend_test_commands, *frontend_build_commands, *frontend_lint_commands],
+        package_files,
+    )
+    changed_task_ids: list[str] = []
+
+    for task in task_graph.nodes:
+        if not task_references_frontend(task):
+            continue
+
+        original_commands = list(task.commands_to_run)
+        original_files = list(task.relevant_files)
+        task.commands_to_run = migrated_frontend_commands(
+            task,
+            frontend_setup_commands=frontend_setup_commands,
+            frontend_test_commands=frontend_test_commands,
+            frontend_build_commands=frontend_build_commands,
+            frontend_lint_commands=frontend_lint_commands,
+            package_files=package_files,
+        )
+        task.relevant_files = migrated_frontend_relevant_files(task)
+
+        if task.commands_to_run != original_commands or task.relevant_files != original_files:
+            changed_task_ids.append(task.id)
+
+    return dedupe(changed_task_ids)
+
+
+def task_references_frontend(task: TaskNode) -> bool:
+    fields = [task.title, task.description, *task.relevant_files, *task.commands_to_run]
+    return any("frontend" in str(field).replace("\\", "/").lower() for field in fields)
+
+
+def frontend_package_commands(commands: list[str]) -> list[str]:
+    return [command for command in dedupe(commands) if "frontend" in command.replace("\\", "/").lower()]
+
+
+def migrated_frontend_commands(
+    task: TaskNode,
+    *,
+    frontend_setup_commands: list[str],
+    frontend_test_commands: list[str],
+    frontend_build_commands: list[str],
+    frontend_lint_commands: list[str],
+    package_files: list[str],
+) -> list[str]:
+    if task.boundary_mode == "large_refactor" and task.type in {"frontend", "integration"}:
+        selected = frontend_test_commands or frontend_package_commands(task.commands_to_run)
+        migrated = frontend_large_refactor_commands(selected, package_files=package_files)
+        if migrated:
+            return migrated
+
+    if not task.commands_to_run:
+        return []
+
+    commands: list[str] = []
+    replaced_frontend_command = False
+    for command in task.commands_to_run:
+        replacement = replacement_frontend_command(
+            command,
+            frontend_test_commands=frontend_test_commands,
+            frontend_build_commands=frontend_build_commands,
+            frontend_lint_commands=frontend_lint_commands,
+        )
+        if replacement is None:
+            commands.append(command)
+            continue
+        replaced_frontend_command = True
+        commands.extend(replacement)
+
+    if replaced_frontend_command:
+        commands = [*frontend_setup_commands, *commands]
+    return dedupe(commands)
+
+
+def replacement_frontend_command(
+    command: str,
+    *,
+    frontend_test_commands: list[str],
+    frontend_build_commands: list[str],
+    frontend_lint_commands: list[str],
+) -> list[str] | None:
+    normalized = command.replace("\\", "/").lower()
+    if "frontend" not in normalized or not any(marker in normalized for marker in ("npm ", "pnpm ", "yarn ", "bun ")):
+        return None
+    if "install" in normalized:
+        return []
+    if "lint" in normalized and frontend_lint_commands:
+        return frontend_lint_commands
+    if "build" in normalized and frontend_build_commands:
+        return frontend_build_commands
+    if ("test" in normalized or "vitest" in normalized) and frontend_test_commands:
+        return frontend_test_commands
+    return None
+
+
+def migrated_frontend_relevant_files(task: TaskNode) -> list[str]:
+    files = list(task.relevant_files)
+    title = task.title.lower()
+    description = task.description.lower()
+    if any(marker in f"{title} {description}" for marker in ("payment", "order", "recharge", "wallet", "订单", "支付", "充值")):
+        files.append("frontend/src/views/admin/orders/**")
+    return dedupe(files)
 
 
 def requirement_matches_markers(requirement: Requirement, markers: tuple[str, ...]) -> bool:

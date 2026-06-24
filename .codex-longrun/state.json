@@ -1,33 +1,35 @@
 {
-  "objective": "Harden Alchemy Dev Agent before any further Billing Core run: document and implement control-layer fixes for frontend environment setup, package-manager-aware verification, debug-to-repair convergence, repeated-failure guardrails, and large-refactor task slicing; then audit and test Alchemy itself until it is safe for manual acceptance.",
-  "current_phase": "alchemy_stability_hardening_v2_74_verified_2026_06_25",
-  "phase_status": "done",
+  "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
+  "current_phase": "alchemy_v2_75_resume_migration_hardening_verified",
+  "phase_status": "advancing",
   "completed_phases": [
-    "documented V2.74 Alchemy stability hardening plan",
-    "implemented package-manager-aware repository command discovery",
-    "implemented frontend large-refactor dependency setup command planning",
-    "implemented debug environment blocker convergence",
-    "verified focused, adjacent, runtime, document-planning, and full-roadmap regressions"
+    "committed and pushed Alchemy V2.74 checkpoint",
+    "resumed Billing Core _012 from run_attempt_010 and verified T004 dispatch",
+    "paused run_attempt_011 after T004 partial exposed stale resumed task graph commands and narrow admin order scope",
+    "implemented resumed frontend task graph migration for package-manager commands and nested admin order boundaries",
+    "implemented pre-worker cleanup for nested Codex _tmp_* scratch files"
   ],
   "next_actions": [
-    "Manual acceptance review of the Alchemy hardening changes.",
-    "Do not resume Billing Core until this Alchemy checkpoint is accepted.",
-    "If accepted, resume Billing Core only with the patched controller and explicit process/timeout monitoring."
+    "Commit and push the Alchemy V2.75 resume hardening checkpoint.",
+    "Resume Billing Core _012 from run_attempt_011 using the patched controller.",
+    "Verify recovery resets stale T005 and migrated T004, then monitor worker progress."
   ],
   "tests_run": [
-    "python -B -m pytest tests/test_repository_context.py::RepositoryIndexerTests::test_pnpm_lock_drives_nested_frontend_commands tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_uses_pnpm_lock_commands tests/test_runtime.py::OrchestratorTests::test_debug_environment_blocker_blocks_parent_without_retry -q => 3 passed",
-    "python -B -m pytest tests/test_repository_context.py tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap tests/test_runtime.py::CodexWorkerTests::test_real_worker_allows_filename_glob_scope tests/test_runtime.py::OrchestratorTests::test_failed_debug_task_resets_parent_without_nested_debug_loop tests/test_runtime.py::OrchestratorTests::test_completed_nested_debug_evidence_promotes_failed_parent_and_continues -q => 10 passed",
-    "python -B -m pytest tests/test_document_to_plan.py tests/test_runtime.py -q => 128 passed",
-    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_large_refactor_phase_document_records_boundary_mode tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_latest_interrupted_phase_attempt -q => 3 passed",
-    "python -B -m py_compile context\\repository_indexer.py planner\\task_graph_builder.py runtime\\orchestrator.py tests\\test_repository_context.py tests\\test_document_to_plan.py tests\\test_runtime.py => passed",
-    "git diff --check -- docs/82_v2_74_alchemy_stability_hardening.md README.md context/repository_indexer.py planner/task_graph_builder.py runtime/orchestrator.py tests/test_repository_context.py tests/test_document_to_plan.py tests/test_runtime.py => passed",
-    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_uses_pnpm_lock_commands tests/test_document_run_pipeline.py::DocumentRunPipelineTests::test_resumed_frontend_task_graph_migration_refreshes_stale_commands_and_boundaries tests/test_runtime.py::CodexWorkerTests::test_real_worker_removes_nested_codex_scratch_before_execution -q => 3 passed",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_uses_pnpm_lock_commands tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_document_builds_single_integration_task -q => 3 passed",
+    "python -B -m pytest tests/test_document_run_pipeline.py::DocumentRunPipelineTests::test_pipeline_can_resume_from_stopped_run_state tests/test_document_run_pipeline.py::DocumentRunPipelineTests::test_resumed_frontend_task_graph_migration_refreshes_stale_commands_and_boundaries -q => 2 passed",
+    "python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_allows_filename_glob_scope tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_generated_cache_files_for_boundary_audit tests/test_runtime.py::CodexWorkerTests::test_real_worker_removes_nested_codex_scratch_before_execution tests/test_runtime.py::OrchestratorTests::test_debug_environment_blocker_blocks_parent_without_retry -q => 4 passed",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 45 passed",
-    "python -B -m compileall -q context planner runtime tests => passed"
+    "python -B -m pytest tests/test_document_to_plan.py -q => 18 passed",
+    "python -B -m pytest tests/test_document_run_pipeline.py -q => 26 passed",
+    "python -B -m pytest tests/test_runtime.py -q => 111 passed",
+    "python -B -m compileall -q planner autodev runtime tests => passed",
+    "git diff --check => passed with .codex-longrun CRLF warning only",
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed"
   ],
   "known_bugs": [
-    "The repository still contains many pre-existing modified and untracked files from earlier Alchemy work; this checkpoint did not revert or normalize unrelated history.",
-    "Full real Billing Core resume was intentionally not run in this checkpoint; acceptance is limited to Alchemy controller hardening and regression verification."
+    "Billing Core run_attempt_011 was intentionally stopped while T005 was active; its worker JSON remains stale running and should be reset by recovery.",
+    "T004 partial result from the pre-fix run used stale npm commands and lacked frontend/src/views/admin/orders/** scope; this is expected to be repaired by the V2.75 migration before retry."
   ],
   "blockers": [],
   "done_criteria": [
@@ -35,7 +37,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-25T01:39:40+08:00",
-  "created_at": "2026-06-25T01:25:19+08:00",
-  "updated_at": "2026-06-25T01:39:40+08:00"
+  "last_verified_at": "2026-06-25T02:54:20+08:00",
+  "created_at": "2026-06-25T01:55:36+08:00",
+  "updated_at": "2026-06-25T02:54:20+08:00"
 }

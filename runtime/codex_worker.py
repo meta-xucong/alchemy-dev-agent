@@ -227,6 +227,7 @@ class CodexWorkerAdapter:
     def _execute_codex(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         prompt = self.build_prompt(worker_input)
         args = [self.executable, "exec", "--json", "--sandbox", self.sandbox]
+        _cleanup_codex_windows_scratch_files(worker_input.repository_path)
         before_snapshot = self._capture_worktree_snapshot(worker_input.repository_path)
         lifecycle_record = None
         runner = self.runner
@@ -776,15 +777,35 @@ def _is_ignorable_generated_file(path: str) -> bool:
 
 
 def _is_codex_windows_scratch_file(normalized: str) -> bool:
-    if "/" in normalized or not normalized.startswith("_tmp_"):
+    name = normalized.rsplit("/", 1)[-1]
+    if not name.startswith("_tmp_"):
         return False
-    chunks = normalized.split("_", 3)
+    chunks = name.split("_", 3)
     if len(chunks) != 4 or chunks[1] != "tmp":
         return False
     pid, token = chunks[2], chunks[3]
     if not pid.isdigit() or len(token) < 12:
         return False
     return all(char in "0123456789abcdefABCDEF" for char in token)
+
+
+def _cleanup_codex_windows_scratch_files(repository_path: str | Path) -> None:
+    root = Path(repository_path)
+    if not root.exists():
+        return
+    for path in root.rglob("_tmp_*"):
+        try:
+            if not path.is_file():
+                continue
+            normalized = _normalize_repo_path(str(path.relative_to(root)))
+        except OSError:
+            continue
+        if not _is_codex_windows_scratch_file(normalized):
+            continue
+        try:
+            path.unlink()
+        except OSError:
+            continue
 
 
 def _is_test_runtime_artifact(parts: list[str]) -> bool:
