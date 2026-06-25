@@ -1181,3 +1181,29 @@ PY"`
 - Patched Codex worker startup to remove inherited nested `_tmp_*` scratch files before capturing the worktree snapshot, while preserving boundary ignore behavior for scratch files created during a worker.
 - Verification passed: focused 3 tests, adjacent 3/2/4 tests, full `test_document_to_plan.py` 18 passed, full `test_document_run_pipeline.py` 26 passed, full `test_runtime.py` 111 passed, full `test_full_roadmap_execution.py` 45 passed, compileall, diff-check, and long-run state validation.
 - Next action: commit and push V2.75, then resume `_012` from `run_attempt_011`; recovery should reset stale T005 and retry migrated T004 with pnpm commands and expanded scope.
+## Supervisor Run 20260625-100624-iter-001
+
+- returncode: 1
+- timed_out: False
+- stdout: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260625-100624-iter-001.jsonl`
+- stderr: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260625-100624-iter-001.stderr.txt`
+- last_message: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260625-100624-iter-001.last-message.md`
+- event_summary: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260625-100624-iter-001.summary.json`
+
+### Event Summary
+
+- total_events: 46
+- malformed_lines: 1
+- thread_id: 019efc87-477c-7b43-8240-f0d5e73cb0fe
+- agent_messages: 6
+- command_executions: 16
+- command_failures: 1
+- file_changes: 0
+- file_change_failures: 0
+- last_event_type: turn.failed
+
+- failed_command: `"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.3.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command "Get-Content 'C:/Users/T14S/.codex/skills/.system/long-running-task/SKILL.md'"`
+  exit_code: 1
+  status: failed
+  output_tail: [31;1mGet-Content: [0m [31;1m[36;1mLine |[0m [31;1m[36;1m[36;1m 2 | [0m [36;1mGet-Content 'C:/Users/T14S/.codex/skills/.system/long-running-task/SK[0m …[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m | [31;1mCannot find path 'C:\Users\T14S\.codex\skills\.system\long-running-task\SKILL.md' because it does not exist.[0m
+

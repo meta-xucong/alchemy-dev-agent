@@ -146,6 +146,7 @@ class ManagedSubprocessRunner:
         text: bool,
         timeout: int | None,
         check: bool,
+        env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[Any]:
         stdout_pipe = subprocess.PIPE if capture_output else None
         stderr_pipe = subprocess.PIPE if capture_output else None
@@ -158,6 +159,7 @@ class ManagedSubprocessRunner:
             stdout=stdout_pipe,
             stderr=stderr_pipe,
             text=text,
+            env=env,
             **creation_kwargs,
         )
         self.recorder.attach_pid(self.record, process.pid)

@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
+import tempfile
+from hashlib import sha1
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Literal, Protocol
@@ -162,6 +165,7 @@ class SubprocessRunner(Protocol):
         text: bool,
         timeout: int | None,
         check: bool,
+        env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[Any]:
         ...
 
@@ -227,6 +231,7 @@ class CodexWorkerAdapter:
     def _execute_codex(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         prompt = self.build_prompt(worker_input)
         args = [self.executable, "exec", "--json", "--sandbox", self.sandbox]
+        codex_env = _build_codex_subprocess_env(worker_input.repository_path) if self.runner is subprocess.run else None
         _cleanup_codex_windows_scratch_files(worker_input.repository_path)
         before_snapshot = self._capture_worktree_snapshot(worker_input.repository_path)
         lifecycle_record = None
@@ -243,15 +248,17 @@ class CodexWorkerAdapter:
                 ),
             )
         try:
-            completed = runner(
-                args,
-                cwd=worker_input.repository_path,
-                input=prompt.encode("utf-8"),
-                capture_output=True,
-                text=False,
-                timeout=self.timeout_seconds,
-                check=False,
-            )
+            kwargs: dict[str, Any] = {
+                "cwd": worker_input.repository_path,
+                "input": prompt.encode("utf-8"),
+                "capture_output": True,
+                "text": False,
+                "timeout": self.timeout_seconds,
+                "check": False,
+            }
+            if codex_env is not None:
+                kwargs["env"] = codex_env
+            completed = runner(args, **kwargs)
         except FileNotFoundError as exc:
             if lifecycle_record is not None:
                 self.lifecycle_recorder.fail(lifecycle_record, str(exc))
@@ -806,6 +813,127 @@ def _cleanup_codex_windows_scratch_files(repository_path: str | Path) -> None:
             path.unlink()
         except OSError:
             continue
+
+
+def _build_codex_subprocess_env(repository_path: str | Path) -> dict[str, str]:
+    env = os.environ.copy()
+    codex_home = env.get("CODEX_HOME", "").strip()
+    redirected_home = False
+    if not codex_home:
+        codex_home = str(_select_codex_home(Path(repository_path)))
+        env["CODEX_HOME"] = codex_home
+        redirected_home = True
+    target_home = Path(codex_home)
+    target_home.mkdir(parents=True, exist_ok=True)
+    if redirected_home:
+        _seed_codex_home(target_home)
+    temp_dir = str(Path(codex_home) / "tmp")
+    Path(temp_dir).mkdir(parents=True, exist_ok=True)
+    env["TMP"] = temp_dir
+    env["TEMP"] = temp_dir
+    env["TMPDIR"] = temp_dir
+    _seed_tls_cert_env(env)
+    return env
+
+
+def _select_codex_home(repository_path: Path) -> Path:
+    slug = _codex_home_slug(repository_path)
+    override_root = os.environ.get("ALCHEMY_CODEX_HOME_ROOT", "").strip()
+    candidate_roots: list[Path] = []
+    if override_root:
+        candidate_roots.append(Path(override_root))
+    candidate_roots.extend(
+        [
+            Path.home() / ".codex" / "memories" / "alchemy-worker-home",
+            Path(tempfile.gettempdir()) / "alchemy-worker-home",
+            repository_path / ".alchemy" / "codex-worker-home",
+        ]
+    )
+    last_candidate = candidate_roots[-1] / slug
+    for root in candidate_roots:
+        candidate = root / slug
+        if _probe_codex_home(candidate):
+            return candidate
+        last_candidate = candidate
+    return last_candidate
+
+
+def _probe_codex_home(candidate: Path) -> bool:
+    probe = candidate / ".codex-home-probe"
+    tmp_dir = candidate / "tmp"
+    try:
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        probe.write_text("", encoding="utf-8")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
+def _seed_codex_home(target_home: Path) -> None:
+    source_home = _codex_source_home()
+    try:
+        if source_home.resolve() == target_home.resolve():
+            return
+    except OSError:
+        return
+    for name in ("auth.json", "config.toml", "cc-switch-model-catalog.json"):
+        source = source_home / name
+        if not source.is_file():
+            continue
+        destination = target_home / name
+        try:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination.exists():
+                source_stat = source.stat()
+                destination_stat = destination.stat()
+                if (
+                    destination_stat.st_size == source_stat.st_size
+                    and destination_stat.st_mtime_ns >= source_stat.st_mtime_ns
+                ):
+                    continue
+            shutil.copy2(source, destination)
+        except OSError:
+            continue
+
+
+def _codex_source_home() -> Path:
+    override_root = os.environ.get("ALCHEMY_CODEX_SOURCE_HOME", "").strip()
+    if override_root:
+        return Path(override_root)
+    return Path.home() / ".codex"
+
+
+def _codex_home_slug(repository_path: Path) -> str:
+    resolved = repository_path.resolve()
+    digest = sha1(str(resolved).encode("utf-8")).hexdigest()[:10]
+    name = resolved.name or "workspace"
+    safe_name = "".join(char if char.isalnum() or char in ("-", "_", ".") else "-" for char in name).strip(".-")
+    if not safe_name:
+        safe_name = "workspace"
+    return f"{safe_name}-{digest}"
+
+
+def _seed_tls_cert_env(env: dict[str, str]) -> None:
+    cert_bundle = env.get("SSL_CERT_FILE", "").strip()
+    if not cert_bundle:
+        cert_bundle = _detect_cert_bundle()
+    if not cert_bundle:
+        return
+    env["SSL_CERT_FILE"] = cert_bundle
+    env.setdefault("REQUESTS_CA_BUNDLE", cert_bundle)
+    env.setdefault("CURL_CA_BUNDLE", cert_bundle)
+
+
+def _detect_cert_bundle() -> str:
+    try:
+        import certifi  # type: ignore[import-not-found]
+    except ImportError:
+        return ""
+    try:
+        return str(Path(certifi.where()).resolve())
+    except (OSError, AttributeError):
+        return ""
 
 
 def _is_test_runtime_artifact(parts: list[str]) -> bool:

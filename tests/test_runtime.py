@@ -10,13 +10,14 @@ import unittest
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
+from unittest.mock import patch
 
 from runtime.agent_router import AgentRouter
 from runtime.acceptance_scenarios import AcceptanceScenarioPlanner
 from runtime.artifact_profile import ArtifactProfileDetector
 from runtime.artifact_verifier import BrowserArtifactEvidenceVerifier, BrowserArtifactRunner, StaticWebArtifactVerifier
 from runtime.control import ControlDecision
-from runtime.codex_worker import RAW_OUTPUT_LIMIT, CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult
+from runtime.codex_worker import RAW_OUTPUT_LIMIT, CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult, _build_codex_subprocess_env
 from runtime.evaluator import Evaluator
 from runtime.github_flow import GitHubExecutionResult, GitHubFlow
 from runtime.orchestrator import Orchestrator
@@ -210,6 +211,36 @@ class CodexWorkerTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
         self.assertIn("parseable", result.summary)
+
+    def test_build_codex_subprocess_env_redirects_home_to_writable_override_root(self) -> None:
+        repo = Path.cwd()
+        source_root = Path.home() / ".codex" / "memories" / f"codex-home-source-{time.time_ns()}"
+        override_root = Path.home() / ".codex" / "memories" / f"codex-home-target-{time.time_ns()}"
+        source_root.mkdir(parents=True, exist_ok=True)
+        (source_root / "auth.json").write_text('{"OPENAI_API_KEY":"test-key"}\n', encoding="utf-8")
+        (source_root / "config.toml").write_text('model_provider = "OpenAI"\n', encoding="utf-8")
+        (source_root / "cc-switch-model-catalog.json").write_text('{"models":[]}\n', encoding="utf-8")
+        with patch.dict(
+            os.environ,
+            {
+                "ALCHEMY_CODEX_HOME_ROOT": str(override_root),
+                "ALCHEMY_CODEX_SOURCE_HOME": str(source_root),
+                "CODEX_HOME": "",
+            },
+            clear=False,
+        ):
+            env = _build_codex_subprocess_env(repo)
+
+        codex_home = Path(env["CODEX_HOME"])
+        self.assertTrue(str(codex_home).startswith(str(override_root)))
+        self.assertEqual(env["TMP"], str(codex_home / "tmp"))
+        self.assertEqual((codex_home / "auth.json").read_text(encoding="utf-8"), '{"OPENAI_API_KEY":"test-key"}\n')
+        self.assertEqual((codex_home / "config.toml").read_text(encoding="utf-8"), 'model_provider = "OpenAI"\n')
+        self.assertTrue((codex_home / "cc-switch-model-catalog.json").is_file())
+        self.assertTrue(env["SSL_CERT_FILE"])
+        probe = codex_home / "__runtime_probe.txt"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
 
     def test_real_worker_parses_jsonl_event_stream_output(self) -> None:
         def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
