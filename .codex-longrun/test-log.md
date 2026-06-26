@@ -2449,3 +2449,151 @@
 - command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project D:\AI\Alchemy Dev Agent System\alchemy-dev-agent
 - result: passed
 - next verification command: commit/push V2.75, then resume Billing Core `_012` from `run_attempt_011`.
+
+## 2026-06-26T16:59:25+08:00 Network Recovery Audit Verification
+
+- command: C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\logs\codex_network_smoke_last.md "Reply with exactly OK and nothing else."
+- result: passed (`OK`)
+- relevant error summary: command output still showed non-blocking environment warnings for featured-plugin sync `401 Unauthorized`, missing `thread_goals` table, and missing `GITHUB_PAT_TOKEN` for the GitHub MCP at shutdown; no stream disconnect or provider failure occurred.
+- next verification command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_powershell_command_hygiene tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_go_execution_hardening -q
+
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_powershell_command_hygiene tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_go_execution_hardening -q
+- result: 2 passed
+- next verification command: python -B -m pytest tests/test_runtime.py -q
+
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 114 passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 45 passed
+- next verification command: python -B -m compileall -q runtime tests
+
+- command: python -B -m compileall -q runtime tests
+- result: passed
+- next verification command: git diff --check
+
+- command: git diff --check
+- result: passed with only `.codex-longrun/progress.md` CRLF warning
+- next verification command: python -m longrun_supervisor --project . status
+
+- command: python -m longrun_supervisor --project . status
+- result: state remains resumable with `phase_status=advancing`, `current_phase=alchemy_v2_75_resume_migration_hardening_verified`, and next action to resume Billing Core `_012`
+- fix attempted, if any: updated `.codex-longrun/state.json` to record the 2026-06-26 re-verification and current readiness judgment before resuming
+- next verification command: python "%USERPROFILE%\.codex\skills\long-running-task\scripts\run_until_complete.py" --project . --objective "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\AI\SSH\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves." --detach
+
+## 2026-06-26T17:35:57+08:00 V2.77 Windows Spaced-Path Hardening Verification
+
+- fail then corrected: the recovery audit still contained an unquoted spaced-path command, `validate_state.py --project D:\AI\Alchemy Dev Agent System\alchemy-dev-agent`, which split at `Dev Agent System` under PowerShell/argparse.
+- fix: expanded the Windows worker prompt so paths containing spaces must be quoted before passing them to scripts or flags such as `--project`, and prefer working-directory-aware forms when available.
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_powershell_command_hygiene tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_spaced_path_hardening tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_go_execution_hardening -q
+- result: 3 passed
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 115 passed
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 45 passed
+- command: python -B -m py_compile runtime\codex_worker.py tests\test_runtime.py
+- result: passed
+- command: git diff --check -- runtime/codex_worker.py tests/test_runtime.py README.md docs/83_v2_75_windows_worker_command_hardening.md docs/84_v2_76_windows_go_execution_hardening.md docs/85_v2_77_windows_spaced_path_hardening.md
+- result: passed
+- command: python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"
+- result: passed
+- next verification command: inspect Billing Core `phase_010/run_attempt_014` and relaunch from the current checkout only if the live run hits a new safe boundary or another Windows command-formulation defect.
+
+## 2026-06-26T18:08:22+08:00 Network Recheck And Live T005 Debug Audit
+
+- command: `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\logs\codex_network_smoke_latest.md "Reply with exactly OK and nothing else."`
+- result: passed (`OK`)
+- relevant error summary: no stream disconnect or provider failure occurred; command output showed only non-blocking featured-plugin sync `401 Unauthorized`, missing `thread_goals` table, and missing `GITHUB_PAT_TOKEN` for GitHub MCP at shutdown.
+- next verification command: inspect the active Billing Core `run_attempt_014` worker state and confirm whether the live `T005-DEBUG-1` process is still making progress.
+
+- command: `Get-Process -Id 48868` sampled across 8 seconds plus `Get-NetTCPConnection -OwningProcess 48868`
+- result: worker remained alive with CPU advancing from `12.3125` to `12.5`; established TCP sessions remained on `127.0.0.1:7890`
+- relevant error summary: none; the sample supports "still running under old prompt" rather than "dead after network loss"
+- next verification command: wait for `T005-DEBUG-1` completion or the `2400s` timeout boundary, then relaunch parent PID `46436` from the patched V2.77 checkout if the result is not cleanly promotable.
+
+## 2026-06-26T18:42:46+08:00 V2.78 Non-Partial Blocker Stop Verification
+
+- command: `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\logs\codex_network_smoke_after_restore.md "Reply with exactly OK and nothing else."`
+- result: passed (`OK`)
+- relevant error summary: no stream disconnect or provider failure occurred; output only contained the same non-blocking featured-plugin `401`, missing `thread_goals`, and missing `GITHUB_PAT_TOKEN` warnings.
+- next verification command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_non_partial_blocker_stops_current_ready_batch tests/test_runtime.py::OrchestratorTests::test_failed_task_interrupts_current_ready_batch_for_debug -q`
+
+- command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_non_partial_blocker_stops_current_ready_batch tests/test_runtime.py::OrchestratorTests::test_failed_task_interrupts_current_ready_batch_for_debug -q`
+- result: 2 passed
+- next verification command: `python -B -m py_compile runtime\orchestrator.py tests\test_runtime.py`
+
+- command: `python -B -m py_compile runtime\orchestrator.py tests\test_runtime.py`
+- result: passed
+- next verification command: `git diff --check -- runtime/orchestrator.py tests/test_runtime.py README.md docs/86_v2_78_nonpartial_blocker_stop.md`
+
+- command: `git diff --check -- runtime/orchestrator.py tests/test_runtime.py README.md docs/86_v2_78_nonpartial_blocker_stop.md`
+- result: passed
+- next verification command: `python -B -m pytest tests/test_runtime.py -q`
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: 116 passed
+- next verification command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: 45 passed
+- fix attempted, if any: verified the new non-partial-blocker batch-stop logic against the exact failure shape observed in Billing Core `run_attempt_014` before resuming any more live work.
+- next verification command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: resume Billing Core `phase_010/run_attempt_014` from the current V2.78 checkout and confirm T004 halts the batch before T005 dispatch.
+
+## 2026-06-26T19:29:27+08:00 Post-Restore Resume Prerequisite Verification
+
+- command: `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\logs\codex_network_smoke_20260626_post_restore.md "Reply with exactly OK and nothing else."`
+- result: passed (`OK`)
+- relevant error summary: no stream disconnect or provider failure occurred; output again only contained the known non-blocking featured-plugin `401`, missing `thread_goals`, invalid UTF-8 warning for `serverchan-wechat-push/agents/openai.yaml`, and missing `GITHUB_PAT_TOKEN` warning at shutdown.
+- next verification command: audit Billing Core resume prerequisites in the inherited worktree and inject Go into PATH before relaunching the recovery run.
+
+- command: `$go=(Get-Command go -ErrorAction SilentlyContinue); if($go){$go.Path}else{'GO_NOT_ON_PATH'}; Get-ChildItem -Path C:\ -Recurse -Filter go.exe -ErrorAction SilentlyContinue | Select-Object -First 20 -ExpandProperty FullName`
+- result: passed with actionable environment finding
+- relevant error summary: `go` is still not on PATH in the current Codex shell, but Go is installed at `C:\Users\T14S\tools\go-1.26.3\go\bin\go.exe`, so the prior Billing Core `go test` failures were environment-path failures rather than proof that the tests or repository are inherently broken.
+- next verification command: relaunch Billing Core recovery from the current V2.78 checkout with `C:\Users\T14S\tools\go-1.26.3\go\bin` prepended to PATH and confirm the controller stops at T004 if a non-partial blocker appears.
+
+## 2026-06-26T23:52:38+08:00 New-thread recovery verification
+
+- command: `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\logs\codex_network_smoke_20260626_new_thread.md "Reply with exactly OK and nothing else."`
+- result: failed before model invocation
+- relevant error summary: Codex CLI config rejected `service_tier` because the current CLI accepts only `fast` or `flex`.
+- fix attempted: updated `C:\Users\T14S\.codex\config.toml` to `service_tier = "fast"`.
+- next verification command: rerun direct Codex smoke.
+
+- command: `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\logs\codex_network_smoke_20260626_after_service_tier_fix.md "Reply with exactly OK and nothing else."`
+- result: passed (`OK`)
+- relevant error summary: only non-blocking plugin/skill manifest warnings remained; no stream disconnect or provider failure occurred.
+- next verification command: commit verified Alchemy controller fixes, then resume Billing Core with Go path injected.
+
+- command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_non_partial_blocker_stops_current_ready_batch tests/test_runtime.py::OrchestratorTests::test_failed_task_interrupts_current_ready_batch_for_debug tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_powershell_command_hygiene tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_spaced_path_hardening tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_windows_go_execution_hardening -q`
+- result: 5 passed
+- next verification command: full runtime suite.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: 116 passed
+- next verification command: full roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: 45 passed
+- next verification command: py_compile and diff check.
+
+- command: `python -B -m py_compile runtime\orchestrator.py runtime\codex_worker.py tests\test_runtime.py`
+- result: passed
+- next verification command: targeted `git diff --check`.
+
+- command: `git diff --check -- runtime/orchestrator.py runtime/codex_worker.py tests/test_runtime.py README.md docs/83_v2_75_windows_worker_command_hardening.md docs/84_v2_76_windows_go_execution_hardening.md docs/85_v2_77_windows_spaced_path_hardening.md docs/86_v2_78_nonpartial_blocker_stop.md`
+- result: passed
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit V2.75-V2.78 framework checkpoint before Billing Core resume.
+
+- command: process-level Go environment probe in inherited Billing Core worktree with `PATH`, `GOTOOLCHAIN=auto`, `GOMODCACHE=D:\AI\.tools\gopath\pkg\mod`, and worktree-local `GOCACHE`
+- result: passed
+- relevant error summary: backend `go.mod` requires `go 1.26.4`; local `go1.26.3` successfully resolves `GOVERSION=go1.26.4` through `D:\AI\.tools\gopath\pkg\mod\golang.org\toolchain@v0.0.1-go1.26.4.windows-amd64`.
+- next verification command: resume Billing Core with the same process-level environment strategy.

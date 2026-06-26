@@ -200,6 +200,14 @@ docs/
                               V2.73 large-refactor execution mode and boundary model.
   82_v2_74_alchemy_stability_hardening.md
                               V2.74 package-manager, frontend setup, and debug convergence hardening.
+  83_v2_75_windows_worker_command_hardening.md
+                              V2.75 Windows PowerShell worker command hardening.
+  84_v2_76_windows_go_execution_hardening.md
+                              V2.76 Windows Go execution hardening.
+  85_v2_77_windows_spaced_path_hardening.md
+                              V2.77 Windows spaced-path command hardening.
+  86_v2_78_nonpartial_blocker_stop.md
+                              V2.78 non-partial blocker dispatch-stop hardening.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1120,6 +1128,73 @@ See `docs/38_v2_31_delivery_evidence_console.md` for the browser-console
 delivery evidence view that makes run completion human-reviewable.
 See `docs/39_v2_32_feedback_recovery_comparison.md` for feedback repair
 comparison evidence.
+
+## V2.75 Windows Worker Command Hardening
+
+V2.75 adds worker-prompt guidance for real Windows PowerShell runs so Codex
+spends less effort on shell-formulation mistakes during large repository
+migrations. The prompt now explicitly tells the worker to:
+
+- confirm uncertain file paths from repository evidence such as `rg --files`;
+- avoid wildcard paths as literal arguments to `rg` or `Get-Content`;
+- use `$lines[start..end]` instead of `Select-Object -Index start..end` for
+  PowerShell line-range reads;
+- avoid inline shell commands with unsafe unescaped `|` when a simpler split
+  command will do;
+- treat shell globbing, quoting, and path-syntax failures as command issues to
+  reformulate before drawing repository conclusions.
+
+See `docs/83_v2_75_windows_worker_command_hardening.md`.
+
+## V2.76 Windows Go Execution Hardening
+
+V2.76 extends the Windows worker prompt specifically for Go verification on
+Windows hosts. The prompt now explicitly tells the worker to:
+
+- confirm the active Go module root from repository evidence before running Go
+  commands;
+- run Go verification from the nested module directory when `go.mod` lives
+  under a path such as `backend/`;
+- avoid inline `go test -run` alternation with `|` in PowerShell and prefer
+  separate test invocations;
+- prefer an already populated writable `GOMODCACHE` when one exists;
+- avoid launching parallel `go test` processes against a fresh shared module
+  cache on Windows.
+
+See `docs/84_v2_76_windows_go_execution_hardening.md`.
+
+## V2.77 Windows Spaced-Path Hardening
+
+V2.77 extends the Windows worker prompt for repositories and helper scripts
+whose absolute paths contain spaces. The prompt now explicitly tells the worker
+to:
+
+- quote Windows paths that contain spaces before passing them to scripts or
+  flags such as `--project`;
+- prefer setting the working directory instead of embedding long absolute paths
+  when a command already supports a repo-local form;
+- treat quoting-related path failures as command-formulation issues first.
+
+See `docs/85_v2_77_windows_spaced_path_hardening.md`.
+
+## V2.78 Non-Partial Blocker Dispatch Stop
+
+V2.78 hardens the orchestrator so a newly recorded blocker with
+`can_continue_partially=false` stops the current ready-task batch immediately.
+This prevents sibling tasks from consuming more tokens after the controller has
+already concluded the current run needs manual resolution.
+
+The runtime now:
+
+- snapshots non-partial blocker IDs before each task dispatch;
+- compares blocker IDs again after the task finishes;
+- records a `run_blocked` history event and returns immediately when a new
+  non-partial blocker appears.
+
+This preserves existing debug-first behavior for retryable failures, while
+stopping adjacent work after retry exhaustion or other non-partial blockers.
+
+See `docs/86_v2_78_nonpartial_blocker_stop.md`.
 
 Run a smoke execution:
 

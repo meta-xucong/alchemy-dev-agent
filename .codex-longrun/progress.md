@@ -1207,3 +1207,133 @@ PY"`
   status: failed
   output_tail: [31;1mGet-Content: [0m [31;1m[36;1mLine |[0m [31;1m[36;1m[36;1m 2 | [0m [36;1mGet-Content 'C:/Users/T14S/.codex/skills/.system/long-running-task/SK[0m …[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m | [31;1mCannot find path 'C:\Users\T14S\.codex\skills\.system\long-running-task\SKILL.md' because it does not exist.[0m
 
+## Supervisor Run 20260626-043258-iter-001
+
+- returncode: 0
+- timed_out: False
+- stdout: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260626-043258-iter-001.jsonl`
+- stderr: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260626-043258-iter-001.stderr.txt`
+- last_message: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260626-043258-iter-001.last-message.md`
+- event_summary: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260626-043258-iter-001.summary.json`
+
+### Event Summary
+
+- total_events: 22
+- malformed_lines: 1
+- thread_id: 019f007c-63f0-71c0-9716-3f3a986f996b
+- agent_messages: 5
+- command_executions: 7
+- command_failures: 1
+- file_changes: 0
+- file_change_failures: 0
+- last_event_type: turn.completed
+
+- failed_command: `"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.3.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command "python 'C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\init_longrun_state.py' --project 'D:\\AI\\SSH\\sub2api-billing-core' --objective 'Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.' --force"`
+  exit_code: 1
+  status: failed
+  output_tail:  call last): File "C:\Users\T14S\.codex\skills\long-running-task\scripts\init_longrun_state.py", line 83, in <module> raise SystemExit(main()) ^^^^^^ File "C:\Users\T14S\.codex\skills\long-running-task\scripts\init_longrun_state.py", line 60, in main longrun.mkdir(parents=True, exist_ok=True) File "C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\pathlib.py", line 1311, in mkdir os.mkdir(self, mode) PermissionError: [WinError 5] 拒绝访问。: 'D:\\AI\\SSH\\sub2api-billing-core\\.codex-longrun'
+
+## 2026-06-26T16:59:25+08:00 Network Recovery Audit And Resume Readiness
+
+- Re-audited `.codex-longrun` state, recent supervisor iterations, current checkout diff, and active process state after the upstream network recovered.
+- Confirmed the old 2026-06-25 state was stale evidence only; it did not prove current readiness.
+- Confirmed the outage did contribute one real upstream symptom in `20260625-130134-iter-001`: Codex logged repeated `stream disconnected - retrying sampling request` warnings during a smoke command.
+- Confirmed the dominant stop causes were still local/systemic rather than network-only: wrong long-running skill path, PowerShell heredoc misuse, `Select-Object -Index start..end` misuse, unquoted spaced path passed to `validate_state.py`, `rg`/filesystem permission noise, and transient Windows permission failures in test/cache/temp paths.
+- Audited current uncommitted hardening: worker prompt guidance for Windows PowerShell command hygiene and Windows Go execution hygiene is present in `runtime/codex_worker.py`, documented in `docs/83_v2_75_windows_worker_command_hardening.md` and `docs/84_v2_76_windows_go_execution_hardening.md`, and covered by new prompt-contract tests.
+- Fresh post-recovery verification passed on the current checkout: direct `codex.exe` + `gpt-5.4` smoke returned `OK`; focused prompt tests passed; full `tests/test_runtime.py` passed; full `tests/test_full_roadmap_execution.py` passed; `compileall` passed; `git diff --check` showed only the existing `.codex-longrun` CRLF warning.
+- Current judgment: upstream availability is recovered and the present Alchemy checkout is stable enough to resume Billing Core `_012`, while continuing to watch for any new controller/runtime regression during the resumed run.
+
+## 2026-06-26T17:35:57+08:00 V2.77 Windows Spaced-Path Hardening
+
+- Re-checked the post-recovery evidence after resuming Billing Core `_012` and found one remaining Windows command-hygiene gap not yet spelled out by V2.75/V2.76: unquoted spaced paths.
+- The concrete failure remained in the audit logs: `validate_state.py --project D:\AI\Alchemy Dev Agent System\alchemy-dev-agent` was emitted without quoting, so argparse split the workspace path at `Dev Agent System`.
+- Added V2.77 prompt guidance in `runtime/codex_worker.py` telling workers to quote Windows paths that contain spaces before passing them to scripts or flags such as `--project`, and to prefer working-directory-aware forms when possible.
+- Added `docs/85_v2_77_windows_spaced_path_hardening.md`, updated the README document index/notes for V2.76/V2.77, and added a new prompt-contract regression test for spaced-path guidance.
+- Verification passed: focused prompt subset `3 passed`; full `tests/test_runtime.py` `115 passed`; full `tests/test_full_roadmap_execution.py` `45 passed`; `py_compile` passed; targeted `git diff --check` passed.
+- Long-run state validation also passed with a fully quoted project path, confirming the V2.77 guidance matches the concrete failure we were seeing.
+- Real-run status check after the patch: Billing Core `phase_010/run_attempt_014` is still active on `T005` with `T004` failed and the live parent process started before V2.77 landed, so the new prompt text will apply on the next safe relaunch rather than to the already-running in-memory worker.
+- Next action: monitor `run_attempt_014`; if it pauses or exposes another command-formulation failure, relaunch from the current checkout so V2.77 is actually exercised in the real Billing Core run.
+
+## 2026-06-26T18:08:22+08:00 Network Recheck And Live T005 Debug Audit
+
+- Re-ran a fresh `codex.exe exec -m gpt-5.4` smoke at `2026-06-26 18:08 +08:00`; it returned `OK` without any stream-disconnect or provider failure. Only non-blocking plugin sync `401`, missing `thread_goals` table, and missing GitHub MCP token warnings remained.
+- Reconfirmed the historical diagnosis: the earlier outage did contribute one real upstream symptom, but it was not the dominant cause of the long stall. The main stop causes remain controller/runtime and Windows command-hygiene issues already documented in V2.75-V2.77.
+- Audited the current Billing Core live run directly. Parent Python PID `46436` is still active, and child `codex.exe` PID `48868` for `T005-DEBUG-1` started at `2026-06-26 17:56:33 +08:00`.
+- The debug worker is not a dead zombie process: over an 8-second sample its CPU advanced from `12.3125` to `12.5`, and it retained established TCP sessions via local proxy `127.0.0.1:7890`.
+- `run_attempt_014/state.json` last updated at `2026-06-26 17:56:30 +08:00` when `T005-DEBUG-1` became active. That stale timestamp reflects current observability limits during an in-flight worker, not evidence of network corruption.
+- Confirmed the live run still uses the pre-V2.77 in-memory worker prompt because the parent process started before the latest hardening landed. Any next relaunch must come from the current checkout so the new prompt text actually takes effect.
+- Audited repository targeting: the active Alchemy run still points at isolated worktree `phase_001/run/workspaces/real_run_worktree_20260623232224162902`, while the original `D:\AI\SSH\sub2api-billing-core` checkout remains a dirty in-progress refactor from earlier work and should not be treated as a clean baseline.
+- Next action: let `T005-DEBUG-1` reach completion or timeout; if it comes back `partial`/`failed` or exposes another Windows formulation issue, stop parent PID `46436` and resume from the patched V2.77 checkout.
+
+## 2026-06-26T18:42:46+08:00 V2.78 Non-Partial Blocker Stop Verification
+
+- Re-audited the post-restore Billing Core resume after the expected timeout boundary and confirmed the run was no longer truly active: `run_attempt_014/workers/T005-DEBUG-1.json` shows `completed_at=2026-06-26T10:15:10+00:00`, while `run_attempt_014/state.json` stayed at `2026-06-26T09:56:30+00:00` with `active_tasks=["T005-DEBUG-1"]`.
+- Confirmed this is not a fresh upstream outage symptom: a new direct `codex.exe exec -m gpt-5.4` smoke at `2026-06-26 18:39 +08:00` returned `OK` with only the same non-blocking plugin/auth warnings as before.
+- Inspected the stale `run_attempt_014` evidence and identified the concrete controller defect: `T004` recorded non-partial blockers `B-T004-2` and `B-T004-3`, but the same ready-task batch still dispatched `T005` four seconds later, which then timed out and spawned `T005-DEBUG-1`.
+- Audited the current uncommitted V2.78 hardening in `runtime/orchestrator.py`, `tests/test_runtime.py`, `README.md`, and `docs/86_v2_78_nonpartial_blocker_stop.md`; the fix snapshots non-partial blocker IDs before dispatch and returns immediately when a new one appears.
+- Verification passed on the current checkout: fresh Codex smoke `OK`; focused non-partial-blocker/debug interruption tests `2 passed`; `py_compile` passed; targeted `git diff --check` passed; full `tests/test_runtime.py` `116 passed`; full `tests/test_full_roadmap_execution.py` `45 passed`.
+- Current judgment: yesterday's outage was only a contributing factor earlier in the timeline. The remaining high-value defect is local scheduler correctness, and the current V2.78 checkout is verified locally and ready for a fresh Billing Core resume from the stale `run_attempt_014` boundary.
+
+## Supervisor Run 20260626-185832-iter-001
+
+- returncode: 0
+- timed_out: False
+- stdout: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260626-185832-iter-001.jsonl`
+- stderr: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260626-185832-iter-001.stderr.txt`
+- last_message: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260626-185832-iter-001.last-message.md`
+- event_summary: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260626-185832-iter-001.summary.json`
+
+### Event Summary
+
+- total_events: 184
+- malformed_lines: 1
+- thread_id: 019f0394-d433-7801-b6c9-e5231a8bdcb8
+- agent_messages: 19
+- command_executions: 80
+- command_failures: 13
+- file_changes: 0
+- file_change_failures: 0
+- last_event_type: turn.completed
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -LiteralPath 'backend\\internal\\server\\routes\\user_routes.go'"`
+  exit_code: 1
+  status: failed
+  output_tail: Get-Content : Cannot find path 'backend\internal\server\routes\user_routes.go' because it does not exist. At line:2 char:1 + Get-Content -Raw -LiteralPath 'backend\internal\server\routes\user_ro ... + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ + CategoryInfo : ObjectNotFound: (backend\interna...\user_routes.go:String) [Get-Content], ItemNotFoundEx ception + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -LiteralPath 'backend\\internal\\server\\routes\\admin_routes.go'"`
+  exit_code: 1
+  status: failed
+  output_tail: Get-Content : Cannot find path 'backend\internal\server\routes\admin_routes.go' because it does not exist. At line:2 char:1 + Get-Content -Raw -LiteralPath 'backend\internal\server\routes\admin_r ... + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ + CategoryInfo : ObjectNotFound: (backend\interna...admin_routes.go:String) [Get-Content], ItemNotFoundEx ception + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$env:APPDATA=(Join-Path (Get-Location).Path '"'.appdata'); "'$env:GOCACHE=(Join-Path (Get-Location).Path '"'.gocache'); "'$env:GOMODCACHE='"'D:\\AI\\.tools\\gopath\\pkg\\mod'; "'$env:GOFLAGS='"'-p=1'; go test ./internal/server -run 'TestBillingCoreRouteSurface' -count=1"`
+  exit_code: 1
+  status: failed
+  output_tail: go : The term 'go' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spe lling of the name, or if a path was included, verify that the path is correct and try again. At line:2 char:183 + ... DCACHE='D:\AI\.tools\gopath\pkg\mod'; $env:GOFLAGS='-p=1'; go test ./ ... + ~~ + CategoryInfo : ObjectNotFound: (go:String) [], CommandNotFoundException + FullyQualifiedErrorId : CommandNotFoundException
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$env:APPDATA=(Join-Path (Get-Location).Path '"'.appdata'); "'$env:GOCACHE=(Join-Path (Get-Location).Path '"'.gocache'); "'$env:GOMODCACHE='"'D:\\AI\\.tools\\gopath\\pkg\\mod'; "'$env:GOFLAGS='"'-p=1'; go test ./internal/service -run 'TestWalletService' -count=1"`
+  exit_code: 1
+  status: failed
+  output_tail: go : The term 'go' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spe lling of the name, or if a path was included, verify that the path is correct and try again. At line:2 char:183 + ... DCACHE='D:\AI\.tools\gopath\pkg\mod'; $env:GOFLAGS='-p=1'; go test ./ ... + ~~ + CategoryInfo : ObjectNotFound: (go:String) [], CommandNotFoundException + FullyQualifiedErrorId : CommandNotFoundException
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$env:APPDATA=(Join-Path (Get-Location).Path '"'.appdata'); "'$env:GOCACHE=(Join-Path (Get-Location).Path '"'.gocache'); "'$env:GOMODCACHE='"'D:\\AI\\.tools\\gopath\\pkg\\mod'; "'$env:GOFLAGS='"'-p=1'; go test -tags unit ./internal/handler -run 'TestUserHandlerWalletEndpoints' -count=1"`
+  exit_code: 1
+  status: failed
+  output_tail: go : The term 'go' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spe lling of the name, or if a path was included, verify that the path is correct and try again. At line:2 char:183 + ... DCACHE='D:\AI\.tools\gopath\pkg\mod'; $env:GOFLAGS='-p=1'; go test -t ... + ~~ + CategoryInfo : ObjectNotFound: (go:String) [], CommandNotFoundException + FullyQualifiedErrorId : CommandNotFoundException
+
+## 2026-06-26T19:29:27+08:00 Post-Restore Resume Prerequisite Audit
+
+- Re-ran a fresh direct Codex smoke after the upstream recovered fully; it returned `OK` again with only the same non-blocking featured-plugin `401`, missing `thread_goals`, and missing `GITHUB_PAT_TOKEN` warnings.
+- Reconfirmed the stale Billing Core `run_attempt_014` diagnosis from live artifacts: `state.json` is still frozen on `T005-DEBUG-1`, while `workers/T005-DEBUG-1.json` shows the worker actually completed, so the old run remains unusable evidence rather than a live network-corrupted session.
+- Audited the Billing Core repository and its inherited isolated worktree. The previously failed `backend/internal/server/routes/user_routes.go` and `admin_routes.go` paths are outdated assumptions; the current route-surface verification lives under `backend/internal/server/router_billing_core_test.go`, and wallet coverage already exists under `backend/internal/service/wallet_service_test.go` plus `backend/internal/handler/user_handler_test.go`.
+- Audited worker prerequisites in the current Codex environment: `pnpm` and `node` are available, and Go is installed at `C:\Users\T14S\tools\go-1.26.3\go\bin\go.exe`, but `go` is not on `PATH`. Current judgment: the next Billing Core resume should inject that Go path into the parent environment so worker test commands can execute instead of failing with `CommandNotFoundException`.
+
+## 2026-06-26T23:52:38+08:00 New-Thread Recovery Reverification
+
+- Started from the clean new thread context and used only local repository state, `.codex-longrun`, and `.alchemy\billing_core_v274_20260624_012` artifacts; did not rely on the old encrypted-content thread state.
+- Confirmed no old Billing Core supervisor/worker Python parent process remains active. Running Codex/Codex app-server processes belong to the current desktop app; no cleanup was performed.
+- Confirmed the inherited Billing Core isolated worktree remains `phase_001/run/workspaces/real_run_worktree_20260623232224162902`, while the original `D:\AI\SSH\sub2api-billing-core` checkout should still not be treated as the live execution workspace.
+- Found a fresh local Codex CLI config blocker: `service_tier` had drifted to an unsupported value (`priority`, then `default`) for the current CLI, causing direct smoke to fail before model invocation. Fixed `C:\Users\T14S\.codex\config.toml` to `service_tier = "fast"` and re-ran the smoke successfully.
+- Reverified Go safely with process-level environment only: `C:\Users\T14S\tools\go-1.26.3\go\bin\go.exe` plus `GOTOOLCHAIN=auto`, `GOMODCACHE=D:\AI\.tools\gopath\pkg\mod`, and a worktree-local `GOCACHE`. The backend module requires `go 1.26.4`, and the toolchain resolves from the writable module cache.
+- Re-ran V2.78-focused and broad Alchemy regression coverage: focused prompt/non-partial blocker subset passed, full `tests/test_runtime.py` passed, full `tests/test_full_roadmap_execution.py` passed, `py_compile` passed, targeted `git diff --check` passed, and long-run state validation passed.
+- Current judgment: V2.75-V2.78 framework fixes are locally reverified in this new thread and should be committed before resuming Billing Core so the recovery run starts from a stable controller checkpoint.
+

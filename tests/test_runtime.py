@@ -174,6 +174,50 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertIn("node_modules", prompt)
         self.assertIn("do not modify manifests or lockfiles", prompt)
 
+    def test_worker_prompt_includes_windows_powershell_command_hygiene(self) -> None:
+        prompt = CodexWorkerAdapter().build_prompt(
+            CodexWorkerInput(
+                task_id="T001",
+                goal="inspect and patch wallet handlers",
+                allowed_files=["backend/internal/handler/admin/user_handler.go"],
+            )
+        )
+
+        self.assertIn("rg --files", prompt)
+        self.assertIn("Windows PowerShell", prompt)
+        self.assertIn("rg --glob", prompt)
+        self.assertIn("Select-Object -Index start..end", prompt)
+        self.assertIn("Treat shell globbing, quoting, or path-syntax errors", prompt)
+
+    def test_worker_prompt_includes_windows_spaced_path_hardening(self) -> None:
+        prompt = CodexWorkerAdapter().build_prompt(
+            CodexWorkerInput(
+                task_id="T001",
+                goal="validate runtime state in a workspace whose path contains spaces",
+                allowed_files=[".codex-longrun/state.json"],
+            )
+        )
+
+        self.assertIn("Quote Windows paths that contain spaces", prompt)
+        self.assertIn("`--project`", prompt)
+        self.assertIn("prefer setting the working directory", prompt)
+
+    def test_worker_prompt_includes_windows_go_execution_hardening(self) -> None:
+        prompt = CodexWorkerAdapter().build_prompt(
+            CodexWorkerInput(
+                task_id="T002",
+                goal="verify Go wallet handlers on Windows",
+                allowed_files=["backend/internal/handler/admin/user_handler.go"],
+            )
+        )
+
+        self.assertIn("confirm the active module root", prompt)
+        self.assertIn("go.mod", prompt)
+        self.assertIn("cd backend && go test ./...", prompt)
+        self.assertIn("do not send regex alternation such as `|`", prompt)
+        self.assertIn("already populated `GOMODCACHE`", prompt)
+        self.assertIn("Do not launch multiple parallel `go test` processes", prompt)
+
     def test_real_worker_parses_structured_subprocess_output(self) -> None:
         calls: list[list[str]] = []
 
@@ -1792,6 +1836,71 @@ class OrchestratorTests(unittest.TestCase):
         self.assertIn("T001-DEBUG-1", nodes)
         self.assertEqual(nodes["T001-DEBUG-1"].status, "pending")
         self.assertEqual(nodes["T002"].status, "ready")
+
+    def test_non_partial_blocker_stops_current_ready_batch(self) -> None:
+        class BlockingFirstWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                if worker_input.task_id == "T001":
+                    return CodexWorkerResult(
+                        task_id=worker_input.task_id,
+                        status="partial",
+                        summary="requires manual resolution before adjacent work can continue",
+                        known_issues=["manual resolution required"],
+                    )
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="completed",
+                    tests_passed=["ok"],
+                )
+
+        graph = TaskGraph(
+            graph_id="non-partial-blocker",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Blocking implementation",
+                    description="First",
+                    type="frontend",
+                    assigned_agent="frontend",
+                    priority=90,
+                    max_attempts=1,
+                ),
+                TaskNode(
+                    id="T002",
+                    title="Adjacent implementation",
+                    description="Second",
+                    type="frontend",
+                    assigned_agent="frontend",
+                    priority=80,
+                ),
+            ],
+        )
+        worker = BlockingFirstWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "stop after blocking failure",
+                initial_state=RuntimeState(objective="stop after blocking failure", task_graph=graph),
+                max_iterations=1,
+            )
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(worker.calls, ["T001"])
+        self.assertEqual(nodes["T001"].status, "failed")
+        self.assertEqual(nodes["T002"].status, "ready")
+        self.assertEqual(state.failed_tasks, ["T001"])
+        self.assertEqual(state.blockers[0]["id"], "B-T001-1")
+        self.assertTrue(any(event["type"] == "run_blocked" for event in state.iteration_history))
 
     def test_failed_debug_task_resets_parent_without_nested_debug_loop(self) -> None:
         class DebugPartialThenRetryWorker:

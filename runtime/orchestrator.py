@@ -170,9 +170,21 @@ class Orchestrator:
                     self._record_history(state, "run_paused", decision.reason or "Run paused before task dispatch.", task.id)
                     self.state_manager.save(state)
                     return state
+                blocker_ids_before = self._non_partial_blocker_ids(state)
                 self.execute_task(state, task, iteration)
                 if self._prune_obsolete_debug_tasks(state):
                     self.state_manager.save(state)
+                new_blocker_ids = self._non_partial_blocker_ids(state) - blocker_ids_before
+                if new_blocker_ids:
+                    blocker_list = ", ".join(sorted(new_blocker_ids))
+                    self._record_history(
+                        state,
+                        "run_blocked",
+                        f"Stopping after non-partial blocker(s) were recorded: {blocker_list}.",
+                        task.id,
+                    )
+                    self.state_manager.save(state)
+                    return state
                 if self._maybe_apply_repair_convergence(state, task):
                     self.state_manager.save(state)
                     return state
@@ -1075,6 +1087,16 @@ class Orchestrator:
                 }
             )
         self._record_history(state, "run_stopped", reason)
+
+    def _non_partial_blocker_ids(self, state: RuntimeState) -> set[str]:
+        blocker_ids: set[str] = set()
+        for blocker in state.blockers:
+            if blocker.get("can_continue_partially", False):
+                continue
+            blocker_id = str(blocker.get("id", "")).strip()
+            if blocker_id:
+                blocker_ids.add(blocker_id)
+        return blocker_ids
 
     def _default_branch_for_task(self, task: TaskNode) -> str:
         slug = "".join(char.lower() if char.isalnum() else "-" for char in task.title).strip("-")
