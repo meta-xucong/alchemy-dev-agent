@@ -1974,6 +1974,105 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(nodes["T001-DEBUG-1"].status, "pending")
         self.assertEqual(nodes["T002"].status, "ready")
 
+    def test_worker_timeout_records_blocker_without_debug_task(self) -> None:
+        class TimeoutWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                if worker_input.task_id == "T001":
+                    return CodexWorkerResult(
+                        task_id=worker_input.task_id,
+                        status="completed",
+                        summary="planning completed",
+                        tests_passed=["planning"],
+                        confidence=0.9,
+                    )
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="failed",
+                    summary="Codex worker timed out after 600 seconds.",
+                    worker_lifecycle={
+                        "task_id": worker_input.task_id,
+                        "status": "timed_out",
+                        "timeout_seconds": 600,
+                    },
+                )
+
+        worker = TimeoutWorker()
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run("build a todo app with login", reset=True, max_iterations=5)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(worker.calls, ["T001", "T002"])
+        self.assertNotIn("T002-DEBUG-1", nodes)
+        self.assertEqual(nodes["T002"].status, "failed")
+        self.assertEqual(state.failed_tasks, ["T002"])
+        self.assertEqual(state.blockers[0]["id"], "B-T002-1")
+        self.assertFalse(state.blockers[0]["can_continue_partially"])
+        self.assertTrue(any(event["type"] == "worker_timeout_blocker" for event in state.iteration_history))
+
+    def test_debug_timeout_blocks_parent_without_replaying_original_task(self) -> None:
+        class DebugTimeoutWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="failed",
+                    summary="Codex worker timed out after 600 seconds.",
+                    worker_lifecycle={
+                        "task_id": worker_input.task_id,
+                        "status": "timed_out",
+                        "timeout_seconds": 600,
+                    },
+                )
+
+        graph = TaskGraphEngine().create_default_graph("complete every documented roadmap phase")
+        engine = TaskGraphEngine()
+        engine.mark_completed(graph, "T001", {"type": "worker_result", "result": {"status": "completed"}})
+        implementation = engine.get_node(graph, "T002")
+        implementation.status = "failed"
+        implementation.retry_count = 1
+        graph.nodes.append(
+            TaskNode(
+                id="T002-DEBUG-1",
+                title="Debug T002",
+                description="Diagnose original T002 worker timeout.",
+                type="debug",
+                assigned_agent="debug",
+                status="pending",
+                priority=110,
+            )
+        )
+        initial_state = RuntimeState(objective="complete roadmap", task_graph=graph)
+        initial_state.completed_tasks = ["T001"]
+        initial_state.failed_tasks = ["T002"]
+
+        worker = DebugTimeoutWorker()
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run("complete roadmap", initial_state=initial_state, max_iterations=5)
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(worker.calls, ["T002-DEBUG-1"])
+        self.assertEqual(nodes["T002-DEBUG-1"].status, "skipped")
+        self.assertEqual(nodes["T002"].status, "blocked")
+        self.assertIn("T002", state.failed_tasks)
+        self.assertEqual(state.blockers[0]["id"], "B-T002-1")
+        self.assertFalse(state.blockers[0]["can_continue_partially"])
+        self.assertTrue(any(event["type"] == "worker_timeout_blocker" for event in state.iteration_history))
+
     def test_non_partial_blocker_stops_current_ready_batch(self) -> None:
         class BlockingFirstWorker:
             def __init__(self) -> None:

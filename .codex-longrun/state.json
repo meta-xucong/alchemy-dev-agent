@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "alchemy_v2_83_windows_real_codex_policy_bypass_verified",
+  "current_phase": "alchemy_v2_84_worker_timeout_stop_verified",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -17,12 +17,13 @@
     "implemented V2.80 real-worker Go environment bootstrap and verified worker env seeding against the inherited Billing Core worktree",
     "implemented V2.81 technical-blocker phase repair handoff so Alchemy can open a new repair attempt after autonomous implementation blockers",
     "implemented V2.82 resume attempt ordering hardening so newer terminal attempts supersede older stale active attempts",
-    "implemented V2.83 Windows real Codex policy bypass so Alchemy workers can write and verify inside the isolated worktree despite the current Codex CLI workspace-write/read-only issue"
+    "implemented V2.83 Windows real Codex policy bypass so Alchemy workers can write and verify inside the isolated worktree despite the current Codex CLI workspace-write/read-only issue",
+    "implemented V2.84 worker-timeout stop hardening so timeout failures do not create same-scope debug tasks or replay the parent task"
   ],
   "next_actions": [
-    "Commit and push the V2.83 Alchemy framework fix before launching another Billing Core worker.",
-    "Relaunch Billing Core through Alchemy full-roadmap execution only; do not directly edit the target Billing Core worktree from the monitoring Codex thread.",
-    "Confirm phase_010 creates the next fresh repair attempt after run_attempt_018, does not resume stale run_attempt_014, and that real workers can patch and run verification commands in the isolated worktree without false read-only/policy blockers."
+    "Commit and push the V2.84 Alchemy framework fix before launching another Billing Core worker.",
+    "Relaunch Billing Core through a fresh Alchemy full-roadmap attempt only; do not directly edit the target Billing Core worktree from the monitoring Codex thread.",
+    "Confirm phase_010 no longer resumes stale run_attempt_019 active timeout state, and that any future worker timeout stops as a non-partial technical blocker instead of dispatching same-scope debug/retry work."
   ],
   "tests_run": [
     "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_last.md \"Reply with exactly OK and nothing else.\" => passed",
@@ -97,7 +98,12 @@
     "python -B -m pytest tests/test_runtime.py -q => 120 passed",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 48 passed",
     "python -B -m py_compile runtime\\codex_worker.py tests\\test_runtime.py => passed",
-    "git diff --check -- runtime/codex_worker.py tests/test_runtime.py README.md docs/91_v2_83_windows_real_codex_policy_bypass.md => passed"
+    "git diff --check -- runtime/codex_worker.py tests/test_runtime.py README.md docs/91_v2_83_windows_real_codex_policy_bypass.md => passed",
+    "python -m pytest tests/test_runtime.py -q -k \"timeout_records_blocker or debug_timeout_blocks_parent or failed_task_creates_debug_task_and_retries or failed_debug_task_resets_parent_without_nested_debug_loop or non_partial_blocker\" => 6 passed after fixing latest-result lookup order",
+    "python -B -m pytest tests/test_runtime.py -q => 122 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 48 passed",
+    "python -B -m py_compile runtime\\orchestrator.py tests\\test_runtime.py => passed",
+    "git diff --check -- runtime/orchestrator.py tests/test_runtime.py README.md docs/92_v2_84_worker_timeout_stop.md => passed"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -108,7 +114,8 @@
     "Billing Core T004 remains the real current project blocker: run_attempt_015 stopped on non-partial blockers B-T004-2 and B-T004-3, with T005 and T005-DEBUG-1 still pending and intentionally undispatched.",
     "Before V2.81, the full-roadmap executor treated all phase blockers as non-repairable, which prevented Alchemy from opening a new autonomous repair attempt after T004 technical blockers. V2.81 addresses this for implementation/test blockers while preserving stops for preflight, credentials, recovery, operator, and live-worker blockers.",
     "Before V2.82, the full-roadmap resume scanner could fall back from a newer terminal run_attempt_015 to older stale run_attempt_014 active-task evidence. V2.82 prevents that fallback.",
-    "Before V2.83, Windows real Codex workers still treated workspace-write sessions as read-only and rejected patch/verification commands by policy; V2.83 uses the official Codex bypass flag for Windows workspace-write workers, disables plugin sync noise, and relies on Alchemy's isolated worktree plus file-boundary audit controls."
+    "Before V2.83, Windows real Codex workers still treated workspace-write sessions as read-only and rejected patch/verification commands by policy; V2.83 uses the official Codex bypass flag for Windows workspace-write workers, disables plugin sync noise, and relies on Alchemy's isolated worktree plus file-boundary audit controls.",
+    "Before V2.84, a real worker timeout created a same-scope debug task, and a debug timeout reset the parent task for replay. Billing Core run_attempt_019 reproduced this as T002 timeout, T002-DEBUG-1 timeout, then T002 replay; V2.84 records a non-partial technical blocker instead."
   ],
   "blockers": [],
   "done_criteria": [
@@ -116,7 +123,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T01:25:00+08:00",
+  "last_verified_at": "2026-06-27T02:04:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T01:25:00+08:00"
+  "updated_at": "2026-06-27T02:04:00+08:00"
 }

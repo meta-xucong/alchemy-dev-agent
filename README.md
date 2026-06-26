@@ -218,6 +218,8 @@ docs/
                               V2.82 resume attempt ordering hardening.
   91_v2_83_windows_real_codex_policy_bypass.md
                               V2.83 Windows real Codex policy bypass and plugin-sync suppression.
+  92_v2_84_worker_timeout_stop.md
+                              V2.84 worker timeout stop and debug replay prevention.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1265,6 +1267,19 @@ cleanly stopping at blockers while `run_attempt_014` still contains obsolete
 `active_tasks` evidence.
 
 See `docs/90_v2_82_resume_attempt_order_hardening.md`.
+
+## V2.84 Worker Timeout Stop
+
+V2.84 treats real worker timeouts as task sizing or budget blockers instead of
+ordinary retryable failures. A timed-out implementation task now records a
+non-partial technical blocker without creating a same-scope debug task, and a
+timed-out debug task blocks its parent instead of replaying the original task.
+
+This prevents Billing Core style large frontend tasks from cycling through
+`T002 -> T002-DEBUG-1 -> T002` when each worker exhausts the configured runtime
+budget.
+
+See `docs/92_v2_84_worker_timeout_stop.md`.
 
 Run a smoke execution:
 

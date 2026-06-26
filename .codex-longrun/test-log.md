@@ -2753,3 +2753,27 @@
 - command: `git diff --check -- runtime/codex_worker.py tests/test_runtime.py README.md docs/91_v2_83_windows_real_codex_policy_bypass.md`
 - result: passed
 - next verification command: update long-run state, commit/push V2.83, then resume Billing Core through Alchemy.
+
+## 2026-06-27T02:04:00+08:00 V2.84 worker timeout stop verification
+
+- command: `python -m pytest tests/test_runtime.py -q -k "timeout_records_blocker or debug_timeout_blocks_parent or failed_task_creates_debug_task_and_retries or failed_debug_task_resets_parent_without_nested_debug_loop or non_partial_blocker"`
+- result: passed after one implementation fix; final result `6 passed, 116 deselected`
+- relevant error summary: first attempt showed `T002-DEBUG-1` timeout still replayed `T002` because debug convergence evidence hid the prior worker result.
+- fix attempted: capture the latest worker result before appending debug convergence evidence and skip empty non-worker evidence in `_latest_worker_result`.
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `122 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `48 passed`
+- next verification command: py_compile and targeted diff check.
+
+- command: `python -B -m py_compile runtime\orchestrator.py tests\test_runtime.py`
+- result: passed
+- next verification command: targeted diff check.
+
+- command: `git diff --check -- runtime/orchestrator.py tests/test_runtime.py README.md docs/92_v2_84_worker_timeout_stop.md`
+- result: passed
+- next verification command: validate long-run state, commit/push V2.84, then relaunch Billing Core through a fresh Alchemy attempt.

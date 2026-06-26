@@ -1381,3 +1381,13 @@ PY"`
 - Preserved non-Codex subprocess test adapters by only applying Codex CLI-specific argv to executables named `codex`, `codex.exe`, `codex.cmd`, or `codex.bat`.
 - Verification passed: focused argv/lifecycle tests, full `tests/test_runtime.py` `120 passed`, full `tests/test_full_roadmap_execution.py` `48 passed`, `py_compile`, targeted `git diff --check`, and real-worker smoke `.alchemy\v2_83_real_worker_policy_smoke6` passed with a scoped `app.py` edit plus Python assertion.
 
+## 2026-06-27T02:04:00+08:00 V2.84 Worker Timeout Stop
+
+- Relaunched Billing Core through the corrected V2.83 real-worker path and confirmed the execution chain now enters the isolated inherited worktree with `--disable plugins --dangerously-bypass-approvals-and-sandbox`.
+- `phase_010/run_attempt_019` completed T001, then T002 timed out at the configured `600s` budget. Alchemy correctly cleaned up the Codex worker process tree, but old orchestration treated the timeout as a normal retryable failure and created `T002-DEBUG-1`.
+- `T002-DEBUG-1` also timed out at `600s`. Old convergence then skipped the debug node and reset T002 for another same-scope retry, which would repeat the expensive large frontend task. I stopped the Billing probe parent process before it could continue burning another full worker window.
+- Implemented V2.84 in `runtime/orchestrator.py`: worker timeout results now become non-partial technical blockers without same-scope debug creation; debug timeouts block the parent instead of replaying it; latest worker-result lookup now skips non-worker convergence evidence.
+- Added `docs/92_v2_84_worker_timeout_stop.md`, updated README, and added regression coverage for both timeout paths.
+- Verification passed: focused timeout/debug/non-partial regressions `6 passed`, full `tests/test_runtime.py` `122 passed`, full `tests/test_full_roadmap_execution.py` `48 passed`, `py_compile`, and targeted `git diff --check`.
+- Current judgment: the correct execution chain is restored up to the next boundary. Billing Core should be relaunched through a fresh Alchemy attempt after committing V2.84; if the same T002 scope still exceeds the budget, Alchemy should now stop cleanly with a blocker telling us to split the task or raise the worker budget.
+

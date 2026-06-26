@@ -503,6 +503,14 @@ class Orchestrator:
             )
             return
 
+        if _worker_result_timed_out(result):
+            self._record_timeout_blocker(
+                state,
+                task,
+                f"{task.id} exceeded the Codex worker timeout. Stop instead of launching a same-scope debug task.",
+            )
+            return
+
         if not self.graph_engine.can_retry(task):
             self._record_blocker(
                 state,
@@ -547,6 +555,7 @@ class Orchestrator:
             return False
 
         root = self._root_task_for_debug(state, task)
+        latest_result = self._latest_worker_result(task)
         task.status = "skipped"
         task.evidence.append(
             {
@@ -574,6 +583,25 @@ class Orchestrator:
             return True
 
         if root.status in {"completed", "skipped"}:
+            return True
+
+        if _worker_result_timed_out(latest_result):
+            root.status = "blocked"
+            root.evidence.append(
+                {
+                    "type": "debug_timeout_blocker",
+                    "summary": f"{task.id} also exceeded the Codex worker timeout.",
+                    "source_task_id": task.id,
+                    "created_at": utc_now_iso(),
+                }
+            )
+            state.active_tasks = [task_id for task_id in state.active_tasks if task_id != root.id]
+            state.failed_tasks = self._add_unique(state.failed_tasks, root.id)
+            self._record_timeout_blocker(
+                state,
+                root,
+                f"{task.id} timed out while diagnosing {root.id}. Stop instead of replaying the original task.",
+            )
             return True
 
         environment_blocker = self._debug_environment_blocker_summary(task)
@@ -617,6 +645,15 @@ class Orchestrator:
             blocker_type="technical_limit",
         )
         return True
+
+    def _record_timeout_blocker(self, state: RuntimeState, task: TaskNode, description: str) -> None:
+        self._record_blocker(state, task, description, blocker_type="technical_limit")
+        self._record_history(
+            state,
+            "worker_timeout_blocker",
+            f"{task.id} blocked after a worker timeout; split the task or adjust the worker budget before retrying.",
+            task.id,
+        )
 
     def _debug_task_has_unproductive_evidence(self, task: TaskNode) -> bool:
         if task.retry_count > 0:
@@ -961,7 +998,7 @@ class Orchestrator:
     def _latest_worker_result(self, task: TaskNode) -> dict | None:
         for item in reversed(task.evidence):
             result = item.get("result", {}) if isinstance(item, dict) else {}
-            if isinstance(result, dict):
+            if isinstance(result, dict) and result:
                 return result
         return None
 
@@ -1170,6 +1207,44 @@ def _value_text_fragments(value: object) -> list[str]:
             fragments.extend(_value_text_fragments(item))
         return fragments
     return []
+
+
+def _worker_result_timed_out(result: CodexWorkerResult | dict | None) -> bool:
+    if result is None:
+        return False
+
+    if isinstance(result, CodexWorkerResult):
+        lifecycle = result.worker_lifecycle
+        text_values: list[object] = [
+            result.summary,
+            result.raw_output,
+            result.known_issues,
+            result.evidence,
+        ]
+    elif isinstance(result, dict):
+        raw_lifecycle = result.get("worker_lifecycle", {})
+        lifecycle = raw_lifecycle if isinstance(raw_lifecycle, dict) else {}
+        text_values = [
+            result.get("summary", ""),
+            result.get("raw_output", ""),
+            result.get("known_issues", []),
+            result.get("evidence", []),
+        ]
+    else:
+        return False
+
+    if str(lifecycle.get("status", "")).lower() == "timed_out":
+        return True
+    if lifecycle.get("timed_out_at"):
+        return True
+
+    text = "\n".join(fragment.lower() for value in text_values for fragment in _value_text_fragments(value))
+    timeout_markers = (
+        "codex worker timed out",
+        "worker timed out",
+        "timed out after",
+    )
+    return any(marker in text for marker in timeout_markers)
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:
