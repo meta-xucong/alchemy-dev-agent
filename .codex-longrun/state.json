@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "alchemy_v2_79_existing_blocker_resume_stop_verified",
+  "current_phase": "billing_core_run_attempt_015_stopped_at_t004_blocker_boundary",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -12,12 +12,13 @@
     "implemented V2.77 Windows spaced-path worker prompt hardening and re-verified runtime/full-roadmap coverage",
     "implemented V2.78 non-partial blocker dispatch-stop hardening and re-verified runtime/full-roadmap coverage",
     "reverified V2.75-V2.78 from the clean new thread, fixed local Codex service_tier config, and confirmed Go toolchain resolution",
-    "implemented V2.79 existing non-partial blocker resume-stop hardening and re-verified runtime/full-roadmap coverage"
+    "implemented V2.79 existing non-partial blocker resume-stop hardening and re-verified runtime/full-roadmap coverage",
+    "resumed Billing Core through Alchemy run_attempt_015 and confirmed the current scheduler stops at existing T004 non-partial blockers without dispatching T005"
   ],
   "next_actions": [
-    "Resume Billing Core phase_010/run_attempt_014 from the current V2.79 checkout with C:\\Users\\T14S\\tools\\go-1.26.3\\go\\bin injected into PATH so existing or newly recorded T004 non-partial blockers stop dispatch before T005 can run again.",
-    "If the resumed controller still launches T005 or T005-DEBUG-1 while a T004 non-partial blocker is present, inspect recovery blocker clearing and scheduler stop convergence immediately before any more live retries.",
-    "If the resumed controller stops cleanly at the T004 blocker boundary, continue the Billing Core repair from that boundary instead of treating stale run_attempt_014 state as live progress."
+    "Inspect Billing Core T004 evidence in run_attempt_015 and the inherited worktree to identify the concrete wallet recharge/payment surface gap behind blockers B-T004-2 and B-T004-3.",
+    "Repair the Billing Core T004 boundary in the isolated worktree, not the original D:\\AI\\SSH\\sub2api-billing-core checkout, unless Alchemy explicitly promotes or exports changes there.",
+    "Run targeted Billing Core checks serially with process-local Go settings: PATH includes C:\\Users\\T14S\\tools\\go-1.26.3\\go\\bin, GOMODCACHE=D:\\AI\\.tools\\gopath\\pkg\\mod, GOTOOLCHAIN=auto, GOFLAGS=-p=1, and a worktree-local GOCACHE."
   ],
   "tests_run": [
     "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_last.md \"Reply with exactly OK and nothing else.\" => passed",
@@ -69,14 +70,19 @@
     "python -B -m py_compile runtime\\orchestrator.py tests\\test_runtime.py => passed",
     "git diff --check -- runtime/orchestrator.py tests/test_runtime.py README.md docs/87_v2_79_existing_blocker_resume_stop.md => passed",
     "python -B -m pytest tests/test_runtime.py -q => 117 passed",
-    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 45 passed"
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 45 passed",
+    "Billing Core controlled resume via python -B -m autodev.run ... --full-roadmap --max-phases 1 --max-iterations 3 --max-worker-seconds 180 against .alchemy\\billing_core_v274_20260624_012 => run_attempt_015 blocked cleanly at existing T004 non-partial blockers with active_tasks=[] and no T005/T005-DEBUG dispatch",
+    "Process check after cleanup for go.exe/compile.exe/link.exe/go test/.gocache-probe/billing_core_v274_20260624_012/sub2api-billing-core/autodev.run => no lingering stale Billing Core supervisor, worker, or Go probe process",
+    "go test ./internal/server -run '^$' -count=0 -v in inherited Billing Core backend with process-local Go settings => passed after cold compile",
+    "go test ./internal/server -run '^TestBillingCoreRouteSurface$' -count=1 -v in inherited Billing Core backend with process-local Go settings => completed cleanly but reported no matching tests in internal/server"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
     "The old run_attempt_014 parent process used pre-V2.77/V2.78 controller logic, so its task-dispatch behavior should not be used to judge the current checkout.",
     "T004 still needs a fresh Billing Core resume boundary under the current checkout to determine whether any remaining failure is unfinished repository work or another controller/runtime defect.",
     "Historical upstream instability existed on 2026-06-25, but the latest 2026-06-26 network smoke passed; there is no current evidence that network availability is the blocking factor.",
-    "Billing Core real-worker shells still do not inherit a PATH entry for Go by default even though go.exe is installed at C:\\Users\\T14S\\tools\\go-1.26.3\\go\\bin\\go.exe; recovery relaunches must inject that path or equivalent tool discovery until the environment is normalized."
+    "Billing Core real-worker shells still do not inherit a PATH entry for Go by default even though go.exe is installed at C:\\Users\\T14S\\tools\\go-1.26.3\\go\\bin\\go.exe; recovery relaunches must inject that path or equivalent tool discovery until the environment is normalized.",
+    "Billing Core T004 remains the real current project blocker: run_attempt_015 stopped on non-partial blockers B-T004-2 and B-T004-3, with T005 and T005-DEBUG-1 still pending and intentionally undispatched."
   ],
   "blockers": [],
   "done_criteria": [
@@ -84,7 +90,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T00:18:00+08:00",
+  "last_verified_at": "2026-06-27T00:44:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T00:18:00+08:00"
+  "updated_at": "2026-06-27T00:44:00+08:00"
 }

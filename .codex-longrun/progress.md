@@ -1346,3 +1346,12 @@ PY"`
 - Verification passed: focused existing/new blocker tests plus the nested-debug promotion regression, `py_compile`, targeted `git diff --check`, full `tests/test_runtime.py` `117 passed`, and full `tests/test_full_roadmap_execution.py` `45 passed`.
 - Current judgment: Billing Core `run_attempt_014` should now resume into a fresh attempt and stop at the existing T004 non-partial blocker boundary unless a valid completed-debug promotion can clear it.
 
+## 2026-06-27T00:44:00+08:00 Billing Core Controlled Resume Result
+
+- Relaunched Billing Core through the Alchemy recovery entrypoint using `.alchemy\billing_core_v274_20260624_012`, the inherited isolated worktree, `max_phases=1`, `max_iterations=3`, `max_worker_seconds=180`, explicit Codex executable, and process-local Go environment (`PATH`, `GOMODCACHE`, `GOTOOLCHAIN=auto`, `GOFLAGS=-p=1`).
+- The first relaunch was a false preflight block caused by an over-isolated `APPDATA` hiding GitHub CLI authentication. Reran without overriding `APPDATA`; no repository or framework changes were made for that false block.
+- Fresh `phase_010/run_attempt_015` resumed from stale `run_attempt_014`, evaluated the existing T004 blockers, recorded `run_blocked`, and stopped with `active_tasks=[]` before dispatching `T005` or `T005-DEBUG-1`.
+- Confirmed no old Billing Core supervisor, Codex worker, autodev parent, or Go probe process remains active after cleanup. Only the current Codex Desktop/app-server process family remains.
+- Serial Go environment probe in the inherited Billing Core backend passed with process-local cache settings: `go test ./internal/server -run '^$' -count=0 -v` passed after cold compile, and `go test ./internal/server -run '^TestBillingCoreRouteSurface$' -count=1 -v` completed cleanly but reported no matching tests in that package.
+- Current Billing Core boundary: `T001`, `T002`, `T003-DEBUG-1`, and `T003` are complete; `T004` is failed with non-partial blockers `B-T004-2` and `B-T004-3`; `T005` and `T005-DEBUG-1` remain pending and were not launched by the current controller.
+

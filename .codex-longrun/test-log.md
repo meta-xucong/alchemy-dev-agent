@@ -2623,3 +2623,21 @@
 - command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
 - result: 45 passed
 - next verification command: commit V2.79, then resume Billing Core `phase_010/run_attempt_014`.
+
+## 2026-06-27T00:44:00+08:00 Billing Core controlled resume and Go probe verification
+
+- command: `python -B -m autodev.run ... --full-roadmap --max-phases 1 --max-iterations 3 --max-worker-seconds 180 --codex-executable C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe --output D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.alchemy\billing_core_v274_20260624_012 ...` with process-local `PATH`, `GOMODCACHE=D:\AI\.tools\gopath\pkg\mod`, `GOTOOLCHAIN=auto`, and `GOFLAGS=-p=1`
+- result: blocked cleanly in `phase_010/run_attempt_015`
+- relevant state summary: `run_attempt_015/state.json` has `active_tasks=[]`, failed `T004`, blockers `B-T004-2` and `B-T004-3`, completed `T001`, `T002`, `T003-DEBUG-1`, `T003`, and a `run_blocked` event: `Stopping because non-partial blocker(s) are present: B-T004-2, B-T004-3.`
+- relevant error summary: an earlier relaunch with `APPDATA` overridden produced a false GitHub CLI preflight failure; rerunning without overriding `APPDATA` passed preflight and reached the intended scheduler boundary.
+
+- command: process check for `go.exe`, `compile.exe`, `link.exe`, `go test`, `.gocache-probe`, `billing_core_v274_20260624_012`, `sub2api-billing-core`, and `autodev.run`
+- result: no lingering Billing Core supervisor/autodev/codex worker or Go probe process remained after stopping the stale parallel Go probes launched by this thread.
+
+- command: `go test ./internal/server -run '^$' -count=0 -v` in the inherited Billing Core backend with process-local `PATH`, `GOMODCACHE`, `GOTOOLCHAIN=auto`, `GOFLAGS=-p=1`, and worktree-local `GOCACHE`
+- result: passed after cold compile (`ok github.com/billing-core/billing-core/internal/server 0.303s [no tests to run]`)
+- next verification command: run one exact targeted route-surface command serially against the warmed cache.
+
+- command: `go test ./internal/server -run '^TestBillingCoreRouteSurface$' -count=1 -v` with the same process-local Go environment
+- result: passed as an environment check, but Go reported no matching test in `internal/server`.
+- relevant error summary: this does not prove the Billing Core route behavior; it proves the Windows Go/toolchain/cache setup can execute serial tests in the inherited worktree.
