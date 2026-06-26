@@ -2821,3 +2821,15 @@
 - command: `git diff --check -- runtime/orchestrator.py autodev/full_roadmap_executor.py tests/test_runtime.py tests/test_full_roadmap_execution.py`
 - result: passed
 - next verification command: validate long-run state, commit/push V2.86/V2.87, then relaunch Billing Core through a fresh Alchemy attempt.
+
+## 2026-06-27T02:32:00+08:00 Post-V2.87 smoke and resume-selector check
+
+- command: `python -c "from pathlib import Path; from autodev.full_roadmap_executor import interrupted_phase_resume_source; r=interrupted_phase_resume_source(Path('.alchemy/billing_core_v274_20260624_012/phases/phase_010')); print('resume_from=', r.resume_from); print('active_run_dir=', r.active_run_dir); print('blockers=', r.blockers)"`
+- result: passed
+- relevant evidence: `resume_from=None`, `active_run_dir=None`, `blockers=[]`; stale `run_attempt_020` debug state will not be reused.
+- next verification command: minimal Codex OK smoke before launching real Alchemy worker.
+
+- command: `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\logs\codex_network_smoke_20260627_v287.md "Reply with exactly OK and nothing else."`
+- result: failed
+- relevant error summary: local Codex CLI reported `You've hit your usage limit` and `try again at 3:46 AM`; no Billing Core worker was launched.
+- next verification command: rerun the same smoke after the usage window resets, then relaunch Billing Core through Alchemy.

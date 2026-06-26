@@ -1409,3 +1409,11 @@ PY"`
 - Verification passed: focused boundary tests `2 passed`, focused resume-source tests `4 passed`, full `tests/test_runtime.py` `123 passed`, full `tests/test_full_roadmap_execution.py` `50 passed`, `py_compile`, and targeted `git diff --check`.
 - Current judgment: after commit/push, the next Billing Core launch should skip stale `run_attempt_020`, create a fresh phase_010 attempt, and avoid the package lockfile false boundary failure.
 
+## 2026-06-27T02:32:00+08:00 Post-V2.87 Resume Blocked By Codex Usage Limit
+
+- Committed and pushed V2.86/V2.87 as `c43059a`.
+- Verified the current Billing Core phase_010 resume selector now returns `resume_from=None`, `active_run_dir=None`, and no live-worker blockers for the stale `run_attempt_020` artifact.
+- Re-ran the minimal Codex OK smoke before launching a real Alchemy worker; the Codex CLI failed before responding with `You've hit your usage limit` and reported to try again at `3:46 AM`.
+- Did not launch Billing Core through Alchemy because real workers use the same local Codex CLI login/config path; launching now would create a false failure unrelated to Billing Core or Alchemy logic.
+- Current blocker: wait until the local Codex usage window resets after 2026-06-27 03:46 +08:00, or explicitly configure an approved alternate model provider path before resuming real workers.
+

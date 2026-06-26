@@ -1,7 +1,7 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "alchemy_v2_87_dead_debug_resume_skip_verified",
-  "phase_status": "advancing",
+  "current_phase": "blocked_on_codex_cli_usage_limit",
+  "phase_status": "blocked",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
     "resumed Billing Core _012 from run_attempt_010 and verified T004 dispatch",
@@ -24,9 +24,9 @@
     "implemented V2.87 dead debug active resume skip so stopped debug workers are not reused as resume_from sources"
   ],
   "next_actions": [
-    "Commit and push the V2.86/V2.87 Alchemy framework fixes before launching another Billing Core worker.",
-    "Relaunch Billing Core through a fresh Alchemy full-roadmap attempt only; do not directly edit the target Billing Core worktree from the monitoring Codex thread.",
-    "Confirm phase_010 skips stale run_attempt_020 dead debug state, creates a new attempt, allows frontend/pnpm-lock.yaml when frontend/package.json is allowed, and keeps any future worker timeout as a non-partial technical blocker."
+    "Wait until the local Codex CLI usage limit resets after 2026-06-27 03:46 +08:00, or configure an approved alternate model provider path for Alchemy.",
+    "After access is available again, rerun the minimal Codex OK smoke.",
+    "Relaunch Billing Core through a fresh Alchemy full-roadmap attempt only; confirm phase_010 skips stale run_attempt_020 dead debug state, creates a new attempt, allows frontend/pnpm-lock.yaml when frontend/package.json is allowed, and keeps any future worker timeout as a non-partial technical blocker."
   ],
   "tests_run": [
     "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_last.md \"Reply with exactly OK and nothing else.\" => passed",
@@ -116,7 +116,9 @@
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 49 passed before V2.87 and 50 passed after V2.87",
     "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_terminal_active_phase_attempt_is_not_resumed tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_dead_debug_active_phase_attempt_is_not_resumed tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_resume_does_not_fall_back_past_newer_terminal_attempt -q => 4 passed",
     "python -B -m py_compile runtime\\orchestrator.py autodev\\full_roadmap_executor.py tests\\test_runtime.py tests\\test_full_roadmap_execution.py => passed",
-    "git diff --check -- runtime/orchestrator.py autodev/full_roadmap_executor.py tests/test_runtime.py tests/test_full_roadmap_execution.py => passed"
+    "git diff --check -- runtime/orchestrator.py autodev/full_roadmap_executor.py tests/test_runtime.py tests/test_full_roadmap_execution.py => passed",
+    "python -c \"from pathlib import Path; from autodev.full_roadmap_executor import interrupted_phase_resume_source; r=interrupted_phase_resume_source(Path('.alchemy/billing_core_v274_20260624_012/phases/phase_010')); print('resume_from=', r.resume_from); print('active_run_dir=', r.active_run_dir); print('blockers=', r.blockers)\" => passed with resume_from=None, active_run_dir=None, blockers=[]",
+    "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_20260627_v287.md \"Reply with exactly OK and nothing else.\" => failed before response because local Codex CLI usage limit was reached; CLI said try again at 3:46 AM"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -131,15 +133,18 @@
     "Before V2.84, a real worker timeout created a same-scope debug task, and a debug timeout reset the parent task for replay. Billing Core run_attempt_019 reproduced this as T002 timeout, T002-DEBUG-1 timeout, then T002 replay; V2.84 records a non-partial technical blocker instead.",
     "Before V2.85, full-roadmap resume selection treated active-task attempts with terminal timeout lifecycle evidence as resumable if no worker PID was alive. V2.85 skips those stale terminal-active attempts and starts a fresh attempt.",
     "Before V2.86, manifest-scoped frontend tasks could fail Alchemy boundary audit when dependency commands touched same-directory lockfiles such as frontend/pnpm-lock.yaml. V2.86 expands allowed_files from package.json to common lockfile companions.",
-    "Before V2.87, a manually stopped debug worker could leave active_tasks pointing at T002-DEBUG-1 with a dead running lifecycle record, causing the next Billing Core resume to replay stale debug work. V2.87 skips dead active debug attempts while preserving ordinary interrupted task resume."
+    "Before V2.87, a manually stopped debug worker could leave active_tasks pointing at T002-DEBUG-1 with a dead running lifecycle record, causing the next Billing Core resume to replay stale debug work. V2.87 skips dead active debug attempts while preserving ordinary interrupted task resume.",
+    "As of 2026-06-27 02:31 +08:00, local Codex CLI real-model access is temporarily blocked by account usage limits. Real Alchemy workers use that Codex CLI login path, so launching Billing Core before the reset would create a false run failure."
   ],
-  "blockers": [],
+  "blockers": [
+    "Local Codex CLI usage limit reached during the post-V2.87 smoke; CLI reported to try again at 2026-06-27 03:46 +08:00. Real Billing Core workers should not be launched until access resets or an approved alternate provider path is configured."
+  ],
   "done_criteria": [
     "Requested implementation work is complete",
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T02:30:00+08:00",
+  "last_verified_at": "2026-06-27T02:32:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T02:30:00+08:00"
+  "updated_at": "2026-06-27T02:32:00+08:00"
 }
