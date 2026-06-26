@@ -2795,3 +2795,29 @@
 - command: `git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py README.md docs/93_v2_85_terminal_active_resume_skip.md`
 - result: passed
 - next verification command: validate long-run state, commit/push V2.85, then relaunch Billing Core through a fresh Alchemy attempt.
+
+## 2026-06-27T02:30:00+08:00 V2.86/V2.87 boundary and resume verification
+
+- command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_worker_inputs_include_file_boundaries tests/test_runtime.py::OrchestratorTests::test_worker_inputs_expand_package_lockfile_boundaries -q`
+- result: `2 passed`
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `123 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_terminal_active_phase_attempt_is_not_resumed tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_dead_debug_active_phase_attempt_is_not_resumed tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_resume_does_not_fall_back_past_newer_terminal_attempt -q`
+- result: `4 passed`
+- next verification command: full full-roadmap regression after V2.87.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `50 passed`
+- next verification command: py_compile and targeted diff check.
+
+- command: `python -B -m py_compile runtime\orchestrator.py autodev\full_roadmap_executor.py tests\test_runtime.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: targeted diff check.
+
+- command: `git diff --check -- runtime/orchestrator.py autodev/full_roadmap_executor.py tests/test_runtime.py tests/test_full_roadmap_execution.py`
+- result: passed
+- next verification command: validate long-run state, commit/push V2.86/V2.87, then relaunch Billing Core through a fresh Alchemy attempt.

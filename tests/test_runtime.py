@@ -2720,6 +2720,39 @@ class OrchestratorTests(unittest.TestCase):
         self.assertIn("If allowed_files is empty", " ".join(inputs["T001"].constraints))
         self.assertEqual(inputs[implementation.id].allowed_files, ["src/app.py"])
 
+    def test_worker_inputs_expand_package_lockfile_boundaries(self) -> None:
+        class CaptureWorker:
+            def __init__(self) -> None:
+                self.inputs: list[CodexWorkerInput] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.inputs.append(worker_input)
+                return CodexWorkerResult(task_id=worker_input.task_id, status="completed", summary="done")
+
+        with temp_project_dir() as tmp_dir:
+            graph = TaskGraphEngine().create_default_graph("objective")
+            implementation = next(node for node in graph.nodes if node.type == "backend")
+            implementation.relevant_files = ["frontend/package.json"]
+            worker = CaptureWorker()
+            Orchestrator(
+                StateManager(Path(tmp_dir) / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run("objective", reset=True, task_graph=graph, max_iterations=2)
+
+        inputs = {item.task_id: item for item in worker.inputs}
+        self.assertEqual(
+            inputs[implementation.id].allowed_files,
+            [
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+                "frontend/package-lock.json",
+                "frontend/npm-shrinkwrap.json",
+                "frontend/yarn.lock",
+                "frontend/bun.lockb",
+            ],
+        )
+
     def test_repair_convergence_stops_remaining_ready_tasks_after_target_check_passes(self) -> None:
         class RepairWorker:
             def __init__(self) -> None:

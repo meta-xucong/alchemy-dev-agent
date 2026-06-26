@@ -29,6 +29,14 @@ ENVIRONMENT_BLOCKER_PATTERNS = (
     "verification is blocked until frontend dependencies",
 )
 
+PACKAGE_LOCKFILE_COMPANIONS = (
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "yarn.lock",
+    "bun.lockb",
+)
+
 
 class Orchestrator:
     """Coordinate scheduling, worker execution, retries, state, and evaluation."""
@@ -469,7 +477,7 @@ class Orchestrator:
     def _allowed_files_for_task(self, task: TaskNode) -> list[str]:
         if task.type in {"architecture", "review", "test"}:
             return []
-        return _clean_paths(task.relevant_files)
+        return _expand_package_lockfile_boundaries(_clean_paths(task.relevant_files))
 
     def _constraints_for_task(self, task: TaskNode) -> list[str]:
         constraints = [
@@ -1284,6 +1292,27 @@ def _clean_paths(values: list[str]) -> list[str]:
             continue
         seen.add(normalized)
         result.append(normalized)
+    return result
+
+
+def _expand_package_lockfile_boundaries(paths: list[str]) -> list[str]:
+    result = list(paths)
+    seen = {path.lower() for path in result}
+    for path in paths:
+        if path == "package.json":
+            prefix = ""
+        elif path.endswith("/package.json"):
+            prefix = path.rsplit("/", 1)[0]
+        else:
+            continue
+
+        for companion in PACKAGE_LOCKFILE_COMPANIONS:
+            candidate = f"{prefix}/{companion}" if prefix else companion
+            normalized = candidate.lower()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            result.append(candidate)
     return result
 
 

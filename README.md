@@ -222,6 +222,10 @@ docs/
                               V2.84 worker timeout stop and debug replay prevention.
   93_v2_85_terminal_active_resume_skip.md
                               V2.85 terminal active attempt resume skip.
+  94_v2_86_package_lock_boundary_expansion.md
+                              V2.86 package lockfile boundary expansion.
+  95_v2_87_dead_debug_resume_skip.md
+                              V2.87 dead debug active attempt resume skip.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1295,6 +1299,33 @@ Active attempts with a live worker still block new runs, and active attempts
 without terminal lifecycle evidence remain resumable.
 
 See `docs/93_v2_85_terminal_active_resume_skip.md`.
+
+## V2.86 Package Lock Boundary Expansion
+
+V2.86 expands implementation task file boundaries when `allowed_files` includes
+a `package.json`. The orchestrator now adds the same-directory lockfile
+companions (`pnpm-lock.yaml`, `package-lock.json`, `npm-shrinkwrap.json`,
+`yarn.lock`, and `bun.lockb`) so dependency verification does not get rolled
+back as out-of-scope lockfile drift.
+
+This keeps Billing Core style frontend tasks from failing framework boundary
+audit solely because `pnpm` updates `frontend/pnpm-lock.yaml` while the task
+already allows `frontend/package.json`.
+
+See `docs/94_v2_86_package_lock_boundary_expansion.md`.
+
+## V2.87 Dead Debug Resume Skip
+
+V2.87 prevents full-roadmap resume from reusing a stale active debug attempt
+whose worker lifecycle still says `running` but whose recorded PID no longer
+exists. Ordinary active implementation attempts with dead PIDs remain resumable;
+the skip applies only when all active tasks are debug tasks.
+
+This keeps a stopped Billing Core attempt such as `run_attempt_020` from
+resuming `T002-DEBUG-1` after the underlying failure has been fixed in the
+framework.
+
+See `docs/95_v2_87_dead_debug_resume_skip.md`.
 
 Run a smoke execution:
 

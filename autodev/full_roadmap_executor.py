@@ -970,6 +970,8 @@ def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:
             )
         if active_tasks_have_terminal_lifecycle(active_task_ids, lifecycle_records):
             return InterruptedPhaseResume()
+        if active_debug_tasks_have_dead_running_lifecycle(active_task_ids, lifecycle_records):
+            return InterruptedPhaseResume()
         return InterruptedPhaseResume(resume_from=run_dir, active_run_dir=run_dir)
     return InterruptedPhaseResume()
 
@@ -1018,6 +1020,26 @@ def active_tasks_have_terminal_lifecycle(task_ids: Sequence[str], records: Seque
         if str(record.get("status", "")).lower() in {"completed", "failed", "timed_out", "cancelled"}
     }
     return bool(task_ids) and all(str(task_id) in terminal_task_ids for task_id in task_ids)
+
+
+def active_debug_tasks_have_dead_running_lifecycle(task_ids: Sequence[str], records: Sequence[dict[str, object]]) -> bool:
+    wanted = {str(task_id) for task_id in task_ids if str(task_id)}
+    if not wanted or not all(_is_debug_task_id(task_id) for task_id in wanted):
+        return False
+
+    running_task_ids: set[str] = set()
+    for record in records:
+        task_id = str(record.get("task_id", ""))
+        if task_id not in wanted or str(record.get("status", "")).lower() != "running":
+            continue
+        running_task_ids.add(task_id)
+        if process_exists(_int_or_none(record.get("worker_pid"))):
+            return False
+    return running_task_ids == wanted
+
+
+def _is_debug_task_id(task_id: str) -> bool:
+    return "-DEBUG-" in task_id or task_id.endswith("-DEBUG")
 
 
 def _phase_run_sort_key(path: Path) -> tuple[int, str]:

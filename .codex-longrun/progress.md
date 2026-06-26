@@ -1400,3 +1400,12 @@ PY"`
 - Verification passed: focused resume-source tests `3 passed`, full `tests/test_full_roadmap_execution.py` `49 passed`, `py_compile`, and targeted `git diff --check`.
 - Current judgment: the next Billing Core launch should create a new phase_010 attempt after `run_attempt_019`, not resume its stale active T002 state.
 
+## 2026-06-27T02:30:00+08:00 V2.86/V2.87 Boundary And Resume Hardening
+
+- Audited Billing Core `run_attempt_020` and confirmed T002 reached the correct inherited worktree, completed the Codex subprocess, then failed Alchemy boundary audit because `frontend/pnpm-lock.yaml` changed while only `frontend/package.json` was in `allowed_files`.
+- Implemented V2.86 in `runtime/orchestrator.py`: task boundaries now expand `package.json` entries to include same-directory package-manager lockfile companions before worker input is built, keeping prompt and boundary audit aligned.
+- Audited the stopped `run_attempt_020` debug state and found `active_tasks=["T002-DEBUG-1"]` with a `running` lifecycle record whose PID no longer exists.
+- Implemented V2.87 in `autodev/full_roadmap_executor.py`: dead active debug attempts are skipped as stale resume sources, while ordinary interrupted active tasks remain resumable and live workers still block new launches.
+- Verification passed: focused boundary tests `2 passed`, focused resume-source tests `4 passed`, full `tests/test_runtime.py` `123 passed`, full `tests/test_full_roadmap_execution.py` `50 passed`, `py_compile`, and targeted `git diff --check`.
+- Current judgment: after commit/push, the next Billing Core launch should skip stale `run_attempt_020`, create a fresh phase_010 attempt, and avoid the package lockfile false boundary failure.
+
