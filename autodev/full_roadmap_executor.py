@@ -946,6 +946,8 @@ def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:
         state = read_optional_json(run_dir / "state.json")
         active_task_ids = active_task_ids_from_state(state)
         if not active_task_ids:
+            if state:
+                return InterruptedPhaseResume()
             continue
         lifecycle_records = worker_lifecycle_records_for(run_dir, state, active_task_ids)
         live_records = [

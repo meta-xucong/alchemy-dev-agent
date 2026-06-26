@@ -1551,6 +1551,39 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(resume_sources, [interrupted])
         self.assertEqual(payload["phase_records"][0]["promotion"]["attempts"][0]["resume_from"], str(interrupted))
 
+    def test_interrupted_resume_does_not_fall_back_past_newer_terminal_attempt(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_010"
+        stale = phase_dir / "run_attempt_014"
+        newer = phase_dir / "run_attempt_015"
+        (stale / "workers").mkdir(parents=True)
+        newer.mkdir(parents=True)
+        write_json(
+            stale / "state.json",
+            {
+                "active_tasks": ["T005-DEBUG-1"],
+                "task_graph": {"nodes": [{"id": "T005-DEBUG-1", "status": "active"}]},
+            },
+        )
+        write_json(
+            stale / "workers" / "T005-DEBUG-1.json",
+            {"task_id": "T005-DEBUG-1", "status": "completed", "worker_pid": 99999999},
+        )
+        write_json(
+            newer / "state.json",
+            {
+                "active_tasks": [],
+                "blockers": [{"id": "B-T004-2", "type": "technical_limit"}],
+                "task_graph": {"nodes": [{"id": "T004", "status": "failed"}]},
+            },
+        )
+
+        resume = interrupted_phase_resume_source(phase_dir)
+
+        self.assertIsNone(resume.resume_from)
+        self.assertIsNone(resume.active_run_dir)
+        self.assertEqual(resume.blockers, [])
+
 
 if __name__ == "__main__":
     unittest.main()

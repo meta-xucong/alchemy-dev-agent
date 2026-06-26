@@ -214,6 +214,8 @@ docs/
                               V2.80 real-worker Go environment bootstrap.
   89_v2_81_technical_blocker_phase_repair.md
                               V2.81 technical-blocker phase repair handoff.
+  90_v2_82_resume_attempt_order_hardening.md
+                              V2.82 resume attempt ordering hardening.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1247,6 +1249,20 @@ Environment, credential, preflight, recovery, operator-stop, and live-worker
 blockers still stop the roadmap and require external resolution.
 
 See `docs/89_v2_81_technical_blocker_phase_repair.md`.
+
+## V2.82 Resume Attempt Ordering Hardening
+
+V2.82 prevents a blocked phase from falling back past a newer terminal attempt
+to an older stale active attempt. When the newest phase attempt has a
+`state.json` and no active tasks, the full-roadmap resume scan now treats that
+attempt as the current boundary and starts a fresh attempt instead of resuming
+older stale task state.
+
+This protects Billing Core style recovery chains such as `run_attempt_015`
+cleanly stopping at blockers while `run_attempt_014` still contains obsolete
+`active_tasks` evidence.
+
+See `docs/90_v2_82_resume_attempt_order_hardening.md`.
 
 Run a smoke execution:
 

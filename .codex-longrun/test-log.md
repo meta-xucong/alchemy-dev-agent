@@ -2677,3 +2677,27 @@
 - command: `_build_codex_subprocess_env()` probe against inherited Billing Core worktree
 - result: passed
 - relevant environment summary: worker env starts with `C:\Users\T14S\tools\go-1.26.3\go\bin` on PATH, keeps `APPDATA=C:\Users\T14S\AppData\Roaming`, sets `GOMODCACHE=D:\AI\.tools\gopath\pkg\mod`, `GOTOOLCHAIN=auto`, and `GOFLAGS=-p=1`.
+
+## 2026-06-27T01:05:00+08:00 V2.82 resume attempt ordering verification
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_resume_does_not_fall_back_past_newer_terminal_attempt tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_latest_interrupted_phase_attempt -q`
+- result: 2 passed
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q` run in parallel with focused tests
+- result: failed due to `.test-tmp` directory collision between parallel pytest processes
+- relevant error summary: `FileExistsError` occurred while both pytest processes used the same module-level temp run id; this was a monitor-side parallelization collision, not a product or framework behavior failure.
+- fix attempted: reran the full module serially.
+- next verification command: serial full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: 48 passed
+- next verification command: py_compile and targeted diff check.
+
+- command: `python -B -m py_compile autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: targeted diff check.
+
+- command: `git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py`
+- result: passed
+- next verification command: commit/push V2.82 and resume Billing Core through Alchemy.

@@ -1365,3 +1365,11 @@ PY"`
 - Direct env probe against the inherited Billing Core worktree confirms Alchemy now builds a worker environment with Go bin first on PATH, `GOMODCACHE=D:\AI\.tools\gopath\pkg\mod`, `GOTOOLCHAIN=auto`, existing writable `GOCACHE`, real `APPDATA`, and isolated `CODEX_HOME`.
 - Next action: commit/push the Alchemy framework fixes, then relaunch Billing Core through Alchemy so `phase_010` can create a repair attempt for T004 rather than stopping forever at the old technical blockers.
 
+## 2026-06-27T01:05:00+08:00 V2.82 Resume Attempt Ordering Hardening
+
+- Before relaunching Billing Core, audited the full-roadmap resume source selection and found another recovery-entry risk: after `run_attempt_015` stopped cleanly with no active tasks, the scanner could still skip back to older stale `run_attempt_014` because that old state retained `active_tasks=["T005-DEBUG-1"]`.
+- Implemented V2.82 in `interrupted_phase_resume_source()`: a newer readable `state.json` with no active tasks now supersedes older attempts, so the executor starts a fresh attempt instead of resuming stale task state.
+- Added regression coverage for the Billing Core-shaped attempt ordering case and preserved the existing latest-interrupted-attempt resume behavior.
+- Verification passed: focused resume-order tests `2 passed`, full `tests/test_full_roadmap_execution.py` passed when rerun serially with `48 passed`, `py_compile` passed, and targeted `git diff --check` passed.
+- Noted a monitor-side test hygiene issue: running the same full-roadmap test module in parallel with focused tests caused `.test-tmp` directory name collisions. The serial rerun passed, so the collision was not a code regression.
+
