@@ -968,6 +968,8 @@ def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:
                     + ". Stop or wait for those workers before starting another resume."
                 ],
             )
+        if active_tasks_have_terminal_lifecycle(active_task_ids, lifecycle_records):
+            return InterruptedPhaseResume()
         return InterruptedPhaseResume(resume_from=run_dir, active_run_dir=run_dir)
     return InterruptedPhaseResume()
 
@@ -1007,6 +1009,15 @@ def worker_lifecycle_records_for(run_dir: Path, state: dict[str, object], task_i
             if str(payload.get("task_id", "")) in wanted:
                 records.append(payload)
     return records
+
+
+def active_tasks_have_terminal_lifecycle(task_ids: Sequence[str], records: Sequence[dict[str, object]]) -> bool:
+    terminal_task_ids = {
+        str(record.get("task_id", ""))
+        for record in records
+        if str(record.get("status", "")).lower() in {"completed", "failed", "timed_out", "cancelled"}
+    }
+    return bool(task_ids) and all(str(task_id) in terminal_task_ids for task_id in task_ids)
 
 
 def _phase_run_sort_key(path: Path) -> tuple[int, str]:

@@ -616,6 +616,40 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(resume.active_run_dir, active_run)
         self.assertEqual(resume.blockers, [])
 
+    def test_terminal_active_phase_attempt_is_not_resumed(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phases" / "phase_010"
+        stale_active = phase_dir / "run_attempt_019"
+        (stale_active / "workers").mkdir(parents=True)
+        write_json(
+            stale_active / "state.json",
+            {
+                "active_tasks": ["T002"],
+                "task_graph": {"nodes": [{"id": "T002", "status": "active"}]},
+                "worker_lifecycle": [
+                    {
+                        "task_id": "T002",
+                        "status": "timed_out",
+                        "worker_pid": 99999999,
+                    }
+                ],
+            },
+        )
+        write_json(
+            stale_active / "workers" / "T002.json",
+            {
+                "task_id": "T002",
+                "status": "timed_out",
+                "worker_pid": 99999999,
+            },
+        )
+
+        resume = interrupted_phase_resume_source(phase_dir)
+
+        self.assertIsNone(resume.resume_from)
+        self.assertIsNone(resume.active_run_dir)
+        self.assertEqual(resume.blockers, [])
+
     def test_completed_phase_record_reuses_stable_run_directory(self) -> None:
         root = temp_root()
         phase_dir = root / "phases" / "phase_004"

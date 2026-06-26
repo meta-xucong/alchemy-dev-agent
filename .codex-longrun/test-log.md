@@ -2777,3 +2777,21 @@
 - command: `git diff --check -- runtime/orchestrator.py tests/test_runtime.py README.md docs/92_v2_84_worker_timeout_stop.md`
 - result: passed
 - next verification command: validate long-run state, commit/push V2.84, then relaunch Billing Core through a fresh Alchemy attempt.
+
+## 2026-06-27T02:16:00+08:00 V2.85 terminal active resume skip verification
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_terminal_active_phase_attempt_is_not_resumed tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_resume_does_not_fall_back_past_newer_terminal_attempt -q`
+- result: `3 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `49 passed`
+- next verification command: py_compile and targeted diff check.
+
+- command: `python -B -m py_compile autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: targeted diff check.
+
+- command: `git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py README.md docs/93_v2_85_terminal_active_resume_skip.md`
+- result: passed
+- next verification command: validate long-run state, commit/push V2.85, then relaunch Billing Core through a fresh Alchemy attempt.

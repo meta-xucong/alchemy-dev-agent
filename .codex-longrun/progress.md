@@ -1391,3 +1391,12 @@ PY"`
 - Verification passed: focused timeout/debug/non-partial regressions `6 passed`, full `tests/test_runtime.py` `122 passed`, full `tests/test_full_roadmap_execution.py` `48 passed`, `py_compile`, and targeted `git diff --check`.
 - Current judgment: the correct execution chain is restored up to the next boundary. Billing Core should be relaunched through a fresh Alchemy attempt after committing V2.84; if the same T002 scope still exceeds the budget, Alchemy should now stop cleanly with a blocker telling us to split the task or raise the worker budget.
 
+## 2026-06-27T02:16:00+08:00 V2.85 Terminal Active Resume Skip
+
+- Audited the Billing Core resume entry after V2.84 and found one more framework issue caused by the manually stopped probe: `run_attempt_019` still had `active_tasks=["T002"]`, while its lifecycle showed terminal `timed_out` evidence.
+- Confirmed `RuntimeRecovery` resets active tasks to pending, so selecting `run_attempt_019` as `resume_from` would replay T002 despite V2.84.
+- Implemented V2.85 in `autodev/full_roadmap_executor.py`: active attempts with live running workers still block new launches, active attempts without terminal lifecycle remain resumable, but active attempts whose task IDs have terminal lifecycle evidence are skipped as stale terminal state.
+- Added `docs/93_v2_85_terminal_active_resume_skip.md`, updated README, and added a Billing-shaped regression for `run_attempt_019`.
+- Verification passed: focused resume-source tests `3 passed`, full `tests/test_full_roadmap_execution.py` `49 passed`, `py_compile`, and targeted `git diff --check`.
+- Current judgment: the next Billing Core launch should create a new phase_010 attempt after `run_attempt_019`, not resume its stale active T002 state.
+

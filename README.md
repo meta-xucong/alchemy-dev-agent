@@ -220,6 +220,8 @@ docs/
                               V2.83 Windows real Codex policy bypass and plugin-sync suppression.
   92_v2_84_worker_timeout_stop.md
                               V2.84 worker timeout stop and debug replay prevention.
+  93_v2_85_terminal_active_resume_skip.md
+                              V2.85 terminal active attempt resume skip.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1280,6 +1282,19 @@ This prevents Billing Core style large frontend tasks from cycling through
 budget.
 
 See `docs/92_v2_84_worker_timeout_stop.md`.
+
+## V2.85 Terminal Active Resume Skip
+
+V2.85 prevents full-roadmap resume from reusing an active-task attempt when the
+same active task already has terminal worker lifecycle evidence such as
+`timed_out`, `failed`, `completed`, or `cancelled`. This keeps a stopped Billing
+Core probe like `run_attempt_019` from being reset and replayed simply because
+its state file still says `active_tasks=["T002"]`.
+
+Active attempts with a live worker still block new runs, and active attempts
+without terminal lifecycle evidence remain resumable.
+
+See `docs/93_v2_85_terminal_active_resume_skip.md`.
 
 Run a smoke execution:
 
