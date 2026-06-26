@@ -2597,3 +2597,29 @@
 - result: passed
 - relevant error summary: backend `go.mod` requires `go 1.26.4`; local `go1.26.3` successfully resolves `GOVERSION=go1.26.4` through `D:\AI\.tools\gopath\pkg\mod\golang.org\toolchain@v0.0.1-go1.26.4.windows-amd64`.
 - next verification command: resume Billing Core with the same process-level environment strategy.
+
+## 2026-06-27T00:18:00+08:00 V2.79 existing blocker resume-stop verification
+
+- command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_existing_non_partial_blocker_stops_before_dispatch tests/test_runtime.py::OrchestratorTests::test_non_partial_blocker_stops_current_ready_batch tests/test_runtime.py::OrchestratorTests::test_failed_task_interrupts_current_ready_batch_for_debug -q`
+- result: 3 passed
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_completed_nested_debug_evidence_promotes_failed_parent_and_continues tests/test_runtime.py::OrchestratorTests::test_existing_non_partial_blocker_stops_before_dispatch tests/test_runtime.py::OrchestratorTests::test_non_partial_blocker_stops_current_ready_batch -q`
+- result: 3 passed after preserving completed-debug repair promotion before existing-blocker stop.
+- next verification command: full runtime regression.
+
+- command: `python -B -m py_compile runtime\orchestrator.py tests\test_runtime.py`
+- result: passed
+- next verification command: targeted diff check.
+
+- command: `git diff --check -- runtime/orchestrator.py tests/test_runtime.py README.md docs/87_v2_79_existing_blocker_resume_stop.md`
+- result: passed
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: 117 passed
+- next verification command: full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: 45 passed
+- next verification command: commit V2.79, then resume Billing Core `phase_010/run_attempt_014`.

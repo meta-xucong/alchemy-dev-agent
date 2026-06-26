@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "alchemy_v2_78_nonpartial_blocker_stop_verified",
+  "current_phase": "alchemy_v2_79_existing_blocker_resume_stop_verified",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -11,11 +11,12 @@
     "re-audited supervisor failures after network recovery and confirmed Windows worker prompt hardening plus fresh runtime/full-roadmap verification",
     "implemented V2.77 Windows spaced-path worker prompt hardening and re-verified runtime/full-roadmap coverage",
     "implemented V2.78 non-partial blocker dispatch-stop hardening and re-verified runtime/full-roadmap coverage",
-    "reverified V2.75-V2.78 from the clean new thread, fixed local Codex service_tier config, and confirmed Go toolchain resolution"
+    "reverified V2.75-V2.78 from the clean new thread, fixed local Codex service_tier config, and confirmed Go toolchain resolution",
+    "implemented V2.79 existing non-partial blocker resume-stop hardening and re-verified runtime/full-roadmap coverage"
   ],
   "next_actions": [
-    "Resume Billing Core phase_010/run_attempt_014 from the current V2.78 checkout with C:\\Users\\T14S\\tools\\go-1.26.3\\go\\bin injected into PATH so T004's non-partial blocker stops the batch before T005 can dispatch again.",
-    "If the resumed controller still launches T005 or T005-DEBUG-1 after T004 records a non-partial blocker, inspect worker-completion-to-state-save convergence immediately and patch before any more live retries.",
+    "Resume Billing Core phase_010/run_attempt_014 from the current V2.79 checkout with C:\\Users\\T14S\\tools\\go-1.26.3\\go\\bin injected into PATH so existing or newly recorded T004 non-partial blockers stop dispatch before T005 can run again.",
+    "If the resumed controller still launches T005 or T005-DEBUG-1 while a T004 non-partial blocker is present, inspect recovery blocker clearing and scheduler stop convergence immediately before any more live retries.",
     "If the resumed controller stops cleanly at the T004 blocker boundary, continue the Billing Core repair from that boundary instead of treating stale run_attempt_014 state as live progress."
   ],
   "tests_run": [
@@ -62,7 +63,13 @@
     "python -B -m py_compile runtime\\orchestrator.py runtime\\codex_worker.py tests\\test_runtime.py => passed",
     "git diff --check -- runtime/orchestrator.py runtime/codex_worker.py tests/test_runtime.py README.md docs/83_v2_75_windows_worker_command_hardening.md docs/84_v2_76_windows_go_execution_hardening.md docs/85_v2_77_windows_spaced_path_hardening.md docs/86_v2_78_nonpartial_blocker_stop.md => passed",
     "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed",
-    "Process-level Go probe in inherited Billing Core worktree with GOTOOLCHAIN=auto/GOMODCACHE=D:\\AI\\.tools\\gopath\\pkg\\mod/worktree GOCACHE => passed; go.mod requires go 1.26.4 and resolves via writable toolchain cache"
+    "Process-level Go probe in inherited Billing Core worktree with GOTOOLCHAIN=auto/GOMODCACHE=D:\\AI\\.tools\\gopath\\pkg\\mod/worktree GOCACHE => passed; go.mod requires go 1.26.4 and resolves via writable toolchain cache",
+    "python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_existing_non_partial_blocker_stops_before_dispatch tests/test_runtime.py::OrchestratorTests::test_non_partial_blocker_stops_current_ready_batch tests/test_runtime.py::OrchestratorTests::test_failed_task_interrupts_current_ready_batch_for_debug -q => 3 passed",
+    "python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_completed_nested_debug_evidence_promotes_failed_parent_and_continues tests/test_runtime.py::OrchestratorTests::test_existing_non_partial_blocker_stops_before_dispatch tests/test_runtime.py::OrchestratorTests::test_non_partial_blocker_stops_current_ready_batch -q => 3 passed",
+    "python -B -m py_compile runtime\\orchestrator.py tests\\test_runtime.py => passed",
+    "git diff --check -- runtime/orchestrator.py tests/test_runtime.py README.md docs/87_v2_79_existing_blocker_resume_stop.md => passed",
+    "python -B -m pytest tests/test_runtime.py -q => 117 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 45 passed"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -77,7 +84,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-26T23:52:38+08:00",
+  "last_verified_at": "2026-06-27T00:18:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-26T23:52:38+08:00"
+  "updated_at": "2026-06-27T00:18:00+08:00"
 }

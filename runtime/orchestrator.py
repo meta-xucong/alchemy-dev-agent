@@ -143,6 +143,19 @@ class Orchestrator:
                 state.done = True
                 self.state_manager.save(state)
                 return state
+            existing_blocker_ids = self._non_partial_blocker_ids(state)
+            if existing_blocker_ids:
+                if self._promote_completed_debug_repairs(state):
+                    self.state_manager.save(state)
+                    continue
+                blocker_list = ", ".join(sorted(existing_blocker_ids))
+                self._record_history(
+                    state,
+                    "run_blocked",
+                    f"Stopping because non-partial blocker(s) are present: {blocker_list}.",
+                )
+                self.state_manager.save(state)
+                return state
 
             ready_tasks = self.graph_engine.get_ready_tasks(state.task_graph)
             if not ready_tasks:

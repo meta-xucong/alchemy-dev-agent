@@ -1337,3 +1337,12 @@ PY"`
 - Re-ran V2.78-focused and broad Alchemy regression coverage: focused prompt/non-partial blocker subset passed, full `tests/test_runtime.py` passed, full `tests/test_full_roadmap_execution.py` passed, `py_compile` passed, targeted `git diff --check` passed, and long-run state validation passed.
 - Current judgment: V2.75-V2.78 framework fixes are locally reverified in this new thread and should be committed before resuming Billing Core so the recovery run starts from a stable controller checkpoint.
 
+## 2026-06-27T00:18:00+08:00 V2.79 Existing Blocker Resume Stop
+
+- Before relaunching Billing Core, audited the full-roadmap and document-run recovery path and found a resume-specific gap not covered by V2.78: a stale source attempt can already contain a non-partial blocker before the fresh controller starts.
+- Implemented an orchestrator guard that checks existing non-partial blockers after evaluation and before ready-task dispatch. If no completed-debug repair promotion can clear the blocker, the run records `run_blocked`, saves state, and returns without dispatching another worker.
+- Preserved the existing completed-debug repair promotion path so valid nested debug evidence can still promote and clear an old retry-exhausted blocker without launching more work.
+- Added `docs/87_v2_79_existing_blocker_resume_stop.md`, updated README, and added regression coverage for the existing-blocker stop path.
+- Verification passed: focused existing/new blocker tests plus the nested-debug promotion regression, `py_compile`, targeted `git diff --check`, full `tests/test_runtime.py` `117 passed`, and full `tests/test_full_roadmap_execution.py` `45 passed`.
+- Current judgment: Billing Core `run_attempt_014` should now resume into a fresh attempt and stop at the existing T004 non-partial blocker boundary unless a valid completed-debug promotion can clear it.
+

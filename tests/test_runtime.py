@@ -1902,6 +1902,65 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(state.blockers[0]["id"], "B-T001-1")
         self.assertTrue(any(event["type"] == "run_blocked" for event in state.iteration_history))
 
+    def test_existing_non_partial_blocker_stops_before_dispatch(self) -> None:
+        class RecordingWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="completed",
+                    tests_passed=["ok"],
+                )
+
+        graph = TaskGraph(
+            graph_id="existing-non-partial-blocker",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Ready implementation",
+                    description="Should not dispatch while a manual blocker is present.",
+                    type="backend",
+                    assigned_agent="backend",
+                    priority=90,
+                    status="ready",
+                )
+            ],
+        )
+        worker = RecordingWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "stop before dispatch",
+                initial_state=RuntimeState(
+                    objective="stop before dispatch",
+                    task_graph=graph,
+                    blockers=[
+                        {
+                            "id": "B-MANUAL",
+                            "type": "technical_limit",
+                            "description": "Manual resolution is required.",
+                            "required_resolution": "Inspect before continuing.",
+                            "task_ids": ["T000"],
+                            "can_continue_partially": False,
+                        }
+                    ],
+                ),
+                max_iterations=1,
+            )
+
+        self.assertEqual(worker.calls, [])
+        self.assertEqual(state.task_graph.nodes[0].status, "ready")
+        self.assertTrue(any(event["type"] == "run_blocked" for event in state.iteration_history))
+
     def test_failed_debug_task_resets_parent_without_nested_debug_loop(self) -> None:
         class DebugPartialThenRetryWorker:
             def __init__(self) -> None:

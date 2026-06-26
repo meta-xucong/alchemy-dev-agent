@@ -208,6 +208,8 @@ docs/
                               V2.77 Windows spaced-path command hardening.
   86_v2_78_nonpartial_blocker_stop.md
                               V2.78 non-partial blocker dispatch-stop hardening.
+  87_v2_79_existing_blocker_resume_stop.md
+                              V2.79 existing non-partial blocker resume-stop hardening.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1195,6 +1197,19 @@ This preserves existing debug-first behavior for retryable failures, while
 stopping adjacent work after retry exhaustion or other non-partial blockers.
 
 See `docs/86_v2_78_nonpartial_blocker_stop.md`.
+
+## V2.79 Existing Blocker Resume Stop
+
+V2.79 extends the non-partial blocker stop rule to resumed or stale states that
+already contain a blocker before the fresh controller starts scheduling. After
+each evaluation pass, the orchestrator now checks for existing blockers whose
+`can_continue_partially` value is false and returns before dispatching another
+ready task.
+
+This prevents recovery runs from continuing adjacent or debug work after an old
+attempt has already recorded a manual-resolution blocker.
+
+See `docs/87_v2_79_existing_blocker_resume_stop.md`.
 
 Run a smoke execution:
 
