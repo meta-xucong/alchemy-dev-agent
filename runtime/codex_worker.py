@@ -839,10 +839,11 @@ def _cleanup_codex_windows_scratch_files(repository_path: str | Path) -> None:
 
 def _build_codex_subprocess_env(repository_path: str | Path) -> dict[str, str]:
     env = os.environ.copy()
+    repo_path = Path(repository_path)
     codex_home = env.get("CODEX_HOME", "").strip()
     redirected_home = False
     if not codex_home:
-        codex_home = str(_select_codex_home(Path(repository_path)))
+        codex_home = str(_select_codex_home(repo_path))
         env["CODEX_HOME"] = codex_home
         redirected_home = True
     target_home = Path(codex_home)
@@ -855,7 +856,152 @@ def _build_codex_subprocess_env(repository_path: str | Path) -> dict[str, str]:
     env["TEMP"] = temp_dir
     env["TMPDIR"] = temp_dir
     _seed_tls_cert_env(env)
+    _seed_go_worker_env(env, repo_path)
     return env
+
+
+def _seed_go_worker_env(env: dict[str, str], repository_path: Path) -> None:
+    if _truthy_env(env.get("ALCHEMY_DISABLE_GO_ENV_BOOTSTRAP", "")):
+        return
+    go_bin = _detect_go_bin(env)
+    has_go_module = _repository_has_go_module(repository_path)
+    if go_bin is None and not has_go_module:
+        return
+    if go_bin is not None:
+        _prepend_path(env, go_bin)
+    _set_env_if_blank(env, "GOTOOLCHAIN", "auto")
+    mod_cache = _select_go_mod_cache(env, repository_path)
+    if mod_cache is not None:
+        _set_env_if_blank(env, "GOMODCACHE", str(mod_cache))
+    build_cache = _select_go_build_cache(env, repository_path)
+    if build_cache is not None:
+        _set_env_if_blank(env, "GOCACHE", str(build_cache))
+    _set_env_if_blank(env, "GOFLAGS", "-p=1")
+
+
+def _detect_go_bin(env: dict[str, str]) -> Path | None:
+    override = env.get("ALCHEMY_GO_BIN", "").strip() or env.get("ALCHEMY_GO_EXE", "").strip()
+    if override:
+        detected = _go_bin_from_override(Path(override))
+        if detected is not None:
+            return detected
+    root_override = env.get("ALCHEMY_GO_ROOT", "").strip()
+    if root_override:
+        detected = _go_bin_from_override(Path(root_override) / "bin")
+        if detected is not None:
+            return detected
+    existing = shutil.which("go", path=env.get("PATH", ""))
+    if existing:
+        return Path(existing).parent
+    for candidate in _go_bin_candidates():
+        if _go_executable(candidate).is_file():
+            return candidate
+    return None
+
+
+def _go_bin_from_override(path: Path) -> Path | None:
+    if path.is_file():
+        return path.parent
+    if path.is_dir() and _go_executable(path).is_file():
+        return path
+    return None
+
+
+def _go_bin_candidates() -> list[Path]:
+    candidates: list[Path] = []
+    tools_root = Path.home() / "tools"
+    if tools_root.is_dir():
+        for child in sorted(tools_root.glob("go-*"), key=lambda item: item.name, reverse=True):
+            candidates.extend([child / "go" / "bin", child / "bin"])
+    if os.name == "nt":
+        candidates.extend([Path("C:/Program Files/Go/bin"), Path("C:/Go/bin")])
+    else:
+        candidates.extend([Path("/usr/local/go/bin"), Path("/usr/bin")])
+    return candidates
+
+
+def _go_executable(bin_dir: Path) -> Path:
+    return bin_dir / ("go.exe" if os.name == "nt" else "go")
+
+
+def _prepend_path(env: dict[str, str], directory: Path) -> None:
+    path_value = env.get("PATH", "")
+    directory_text = str(directory)
+    existing = [item for item in path_value.split(os.pathsep) if item]
+    if any(item.lower() == directory_text.lower() for item in existing):
+        return
+    env["PATH"] = directory_text + (os.pathsep + path_value if path_value else "")
+
+
+def _set_env_if_blank(env: dict[str, str], name: str, value: str) -> None:
+    if not env.get(name, "").strip():
+        env[name] = value
+
+
+def _repository_has_go_module(repository_path: Path) -> bool:
+    if (repository_path / "go.mod").is_file():
+        return True
+    try:
+        children = list(repository_path.iterdir())
+    except OSError:
+        return False
+    skip = {".git", ".alchemy", ".gocache", "node_modules", "vendor"}
+    return any(child.is_dir() and child.name not in skip and (child / "go.mod").is_file() for child in children)
+
+
+def _select_go_mod_cache(env: dict[str, str], repository_path: Path) -> Path | None:
+    for value in (env.get("ALCHEMY_GOMODCACHE", "").strip(), env.get("GOMODCACHE", "").strip()):
+        if value:
+            candidate = Path(value)
+            return candidate if _probe_writable_dir(candidate) else None
+    candidates: list[Path] = []
+    gopath = env.get("GOPATH", "").strip()
+    if gopath:
+        candidates.append(Path(gopath) / "pkg" / "mod")
+    candidates.extend(_shared_go_mod_cache_candidates(repository_path, env))
+    for candidate in candidates:
+        if _probe_writable_dir(candidate):
+            return candidate
+    return None
+
+
+def _shared_go_mod_cache_candidates(repository_path: Path, env: dict[str, str]) -> list[Path]:
+    candidates: list[Path] = []
+    try:
+        anchor = Path(repository_path.resolve().anchor)
+    except OSError:
+        anchor = Path(repository_path.anchor)
+    if str(anchor):
+        candidates.append(anchor / "AI" / ".tools" / "gopath" / "pkg" / "mod")
+    candidates.append(Path.home() / "go" / "pkg" / "mod")
+    local_app_data = env.get("LOCALAPPDATA", "").strip()
+    if local_app_data:
+        candidates.append(Path(local_app_data) / "Alchemy" / "gopath" / "pkg" / "mod")
+    candidates.append(Path.home() / ".cache" / "alchemy" / "gopath" / "pkg" / "mod")
+    return candidates
+
+
+def _select_go_build_cache(env: dict[str, str], repository_path: Path) -> Path | None:
+    value = env.get("GOCACHE", "").strip()
+    if value:
+        candidate = Path(value)
+        return candidate if _probe_writable_dir(candidate) else None
+    return candidate if _probe_writable_dir(candidate := repository_path / ".gocache-alchemy") else None
+
+
+def _probe_writable_dir(candidate: Path) -> bool:
+    probe = candidate / ".alchemy-go-env-probe"
+    try:
+        candidate.mkdir(parents=True, exist_ok=True)
+        probe.write_text("", encoding="utf-8")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
+def _truthy_env(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _select_codex_home(repository_path: Path) -> Path:

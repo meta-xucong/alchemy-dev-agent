@@ -210,6 +210,10 @@ docs/
                               V2.78 non-partial blocker dispatch-stop hardening.
   87_v2_79_existing_blocker_resume_stop.md
                               V2.79 existing non-partial blocker resume-stop hardening.
+  88_v2_80_go_worker_env_bootstrap.md
+                              V2.80 real-worker Go environment bootstrap.
+  89_v2_81_technical_blocker_phase_repair.md
+                              V2.81 technical-blocker phase repair handoff.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1210,6 +1214,39 @@ This prevents recovery runs from continuing adjacent or debug work after an old
 attempt has already recorded a manual-resolution blocker.
 
 See `docs/87_v2_79_existing_blocker_resume_stop.md`.
+
+## V2.80 Go Worker Environment Bootstrap
+
+V2.80 moves the Windows Go recovery setup from a manual operator workaround
+into the real Codex worker environment. When a worker runs in or near a Go
+module, Alchemy now seeds only the worker subprocess environment with:
+
+- a discovered Go `bin` directory, including `ALCHEMY_GO_BIN` and common local
+  tool installs;
+- `GOTOOLCHAIN=auto` so modules that request a newer patch toolchain can use
+  the writable Go toolchain cache;
+- a writable shared `GOMODCACHE`;
+- a worktree-local `GOCACHE`;
+- conservative `GOFLAGS=-p=1` when the caller did not provide flags.
+
+This does not write global Go configuration and does not override `APPDATA`, so
+GitHub CLI authentication remains visible to preflight checks.
+
+See `docs/88_v2_80_go_worker_env_bootstrap.md`.
+
+## V2.81 Technical Blocker Phase Repair
+
+V2.81 lets the full-roadmap executor recover from implementation-level
+technical blockers without violating the non-partial blocker stop rule. Runtime
+orchestration still stops immediately when a non-partial blocker is present, but
+the parent roadmap executor may now write a phase repair document and launch a
+new phase attempt when all blockers are autonomous implementation or test
+repair candidates.
+
+Environment, credential, preflight, recovery, operator-stop, and live-worker
+blockers still stop the roadmap and require external resolution.
+
+See `docs/89_v2_81_technical_blocker_phase_repair.md`.
 
 Run a smoke execution:
 

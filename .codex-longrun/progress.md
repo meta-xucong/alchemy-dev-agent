@@ -1355,3 +1355,13 @@ PY"`
 - Serial Go environment probe in the inherited Billing Core backend passed with process-local cache settings: `go test ./internal/server -run '^$' -count=0 -v` passed after cold compile, and `go test ./internal/server -run '^TestBillingCoreRouteSurface$' -count=1 -v` completed cleanly but reported no matching tests in that package.
 - Current Billing Core boundary: `T001`, `T002`, `T003-DEBUG-1`, and `T003` are complete; `T004` is failed with non-partial blockers `B-T004-2` and `B-T004-3`; `T005` and `T005-DEBUG-1` remain pending and were not launched by the current controller.
 
+## 2026-06-27T00:55:00+08:00 V2.80/V2.81 Alchemy Recovery Hardening
+
+- Implemented V2.80 real-worker Go environment bootstrap in `runtime/codex_worker.py`. Real Codex worker subprocesses now discover a local Go install, seed `GOTOOLCHAIN=auto`, choose a writable shared `GOMODCACHE`, provide a worktree-local or existing `GOCACHE`, and default `GOFLAGS=-p=1` without changing global Go configuration.
+- Preserved real `APPDATA` in worker environments so GitHub CLI authentication remains visible; the earlier false preflight block from APPDATA isolation should not recur through the framework path.
+- Implemented V2.81 full-roadmap technical-blocker repair handoff in `autodev/full_roadmap_executor.py`. Runtime orchestration still stops at non-partial blockers, but the parent roadmap executor can now write a `phase_repair_NNN.md` and launch a new phase attempt when all blockers are autonomous implementation/test repair candidates.
+- Added documentation `docs/88_v2_80_go_worker_env_bootstrap.md` and `docs/89_v2_81_technical_blocker_phase_repair.md`, plus README entries.
+- Verification passed: V2.80 focused tests `2 passed`; V2.81 focused tests covered technical-blocker repair and environment-blocker rejection; full `tests/test_runtime.py` `119 passed`; full `tests/test_full_roadmap_execution.py` `47 passed`; `py_compile` and targeted `git diff --check` passed.
+- Direct env probe against the inherited Billing Core worktree confirms Alchemy now builds a worker environment with Go bin first on PATH, `GOMODCACHE=D:\AI\.tools\gopath\pkg\mod`, `GOTOOLCHAIN=auto`, existing writable `GOCACHE`, real `APPDATA`, and isolated `CODEX_HOME`.
+- Next action: commit/push the Alchemy framework fixes, then relaunch Billing Core through Alchemy so `phase_010` can create a repair attempt for T004 rather than stopping forever at the old technical blockers.
+

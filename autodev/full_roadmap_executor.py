@@ -28,6 +28,20 @@ from .roadmap_models import PhaseExecutionRecord, RoadmapExecutionPlan, RoadmapP
 
 DocumentRunner = Callable[..., Any]
 
+NON_REPAIRABLE_BLOCKER_MARKERS = (
+    "credential",
+    "api key",
+    "auth",
+    "not logged in",
+    "permission",
+    "approval",
+    "external",
+    "live worker process",
+    "preflight",
+    "recovery",
+    "operator",
+)
+
 
 @dataclass(slots=True)
 class FullRoadmapExecutionResult:
@@ -747,6 +761,7 @@ def write_phase_repair_document(
         *[str(item) for item in _list(final_gate.get("required_changes"))],
         *[str(item) for item in _list(evaluation.get("required_changes"))],
     ]
+    blockers = [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
     hard_failures = [
         *[str(item) for item in _list(final_gate.get("hard_failures"))],
         *[str(item) for item in _list(evaluation.get("hard_failures"))],
@@ -778,6 +793,12 @@ def write_phase_repair_document(
     lines.extend(["", "## Hard Failures", ""])
     if hard_failures:
         lines.extend(f"- {item}" for item in dedupe_strings(hard_failures))
+    else:
+        lines.append("- None recorded.")
+    lines.extend(["", "## Repairable Blockers", ""])
+    blocker_summaries = repairable_blocker_summaries(blockers)
+    if blocker_summaries:
+        lines.extend(f"- {item}" for item in blocker_summaries)
     else:
         lines.append("- None recorded.")
     lines.extend(["", "## Required Changes", ""])
@@ -816,7 +837,7 @@ def should_auto_repair_phase(promotion: dict[str, object], result: dict[str, obj
     runtime_state = _dict(result.get("runtime_state"))
     blockers = [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
     if blockers:
-        return False
+        return status == "blocked" and blockers_are_auto_repairable(blockers)
     delivery = _dict(result.get("delivery_report"))
     final_gate = _dict(delivery.get("final_gate"))
     score = float_or_zero(promotion.get("score", final_gate.get("score", final_gate.get("final_score"))))
@@ -831,6 +852,47 @@ def should_auto_repair_phase(promotion: dict[str, object], result: dict[str, obj
         or bool(hard_failures)
         or has_low_dimension
     )
+
+
+def blockers_are_auto_repairable(blockers: Sequence[object]) -> bool:
+    if not blockers:
+        return False
+    return all(blocker_is_auto_repairable(blocker) for blocker in blockers)
+
+
+def blocker_is_auto_repairable(blocker: object) -> bool:
+    if isinstance(blocker, str):
+        text = blocker.lower()
+        return bool(text.strip()) and not any(marker in text for marker in NON_REPAIRABLE_BLOCKER_MARKERS)
+    if not isinstance(blocker, dict):
+        return False
+    blocker_type = str(blocker.get("type", "") or "").lower()
+    blocker_id = str(blocker.get("id", "") or "").upper()
+    description = str(blocker.get("description", blocker.get("summary", "")) or "").lower()
+    if blocker_id in {"B-PREFLIGHT", "B-RECOVERY", "B-RUN-STOPPED"}:
+        return False
+    if blocker_type in {"environment", "operator_control", "credentials", "external_dependency", "policy"}:
+        return False
+    if any(marker in description for marker in NON_REPAIRABLE_BLOCKER_MARKERS):
+        return False
+    return blocker_type in {"", "technical_limit", "quality_gate", "test_failure", "implementation"}
+
+
+def repairable_blocker_summaries(blockers: Sequence[object]) -> list[str]:
+    summaries: list[str] = []
+    for blocker in blockers:
+        if isinstance(blocker, str):
+            if blocker.strip():
+                summaries.append(blocker.strip())
+            continue
+        if not isinstance(blocker, dict):
+            continue
+        blocker_id = str(blocker.get("id", "blocker") or "blocker")
+        description = str(blocker.get("description", blocker.get("summary", "")) or "").strip()
+        task_ids = ", ".join(str(item) for item in _list(blocker.get("task_ids")) if str(item).strip())
+        suffix = f" (tasks: {task_ids})" if task_ids else ""
+        summaries.append(f"{blocker_id}: {description}{suffix}".strip())
+    return dedupe_strings(summaries)
 
 
 def normalized_scope_controls(payload: dict[str, object] | None) -> dict[str, list[str]]:

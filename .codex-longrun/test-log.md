@@ -2641,3 +2641,39 @@
 - command: `go test ./internal/server -run '^TestBillingCoreRouteSurface$' -count=1 -v` with the same process-local Go environment
 - result: passed as an environment check, but Go reported no matching test in `internal/server`.
 - relevant error summary: this does not prove the Billing Core route behavior; it proves the Windows Go/toolchain/cache setup can execute serial tests in the inherited worktree.
+
+## 2026-06-27T00:55:00+08:00 V2.80/V2.81 Alchemy framework verification
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_build_codex_subprocess_env_bootstraps_go_worker_environment tests/test_runtime.py::CodexWorkerTests::test_build_codex_subprocess_env_can_disable_go_bootstrap -q`
+- result: 2 passed
+- relevant error summary: first attempt failed because empty environment variables were not overwritten by `setdefault`; fixed by adding blank-aware environment seeding.
+- next verification command: V2.81 focused full-roadmap tests.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_auto_repairs_technical_blocker_phase_before_blocking tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_auto_repairs_low_scoring_phase_before_blocking tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_latest_interrupted_phase_attempt -q`
+- result: 3 passed
+- relevant error summary: an early test fixture used an under-specified roadmap and was blocked by project analysis before exercising repair behavior; fixed the fixture to use the established high-confidence roadmap document.
+- next verification command: full runtime and full-roadmap regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_distinguishes_technical_and_environment_blockers tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_auto_repairs_technical_blocker_phase_before_blocking -q`
+- result: 2 passed
+- next verification command: full full-roadmap regression with the added blocker-boundary test.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: 119 passed
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: 47 passed
+- next verification command: py_compile and targeted diff check.
+
+- command: `python -B -m py_compile runtime\codex_worker.py autodev\full_roadmap_executor.py tests\test_runtime.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: targeted diff check.
+
+- command: `git diff --check -- runtime/codex_worker.py autodev/full_roadmap_executor.py tests/test_runtime.py tests/test_full_roadmap_execution.py README.md docs/88_v2_80_go_worker_env_bootstrap.md docs/89_v2_81_technical_blocker_phase_repair.md`
+- result: passed
+- next verification command: commit/push Alchemy framework fixes, then resume Billing Core via Alchemy only.
+
+- command: `_build_codex_subprocess_env()` probe against inherited Billing Core worktree
+- result: passed
+- relevant environment summary: worker env starts with `C:\Users\T14S\tools\go-1.26.3\go\bin` on PATH, keeps `APPDATA=C:\Users\T14S\AppData\Roaming`, sets `GOMODCACHE=D:\AI\.tools\gopath\pkg\mod`, `GOTOOLCHAIN=auto`, and `GOFLAGS=-p=1`.

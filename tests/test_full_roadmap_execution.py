@@ -11,6 +11,7 @@ from autodev.final_verification_loop import FinalVerificationLoop
 from autodev.document_reference_expander import expand_development_documents
 from autodev.full_roadmap_executor import (
     FullRoadmapExecutor,
+    blockers_are_auto_repairable,
     interrupted_phase_resume_source,
     next_phase_run_dir,
     phase_repository_path,
@@ -960,6 +961,103 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(phase_record["promotion"]["attempts"][0]["status"], "blocked")
         self.assertEqual(phase_record["promotion"]["attempts"][1]["status"], "done")
         self.assertTrue((root / "run" / "phases" / "phase_001" / "phase_repair_001.md").exists())
+
+    def test_executor_auto_repairs_technical_blocker_phase_before_blocking(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        calls: list[list[str]] = []
+
+        class TechnicalBlockerThenPassingResult:
+            def __init__(self, passing: bool) -> None:
+                self.passing = passing
+
+            def to_dict(self) -> dict[str, object]:
+                blocker = {
+                    "id": "B-T004-2",
+                    "type": "technical_limit",
+                    "description": "Retry policy exhausted for wallet recharge and payment surfaces.",
+                    "task_ids": ["T004"],
+                    "can_continue_partially": False,
+                }
+                if self.passing:
+                    return FakePhaseResult("V3.0 Foundation").to_dict()
+                return {
+                    "status": "blocked",
+                    "delivery_report": {
+                        "final_gate": {
+                            "score": 0.1,
+                            "dimension_scores": {"test_health": 0.0, "spec_alignment": 0.0},
+                            "hard_failures": ["One or more required tasks failed or are blocked."],
+                            "required_changes": ["T004: resolve failed task."],
+                        },
+                        "ready_for_review": False,
+                    },
+                    "runtime_state": {
+                        "done": False,
+                        "blockers": [blocker],
+                        "evaluation": {
+                            "done": False,
+                            "final_gate_score": 0.1,
+                            "hard_failures": ["One or more required tasks failed or are blocked."],
+                            "required_changes": ["T004: resolve failed task."],
+                        },
+                    },
+                }
+
+        def fake_runner(**kwargs):
+            docs = [str(item) for item in kwargs["documents"]]
+            calls.append(docs)
+            return TechnicalBlockerThenPassingResult(len(calls) > 1 or any("phase_repair_" in item for item in docs))
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Convert Billing Core into an independent CRM system.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={"max_phase_repair_attempts": 1},
+        )
+        payload = result.to_dict()
+        repair_doc = root / "run" / "phases" / "phase_001" / "phase_repair_001.md"
+
+        self.assertEqual(payload["status"], "done")
+        self.assertGreaterEqual(len(calls), 2)
+        self.assertTrue(any("phase_repair_001.md" in item for item in calls[1]))
+        self.assertTrue(repair_doc.exists())
+        repair_text = repair_doc.read_text(encoding="utf-8")
+        self.assertIn("B-T004-2", repair_text)
+        self.assertIn("T004: resolve failed task.", repair_text)
+        self.assertEqual(payload["phase_records"][0]["promotion"]["attempts"][0]["status"], "blocked")
+        self.assertEqual(payload["phase_records"][0]["promotion"]["attempts"][1]["status"], "done")
+
+    def test_phase_repair_distinguishes_technical_and_environment_blockers(self) -> None:
+        self.assertTrue(
+            blockers_are_auto_repairable(
+                [
+                    {
+                        "id": "B-T004-2",
+                        "type": "technical_limit",
+                        "description": "Retry policy exhausted for wallet recharge surfaces.",
+                        "task_ids": ["T004"],
+                        "can_continue_partially": False,
+                    }
+                ]
+            )
+        )
+        self.assertFalse(
+            blockers_are_auto_repairable(
+                [
+                    {
+                        "id": "B-PREFLIGHT",
+                        "type": "environment",
+                        "description": "GitHub CLI is not logged in.",
+                        "can_continue_partially": False,
+                    }
+                ]
+            )
+        )
 
     def test_real_codex_phases_continue_in_previous_phase_worktree(self) -> None:
         root = temp_root()

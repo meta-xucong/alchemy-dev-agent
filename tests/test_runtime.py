@@ -286,6 +286,67 @@ class CodexWorkerTests(unittest.TestCase):
         probe.write_text("ok", encoding="utf-8")
         probe.unlink()
 
+    def test_build_codex_subprocess_env_bootstraps_go_worker_environment(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "backend").mkdir()
+            (repo / "backend" / "go.mod").write_text("module example.com/app\n\ngo 1.26.4\n", encoding="utf-8")
+            source_root = repo / "source-codex-home"
+            target_root = repo / "target-codex-home"
+            go_bin = repo / "tools" / "go" / "bin"
+            go_bin.mkdir(parents=True)
+            (go_bin / ("go.exe" if os.name == "nt" else "go")).write_text("", encoding="utf-8")
+            mod_cache = repo / "shared-gomodcache"
+            appdata = str(repo / "real-appdata")
+            with patch.dict(
+                os.environ,
+                {
+                    "ALCHEMY_CODEX_HOME_ROOT": str(target_root),
+                    "ALCHEMY_CODEX_SOURCE_HOME": str(source_root),
+                    "ALCHEMY_GO_BIN": str(go_bin),
+                    "ALCHEMY_GOMODCACHE": str(mod_cache),
+                    "APPDATA": appdata,
+                    "CODEX_HOME": "",
+                    "PATH": "",
+                    "GOCACHE": "",
+                    "GOFLAGS": "",
+                    "GOMODCACHE": "",
+                    "GOTOOLCHAIN": "",
+                },
+                clear=False,
+            ):
+                env = _build_codex_subprocess_env(repo)
+
+        self.assertTrue(env["PATH"].split(os.pathsep)[0].endswith(str(go_bin)))
+        self.assertEqual(env["GOMODCACHE"], str(mod_cache))
+        self.assertTrue(env["GOCACHE"].endswith(".gocache-alchemy"))
+        self.assertEqual(env["GOTOOLCHAIN"], "auto")
+        self.assertEqual(env["GOFLAGS"], "-p=1")
+        self.assertEqual(env["APPDATA"], appdata)
+
+    def test_build_codex_subprocess_env_can_disable_go_bootstrap(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "go.mod").write_text("module example.com/app\n\ngo 1.22\n", encoding="utf-8")
+            with patch.dict(
+                os.environ,
+                {
+                    "ALCHEMY_DISABLE_GO_ENV_BOOTSTRAP": "1",
+                    "CODEX_HOME": str(repo / "codex-home"),
+                    "GOCACHE": "",
+                    "GOFLAGS": "",
+                    "GOMODCACHE": "",
+                    "GOTOOLCHAIN": "",
+                },
+                clear=False,
+            ):
+                env = _build_codex_subprocess_env(repo)
+
+        self.assertEqual(env.get("GOMODCACHE", ""), "")
+        self.assertEqual(env.get("GOCACHE", ""), "")
+        self.assertEqual(env.get("GOFLAGS", ""), "")
+        self.assertEqual(env.get("GOTOOLCHAIN", ""), "")
+
     def test_real_worker_parses_jsonl_event_stream_output(self) -> None:
         def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
             event_stream = "\n".join(
