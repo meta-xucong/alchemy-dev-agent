@@ -216,6 +216,8 @@ docs/
                               V2.81 technical-blocker phase repair handoff.
   90_v2_82_resume_attempt_order_hardening.md
                               V2.82 resume attempt ordering hardening.
+  91_v2_83_windows_real_codex_policy_bypass.md
+                              V2.83 Windows real Codex policy bypass and plugin-sync suppression.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.

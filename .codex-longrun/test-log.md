@@ -2701,3 +2701,55 @@
 - command: `git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py`
 - result: passed
 - next verification command: commit/push V2.82 and resume Billing Core through Alchemy.
+
+## 2026-06-27T01:25:00+08:00 V2.83 Windows real Codex policy bypass verification
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_parses_structured_subprocess_output tests/test_runtime.py::CodexWorkerTests::test_real_worker_can_disable_codex_cli_bypass -q`
+- result: 2 passed
+- next verification command: controlled real-worker smoke.
+
+- command: `python -B -m autodev.real_worker_smoke --codex-executable C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe --output .alchemy\v2_83_real_worker_policy_smoke2`
+- result: failed
+- relevant error summary: absolute `--cd` was not used yet, so Codex resolved a relative path from the child cwd and reported `os error 3`.
+- fix attempted: changed the worker `--cd` argument to an absolute resolved repository path.
+
+- command: `python -B -m autodev.real_worker_smoke --codex-executable C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe --output .alchemy\v2_83_real_worker_policy_smoke3`
+- result: failed
+- relevant error summary: even with global `--ask-for-approval never` and `--sandbox workspace-write`, Codex still treated the worker filesystem sandbox as read-only and rejected Python verification by policy.
+- fix attempted: added explicit config overrides for `approval_policy` and `sandbox_mode`.
+
+- command: `python -B -m autodev.real_worker_smoke --codex-executable C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe --output .alchemy\v2_83_real_worker_policy_smoke4`
+- result: failed
+- relevant error summary: config overrides still left Codex in read-only sandbox on this Windows CLI build.
+- fix attempted: switched Windows `workspace-write` Codex workers to the official bypass flag with Alchemy worktree and boundary-audit controls.
+
+- command: `python -B -m autodev.real_worker_smoke --codex-executable C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe --output .alchemy\v2_83_real_worker_policy_smoke5`
+- result: passed
+- relevant evidence: worker edited only `app.py`, `python -c "import app; assert app.add(2, 3) == 5"` passed, and the smoke reported no blockers.
+- next verification command: suppress plugin sync noise and rerun smoke.
+
+- command: `python -B -m autodev.real_worker_smoke --codex-executable C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe --output .alchemy\v2_83_real_worker_policy_smoke6`
+- result: passed
+- relevant evidence: `--disable plugins` preserved file-change and verification behavior while removing the remote plugin sync/Windows long-path failure noise from the raw worker output.
+- next verification command: focused lifecycle and argv regression.
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_cancellation_result_includes_lifecycle_cleanup tests/test_runtime.py::CodexWorkerTests::test_real_worker_timeout_result_includes_lifecycle_cleanup tests/test_runtime.py::CodexWorkerTests::test_real_worker_zero_timeout_means_unlimited tests/test_runtime.py::CodexWorkerTests::test_real_worker_parses_structured_subprocess_output tests/test_runtime.py::CodexWorkerTests::test_real_worker_can_disable_codex_cli_bypass -q`
+- result: 5 passed
+- relevant error summary: first full runtime attempt failed because Codex CLI-specific args were also applied to `sys.executable` lifecycle test adapters; fixed by detecting real Codex executable basenames before applying Codex-specific argv.
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: 120 passed
+- next verification command: full roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: 48 passed
+- next verification command: py_compile and targeted diff check.
+
+- command: `python -B -m py_compile runtime\codex_worker.py tests\test_runtime.py`
+- result: passed
+- next verification command: targeted diff check.
+
+- command: `git diff --check -- runtime/codex_worker.py tests/test_runtime.py README.md docs/91_v2_83_windows_real_codex_policy_bypass.md`
+- result: passed
+- next verification command: update long-run state, commit/push V2.83, then resume Billing Core through Alchemy.

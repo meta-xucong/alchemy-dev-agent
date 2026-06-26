@@ -252,7 +252,38 @@ class CodexWorkerAdapter:
 
     def _execute_codex(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         prompt = self.build_prompt(worker_input)
-        args = [self.executable, "exec", "--json", "--sandbox", self.sandbox]
+        repository_path = str(Path(worker_input.repository_path).resolve())
+        if not _is_codex_cli_executable(self.executable):
+            args = [self.executable, "exec", "--json", "--sandbox", self.sandbox]
+        elif _should_bypass_codex_cli_sandbox(self.sandbox):
+            args = [
+                self.executable,
+                "--disable",
+                "plugins",
+                "--dangerously-bypass-approvals-and-sandbox",
+                "exec",
+                "--json",
+                "--cd",
+                repository_path,
+            ]
+        else:
+            args = [
+                self.executable,
+                "--disable",
+                "plugins",
+                "-c",
+                'approval_policy="never"',
+                "-c",
+                f'sandbox_mode="{self.sandbox}"',
+                "--ask-for-approval",
+                "never",
+                "--sandbox",
+                self.sandbox,
+                "exec",
+                "--json",
+                "--cd",
+                repository_path,
+            ]
         codex_env = _build_codex_subprocess_env(worker_input.repository_path) if self.runner is subprocess.run else None
         _cleanup_codex_windows_scratch_files(worker_input.repository_path)
         before_snapshot = self._capture_worktree_snapshot(worker_input.repository_path)
@@ -835,6 +866,19 @@ def _cleanup_codex_windows_scratch_files(repository_path: str | Path) -> None:
             path.unlink()
         except OSError:
             continue
+
+
+def _should_bypass_codex_cli_sandbox(sandbox: str) -> bool:
+    if _truthy_env(os.environ.get("ALCHEMY_DISABLE_CODEX_CLI_BYPASS", "")):
+        return False
+    if _truthy_env(os.environ.get("ALCHEMY_FORCE_CODEX_CLI_BYPASS", "")):
+        return True
+    return os.name == "nt" and sandbox == "workspace-write"
+
+
+def _is_codex_cli_executable(executable: str) -> bool:
+    name = Path(str(executable)).name.lower()
+    return name in {"codex", "codex.exe", "codex.cmd", "codex.bat"}
 
 
 def _build_codex_subprocess_env(repository_path: str | Path) -> dict[str, str]:

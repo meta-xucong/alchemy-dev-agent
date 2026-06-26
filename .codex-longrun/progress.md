@@ -1373,3 +1373,11 @@ PY"`
 - Verification passed: focused resume-order tests `2 passed`, full `tests/test_full_roadmap_execution.py` passed when rerun serially with `48 passed`, `py_compile` passed, and targeted `git diff --check` passed.
 - Noted a monitor-side test hygiene issue: running the same full-roadmap test module in parallel with focused tests caused `.test-tmp` directory name collisions. The serial rerun passed, so the collision was not a code regression.
 
+## 2026-06-27T01:25:00+08:00 V2.83 Windows Real Codex Policy Bypass
+
+- After V2.82, Billing Core correctly created fresh phase_010 repair attempts (`run_attempt_016` through `run_attempt_018`) instead of resuming stale `run_attempt_014`, but T002 still blocked because the real Codex worker reported read-only workspace/policy rejection.
+- Reproduced the problem with `autodev.real_worker_smoke`: ordinary `workspace-write` Codex CLI args, explicit `--ask-for-approval never`, and config overrides for `approval_policy`/`sandbox_mode` still left the Windows worker in read-only mode and rejected shell verification.
+- Implemented V2.83 in `runtime/codex_worker.py`: Windows real Codex workers now use the official `--dangerously-bypass-approvals-and-sandbox` flag for `workspace-write` runs, pass an absolute `--cd` worktree path, disable Codex plugins to avoid isolated-home remote plugin sync/long-path failures, and keep an opt-out via `ALCHEMY_DISABLE_CODEX_CLI_BYPASS=1`.
+- Preserved non-Codex subprocess test adapters by only applying Codex CLI-specific argv to executables named `codex`, `codex.exe`, `codex.cmd`, or `codex.bat`.
+- Verification passed: focused argv/lifecycle tests, full `tests/test_runtime.py` `120 passed`, full `tests/test_full_roadmap_execution.py` `48 passed`, `py_compile`, targeted `git diff --check`, and real-worker smoke `.alchemy\v2_83_real_worker_policy_smoke6` passed with a scoped `app.py` edit plus Python assertion.
+

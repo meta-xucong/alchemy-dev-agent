@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "alchemy_v2_82_resume_attempt_ordering_verified",
+  "current_phase": "alchemy_v2_83_windows_real_codex_policy_bypass_verified",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -16,12 +16,13 @@
     "resumed Billing Core through Alchemy run_attempt_015 and confirmed the current scheduler stops at existing T004 non-partial blockers without dispatching T005",
     "implemented V2.80 real-worker Go environment bootstrap and verified worker env seeding against the inherited Billing Core worktree",
     "implemented V2.81 technical-blocker phase repair handoff so Alchemy can open a new repair attempt after autonomous implementation blockers",
-    "implemented V2.82 resume attempt ordering hardening so newer terminal attempts supersede older stale active attempts"
+    "implemented V2.82 resume attempt ordering hardening so newer terminal attempts supersede older stale active attempts",
+    "implemented V2.83 Windows real Codex policy bypass so Alchemy workers can write and verify inside the isolated worktree despite the current Codex CLI workspace-write/read-only issue"
   ],
   "next_actions": [
-    "Commit and push the V2.82 Alchemy framework fix before launching another Billing Core worker.",
+    "Commit and push the V2.83 Alchemy framework fix before launching another Billing Core worker.",
     "Relaunch Billing Core through Alchemy full-roadmap execution only; do not directly edit the target Billing Core worktree from the monitoring Codex thread.",
-    "Confirm phase_010 creates a fresh repair attempt from T004 technical blockers B-T004-2/B-T004-3, does not resume stale run_attempt_014, and that real workers inherit the new Go environment bootstrap."
+    "Confirm phase_010 creates the next fresh repair attempt after run_attempt_018, does not resume stale run_attempt_014, and that real workers can patch and run verification commands in the isolated worktree without false read-only/policy blockers."
   ],
   "tests_run": [
     "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_last.md \"Reply with exactly OK and nothing else.\" => passed",
@@ -89,7 +90,14 @@
     "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_resume_does_not_fall_back_past_newer_terminal_attempt tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_resumes_latest_interrupted_phase_attempt -q => 2 passed",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => first parallel attempt failed due .test-tmp collision with focused pytest process; serial rerun passed with 48 passed",
     "python -B -m py_compile autodev\\full_roadmap_executor.py tests\\test_full_roadmap_execution.py => passed",
-    "git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py => passed"
+    "git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py => passed",
+    "python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_parses_structured_subprocess_output tests/test_runtime.py::CodexWorkerTests::test_real_worker_can_disable_codex_cli_bypass -q => 2 passed",
+    "python -B -m autodev.real_worker_smoke --codex-executable C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe --output .alchemy\\v2_83_real_worker_policy_smoke6 => passed with scoped app.py edit and Python assertion",
+    "python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_cancellation_result_includes_lifecycle_cleanup tests/test_runtime.py::CodexWorkerTests::test_real_worker_timeout_result_includes_lifecycle_cleanup tests/test_runtime.py::CodexWorkerTests::test_real_worker_zero_timeout_means_unlimited tests/test_runtime.py::CodexWorkerTests::test_real_worker_parses_structured_subprocess_output tests/test_runtime.py::CodexWorkerTests::test_real_worker_can_disable_codex_cli_bypass -q => 5 passed",
+    "python -B -m pytest tests/test_runtime.py -q => 120 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 48 passed",
+    "python -B -m py_compile runtime\\codex_worker.py tests\\test_runtime.py => passed",
+    "git diff --check -- runtime/codex_worker.py tests/test_runtime.py README.md docs/91_v2_83_windows_real_codex_policy_bypass.md => passed"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -99,7 +107,8 @@
     "Billing Core real-worker shells still do not inherit a PATH entry for Go by default even though go.exe is installed at C:\\Users\\T14S\\tools\\go-1.26.3\\go\\bin\\go.exe; recovery relaunches must inject that path or equivalent tool discovery until the environment is normalized.",
     "Billing Core T004 remains the real current project blocker: run_attempt_015 stopped on non-partial blockers B-T004-2 and B-T004-3, with T005 and T005-DEBUG-1 still pending and intentionally undispatched.",
     "Before V2.81, the full-roadmap executor treated all phase blockers as non-repairable, which prevented Alchemy from opening a new autonomous repair attempt after T004 technical blockers. V2.81 addresses this for implementation/test blockers while preserving stops for preflight, credentials, recovery, operator, and live-worker blockers.",
-    "Before V2.82, the full-roadmap resume scanner could fall back from a newer terminal run_attempt_015 to older stale run_attempt_014 active-task evidence. V2.82 prevents that fallback."
+    "Before V2.82, the full-roadmap resume scanner could fall back from a newer terminal run_attempt_015 to older stale run_attempt_014 active-task evidence. V2.82 prevents that fallback.",
+    "Before V2.83, Windows real Codex workers still treated workspace-write sessions as read-only and rejected patch/verification commands by policy; V2.83 uses the official Codex bypass flag for Windows workspace-write workers, disables plugin sync noise, and relies on Alchemy's isolated worktree plus file-boundary audit controls."
   ],
   "blockers": [],
   "done_criteria": [
@@ -107,7 +116,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T01:05:00+08:00",
+  "last_verified_at": "2026-06-27T01:25:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T01:05:00+08:00"
+  "updated_at": "2026-06-27T01:25:00+08:00"
 }

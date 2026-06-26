@@ -241,10 +241,86 @@ class CodexWorkerTests(unittest.TestCase):
         worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
         result = worker.execute(CodexWorkerInput(task_id="T010", goal="do work", repository_path="."))
 
-        self.assertIn(["codex", "exec", "--json", "--sandbox", "workspace-write"], calls)
+        expected_repo_path = str(Path(".").resolve())
+        if os.name == "nt":
+            expected_args = [
+                "codex",
+                "--disable",
+                "plugins",
+                "--dangerously-bypass-approvals-and-sandbox",
+                "exec",
+                "--json",
+                "--cd",
+                expected_repo_path,
+            ]
+        else:
+            expected_args = [
+                "codex",
+                "--disable",
+                "plugins",
+                "-c",
+                'approval_policy="never"',
+                "-c",
+                'sandbox_mode="workspace-write"',
+                "--ask-for-approval",
+                "never",
+                "--sandbox",
+                "workspace-write",
+                "exec",
+                "--json",
+                "--cd",
+                expected_repo_path,
+            ]
+        self.assertIn(expected_args, calls)
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.files_changed, ["runtime/example.py"])
         self.assertEqual(result.commands_run[0].exit_code, 0)
+
+    def test_real_worker_can_disable_codex_cli_bypass(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            calls.append(args)
+            payload = {
+                "task_id": "T010",
+                "status": "completed",
+                "summary": "implemented task",
+                "files_changed": ["runtime/example.py"],
+                "commands_run": [{"command": "python -m unittest", "exit_code": 0}],
+                "tests_passed": ["runtime tests"],
+                "tests_failed": [],
+                "evidence": ["all criteria met"],
+                "known_issues": [],
+                "follow_up_tasks": [],
+                "confidence": 0.95,
+            }
+            return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+
+        with patch.dict(os.environ, {"ALCHEMY_DISABLE_CODEX_CLI_BYPASS": "1"}):
+            worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+            worker.execute(CodexWorkerInput(task_id="T010", goal="do work", repository_path="."))
+
+        expected_repo_path = str(Path(".").resolve())
+        self.assertIn(
+            [
+                "codex",
+                "--disable",
+                "plugins",
+                "-c",
+                'approval_policy="never"',
+                "-c",
+                'sandbox_mode="workspace-write"',
+                "--ask-for-approval",
+                "never",
+                "--sandbox",
+                "workspace-write",
+                "exec",
+                "--json",
+                "--cd",
+                expected_repo_path,
+            ],
+            calls,
+        )
 
     def test_real_worker_reports_unparseable_output_as_failed(self) -> None:
         def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
@@ -1038,7 +1114,7 @@ class CodexWorkerTests(unittest.TestCase):
             observed: dict[str, object] = {}
 
             def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
-                if len(args) >= 2 and args[1] == "exec":
+                if "exec" in args:
                     observed["timeout"] = timeout
                     return subprocess.CompletedProcess(args, 0, b'{"status":"completed","summary":"ok"}', b"")
                 return subprocess.CompletedProcess(args, 0, "", "")
