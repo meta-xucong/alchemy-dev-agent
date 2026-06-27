@@ -948,6 +948,83 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("frontend/src/views/admin/DashboardView.vue", usage_task["relevant_files"])
         self.assertIn("frontend/src/views/auth/**", usage_task["relevant_files"])
 
+    def test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend").mkdir(parents=True)
+            (repo / "frontend" / "src" / "i18n").mkdir(parents=True)
+            (repo / "frontend" / "src" / "views").mkdir(parents=True)
+            (repo / "frontend" / "src" / "components").mkdir(parents=True)
+            (repo / "frontend" / "src" / "stores").mkdir(parents=True)
+            (repo / "frontend" / "src" / "constants").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            (repo / "frontend" / "src" / "i18n" / "en.ts").write_text("export default { tokenRelay: 'Token relay' }\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "views" / "HomeView.vue").write_text("<template>token relay</template>\n", encoding="utf-8")
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase: Frontend closure",
+                        "## Requirements",
+                        "- Must close frontend router, menu, and direct pages.",
+                        "- Must clean frontend API service references.",
+                        "- Must convert wallet recharge, payment provider, and order surfaces.",
+                        "- Must convert redeem code pages to balance-only flows.",
+                        "- Must close usage API key and admin users workflows.",
+                        "- Must sweep token relay product copy and i18n.",
+                        "",
+                        "## Boundary Mode",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair = root / "phase_repair_timeout.md"
+            repair.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        "## Focused Repair Scope",
+                        "- Primary failed task IDs: T007.",
+                        "- Completed tasks to preserve: T001, T002, T003, T004, T005, T006.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core frontend copy timeout.",
+                documents=[phase, repair],
+                repository_path=repo,
+                created_at="2026-06-27T19:40:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        titles = [node["title"] for node in implementation_nodes]
+        self.assertIn("Sweep frontend i18n product copy", titles)
+        self.assertIn("Sweep frontend view and component product copy", titles)
+        self.assertNotIn("Sweep frontend product copy and i18n", titles)
+
+        i18n_task = next(node for node in implementation_nodes if node["title"] == "Sweep frontend i18n product copy")
+        self.assertIn("frontend/src/i18n/**", i18n_task["relevant_files"])
+        self.assertNotIn("frontend/src/views/**", i18n_task["relevant_files"])
+
+        view_task = next(
+            node for node in implementation_nodes if node["title"] == "Sweep frontend view and component product copy"
+        )
+        self.assertIn("frontend/src/views/**", view_task["relevant_files"])
+        self.assertIn("frontend/src/components/**", view_task["relevant_files"])
+        self.assertIn("frontend/src/constants/**", view_task["relevant_files"])
+
     def test_docs_only_scope_builds_documentation_task_with_lightweight_verification(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

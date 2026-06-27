@@ -238,6 +238,8 @@ docs/
                               V2.91 usage-limit false positive guard.
   101_v2_92_frontend_api_caller_repair_scope.md
                               V2.92 frontend API caller repair scope expansion.
+  102_v2_93_timeout_repair_split_frontend_copy.md
+                              V2.93 timeout repair split for frontend copy sweep.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1392,6 +1394,15 @@ the task that can stop the run, instead of leaving the fix to a later task that
 may never execute after a non-partial T003 blocker.
 
 See `docs/101_v2_92_frontend_api_caller_repair_scope.md`.
+
+## V2.93 Timeout Repair Split For Frontend Copy Sweep
+
+V2.93 turns the T007 timeout repair instruction into a smaller task graph. When
+focused repair evidence says the frontend copy/i18n sweep timed out and should
+be split, Alchemy now replaces the broad task with separate i18n and
+view/component copy-sweep tasks.
+
+See `docs/102_v2_93_timeout_repair_split_frontend_copy.md`.
 
 Run a smoke execution:
 

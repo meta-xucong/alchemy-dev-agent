@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_92_frontend_api_caller_repair_scope",
+  "current_phase": "v2_93_timeout_repair_split_frontend_copy",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -27,13 +27,14 @@
     "implemented V2.89 repair scope handoff so focused Billing Core repair evidence produces frontend large-refactor tasks instead of replaying narrow router/package scope",
     "implemented V2.90 Codex usage-limit blocker classification so local model quota failures stop as environment blockers instead of product debug/retry loops",
     "implemented V2.91 usage-limit false-positive guard so historical quota text inside successful Codex JSONL does not stop Billing Core resumes",
-    "implemented V2.92 frontend API caller repair scope so T003 can edit components, composables, and constants when repair evidence identifies retired API callers there"
+    "implemented V2.92 frontend API caller repair scope so T003 can edit components, composables, and constants when repair evidence identifies retired API callers there",
+    "implemented V2.93 timeout repair split so T007 frontend copy/i18n timeouts produce smaller i18n and view/component copy-sweep tasks instead of replaying the broad worker scope"
   ],
   "next_actions": [
-    "Run diff check and long-run state validation for V2.92.",
-    "Commit and push V2.92 frontend API caller repair scope changes.",
-    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_030 and lets T003 repair API caller surfaces directly.",
-    "Monitor whether the next Alchemy worker advances the CRM extraction work beyond the T003 caller-scope blocker; if it exposes another controller issue, stop and fix Alchemy before continuing.",
+    "Run diff check and long-run state validation for V2.93.",
+    "Commit and push V2.93 timeout repair split changes.",
+    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_032 and splits the T007 copy sweep into smaller tasks.",
+    "Monitor whether the next Alchemy worker advances the CRM extraction work past the T007 timeout boundary; if it exposes another controller issue, stop and fix Alchemy before continuing.",
     "After the controlled run, reassess CRM usability, update the supervision document if new evidence appears, and continue the fix/monitor loop."
   ],
   "tests_run": [
@@ -167,6 +168,15 @@
     "python -B -m pytest tests/test_document_run_pipeline.py -q => 26 passed",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 54 passed",
     "git diff --check => passed with existing .codex-longrun CRLF warnings only",
+    "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed",
+    "Billing Core controlled resume via .alchemy\\billing_core_v274_20260624_012\\resume_v2_88_supervised_probe.ps1 => run_attempt_031 completed T001-T006, T007 timed out cleanly at 900s, and run_attempt_032 was supervisor-stopped before replaying broad timeout scope",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_repair_docs_do_not_collapse_to_scoped_router_task -q => 2 passed after fixing helper wiring",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 21 passed",
+    "python -B -m py_compile planner\\task_graph_builder.py tests\\test_document_to_plan.py => passed",
+    "Real phase_010 graph rebuild probe with phase_repair_006.md => split copy sweep into T007 i18n product copy, T008 view/component product copy, and T009 remaining closure",
+    "python -B -m pytest tests/test_document_run_pipeline.py -q => 26 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 54 passed",
+    "git diff --check => passed with existing .codex-longrun CRLF warnings only",
     "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed"
   ],
   "known_bugs": [
@@ -195,7 +205,8 @@
     "Before V2.90, local Codex CLI usage-limit JSONL could be summarized as unparseable worker output, causing unnecessary debug/retry work and a false product repair phase.",
     "As of 2026-06-27 17:02 +08:00, local Codex CLI real-model access was temporarily blocked by account usage limits until about 2026-06-27 17:39 +08:00; the 17:39 post-reset smoke passed.",
     "Before V2.91, V2.90's usage-limit detector scanned the whole successful Codex JSONL stream and could misclassify historical quota text in repair evidence as a live Codex usage-limit blocker.",
-    "Before V2.92, a focused repair document could identify T003 retired API caller files in components, composables, and constants, but the rebuilt graph kept T003 on its old API-only scope and risked replaying the same non-partial blocker before later tasks could run."
+    "Before V2.92, a focused repair document could identify T003 retired API caller files in components, composables, and constants, but the rebuilt graph kept T003 on its old API-only scope and risked replaying the same non-partial blocker before later tasks could run.",
+    "Before V2.93, a T007 timeout repair document could advise splitting/checkpointing, but the rebuilt graph still contained the same broad copy/i18n worker scope and could replay the 900 second timeout."
   ],
   "blockers": [],
   "done_criteria": [
@@ -203,7 +214,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T18:37:00+08:00",
+  "last_verified_at": "2026-06-27T19:47:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T18:37:00+08:00"
+  "updated_at": "2026-06-27T19:47:00+08:00"
 }

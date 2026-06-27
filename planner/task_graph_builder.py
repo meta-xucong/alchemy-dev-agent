@@ -808,12 +808,85 @@ FRONTEND_LARGE_REFACTOR_TASK_SPECS = (
     },
 )
 
+FRONTEND_COPY_SWEEP_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Sweep frontend i18n product copy",
+        "description": (
+            "Replace token relay, gateway, upstream account, channel, model-routing, and subscription wording "
+            "inside frontend locale dictionaries."
+        ),
+        "markers": (
+            "copy",
+            "i18n",
+            "wording",
+            "token relay",
+            "middle station",
+            "浜у搧鏂囨",
+            "鏂囨",
+            "token 涓浆",
+            "涓浆绔?",
+        ),
+        "files": (
+            "frontend/src/i18n/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Sweep frontend view and component product copy",
+        "description": (
+            "Replace token relay, gateway, upstream account, channel, model-routing, and subscription wording "
+            "inside frontend views, components, stores, styles, and constants."
+        ),
+        "markers": (
+            "copy",
+            "i18n",
+            "wording",
+            "token relay",
+            "middle station",
+            "浜у搧鏂囨",
+            "鏂囨",
+            "token 涓浆",
+            "涓浆绔?",
+        ),
+        "files": (
+            "frontend/src/views/**",
+            "frontend/src/components/**",
+            "frontend/src/styles/**",
+            "frontend/src/stores/**",
+            "frontend/src/constants/**",
+            "frontend/package.json",
+        ),
+    },
+)
+
+
+def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
+    if not focused_timeout_repair_for_task(requirements, "T007"):
+        return FRONTEND_LARGE_REFACTOR_TASK_SPECS
+    specs: list[dict[str, object]] = []
+    for spec in FRONTEND_LARGE_REFACTOR_TASK_SPECS:
+        if spec["title"] == "Sweep frontend product copy and i18n":
+            specs.extend(FRONTEND_COPY_SWEEP_TIMEOUT_SPLIT_TASK_SPECS)
+        else:
+            specs.append(spec)
+    return tuple(specs)
+
+
+def focused_timeout_repair_for_task(requirements: list[Requirement], task_id: str) -> bool:
+    text = "\n".join(requirement.text for requirement in requirements).lower()
+    normalized_task_id = task_id.lower()
+    return (
+        f"primary failed task ids: {normalized_task_id}" in text
+        and any(marker in text for marker in ("timeout", "timed out", "worker timeout"))
+        and any(marker in text for marker in ("split", "checkpoint"))
+    )
+
 
 def should_decompose_large_refactor_frontend_phase(requirements: list[Requirement], *, assigned_agent: str) -> bool:
     if assigned_agent != "frontend" or not is_large_refactor_frontend_phase(requirements):
         return False
     matching_specs = 0
-    for spec in FRONTEND_LARGE_REFACTOR_TASK_SPECS:
+    for spec in frontend_large_refactor_task_specs(requirements):
         if any(requirement_matches_markers(requirement, spec["markers"]) for requirement in requirements):
             matching_specs += 1
     return matching_specs >= 3
@@ -832,7 +905,7 @@ def large_refactor_frontend_nodes(
     frontend_commands = frontend_large_refactor_commands(test_commands, package_files=package_files)
     task_index = 2
     matched_requirement_ids: set[str] = set()
-    for spec in FRONTEND_LARGE_REFACTOR_TASK_SPECS:
+    for spec in frontend_large_refactor_task_specs(requirements):
         matched_requirements = [
             requirement
             for requirement in requirements

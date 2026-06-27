@@ -1478,3 +1478,12 @@ PY"`
 - Implemented V2.92 in Alchemy: the frontend API-service cleanup task now includes caller surfaces under components, composables, and constants, keeping the failing T003 scope aligned with its repair evidence.
 - Real Billing Core graph probe with `phase_repair_005.md` now shows T003 includes `frontend/src/api/**`, `frontend/src/components/**`, `frontend/src/composables/**`, and `frontend/src/constants/**`.
 - Verification passed: focused planner tests `2 passed`, full `tests/test_document_to_plan.py` `20 passed`, full `tests/test_document_run_pipeline.py` `26 passed`, full `tests/test_full_roadmap_execution.py` `54 passed`, and targeted `py_compile` passed.
+
+## 2026-06-27T19:45:00+08:00 V2.93 Timeout Repair Split
+
+- Relaunched Billing Core after V2.92. `run_attempt_031` made the strongest progress so far in phase_010: T001, T002, T003, T004, T005, and T006 all completed in the inherited isolated worktree.
+- T006 crossed the previously difficult usage/API-key/admin workflow boundary. Evidence says the user `/api-keys` workflow/sidebar entry was added, admin usage subscription-billing controls were removed, touched workflow files were free of old token-relay terminology, and frontend test/typecheck passed.
+- T007 timed out at the 900 second worker limit. V2.84 timeout stop behaved correctly: the worker process tree was killed, no same-scope debug task launched, and a non-partial technical blocker was recorded.
+- The parent wrote `phase_repair_006.md` with correct split/checkpoint guidance, but `run_attempt_032` rebuilt the same broad copy/i18n task and started from T001 again. I stopped it and marked it with `supervisor_stop.json`.
+- Implemented V2.93 in Alchemy: focused T007 timeout repairs now split the frontend copy/i18n sweep into `Sweep frontend i18n product copy` and `Sweep frontend view and component product copy`, preserving the hard timeout while shrinking the work package.
+- Verification passed: focused timeout-split planner tests `2 passed`, full `tests/test_document_to_plan.py` `21 passed`, full `tests/test_document_run_pipeline.py` `26 passed`, full `tests/test_full_roadmap_execution.py` `54 passed`, targeted `py_compile` passed, and the real `phase_repair_006.md` graph probe shows the split T007/T008 tasks.

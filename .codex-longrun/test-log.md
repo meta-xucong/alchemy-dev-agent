@@ -3035,3 +3035,45 @@
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.92, then relaunch Billing Core through Alchemy.
+
+## 2026-06-27T19:45:00+08:00 V2.93 timeout repair split verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: stopped by supervisor for timeout-repair planner fix
+- relevant evidence: `run_attempt_031` completed T001-T006, then T007 timed out at 900s with clean worker process termination and no same-scope debug. `phase_repair_006.md` requested split/checkpoint repair, but `run_attempt_032` regenerated the broad copy/i18n task and started from T001.
+- fix attempted: added `run_attempt_032/supervisor_stop.json` and split focused T007 timeout repair into i18n and view/component copy-sweep tasks.
+- next verification command: focused timeout-split planner regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_repair_docs_do_not_collapse_to_scoped_router_task -q`
+- result: first run exposed a helper wiring bug; rerun passed with `2 passed`
+- fix attempted: changed `large_refactor_frontend_nodes()` and decomposition counting to use `frontend_large_refactor_task_specs(requirements)` and fixed the helper to iterate the base spec list.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `21 passed`
+- next verification command: targeted py_compile and real graph probe.
+
+- command: `python -B -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py`
+- result: passed
+- next verification command: real Billing Core graph rebuild probe.
+
+- command: real `phase_010` graph rebuild probe using `phase_requirements.md` and `phase_repair_006.md`
+- result: passed
+- relevant evidence: graph now includes `T007 Sweep frontend i18n product copy`, `T008 Sweep frontend view and component product copy`, and `T009 Complete remaining frontend closure requirements`.
+- next verification command: document-run pipeline and full-roadmap regressions.
+
+- command: `python -B -m pytest tests/test_document_run_pipeline.py -q`
+- result: `26 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `54 passed`
+- next verification command: diff check, state validation, commit/push V2.93, then relaunch Billing Core through Alchemy.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.93, then relaunch Billing Core through Alchemy.

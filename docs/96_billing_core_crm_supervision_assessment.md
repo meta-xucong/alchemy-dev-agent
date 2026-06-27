@@ -274,6 +274,27 @@ pre-fix `run_attempt_030` has a supervisor stop marker and should be skipped.
 The next attempt should let T003 address the caller surface directly rather
 than looping through the same non-partial blocker.
 
+## 2026-06-27 V2.93 Follow-Up
+
+`run_attempt_031` showed major forward progress after V2.92: T001 through T006
+completed, including the previously difficult API-key/usage/admin workflow
+area. T007 then hit the 900 second worker timeout.
+
+The timeout guard itself behaved correctly. It killed the worker process tree,
+recorded a non-partial technical blocker, and did not launch same-scope debug
+work. But the next repair attempt, `run_attempt_032`, still rebuilt the broad
+copy/i18n sweep instead of splitting it, even though `phase_repair_006.md`
+explicitly said to checkpoint or split the workflow.
+
+V2.93 addresses the timeout mechanism concern without simply raising the timer:
+focused T007 timeout repairs now split the copy sweep into an i18n locale task
+and a view/component/store/constants task. This should reduce the chance that a
+worker making partial progress is repeatedly cut off by the same hard timeout.
+
+Remaining timeout optimization: add real worker heartbeats/checkpoints and a
+bounded grace policy so the supervisor can distinguish active progress from a
+stuck worker near the timeout boundary.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable
