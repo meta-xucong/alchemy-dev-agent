@@ -3077,3 +3077,53 @@
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.93, then relaunch Billing Core through Alchemy.
+
+## 2026-06-27T20:10:00+08:00 V2.94 disk repair brief resume verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: stopped by supervisor for repair-brief handoff fix
+- relevant evidence: `run_attempt_033` used the inherited isolated worktree, but ignored the newer `phase_repair_006.md`, replayed earlier phase_010 tasks, and kept the old broad `T007 Sweep frontend product copy and i18n`.
+- fix attempted: added `run_attempt_033/supervisor_stop.json` and taught full-roadmap bootstrap to pass the newest ordinary `phase_repair_NNN.md` when it is newer than `phase_record.json`.
+- next verification command: focused full-roadmap repair-brief regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_reuses_newer_disk_repair_brief_when_phase_record_is_stale tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_bootstraps_blocked_phase_resume_with_repair_evidence -q`
+- result: `2 passed`
+- next verification command: focused timeout split planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task -q`
+- result: `1 passed`
+- next verification command: targeted py_compile.
+
+- command: `python -B -m py_compile autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: real Billing Core bootstrap and graph probes.
+
+- command: real `bootstrap_phase_repair_documents(...)` probe against `.alchemy\billing_core_v274_20260624_012\phases\phase_010`
+- result: passed
+- relevant evidence: bootstrap now returns `phase_repair_006.md`.
+- next verification command: real Billing Core graph rebuild probe.
+
+- command: real phase_010 graph rebuild probe using `phase_requirements.md` and `phase_repair_006.md`
+- result: passed
+- relevant evidence: graph contains `T007 Sweep frontend i18n product copy`, `T008 Sweep frontend view and component product copy`, and `T009 Complete remaining frontend closure requirements`.
+- next verification command: full full-roadmap regression, document-to-plan regression, diff check, and state validation.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `55 passed`
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `21 passed`
+- next verification command: targeted py_compile, diff check, and state validation.
+
+- command: `python -B -m py_compile autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.94, then relaunch Billing Core through Alchemy.

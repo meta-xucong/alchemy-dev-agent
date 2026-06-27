@@ -766,7 +766,13 @@ def bootstrap_phase_repair_documents(
     """Seed a resumed blocked phase with the previous blocker evidence."""
 
     if max_repair_documents <= 0 or previous_record is None:
-        return []
+        return latest_existing_phase_repair_documents(phase_dir, max_repair_documents=max_repair_documents)
+    existing_documents = latest_existing_phase_repair_documents(
+        phase_dir,
+        max_repair_documents=max_repair_documents,
+    )
+    if existing_documents:
+        return existing_documents
     if str(previous_record.status).lower() not in {"blocked", "failed"}:
         return []
     if not should_auto_repair_phase(previous_record.promotion, previous_record.result):
@@ -781,6 +787,36 @@ def bootstrap_phase_repair_documents(
             attempt_index=1,
         )
     ]
+
+
+def latest_existing_phase_repair_documents(phase_dir: Path, *, max_repair_documents: int) -> list[str]:
+    """Return the newest on-disk repair brief when it is newer than the phase record.
+
+    A supervisor may stop a parent run after it writes ``phase_repair_NNN.md``
+    but before it refreshes ``phase_record.json``. On the next full-roadmap
+    launch, the stale phase record cannot carry the fresh blocker evidence, so
+    the newest ordinary repair brief must be handed to the document runner.
+    """
+
+    if max_repair_documents <= 0:
+        return []
+    record_path = phase_dir / "phase_record.json"
+    record_mtime = record_path.stat().st_mtime if record_path.exists() else 0.0
+    candidates: list[Path] = []
+    for candidate in phase_dir.glob("phase_repair_*.md"):
+        if candidate.name.startswith("phase_repair_resume_"):
+            continue
+        try:
+            candidate_mtime = candidate.stat().st_mtime
+        except OSError:
+            continue
+        if record_mtime and candidate_mtime <= record_mtime:
+            continue
+        candidates.append(candidate)
+    if not candidates:
+        return []
+    latest = max(candidates, key=lambda path: path.stat().st_mtime)
+    return [str(latest.resolve())]
 
 
 def next_phase_repair_resume_path(phase_dir: Path) -> Path:

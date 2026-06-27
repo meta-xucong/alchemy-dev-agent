@@ -240,6 +240,8 @@ docs/
                               V2.92 frontend API caller repair scope expansion.
   102_v2_93_timeout_repair_split_frontend_copy.md
                               V2.93 timeout repair split for frontend copy sweep.
+  103_v2_94_disk_repair_brief_resume.md
+                              V2.94 disk repair brief resume handoff.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1403,6 +1405,15 @@ be split, Alchemy now replaces the broad task with separate i18n and
 view/component copy-sweep tasks.
 
 See `docs/102_v2_93_timeout_repair_split_frontend_copy.md`.
+
+## V2.94 Disk Repair Brief Resume
+
+V2.94 makes full-roadmap relaunches reuse a newer on-disk
+`phase_repair_NNN.md` when `phase_record.json` is stale. This prevents a
+supervisor-stopped parent run from losing the fresh repair evidence it already
+wrote and falling back to the original broad phase graph.
+
+See `docs/103_v2_94_disk_repair_brief_resume.md`.
 
 Run a smoke execution:
 

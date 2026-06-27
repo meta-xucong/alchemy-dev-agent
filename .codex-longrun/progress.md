@@ -1487,3 +1487,11 @@ PY"`
 - The parent wrote `phase_repair_006.md` with correct split/checkpoint guidance, but `run_attempt_032` rebuilt the same broad copy/i18n task and started from T001 again. I stopped it and marked it with `supervisor_stop.json`.
 - Implemented V2.93 in Alchemy: focused T007 timeout repairs now split the frontend copy/i18n sweep into `Sweep frontend i18n product copy` and `Sweep frontend view and component product copy`, preserving the hard timeout while shrinking the work package.
 - Verification passed: focused timeout-split planner tests `2 passed`, full `tests/test_document_to_plan.py` `21 passed`, full `tests/test_document_run_pipeline.py` `26 passed`, full `tests/test_full_roadmap_execution.py` `54 passed`, targeted `py_compile` passed, and the real `phase_repair_006.md` graph probe shows the split T007/T008 tasks.
+
+## 2026-06-27T20:10:00+08:00 V2.94 Disk Repair Brief Resume
+
+- Investigated why the post-V2.93 relaunch appeared to start over at T001. `run_attempt_033` did start with the normal planning T001, but its generated graph was abnormal: it ignored `phase_repair_006.md`, replayed earlier frontend tasks, and still contained the old broad `T007 Sweep frontend product copy and i18n`.
+- Stopped only the bad `run_attempt_033` Alchemy process tree and added `run_attempt_033/supervisor_stop.json` so future resume selection skips it.
+- Found the Alchemy controller root cause: `phase_repair_006.md` was newer and correct, but `phase_record.json` was stale from an older blocked attempt, and full-roadmap bootstrap did not reuse newer ordinary disk repair briefs.
+- Implemented V2.94 in `autodev/full_roadmap_executor.py`: before bootstrapping from a previous phase record, Alchemy now passes the newest ordinary `phase_repair_NNN.md` if it is newer than `phase_record.json`.
+- Added a regression proving stale phase records hand off the newer disk repair brief, plus a real Billing Core probe confirming bootstrap selects `phase_repair_006.md` and the graph splits T007 into i18n and view/component copy tasks.

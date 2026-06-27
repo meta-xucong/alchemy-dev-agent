@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import time
 import unittest
@@ -1308,6 +1309,91 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         )
         self.assertTrue(repair_doc.exists())
         self.assertIn("Primary failed task IDs: T006", repair_doc.read_text(encoding="utf-8"))
+
+    def test_executor_reuses_newer_disk_repair_brief_when_phase_record_is_stale(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        output = root / "run"
+        phase_dir = output / "phases" / "phase_010"
+        phase_dir.mkdir(parents=True)
+        plan = RoadmapExecutionPlan(
+            root_objective="Convert Billing Core into an independent CRM system.",
+            phases=[
+                RoadmapPhase(
+                    phase_id="phase_010",
+                    title="Frontend CRM Closure",
+                    requirements=["Sweep frontend product copy and i18n."],
+                )
+            ],
+            confidence=0.9,
+        )
+        write_json(output / "roadmap_execution_plan.json", plan.to_dict())
+        write_json(output / "roadmap_audit.json", {"status": "passed", "issues": []})
+        write_json(output / "project_analysis_report.json", {"ready_to_start": True})
+        stale_record = phase_dir / "phase_record.json"
+        write_json(
+            stale_record,
+            {
+                "phase_id": "phase_010",
+                "title": "Frontend CRM Closure",
+                "status": "blocked",
+                "output_dir": str(phase_dir / "run_attempt_028"),
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {
+                        "blockers": [
+                            {
+                                "type": "environment",
+                                "description": "Codex CLI usage limit reached.",
+                                "task_ids": ["T001"],
+                            }
+                        ]
+                    },
+                },
+                "promotion": {"can_promote": False, "reasons": ["Phase has blockers."]},
+            },
+        )
+        repair_doc = phase_dir / "phase_repair_006.md"
+        repair_doc.write_text(
+            "\n".join(
+                [
+                    "# Auto Repair For Frontend CRM Closure",
+                    "",
+                    "- Primary failed task IDs: T007.",
+                    "- Completed tasks to preserve: T001, T002, T003, T004, T005, T006.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task.",
+                    "### Task T007 - Sweep frontend product copy and i18n",
+                    "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        old_time = time.time() - 60
+        os.utime(stale_record, (old_time, old_time))
+
+        calls: list[list[str]] = []
+
+        def resume_runner(**kwargs):
+            docs = [str(item) for item in kwargs["documents"]]
+            calls.append(docs)
+            return FakePhaseResult("resumed from disk repair")
+
+        result = FullRoadmapExecutor(document_runner=resume_runner).run(
+            objective="Convert Billing Core into an independent CRM system.",
+            documents=[],
+            repository_path=repo,
+            output_dir=output,
+            run_payload={"max_phase_repair_attempts": 1},
+        )
+
+        self.assertEqual(result.status, "done")
+        self.assertTrue(any(str(repair_doc.resolve()) in docs for docs in calls), calls)
+        self.assertFalse(
+            any("phase_repair_resume_" in item for docs in calls for item in docs),
+            calls,
+        )
 
     def test_phase_repair_distinguishes_technical_and_environment_blockers(self) -> None:
         self.assertTrue(

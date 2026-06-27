@@ -295,6 +295,28 @@ Remaining timeout optimization: add real worker heartbeats/checkpoints and a
 bounded grace policy so the supervisor can distinguish active progress from a
 stuck worker near the timeout boundary.
 
+## 2026-06-27 V2.94 Follow-Up
+
+The next relaunch after V2.93 exposed one more recovery-chain issue.
+`run_attempt_033` started at T001 and then activated T002 with the old broad
+phase_010 graph. Starting at T001 is not automatically wrong because every
+document run has a planning task, but this attempt was abnormal: it did not use
+the existing `phase_repair_006.md` timeout brief and therefore did not generate
+the split T007/T008 graph.
+
+Root cause: the parent full-roadmap run had already written
+`phase_repair_006.md`, but the persisted `phase_record.json` was still stale
+and pointed at an older blocked attempt. The relaunch bootstrap path only used
+the stale phase record or a newly generated resume brief, so it ignored the
+newer disk repair document.
+
+V2.94 fixes the handoff: if an ordinary `phase_repair_NNN.md` is newer than
+`phase_record.json`, Alchemy passes the newest one to the next document runner.
+The real phase_010 probe now selects `phase_repair_006.md` and generates
+`T007 Sweep frontend i18n product copy`, `T008 Sweep frontend view and
+component product copy`, and `T009 Complete remaining frontend closure
+requirements`.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable
