@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_96_split_remaining_frontend_closure_timeout",
+  "current_phase": "v2_97_cumulative_repair_brief_context",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -31,14 +31,15 @@
     "implemented V2.93 timeout repair split so T007 frontend copy/i18n timeouts produce smaller i18n and view/component copy-sweep tasks instead of replaying the broad worker scope",
     "implemented V2.94 disk repair brief resume so stale phase records do not hide newer phase_repair_NNN.md evidence during full-roadmap relaunch",
     "implemented V2.95 completed repair task preservation so focused repair resumes do not redispatch tasks listed in Completed tasks to preserve",
-    "implemented V2.96 remaining frontend closure timeout split so focused T009 repair resumes do not replay the broad frontend/** task"
+    "implemented V2.96 remaining frontend closure timeout split so focused T009 repair resumes do not replay the broad frontend/** task",
+    "implemented V2.97 cumulative repair brief context so relaunches keep prior split evidence and avoid task-ID preservation drift"
   ],
   "next_actions": [
-    "Commit and push V2.96 remaining frontend closure timeout split changes.",
-    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_036 and starts from the split T009/T010/T011 remaining-closure tasks.",
-    "Monitor whether the next Alchemy workers advance phase_010 without broad replay; if another controller issue appears, stop and fix Alchemy before continuing.",
-    "After the controlled run, reassess CRM usability and continue toward phase_011 schema pruning/build and phase_012 demo smoke.",
-    "Track progress-aware timeout heartbeat/checkpointing as a later Alchemy optimization so active-progress workers can receive bounded grace instead of hard cutoff only."
+    "Commit and push V2.97 cumulative repair brief context changes.",
+    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_037 and starts from T009/T010/T011 with T007/T008 preserved as the copy-split tasks.",
+    "Monitor whether the next Alchemy workers advance phase_010 without broad replay or ID drift; if another controller issue appears, stop and fix Alchemy before continuing.",
+    "After phase_010 promotion, continue toward phase_011 schema pruning/build and phase_012 demo smoke, then reassess CRM deliverability.",
+    "Track progress-aware timeout heartbeat/checkpointing as a later Alchemy optimization."
   ],
   "tests_run": [
     "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_last.md \"Reply with exactly OK and nothing else.\" => passed",
@@ -205,7 +206,15 @@
     "Stopped Billing Core run_attempt_036 parent process tree before it replayed broad T009 for a full 900 second worker window; added supervisor_stop.json.",
     "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_remaining_closure_task -q => 2 passed",
     "python -B -m pytest tests/test_document_to_plan.py -q => 22 passed",
-    "Real phase_010 graph rebuild probe with phase_repair_006.md and phase_repair_007.md => T001-T008 completed and T009/T010/T011 split into shell-route, state-API, and view-workflow closure tasks without frontend/**."
+    "Real phase_010 graph rebuild probe with phase_repair_006.md and phase_repair_007.md => T001-T008 completed and T009/T010/T011 split into shell-route, state-API, and view-workflow closure tasks without frontend/**.",
+    "Stopped Billing Core run_attempt_037 parent process tree because latest-only repair context caused task-ID drift and false T008 preservation; added supervisor_stop.json.",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_reuses_newer_disk_repair_brief_when_phase_record_is_stale tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_reuses_recent_disk_repair_briefs_when_latest_depends_on_prior_split -q => 2 passed",
+    "Real phase_010 resume-source probe after run_attempt_037 stop => resume_from=None, active_run_dir=None, blockers=[]",
+    "Real phase_010 bootstrap probe with max_repair_documents=2 => phase_repair_006.md and phase_repair_007.md selected in order",
+    "Real phase_010 graph rebuild probe with bootstrapped repair docs => T001-T008 completed and T009/T010/T011 pending as shell-route, state-API, and view-workflow closure tasks",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 56 passed",
+    "git diff --check => passed with existing .codex-longrun CRLF warnings only after V2.97",
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.97"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -237,7 +246,8 @@
     "Before V2.93, a T007 timeout repair document could advise splitting/checkpointing, but the rebuilt graph still contained the same broad copy/i18n worker scope and could replay the 900 second timeout.",
     "Before V2.94, a supervisor-stopped parent run could leave a newer phase_repair_NNN.md on disk while phase_record.json stayed stale; full-roadmap relaunch then ignored the fresh repair brief and replayed the broad phase graph from T001.",
     "Before V2.95, focused repair briefs could list completed tasks to preserve, but the rebuilt graph still marked those tasks pending/ready and could redispatch already completed Billing Core work.",
-    "Before V2.96, a focused T009 timeout repair for the remaining frontend closure fallback still rebuilt one broad frontend/** task, so Alchemy could spend another full worker window replaying the same over-wide scope even after preserving T001-T008."
+    "Before V2.96, a focused T009 timeout repair for the remaining frontend closure fallback still rebuilt one broad frontend/** task, so Alchemy could spend another full worker window replaying the same over-wide scope even after preserving T001-T008.",
+    "Before V2.97, full-roadmap relaunches reused only the newest ordinary repair brief, so a later T009 repair could lose the earlier T007/T008 split context and apply Completed tasks to preserve to drifted task IDs."
   ],
   "blockers": [],
   "done_criteria": [
@@ -245,7 +255,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T21:19:00+08:00",
+  "last_verified_at": "2026-06-27T21:36:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T21:19:00+08:00"
+  "updated_at": "2026-06-27T21:36:00+08:00"
 }

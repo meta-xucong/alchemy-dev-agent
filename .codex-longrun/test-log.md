@@ -3024,6 +3024,40 @@
 - result: `26 passed`
 - next verification command: full-roadmap regression.
 
+## 2026-06-27T21:34:00+08:00 V2.97 cumulative repair brief context verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: stopped by supervisor for cumulative repair-context fix
+- relevant evidence: `run_attempt_037` used only `phase_repair_007.md`; T007 reverted to the broad copy task, and `Completed tasks to preserve: T008` marked the new shell/route closure task completed even though the preserved T008 evidence belonged to the prior view/component copy task.
+- fix attempted: added `run_attempt_037/supervisor_stop.json` and changed full-roadmap bootstrap to pass recent ordinary repair briefs up to the configured limit.
+- next verification command: focused full-roadmap repair-brief regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_reuses_newer_disk_repair_brief_when_phase_record_is_stale tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_reuses_recent_disk_repair_briefs_when_latest_depends_on_prior_split -q`
+- result: `2 passed`
+- next verification command: real Billing Core resume-source and bootstrap probes.
+
+- command: real `interrupted_phase_resume_source(...)` probe against phase_010
+- result: passed with `resume_from=None`, `active_run_dir=None`, and `blockers=[]`.
+- next verification command: real bootstrap probe.
+
+- command: real `bootstrap_phase_repair_documents(...)` probe against phase_010 with `max_repair_documents=2`
+- result: passed
+- relevant evidence: bootstrap returns `phase_repair_006.md` and `phase_repair_007.md`.
+- next verification command: real graph rebuild probe.
+
+- command: real phase_010 graph rebuild probe using bootstrapped repair documents
+- result: passed
+- relevant evidence: graph marks T001-T008 completed and leaves T009-T011 pending as shell/route, state/API, and view workflow closure tasks.
+- next verification command: full regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `56 passed`
+- next verification command: document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `22 passed`
+- next verification command: py_compile, diff check, and state validation.
+
 ## 2026-06-27T21:19:00+08:00 V2.96 final verification
 
 - command: `git diff --check`

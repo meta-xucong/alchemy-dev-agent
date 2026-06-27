@@ -1435,6 +1435,16 @@ task with smaller shell/route, state/API, and view/component workflow tasks.
 
 See `docs/105_v2_96_split_remaining_frontend_closure_timeout.md`.
 
+## V2.97 Cumulative Repair Brief Context
+
+V2.97 makes full-roadmap relaunches pass recent ordinary repair briefs, not
+only the newest one, when those briefs are newer than the phase record. This
+preserves earlier split context such as `phase_repair_006.md` while applying a
+newer timeout repair such as `phase_repair_007.md`, preventing completed-task
+preservation from drifting onto a different task ID.
+
+See `docs/106_v2_97_cumulative_repair_brief_context.md`.
+
 Run a smoke execution:
 
 ```bash

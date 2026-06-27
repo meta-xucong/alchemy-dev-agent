@@ -790,12 +790,12 @@ def bootstrap_phase_repair_documents(
 
 
 def latest_existing_phase_repair_documents(phase_dir: Path, *, max_repair_documents: int) -> list[str]:
-    """Return the newest on-disk repair brief when it is newer than the phase record.
+    """Return recent on-disk repair briefs when they are newer than the phase record.
 
     A supervisor may stop a parent run after it writes ``phase_repair_NNN.md``
     but before it refreshes ``phase_record.json``. On the next full-roadmap
     launch, the stale phase record cannot carry the fresh blocker evidence, so
-    the newest ordinary repair brief must be handed to the document runner.
+    recent ordinary repair briefs must be handed to the document runner.
     """
 
     if max_repair_documents <= 0:
@@ -815,8 +815,8 @@ def latest_existing_phase_repair_documents(phase_dir: Path, *, max_repair_docume
         candidates.append(candidate)
     if not candidates:
         return []
-    latest = max(candidates, key=lambda path: path.stat().st_mtime)
-    return [str(latest.resolve())]
+    latest_candidates = sorted(candidates, key=lambda path: (path.stat().st_mtime, path.name))[-max_repair_documents:]
+    return [str(path.resolve()) for path in latest_candidates]
 
 
 def next_phase_repair_resume_path(phase_dir: Path) -> Path:

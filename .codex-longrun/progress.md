@@ -1510,3 +1510,10 @@ PY"`
 - Implemented V2.96 in `planner/task_graph_builder.py`: focused T009 timeout repair now splits the remaining frontend closure fallback into shell/route, state/API, and view/component closure tasks, and filters `frontend/**` out of timeout-split relevant files.
 - Real Billing Core graph probe using `phase_requirements.md`, `phase_repair_006.md`, and `phase_repair_007.md` now shows T001-T008 completed and T009-T011 pending as three narrower implementation tasks.
 - Current token-cost judgment: repeated T001 labels are normal per-attempt planning nodes, but the recent high cost came from Alchemy recovery/debug gaps, not from an unavoidable property of Alchemy development.
+
+## 2026-06-27T21:34:00+08:00 V2.97 Cumulative Repair Brief Context
+
+- Relaunched Billing Core after V2.96 and found a new recovery issue in `run_attempt_037`: the run no longer replayed broad T009, but it used only `phase_repair_007.md` and lost `phase_repair_006.md`'s T007/T008 split context.
+- Because task IDs shifted, `Completed tasks to preserve: T008` marked the new shell/route closure task completed even though completed T008 evidence referred to the prior view/component copy task. I stopped `run_attempt_037` and added `supervisor_stop.json`.
+- Implemented V2.97 in `autodev/full_roadmap_executor.py`: relaunch bootstrap now passes recent ordinary repair briefs, ordered from older to newer, up to the configured repair-document limit.
+- Real phase_010 bootstrap now returns `phase_repair_006.md` and `phase_repair_007.md`; the rebuilt graph preserves T001-T008 correctly and leaves T009-T011 pending as the three remaining closure tasks.

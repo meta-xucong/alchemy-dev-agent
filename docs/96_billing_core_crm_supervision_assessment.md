@@ -358,6 +358,29 @@ split behavior while using a large legacy project as the integration test.
 Those fixes are exactly the work needed to make later Alchemy development
 cheaper than manual chapter-by-chapter Codex supervision.
 
+## 2026-06-27 V2.97 Follow-Up
+
+After V2.96, `run_attempt_037` proved the run no longer resumed the old broad
+T009 task, but it exposed a subtler recovery problem. The relaunch passed only
+`phase_repair_007.md`, not the earlier `phase_repair_006.md` that had split
+the broad copy task into T007 and T008.
+
+That caused task IDs to drift. `Completed tasks to preserve: T008` was applied
+to a newly generated shell/route closure task, even though the real completed
+T008 was the previous view/component copy task. I stopped `run_attempt_037`
+before Alchemy could continue on a falsely completed graph.
+
+V2.97 changes the full-roadmap bootstrap to pass recent ordinary repair briefs
+up to the configured repair-document limit. The real phase_010 probe now passes
+both `phase_repair_006.md` and `phase_repair_007.md`, preserving T001 through
+T008 correctly and leaving T009 through T011 pending as the three remaining
+frontend closure tasks.
+
+This is a newly discovered issue from the interrupted/restarted supervision
+cycle. It reinforces the main conclusion: the token overrun has come from
+making Alchemy remember and reuse context that a human supervisor would keep in
+working memory, not from an inherent impossibility of agentic development.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable
