@@ -1445,6 +1445,16 @@ preservation from drifting onto a different task ID.
 
 See `docs/106_v2_97_cumulative_repair_brief_context.md`.
 
+## V2.98 Repair Context Budget
+
+V2.98 separates historical repair context from the current parent run's new
+repair budget. Existing repair briefs can be passed to preserve graph context
+without consuming the allowance for newly generated repair documents, and
+blocked-phase resume briefs now carry recent ordinary repair context even when
+`phase_record.json` is newer.
+
+See `docs/107_v2_98_repair_context_budget.md`.
+
 Run a smoke execution:
 
 ```bash

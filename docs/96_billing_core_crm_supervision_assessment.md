@@ -381,6 +381,24 @@ cycle. It reinforces the main conclusion: the token overrun has come from
 making Alchemy remember and reuse context that a human supervisor would keep in
 working memory, not from an inherent impossibility of agentic development.
 
+## 2026-06-27 V2.98 Follow-Up
+
+After V2.97, `run_attempt_038` finally resumed on the correct cumulative graph.
+It preserved T001 through T008, completed T009 shell/route closure, then hit
+the 900 second timeout on T010 state/API closure.
+
+The timeout behavior itself was correct: no debug task, no same-scope retry,
+and a non-partial `technical_limit` blocker. The new framework issue was that
+the parent did not write `phase_repair_008.md`, because the two historical
+repair context docs consumed the same count as newly generated repair docs.
+
+V2.98 separates those concepts. Historical repair context no longer consumes
+the current parent run's new-repair budget, and blocked-phase resume briefs
+also include recent ordinary repair context even when `phase_record.json` is
+newer. The next relaunch should be able to carry 006/007 context, generate a
+focused T010 repair, and split the state/API closure task instead of losing
+the graph again.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

@@ -1517,3 +1517,10 @@ PY"`
 - Because task IDs shifted, `Completed tasks to preserve: T008` marked the new shell/route closure task completed even though completed T008 evidence referred to the prior view/component copy task. I stopped `run_attempt_037` and added `supervisor_stop.json`.
 - Implemented V2.97 in `autodev/full_roadmap_executor.py`: relaunch bootstrap now passes recent ordinary repair briefs, ordered from older to newer, up to the configured repair-document limit.
 - Real phase_010 bootstrap now returns `phase_repair_006.md` and `phase_repair_007.md`; the rebuilt graph preserves T001-T008 correctly and leaves T009-T011 pending as the three remaining closure tasks.
+
+## 2026-06-27T22:06:00+08:00 V2.98 Repair Context Budget
+
+- Relaunched Billing Core after V2.97. `run_attempt_038` used the correct cumulative graph, preserved T001-T008, completed T009 shell/route closure, and then timed out on T010 state/API closure at the 900 second worker budget.
+- The timeout stop behavior was correct, but the parent did not write `phase_repair_008.md` because historical context docs `phase_repair_006.md` and `phase_repair_007.md` consumed the same limit used for newly generated repair docs.
+- Implemented V2.98 in `autodev/full_roadmap_executor.py`: historical repair context no longer consumes the current parent run's new-repair budget, and blocked-phase resume docs include recent ordinary repair context even when `phase_record.json` is newer.
+- Current next step: commit/push V2.98, relaunch Billing Core through Alchemy, confirm it carries 006/007 context and generates/follows a focused T010 repair instead of stopping at the context-doc limit.

@@ -251,6 +251,7 @@ class FullRoadmapExecutor:
                 previous_record=previous_phase_record,
                 max_repair_documents=max_phase_repair_attempts,
             )
+            new_repair_documents_written = 0
             attempt_records: list[dict[str, object]] = []
             phase_payload: dict[str, object] = {}
             promotion: dict[str, object] = {}
@@ -315,7 +316,7 @@ class FullRoadmapExecutor:
                     blockers.extend(str(item) for item in promotion.get("reasons", []) or [])
                     break
                 repair_attempt_index = len(repair_documents) + 1
-                if repair_attempt_index > max_phase_repair_attempts:
+                if new_repair_documents_written >= max_phase_repair_attempts:
                     phase.status = "blocked"
                     blockers.extend(str(item) for item in promotion.get("reasons", []) or [])
                     blockers.append(
@@ -331,6 +332,7 @@ class FullRoadmapExecutor:
                     attempt_index=repair_attempt_index,
                 )
                 repair_documents.append(repair_document)
+                new_repair_documents_written += 1
             record = PhaseExecutionRecord(
                 phase_id=phase.phase_id,
                 title=phase.title,
@@ -765,7 +767,9 @@ def bootstrap_phase_repair_documents(
 ) -> list[str]:
     """Seed a resumed blocked phase with the previous blocker evidence."""
 
-    if max_repair_documents <= 0 or previous_record is None:
+    if max_repair_documents <= 0:
+        return []
+    if previous_record is None:
         return latest_existing_phase_repair_documents(phase_dir, max_repair_documents=max_repair_documents)
     existing_documents = latest_existing_phase_repair_documents(
         phase_dir,
@@ -777,19 +781,32 @@ def bootstrap_phase_repair_documents(
         return []
     if not should_auto_repair_phase(previous_record.promotion, previous_record.result):
         return []
+    context_documents = latest_existing_phase_repair_documents(
+        phase_dir,
+        max_repair_documents=max_repair_documents,
+        require_newer_than_phase_record=False,
+    )
     path = next_phase_repair_resume_path(phase_dir)
-    return [
-        write_phase_repair_document(
-            path,
-            phase=phase,
-            result=previous_record.result,
-            promotion=previous_record.promotion,
-            attempt_index=1,
-        )
-    ]
+    return dedupe_strings(
+        [
+            *context_documents,
+            write_phase_repair_document(
+                path,
+                phase=phase,
+                result=previous_record.result,
+                promotion=previous_record.promotion,
+                attempt_index=1,
+            ),
+        ]
+    )
 
 
-def latest_existing_phase_repair_documents(phase_dir: Path, *, max_repair_documents: int) -> list[str]:
+def latest_existing_phase_repair_documents(
+    phase_dir: Path,
+    *,
+    max_repair_documents: int,
+    require_newer_than_phase_record: bool = True,
+) -> list[str]:
     """Return recent on-disk repair briefs when they are newer than the phase record.
 
     A supervisor may stop a parent run after it writes ``phase_repair_NNN.md``
@@ -810,7 +827,7 @@ def latest_existing_phase_repair_documents(phase_dir: Path, *, max_repair_docume
             candidate_mtime = candidate.stat().st_mtime
         except OSError:
             continue
-        if record_mtime and candidate_mtime <= record_mtime:
+        if require_newer_than_phase_record and record_mtime and candidate_mtime <= record_mtime:
             continue
         candidates.append(candidate)
     if not candidates:

@@ -3058,6 +3058,30 @@
 - result: `22 passed`
 - next verification command: py_compile, diff check, and state validation.
 
+## 2026-06-27T22:06:00+08:00 V2.98 repair context budget verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: stopped after correct timeout boundary on T010
+- relevant evidence: `run_attempt_038` preserved T001-T008 correctly, completed T009 shell/route closure, then T010 state/API closure timed out at 900s with a non-partial technical blocker and no debug/retry. No `phase_repair_008.md` was written because existing 006/007 context docs consumed the repair limit.
+- fix attempted: separated historical repair context from new repair budget and made blocked-phase resume docs include recent ordinary repair context even when `phase_record.json` is newer.
+- next verification command: focused V2.98 regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_blocked_phase_resume_keeps_recent_repair_context_even_when_record_is_newer tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_existing_repair_context_does_not_exhaust_new_repair_budget -q`
+- result: `2 passed`
+- next verification command: full-roadmap and document-to-plan regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `58 passed`
+- next verification command: document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `22 passed`
+- next verification command: py_compile, diff check, and state validation.
+
+- command: `python -B -m py_compile autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: diff check and state validation.
+
 ## 2026-06-27T21:19:00+08:00 V2.96 final verification
 
 - command: `git diff --check`

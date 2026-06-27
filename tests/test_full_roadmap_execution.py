@@ -13,6 +13,7 @@ from autodev.document_reference_expander import expand_development_documents
 from autodev.full_roadmap_executor import (
     FullRoadmapExecutor,
     blockers_are_auto_repairable,
+    bootstrap_phase_repair_documents,
     interrupted_phase_resume_source,
     next_phase_repair_path,
     next_phase_run_dir,
@@ -1482,6 +1483,140 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn(str(repair_007.resolve()), docs)
         self.assertLess(docs.index(str(repair_006.resolve())), docs.index(str(repair_007.resolve())))
         self.assertFalse(any("phase_repair_resume_" in item for item in docs), docs)
+
+    def test_blocked_phase_resume_keeps_recent_repair_context_even_when_record_is_newer(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_010"
+        phase_dir.mkdir()
+        record_path = phase_dir / "phase_record.json"
+        write_json(record_path, {"phase_id": "phase_010", "status": "blocked"})
+        for name, task_id in (("phase_repair_006.md", "T007"), ("phase_repair_007.md", "T009")):
+            (phase_dir / name).write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        f"- Primary failed task IDs: {task_id}.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+        old_time = time.time() - 60
+        os.utime(phase_dir / "phase_repair_006.md", (old_time, old_time))
+        os.utime(phase_dir / "phase_repair_007.md", (old_time + 10, old_time + 10))
+        new_time = time.time()
+        os.utime(record_path, (new_time, new_time))
+        previous_record = PhaseExecutionRecord(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            status="blocked",
+            output_dir=str(phase_dir / "run_attempt_038"),
+            result={
+                "status": "blocked",
+                "runtime_state": {
+                    "blockers": [
+                        {
+                            "type": "technical_limit",
+                            "description": "T010 exceeded the Codex worker timeout.",
+                            "task_ids": ["T010"],
+                        }
+                    ]
+                },
+            },
+            promotion={"can_promote": False, "reasons": ["Phase has blockers."]},
+        )
+
+        docs = bootstrap_phase_repair_documents(
+            phase_dir,
+            phase=RoadmapPhase(phase_id="phase_010", title="Frontend CRM Closure", requirements=[]),
+            previous_record=previous_record,
+            max_repair_documents=2,
+        )
+
+        names = [Path(item).name for item in docs]
+        self.assertEqual(names, ["phase_repair_006.md", "phase_repair_007.md", "phase_repair_resume_001.md"])
+
+    def test_existing_repair_context_does_not_exhaust_new_repair_budget(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        output = root / "run"
+        phase_dir = output / "phases" / "phase_010"
+        phase_dir.mkdir(parents=True)
+        plan = RoadmapExecutionPlan(
+            root_objective="Convert Billing Core into an independent CRM system.",
+            phases=[
+                RoadmapPhase(
+                    phase_id="phase_010",
+                    title="Frontend CRM Closure",
+                    requirements=["Close frontend CRM workflows."],
+                )
+            ],
+            confidence=0.9,
+        )
+        write_json(output / "roadmap_execution_plan.json", plan.to_dict())
+        write_json(output / "roadmap_audit.json", {"status": "passed", "issues": []})
+        write_json(output / "project_analysis_report.json", {"ready_to_start": True})
+        stale_record = phase_dir / "phase_record.json"
+        write_json(
+            stale_record,
+            {
+                "phase_id": "phase_010",
+                "title": "Frontend CRM Closure",
+                "status": "blocked",
+                "result": {"status": "blocked", "runtime_state": {"blockers": []}},
+                "promotion": {"can_promote": False, "reasons": ["Phase has blockers."]},
+            },
+        )
+        for index in range(1, 6):
+            (phase_dir / f"phase_repair_{index:03d}.md").write_text("older repair\n", encoding="utf-8")
+        for name, task_id in (("phase_repair_006.md", "T007"), ("phase_repair_007.md", "T009")):
+            (phase_dir / name).write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        f"- Primary failed task IDs: {task_id}.",
+                        "- Completed tasks to preserve: T001, T002, T003, T004, T005, T006.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+        old_time = time.time() - 90
+        os.utime(stale_record, (old_time, old_time))
+        for index in range(1, 6):
+            os.utime(phase_dir / f"phase_repair_{index:03d}.md", (old_time - index, old_time - index))
+        os.utime(phase_dir / "phase_repair_006.md", (time.time() - 30, time.time() - 30))
+        os.utime(phase_dir / "phase_repair_007.md", (time.time() - 10, time.time() - 10))
+
+        calls: list[list[str]] = []
+
+        def repair_then_pass_runner(**kwargs):
+            docs = [str(item) for item in kwargs["documents"]]
+            calls.append(docs)
+            if any("phase_repair_008.md" in item for item in docs):
+                return FakePhaseResult("resumed with newly generated repair")
+            return FakePhaseResult(
+                "blocked before new repair",
+                score=0.2,
+                blockers=["T010 exceeded the Codex worker timeout."],
+            )
+
+        result = FullRoadmapExecutor(document_runner=repair_then_pass_runner).run(
+            objective="Convert Billing Core into an independent CRM system.",
+            documents=[],
+            repository_path=repo,
+            output_dir=output,
+            run_payload={"max_phase_repair_attempts": 2},
+        )
+
+        self.assertEqual(result.status, "done")
+        self.assertGreaterEqual(len(calls), 2)
+        self.assertTrue((phase_dir / "phase_repair_008.md").exists())
+        self.assertTrue(any("phase_repair_008.md" in item for item in calls[-1]))
+        self.assertFalse(any("Phase auto-repair limit reached" in blocker for blocker in result.blockers))
 
     def test_phase_repair_distinguishes_technical_and_environment_blockers(self) -> None:
         self.assertTrue(
