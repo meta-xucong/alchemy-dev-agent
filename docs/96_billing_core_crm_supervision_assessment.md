@@ -334,6 +334,30 @@ through T006 completed and T007/T008/T009 pending.
 This means the next controlled resume should skip the repeated T002-T006
 frontend work and start from the split copy/i18n repair boundary.
 
+## 2026-06-27 V2.96 Follow-Up
+
+The V2.95 relaunch confirmed that completed-task preservation worked. In
+`run_attempt_035`, T001 through T008 were all completed or preserved, and the
+new split copy tasks T007 and T008 both finished. The remaining broad T009
+frontend closure task then hit the 900 second timeout.
+
+The next launch, `run_attempt_036`, did not go back to T002-T006; that part was
+fixed. But it still recreated the same broad T009 task from `frontend/**`
+instead of following `phase_repair_007.md`'s instruction to split or checkpoint
+before replay. I stopped that run before it spent the full worker window.
+
+V2.96 splits focused T009 timeout repair into shell/route, state/API, and
+view/component closure tasks. The real phase_010 graph probe now shows T001
+through T008 completed and T009 through T011 pending as narrower work packages.
+
+Current token-cost judgment: many T001 nodes are normal because each attempt
+has a planning task, but the recent high cost is not the expected mature
+Alchemy baseline. It came from bootstrapping Alchemy's resume, repair-brief,
+completed-task preservation, usage-limit detection, Windows worker, and timeout
+split behavior while using a large legacy project as the integration test.
+Those fixes are exactly the work needed to make later Alchemy development
+cheaper than manual chapter-by-chapter Codex supervision.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

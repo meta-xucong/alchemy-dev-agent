@@ -1426,6 +1426,15 @@ T002-T006 work again.
 
 See `docs/104_v2_95_preserve_completed_repair_tasks.md`.
 
+## V2.96 Split Remaining Frontend Closure Timeout
+
+V2.96 extends timeout repair splitting to the fallback remaining-frontend
+closure task. When focused repair evidence says T009 timed out and should be
+split or checkpointed, Alchemy now replaces the broad `frontend/**` closure
+task with smaller shell/route, state/API, and view/component workflow tasks.
+
+See `docs/105_v2_96_split_remaining_frontend_closure_timeout.md`.
+
 Run a smoke execution:
 
 ```bash

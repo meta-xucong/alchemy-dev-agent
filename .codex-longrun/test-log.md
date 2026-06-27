@@ -3024,6 +3024,48 @@
 - result: `26 passed`
 - next verification command: full-roadmap regression.
 
+## 2026-06-27T21:19:00+08:00 V2.96 final verification
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.96, then relaunch Billing Core through Alchemy.
+
+## 2026-06-27T21:17:00+08:00 V2.96 split remaining frontend closure timeout verification
+
+- command: Billing Core process audit for `.alchemy\billing_core_v274_20260624_012`
+- result: `run_attempt_036` had active broad `T009 Complete remaining frontend closure requirements` with worker PID 20860; stopped the probe parent process tree before the 900 second timeout window elapsed.
+- fix attempted: added `run_attempt_036/supervisor_stop.json` and implemented T009 timeout splitting in the planner.
+- next verification command: focused document-to-plan timeout split regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_remaining_closure_task -q`
+- result: `2 passed`
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `22 passed`
+- next verification command: targeted py_compile.
+
+- command: `python -B -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py`
+- result: passed
+- next verification command: real Billing Core graph rebuild probe.
+
+- command: real phase_010 graph rebuild probe using `phase_requirements.md`, `phase_repair_006.md`, and `phase_repair_007.md`
+- result: passed
+- relevant evidence: graph marks T001-T008 completed and replaces broad T009 with `Complete remaining frontend shell and route closure`, `Complete remaining frontend state and API closure`, and `Complete remaining frontend view workflow closure`; none of those tasks contains `frontend/**`.
+- next verification command: document-run pipeline and full-roadmap regressions.
+
+- command: `python -B -m pytest tests/test_document_run_pipeline.py -q`
+- result: `26 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `55 passed`
+- next verification command: diff check and long-run state validation.
+
 - command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
 - result: `55 passed`
 - next verification command: py_compile, diff check, and state validation.

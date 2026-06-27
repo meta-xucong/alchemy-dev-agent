@@ -1502,3 +1502,11 @@ PY"`
 - Found a remaining efficiency/regression risk: after T001 completed, the graph still dispatched T002 even though the repair brief said `Completed tasks to preserve: T001, T002, T003, T004, T005, T006`. I stopped `run_attempt_034` and added `supervisor_stop.json` before it could spend more time rerunning completed frontend work.
 - Implemented V2.95 in `planner/task_graph_builder.py`: focused repair briefs now mark listed completed task IDs as completed in the rebuilt graph and attach `focused_repair_preserved_task` evidence.
 - Real Billing Core graph probe now shows T001-T006 completed, with T007/T008/T009 pending. The next relaunch should skip repeated T002-T006 work and continue from the split timeout repair boundary.
+
+## 2026-06-27T21:17:00+08:00 V2.96 Split Remaining Frontend Closure Timeout
+
+- Audited the post-V2.95 Billing Core attempts. `run_attempt_035` completed T007 and T008 after preserving T001-T006, then timed out on `T009 Complete remaining frontend closure requirements`.
+- `phase_repair_007.md` correctly said to preserve T001-T008 and split/checkpoint before replaying T009, but `run_attempt_036` still rebuilt one broad T009 task with `frontend/**`. I stopped `run_attempt_036` before it spent another full worker window and added `supervisor_stop.json`.
+- Implemented V2.96 in `planner/task_graph_builder.py`: focused T009 timeout repair now splits the remaining frontend closure fallback into shell/route, state/API, and view/component closure tasks, and filters `frontend/**` out of timeout-split relevant files.
+- Real Billing Core graph probe using `phase_requirements.md`, `phase_repair_006.md`, and `phase_repair_007.md` now shows T001-T008 completed and T009-T011 pending as three narrower implementation tasks.
+- Current token-cost judgment: repeated T001 labels are normal per-attempt planning nodes, but the recent high cost came from Alchemy recovery/debug gaps, not from an unavoidable property of Alchemy development.

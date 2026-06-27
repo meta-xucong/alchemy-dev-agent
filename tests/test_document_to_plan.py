@@ -1033,6 +1033,111 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("frontend/src/components/**", view_task["relevant_files"])
         self.assertIn("frontend/src/constants/**", view_task["relevant_files"])
 
+    def test_large_refactor_frontend_timeout_repair_splits_remaining_closure_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend").mkdir(parents=True)
+            (repo / "frontend" / "src" / "api").mkdir(parents=True)
+            (repo / "frontend" / "src" / "components" / "layout").mkdir(parents=True)
+            (repo / "frontend" / "src" / "composables").mkdir(parents=True)
+            (repo / "frontend" / "src" / "constants").mkdir(parents=True)
+            (repo / "frontend" / "src" / "i18n").mkdir(parents=True)
+            (repo / "frontend" / "src" / "router").mkdir(parents=True)
+            (repo / "frontend" / "src" / "stores").mkdir(parents=True)
+            (repo / "frontend" / "src" / "views").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps({"scripts": {"test": "vitest run"}}),
+                encoding="utf-8",
+            )
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase: Frontend closure",
+                        "## Requirements",
+                        "- Must close frontend router, menu, and direct pages.",
+                        "- Must clean frontend API service references.",
+                        "- Must convert wallet recharge, payment provider, and order surfaces.",
+                        "- Must convert redeem code pages to balance-only flows.",
+                        "- Must close usage API key and admin users workflows.",
+                        "- Must sweep token relay product copy and i18n.",
+                        "- Must close residual CRM frontend usability gaps and visible escape hatches.",
+                        "",
+                        "## Boundary Mode",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair = root / "phase_repair_t009_timeout.md"
+            repair.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        "## Focused Repair Scope",
+                        "- Primary failed task IDs: T009.",
+                        "- Completed tasks to preserve: T007, T008, T001, T002, T003, T004, T005, T006.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T009 - Complete remaining frontend closure requirements",
+                        "- Previous relevant files: frontend/**, frontend/package.json.",
+                        "- Worker summary: Codex worker timed out after 900 seconds.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core remaining frontend closure timeout.",
+                documents=[phase, repair],
+                repository_path=repo,
+                created_at="2026-06-27T21:20:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        titles = [node["title"] for node in implementation_nodes]
+        self.assertNotIn("Complete remaining frontend closure requirements", titles)
+        self.assertIn("Complete remaining frontend shell and route closure", titles)
+        self.assertIn("Complete remaining frontend state and API closure", titles)
+        self.assertIn("Complete remaining frontend view workflow closure", titles)
+
+        nodes_by_id = {node["id"]: node for node in graph["nodes"]}
+        for task_id in ("T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008"):
+            self.assertEqual(nodes_by_id[task_id]["status"], "completed")
+            self.assertTrue(
+                any(item["type"] == "focused_repair_preserved_task" for item in nodes_by_id[task_id]["evidence"])
+            )
+        for task_id in ("T009", "T010", "T011"):
+            self.assertEqual(nodes_by_id[task_id]["status"], "pending")
+            self.assertNotIn("frontend/**", nodes_by_id[task_id]["relevant_files"])
+
+        shell_task = next(
+            node for node in implementation_nodes if node["title"] == "Complete remaining frontend shell and route closure"
+        )
+        self.assertIn("frontend/src/router/**", shell_task["relevant_files"])
+        self.assertIn("frontend/src/components/layout/**", shell_task["relevant_files"])
+
+        state_task = next(
+            node for node in implementation_nodes if node["title"] == "Complete remaining frontend state and API closure"
+        )
+        self.assertIn("frontend/src/api/**", state_task["relevant_files"])
+        self.assertIn("frontend/src/composables/**", state_task["relevant_files"])
+        self.assertIn("frontend/src/constants/**", state_task["relevant_files"])
+
+        view_task = next(
+            node for node in implementation_nodes if node["title"] == "Complete remaining frontend view workflow closure"
+        )
+        self.assertIn("frontend/src/views/**", view_task["relevant_files"])
+        self.assertIn("frontend/src/components/**", view_task["relevant_files"])
+
     def test_docs_only_scope_builds_documentation_task_with_lightweight_verification(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

@@ -862,6 +862,55 @@ FRONTEND_COPY_SWEEP_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+FRONTEND_REMAINING_CLOSURE_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Complete remaining frontend shell and route closure",
+        "description": (
+            "Close residual frontend app-shell, router, layout, navigation, and direct-entry gaps left after "
+            "the more specific frontend workflow tasks."
+        ),
+        "files": (
+            "frontend/src/router/**",
+            "frontend/src/layouts/**",
+            "frontend/src/components/layout/**",
+            "frontend/src/App.vue",
+            "frontend/src/main.ts",
+            "frontend/src/i18n/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Complete remaining frontend state and API closure",
+        "description": (
+            "Close residual frontend API, store, composable, type, utility, and constant gaps left after the "
+            "more specific frontend workflow tasks."
+        ),
+        "files": (
+            "frontend/src/api/**",
+            "frontend/src/stores/**",
+            "frontend/src/composables/**",
+            "frontend/src/constants/**",
+            "frontend/src/types/**",
+            "frontend/src/utils/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Complete remaining frontend view workflow closure",
+        "description": (
+            "Close residual frontend view, component, and style workflow gaps left after the more specific "
+            "frontend workflow tasks."
+        ),
+        "files": (
+            "frontend/src/views/**",
+            "frontend/src/components/**",
+            "frontend/src/styles/**",
+            "frontend/package.json",
+        ),
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -872,6 +921,12 @@ def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple
         else:
             specs.append(spec)
     return tuple(specs)
+
+
+def frontend_remaining_closure_timeout_split_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
+    if not focused_timeout_repair_for_task(requirements, "T009"):
+        return ()
+    return FRONTEND_REMAINING_CLOSURE_TIMEOUT_SPLIT_TASK_SPECS
 
 
 def focused_timeout_repair_for_task(requirements: list[Requirement], task_id: str) -> bool:
@@ -972,33 +1027,66 @@ def large_refactor_frontend_nodes(
 
     remaining_requirements = [requirement for requirement in requirements if requirement.id not in matched_requirement_ids]
     if remaining_requirements:
-        task_id = f"T{task_index:03d}"
-        for requirement in remaining_requirements:
-            requirement_task_ids.setdefault(requirement.id, task_id)
-        nodes.append(
-            TaskNode(
-                id=task_id,
-                title="Complete remaining frontend closure requirements",
-                description=frontend_large_refactor_description(
-                    "Implement frontend closure requirements that were not covered by a more specific workflow task.",
-                    remaining_requirements,
-                ),
-                type="frontend",
-                assigned_agent="frontend",
-                dependencies=["T001"],
-                completion_criteria=dedupe([criterion for item in remaining_requirements for criterion in item.acceptance_criteria])
-                or ["The remaining frontend requirements are implemented."],
-                relevant_files=frontend_large_refactor_relevant_files(
-                    ["frontend/**", "frontend/package.json"],
-                    remaining_requirements,
-                    scope_controls=scope_controls,
-                    fallback=base_relevant_files,
-                ),
-                commands_to_run=frontend_commands,
-                priority=max(priority_for_requirement(item) for item in remaining_requirements),
-                boundary_mode="large_refactor",
+        split_specs = frontend_remaining_closure_timeout_split_task_specs(requirements)
+        if split_specs:
+            for spec in split_specs:
+                task_id = f"T{task_index:03d}"
+                task_index += 1
+                for requirement in remaining_requirements:
+                    requirement_task_ids.setdefault(requirement.id, task_id)
+                nodes.append(
+                    TaskNode(
+                        id=task_id,
+                        title=str(spec["title"]),
+                        description=frontend_large_refactor_description(str(spec["description"]), remaining_requirements),
+                        type="frontend",
+                        assigned_agent="frontend",
+                        dependencies=["T001"],
+                        completion_criteria=dedupe(
+                            [criterion for item in remaining_requirements for criterion in item.acceptance_criteria]
+                        )
+                        or ["The remaining frontend requirements are implemented."],
+                        relevant_files=frontend_timeout_split_relevant_files(
+                            list(spec["files"]),
+                            remaining_requirements,
+                            scope_controls=scope_controls,
+                            fallback=base_relevant_files,
+                        ),
+                        commands_to_run=frontend_commands,
+                        priority=max(priority_for_requirement(item) for item in remaining_requirements),
+                        boundary_mode="large_refactor",
+                    )
+                )
+        else:
+            task_id = f"T{task_index:03d}"
+            for requirement in remaining_requirements:
+                requirement_task_ids.setdefault(requirement.id, task_id)
+            nodes.append(
+                TaskNode(
+                    id=task_id,
+                    title="Complete remaining frontend closure requirements",
+                    description=frontend_large_refactor_description(
+                        "Implement frontend closure requirements that were not covered by a more specific workflow task.",
+                        remaining_requirements,
+                    ),
+                    type="frontend",
+                    assigned_agent="frontend",
+                    dependencies=["T001"],
+                    completion_criteria=dedupe(
+                        [criterion for item in remaining_requirements for criterion in item.acceptance_criteria]
+                    )
+                    or ["The remaining frontend requirements are implemented."],
+                    relevant_files=frontend_large_refactor_relevant_files(
+                        ["frontend/**", "frontend/package.json"],
+                        remaining_requirements,
+                        scope_controls=scope_controls,
+                        fallback=base_relevant_files,
+                    ),
+                    commands_to_run=frontend_commands,
+                    priority=max(priority_for_requirement(item) for item in remaining_requirements),
+                    boundary_mode="large_refactor",
+                )
             )
-        )
 
     return nodes, requirement_task_ids
 
@@ -1023,6 +1111,23 @@ def frontend_large_refactor_relevant_files(
     ]
     files = dedupe([*base_files, *requirement_files, "frontend/package.json"])
     return scoped_files(files, scope_controls, fallback=fallback)
+
+
+def frontend_timeout_split_relevant_files(
+    base_files: list[str],
+    requirements: list[Requirement],
+    *,
+    scope_controls: dict[str, list[str]] | None,
+    fallback: list[str],
+) -> list[str]:
+    files = frontend_large_refactor_relevant_files(
+        base_files,
+        requirements,
+        scope_controls=scope_controls,
+        fallback=fallback,
+    )
+    narrowed = [file for file in files if normalize_repo_path(file) != "frontend/**"]
+    return narrowed or files
 
 
 def frontend_requirement_file(path: str) -> str:
