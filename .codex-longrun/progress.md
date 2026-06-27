@@ -1630,3 +1630,12 @@ PY"`
 - Added planner regression coverage for `phase_repair_002`-style schema-prune timeout repair.
 - Real phase_011 graph probes using `phase_repair_001.md`, `phase_repair_002.md`, and both repair docs now all produce T002-T006 as schema definition pruning, migration/server contract alignment, Ent regeneration, backend cleanup, and schema/build verification tasks, with no broad integration or repeated legacy schema-prune task.
 - Next step: commit/push V2.109, then relaunch Billing Core through the supervised Alchemy resume script and monitor that the next attempt starts from `Prune Ent schema definitions` in the inherited isolated worktree.
+
+## 2026-06-28T06:05:00+08:00 V2.110 Supervisor-Stopped Repair Doc Retention
+
+- Relaunched Billing Core after V2.109 and found a new full-roadmap bootstrap issue: `run_attempt_005` rebuilt a stale phase_011 graph with T001 active and `T002 Prune legacy Ent schemas and table contracts` pending, proving the parent did not pass existing repair docs into the document runner.
+- Stopped `run_attempt_005` with `supervisor_stop.json` before the stale T002 worker ran. The live marker controller cancelled T001 and no residual Billing Core Alchemy parent/worker process remained.
+- Implemented V2.110 in `autodev/full_roadmap_executor.py`: supervisor/operator-stopped previous attempts now retain existing ordinary `phase_repair_NNN.md` docs even when the newer `phase_record.json` would otherwise make them look stale.
+- Added a full-roadmap regression for supervisor-stopped records hiding older repair docs.
+- Real phase_011 bootstrap and graph probes after the stop now retain `phase_repair_001.md` and `phase_repair_002.md` and rebuild the correct second-level schema-prune split graph.
+- Next step: commit/push V2.110, relaunch Billing Core through Alchemy, and verify the next attempt starts from the split schema definition task instead of T001/legacy schema-prune replay.

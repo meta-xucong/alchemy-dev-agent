@@ -804,15 +804,25 @@ def bootstrap_phase_repair_documents(
     )
     if existing_documents:
         return existing_documents
-    if str(previous_record.status).lower() not in {"blocked", "failed"}:
-        return []
-    if not should_auto_repair_phase(previous_record.promotion, previous_record.result):
-        return []
     context_documents = latest_existing_phase_repair_documents(
         phase_dir,
         max_repair_documents=max_repair_documents,
         require_newer_than_phase_record=False,
     )
+    previous_output_dir = Path(previous_record.output_dir)
+    if previous_output_dir.exists() and supervisor_stop_marker_exists(previous_output_dir):
+        stopped_attempt_context = latest_supervisor_stopped_attempt_context_document(
+            phase_dir,
+            phase=phase,
+        )
+        if stopped_attempt_context:
+            return dedupe_strings([*context_documents, stopped_attempt_context])
+        if context_documents:
+            return context_documents
+    if str(previous_record.status).lower() not in {"blocked", "failed"}:
+        return []
+    if not should_auto_repair_phase(previous_record.promotion, previous_record.result):
+        return []
     stopped_attempt_context = latest_supervisor_stopped_attempt_context_document(
         phase_dir,
         phase=phase,

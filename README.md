@@ -1558,6 +1558,15 @@ the same T002 scope again.
 
 See `docs/118_v2_109_schema_prune_second_timeout_split.md`.
 
+## V2.110 Supervisor-Stopped Repair Doc Retention
+
+V2.110 keeps existing phase repair briefs when a newer
+`supervisor_stop.json`/`operator_stop.json` phase record would otherwise hide
+them. This prevents a guarded stop from wiping the focused repair context and
+restarting a phase from the original broad requirements.
+
+See `docs/119_v2_110_supervisor_stopped_repair_doc_retention.md`.
+
 Run a smoke execution:
 
 ```bash
