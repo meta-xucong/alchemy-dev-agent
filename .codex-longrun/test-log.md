@@ -3070,6 +3070,28 @@
 - result: `58 passed`
 - next verification command: diff check, state validation, commit/push, then controlled Billing Core relaunch.
 
+## 2026-06-27T23:09:00+08:00 V2.102 supervisor-stopped completion context verification
+
+- command: real phase_010 bootstrap and graph probe after run_attempt_040 supervisor stop
+- result: first probe exposed task-ID drift risk; fixed bootstrap and focused timeout task-list parsing, then real graph rebuilt with T001-T011 completed and T012/T013 pending.
+- next verification command: focused planner/full-roadmap regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_supervisor_stopped_attempt_context_preserves_newer_completed_tasks -q`
+- result: `1 passed`
+- next verification command: focused planner and full-roadmap split regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_focused_timeout_repair_matches_task_inside_primary_failed_id_list tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_supervisor_stopped_attempt_context_preserves_newer_completed_tasks -q`
+- result: `3 passed`
+- next verification command: full planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `24 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `59 passed`
+- next verification command: diff check, state validation, commit/push, then controlled Billing Core relaunch.
+
 ## 2026-06-27T21:34:00+08:00 V2.97 cumulative repair brief context verification
 
 - command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`

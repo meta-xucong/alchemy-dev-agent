@@ -786,6 +786,12 @@ def bootstrap_phase_repair_documents(
         max_repair_documents=max_repair_documents,
         require_newer_than_phase_record=False,
     )
+    stopped_attempt_context = latest_supervisor_stopped_attempt_context_document(
+        phase_dir,
+        phase=phase,
+    )
+    if stopped_attempt_context:
+        return dedupe_strings([*context_documents, stopped_attempt_context])
     path = next_phase_repair_resume_path(phase_dir)
     return dedupe_strings(
         [
@@ -834,6 +840,132 @@ def latest_existing_phase_repair_documents(
         return []
     latest_candidates = sorted(candidates, key=lambda path: (path.stat().st_mtime, path.name))[-max_repair_documents:]
     return [str(path.resolve()) for path in latest_candidates]
+
+
+def latest_supervisor_stopped_attempt_context_document(
+    phase_dir: Path,
+    *,
+    phase: RoadmapPhase,
+) -> str:
+    """Write repair context from a newer supervisor-stopped attempt.
+
+    A live supervisor stop can intentionally terminate a parent after some tasks
+    complete but before ``phase_record.json`` is refreshed. The next launch must
+    not resume that active attempt, but it should preserve completed task IDs
+    from its state to avoid replaying successful work.
+    """
+
+    record_path = phase_dir / "phase_record.json"
+    record_mtime = record_path.stat().st_mtime if record_path.exists() else 0.0
+    for run_dir in reversed(list_phase_run_dirs(phase_dir)):
+        if not supervisor_stop_marker_exists(run_dir):
+            continue
+        state_path = run_dir / "state.json"
+        try:
+            state_mtime = state_path.stat().st_mtime
+        except OSError:
+            continue
+        if record_mtime and state_mtime <= record_mtime:
+            continue
+        state = read_optional_json(state_path)
+        completed_task_ids = completed_task_ids_from_state(state)
+        if not completed_task_ids:
+            continue
+        active_task_ids = active_task_ids_from_state(state)
+        existing_context = existing_supervisor_stopped_attempt_context_document(phase_dir, run_dir)
+        if existing_context:
+            return existing_context
+        return write_supervisor_stopped_attempt_context_document(
+            next_phase_repair_resume_path(phase_dir),
+            phase=phase,
+            run_dir=run_dir,
+            completed_task_ids=completed_task_ids,
+            active_task_ids=active_task_ids,
+        )
+    return ""
+
+
+def existing_supervisor_stopped_attempt_context_document(phase_dir: Path, run_dir: Path) -> str:
+    marker = f"Supervisor-stopped run directory: {run_dir}"
+    for candidate in sorted(phase_dir.glob("phase_repair_resume_*.md"), reverse=True):
+        try:
+            text = candidate.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if "Repair attempt: supervisor-stopped context" in text and marker in text:
+            return str(candidate.resolve())
+    return ""
+
+
+def write_supervisor_stopped_attempt_context_document(
+    path: Path,
+    *,
+    phase: RoadmapPhase,
+    run_dir: Path,
+    completed_task_ids: Sequence[str],
+    active_task_ids: Sequence[str],
+) -> str:
+    split_task_ids = {"T010", "T011", "T012", "T013"}
+    needs_t010_split_context = any(
+        str(task_id).upper() in split_task_ids for task_id in [*completed_task_ids, *active_task_ids]
+    )
+    primary_ids = dedupe_strings([*active_task_ids, *(["T010"] if needs_t010_split_context else [])])
+    lines = [
+        f"# Auto Repair For {phase.title}",
+        "",
+        "Repair attempt: supervisor-stopped context",
+        "",
+        "## Why This Repair Exists",
+        "",
+        "A newer phase attempt was stopped by the supervisor before the parent phase record was refreshed.",
+        "Do not resume that active attempt directly, but preserve its completed task evidence.",
+        "",
+        "## Focused Repair Scope",
+        "",
+        f"- Primary failed task IDs: {', '.join(primary_ids) if primary_ids else 'none'}.",
+        f"- Completed tasks to preserve: {', '.join(completed_task_ids)}.",
+        f"- Supervisor-stopped run directory: {run_dir}",
+        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+        "- Keep prior timeout split context active so task IDs do not drift when preserving completed tasks.",
+    ]
+    if active_task_ids:
+        lines.append(f"- Active tasks at supervisor stop: {', '.join(active_task_ids)}.")
+    if needs_t010_split_context:
+        lines.extend(
+            [
+                "",
+                "### Prior Timeout Split Context",
+                "",
+                "- Primary failed task IDs: T010.",
+                "- Task T010 previously exceeded the Codex worker timeout and must remain split/checkpointed.",
+                "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Repair Instructions",
+            "",
+            "- Do not restart the phase from scratch.",
+            "- Preserve all completed work from previous roadmap phases.",
+            "- Preserve completed tasks from this stopped attempt unless a focused failed-task dependency requires a scoped edit.",
+            "- Continue from the next incomplete task after the preserved completed task IDs.",
+        ]
+    )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return str(path.resolve())
+
+
+def completed_task_ids_from_state(state: dict[str, object]) -> list[str]:
+    task_ids = [str(item) for item in _list(state.get("completed_tasks"))]
+    task_graph = _dict(state.get("task_graph"))
+    nodes = _list(task_graph.get("nodes"))
+    task_ids.extend(
+        str(node.get("id", ""))
+        for node in nodes
+        if isinstance(node, dict) and str(node.get("status", "")).lower() == "completed"
+    )
+    return dedupe_strings(task_ids)
 
 
 def next_phase_repair_resume_path(phase_dir: Path) -> Path:

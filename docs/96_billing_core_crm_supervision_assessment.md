@@ -454,6 +454,25 @@ T012 is active only as stale state because its process was terminated. The next
 Alchemy relaunch must skip `run_attempt_040` as supervisor-stopped and must not
 blindly resume stale T012.
 
+## 2026-06-27 V2.102 Follow-Up
+
+After V2.101, the next risk was losing good work from `run_attempt_040`.
+`phase_record.json` still pointed at older `run_attempt_038`, so a naive
+bootstrap would only know that broad T010 had timed out. It would not know that
+the V2.99 split T010 and T011 had already completed.
+
+The first graph probe confirmed the danger: T010/T011 could be preserved
+against the wrong task titles if the prior T010 split context was not kept.
+V2.102 fixes this by generating/reusing a supervisor-stopped context brief from
+newer stopped attempts. The brief preserves completed task IDs from the stopped
+attempt and keeps the T010 timeout split context active so task IDs do not
+drift.
+
+The real phase_010 graph now rebuilds to the correct continuation boundary:
+T001 through T011 completed, T012 constants/type closure pending, T013 view
+workflow closure pending, then verification/review. This is now safe to relaunch
+through Alchemy without replaying T010/T011.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

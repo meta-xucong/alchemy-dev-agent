@@ -977,14 +977,23 @@ def focused_timeout_repair_for_task(requirements: list[Requirement], task_id: st
     text = "\n".join(requirement.text for requirement in requirements).lower()
     normalized_task_id = task_id.lower()
     return (
-        f"primary failed task ids: {normalized_task_id}" in text
+        focused_repair_primary_failed_task_ids_include(text, normalized_task_id)
         and any(marker in text for marker in ("timeout", "timed out", "worker timeout"))
         and any(marker in text for marker in ("split", "checkpoint"))
     )
 
 
 COMPLETED_TASKS_TO_PRESERVE_PATTERN = re.compile(r"completed tasks to preserve:\s*([^.\n]+)", re.IGNORECASE)
+PRIMARY_FAILED_TASK_IDS_PATTERN = re.compile(r"primary failed task ids:\s*([^\n]+)", re.IGNORECASE)
 TASK_ID_PATTERN = re.compile(r"\bT\d{3}(?:-DEBUG-\d+)*\b", re.IGNORECASE)
+
+
+def focused_repair_primary_failed_task_ids_include(text: str, normalized_task_id: str) -> bool:
+    for match in PRIMARY_FAILED_TASK_IDS_PATTERN.finditer(text):
+        task_ids = {item.lower() for item in TASK_ID_PATTERN.findall(match.group(1))}
+        if normalized_task_id in task_ids:
+            return True
+    return f"primary failed task ids: {normalized_task_id}" in text
 
 
 def focused_repair_completed_task_ids(requirements: list[Requirement]) -> list[str]:

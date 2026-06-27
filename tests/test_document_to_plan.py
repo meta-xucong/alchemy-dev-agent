@@ -9,10 +9,12 @@ from pathlib import Path
 from typing import Iterator
 
 from context import ContextBundleBuilder, RepositoryIndexer
+from context.models import Requirement
 from context.requirement_extractor import explicit_paths_from_text, extract_scope_controls
 from intake import ProjectBriefBuilder
 from intake.schema_validation import validate_context_bundle_contract
 from planner import TaskGraphBuilder
+from planner.task_graph_builder import focused_timeout_repair_for_task
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
@@ -1262,6 +1264,20 @@ class DocumentToPlanTests(unittest.TestCase):
         )
         self.assertIn("frontend/src/constants/**", constants_task["relevant_files"])
         self.assertIn("frontend/src/types/**", constants_task["relevant_files"])
+
+    def test_focused_timeout_repair_matches_task_inside_primary_failed_id_list(self) -> None:
+        requirements = [
+            Requirement(
+                id="REQ-001",
+                source_document_id="repair",
+                text=(
+                    "Primary failed task IDs: T012, T010.\n"
+                    "Task T010 previously exceeded the Codex worker timeout and must remain split/checkpointed."
+                ),
+            )
+        ]
+
+        self.assertTrue(focused_timeout_repair_for_task(requirements, "T010"))
 
     def test_docs_only_scope_builds_documentation_task_with_lightweight_verification(self) -> None:
         with temp_plan_dir() as root:

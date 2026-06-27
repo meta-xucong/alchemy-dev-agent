@@ -1546,3 +1546,10 @@ PY"`
 - Stopped the clearly scoped `run_attempt_040` process tree to avoid further pre-V2.100 worker token burn. No residual Billing Core Alchemy parent/worker processes remained after cleanup.
 - Implemented V2.101 in `runtime/control.py` and `autodev/document_run.py`: document runs now wrap controllers with a marker-file controller that reads `supervisor_stop.json`/`operator_stop.json` before task dispatch and while workers are running.
 - Current Billing Core artifact state: T010 and T011 completed; T012 is stale active state because its process was terminated; `supervisor_stop.json` ensures future resume selection should not reuse `run_attempt_040` directly.
+
+## 2026-06-27T23:09:00+08:00 V2.102 Supervisor-Stopped Completion Context
+
+- Probed the post-V2.101 resume graph and found another recovery risk: stale `phase_record.json` still pointed at run_attempt_038, so T010/T011 completion from run_attempt_040 could be lost or mapped to the wrong task titles.
+- Implemented V2.102 in `autodev/full_roadmap_executor.py` and `planner/task_graph_builder.py`: bootstrap now writes/reuses a supervisor-stopped context brief from newer stopped attempts, and focused timeout matching parses task ID lists such as `T012, T010`.
+- Real phase_010 bootstrap produced `phase_repair_resume_007.md` preserving T010/T011 and keeping T010 split context active.
+- Real graph probe now shows T001-T011 completed, T012 constants/type closure pending, T013 view workflow closure pending, and T014/T015 verification/review pending.

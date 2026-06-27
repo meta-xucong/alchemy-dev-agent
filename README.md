@@ -1481,6 +1481,15 @@ selection.
 
 See `docs/110_v2_101_live_supervisor_stop_marker.md`.
 
+## V2.102 Supervisor-Stopped Completion Context
+
+V2.102 preserves completed task evidence from newer supervisor-stopped attempts
+when `phase_record.json` is stale. Bootstrap now writes/reuses a repair context
+brief for the stopped attempt and the timeout-split matcher handles task ID
+lists, preventing task-ID drift after a supervised pause.
+
+See `docs/111_v2_102_supervisor_stopped_completion_context.md`.
+
 Run a smoke execution:
 
 ```bash

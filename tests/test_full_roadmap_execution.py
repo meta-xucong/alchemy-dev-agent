@@ -1537,6 +1537,89 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         names = [Path(item).name for item in docs]
         self.assertEqual(names, ["phase_repair_006.md", "phase_repair_007.md", "phase_repair_resume_001.md"])
 
+    def test_supervisor_stopped_attempt_context_preserves_newer_completed_tasks(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_010"
+        stopped = phase_dir / "run_attempt_040"
+        stopped.mkdir(parents=True)
+        record_path = phase_dir / "phase_record.json"
+        write_json(record_path, {"phase_id": "phase_010", "status": "blocked"})
+        for name, task_id in (("phase_repair_006.md", "T007"), ("phase_repair_007.md", "T009")):
+            (phase_dir / name).write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        f"- Primary failed task IDs: {task_id}.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+        write_json(
+            stopped / "state.json",
+            {
+                "active_tasks": ["T012"],
+                "completed_tasks": ["T001", "T010"],
+                "task_graph": {
+                    "nodes": [
+                        {"id": "T010", "status": "completed"},
+                        {"id": "T011", "status": "completed"},
+                        {"id": "T012", "status": "active"},
+                    ]
+                },
+            },
+        )
+        write_json(stopped / "supervisor_stop.json", {"reason": "pause for output budget fix"})
+        old_time = time.time() - 60
+        os.utime(record_path, (old_time, old_time))
+        os.utime(phase_dir / "phase_repair_006.md", (old_time - 30, old_time - 30))
+        os.utime(phase_dir / "phase_repair_007.md", (old_time - 20, old_time - 20))
+        os.utime(stopped / "state.json", (old_time + 20, old_time + 20))
+        previous_record = PhaseExecutionRecord(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            status="blocked",
+            output_dir=str(phase_dir / "run_attempt_038"),
+            result={
+                "status": "blocked",
+                "runtime_state": {
+                    "blockers": [
+                        {
+                            "type": "technical_limit",
+                            "description": "T010 exceeded the Codex worker timeout.",
+                            "task_ids": ["T010"],
+                        }
+                    ]
+                },
+            },
+            promotion={"can_promote": False, "reasons": ["Phase has blockers."]},
+        )
+
+        docs = bootstrap_phase_repair_documents(
+            phase_dir,
+            phase=RoadmapPhase(phase_id="phase_010", title="Frontend CRM Closure", requirements=[]),
+            previous_record=previous_record,
+            max_repair_documents=2,
+        )
+
+        names = [Path(item).name for item in docs]
+        self.assertEqual(names, ["phase_repair_006.md", "phase_repair_007.md", "phase_repair_resume_001.md"])
+        context = Path(docs[-1]).read_text(encoding="utf-8")
+        self.assertIn("Completed tasks to preserve: T001, T010, T011.", context)
+        self.assertIn("Active tasks at supervisor stop: T012.", context)
+        self.assertIn("Primary failed task IDs: T012, T010.", context)
+        self.assertIn("Task T010 previously exceeded the Codex worker timeout", context)
+
+        docs_again = bootstrap_phase_repair_documents(
+            phase_dir,
+            phase=RoadmapPhase(phase_id="phase_010", title="Frontend CRM Closure", requirements=[]),
+            previous_record=previous_record,
+            max_repair_documents=2,
+        )
+
+        self.assertEqual([Path(item).name for item in docs_again], names)
+
     def test_existing_repair_context_does_not_exhaust_new_repair_budget(self) -> None:
         root = temp_root()
         repo = root / "repo"
