@@ -3088,6 +3088,40 @@
 - result: passed
 - next verification command: `git diff --check` and long-run state validation.
 
+## 2026-06-28T01:05:00+08:00 V2.105 clean verification recovery
+
+- command: `git status --short --branch`
+- result: repo was clean on `master...origin/master` before V2.105 edits.
+
+- command: targeted Billing Core process audit for `alchemy|billing_core_v274|autodev|codex`
+- result: no live Billing Core Alchemy parent or worker process was running; only Codex Desktop/app-server process families and unrelated processes were present.
+
+- command: targeted `run_attempt_044` T018 worker-result summary
+- result: T018 had `status=completed`, zero `tests_failed`, zero failed commands, and two non-fatal `known_issues` about dirty worktree context and warning noise.
+- relevant error summary: pre-V2.105 recovery logic would treat those successful verification warnings as repair evidence and could also keep scanning backward to stale T014 build evidence after a newer clean test pass.
+
+- command: `python -m pytest tests/test_full_roadmap_execution.py -q -k "verification_failure_context or successful_verification_warnings or clean_test_verification"`
+- result: `3 passed, 60 deselected`
+
+- command: `python -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `63 passed`
+
+- command: `python -m pytest tests/test_document_to_plan.py -q`
+- result: `25 passed`
+
+- command: `python -m compileall autodev planner tests -q`
+- result: passed
+
+- command: explicit model smoke using `codex.exe exec -m gpt-5.4 ... "Reply with exactly OK and nothing else."`
+- result: timed out after 120 seconds, produced no output file, and the clearly scoped smoke `codex.exe` child process was stopped.
+- relevant error summary: this was not treated as a Billing Core or Alchemy worker failure because current Alchemy workers do not pass `-m gpt-5.4`; they use the Codex CLI default model/config.
+
+- command: worker-like Codex CLI smoke using default model, `--disable plugins exec --json --cd`, and prompt through stdin
+- result: exit 0 with `OK` agent message in JSONL output.
+- relevant evidence: this matches the current Alchemy real-worker Codex path closely enough to proceed with a controlled relaunch.
+
+- next verification command: diff check, long-run state validation, commit/push V2.105, then controlled Billing Core relaunch through Alchemy.
+
 ## 2026-06-27T22:43:00+08:00 V2.100 worker output budget hygiene verification
 
 - command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`

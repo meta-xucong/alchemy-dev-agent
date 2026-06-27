@@ -56,6 +56,8 @@ NON_REPAIRABLE_BLOCKER_MARKERS = (
 REPAIR_EVIDENCE_PATH_PATTERN = re.compile(
     r"(?P<path>[\w./-]+\.(?:vue|tsx|jsx|yaml|yml|py|js|ts|go|rs|java|cs|rb|php|html|css|sql|md|json))(?![\w/-])"
 )
+SUCCESSFUL_WORKER_STATUSES = {"completed", "done", "passed", "success", "successful", "ok"}
+REPAIR_WORKER_STATUSES = {"failed", "partial", "blocked", "timed_out"}
 
 
 @dataclass(slots=True)
@@ -920,7 +922,10 @@ def latest_verification_issue_context_document(
         if not state:
             continue
         result = verification_issue_result_from_state(state)
-        if not phase_verification_issue_lines(result):
+        verification_issue_lines = phase_verification_issue_lines(result)
+        if not verification_issue_lines:
+            if state_has_clean_test_verification(state):
+                return ""
             continue
         existing_context = existing_verification_issue_context_document(phase_dir, run_dir)
         if existing_context:
@@ -1216,14 +1221,33 @@ def worker_result_has_repair_issue(worker_result: dict[str, object]) -> bool:
         return False
     if _list(worker_result.get("tests_failed")):
         return True
-    if _list(worker_result.get("known_issues")):
-        return True
-    if _list(worker_result.get("follow_up_tasks")):
-        return True
     for command in _list(worker_result.get("commands_run")):
         if isinstance(command, dict) and int_or_zero(command.get("exit_code")) != 0:
             return True
-    return str(worker_result.get("status", "")).lower() in {"failed", "partial", "blocked", "timed_out"}
+    status = str(worker_result.get("status", "")).lower()
+    if status in REPAIR_WORKER_STATUSES:
+        return True
+    if status not in SUCCESSFUL_WORKER_STATUSES and (
+        _list(worker_result.get("known_issues")) or _list(worker_result.get("follow_up_tasks"))
+    ):
+        return True
+    return False
+
+
+def state_has_clean_test_verification(state: dict[str, object]) -> bool:
+    task_graph = _dict(state.get("task_graph"))
+    nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
+    for node in nodes:
+        if str(node.get("type", "")).lower() != "test":
+            continue
+        worker_result = latest_worker_result_from_task(node)
+        if not worker_result:
+            continue
+        if worker_result_has_repair_issue(worker_result):
+            continue
+        if str(worker_result.get("status", "")).lower() in SUCCESSFUL_WORKER_STATUSES:
+            return True
+    return False
 
 
 def failed_command_summaries(worker_result: dict[str, object]) -> list[str]:

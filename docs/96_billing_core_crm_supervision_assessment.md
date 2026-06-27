@@ -519,6 +519,25 @@ requirements to preserved completion evidence without opening another broad
 repair task, carry preserved coverage through T018, then verify/review with
 T019/T020.
 
+## 2026-06-28 V2.105 Follow-Up
+
+After V2.104, the supervisor paused before relaunch rather than treating the
+job as finished. The reason was a clean-verification recovery risk in
+`run_attempt_044`: T018 completed successfully and all verification commands
+passed, but the worker result included non-fatal `known_issues` such as dirty
+worktree context and warning noise.
+
+V2.105 fixes this in Alchemy rather than in Billing Core. Successful
+verification workers with only non-fatal warnings no longer create repair
+evidence, and historical verification scanning stops when a newer clean test
+verification pass supersedes older failures. This prevents the already-fixed
+T014 admin compliance Markdown build blocker from being revived after T018 has
+passed.
+
+The correct next step remains a controlled Alchemy-only relaunch of phase_010.
+Codex Desktop should continue to supervise and repair Alchemy, not edit Billing
+Core product code directly.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

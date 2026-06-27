@@ -15,6 +15,7 @@ from autodev.full_roadmap_executor import (
     blockers_are_auto_repairable,
     bootstrap_phase_repair_documents,
     interrupted_phase_resume_source,
+    latest_verification_issue_context_document,
     next_phase_repair_path,
     next_phase_run_dir,
     phase_repository_path,
@@ -1300,6 +1301,73 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("docs/legal/admin-compliance.en.md", text)
         self.assertIn("frontend/src/components/admin/AdminComplianceDialog.vue", text)
 
+    def test_phase_repair_document_ignores_successful_verification_warnings(self) -> None:
+        root = temp_root()
+        phase = RoadmapPhase(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            requirements=["Close frontend CRM build and compliance artifacts."],
+        )
+        result = {
+            "status": "done",
+            "delivery_report": {
+                "final_gate": {
+                    "score": 0.7,
+                    "dimension_scores": {"test_health": 1.0, "spec_alignment": 0.7},
+                    "hard_failures": [],
+                    "required_changes": [],
+                }
+            },
+            "runtime_state": {
+                "completed_tasks": ["T018"],
+                "task_graph": {
+                    "nodes": [
+                        {
+                            "id": "T018",
+                            "type": "test",
+                            "status": "completed",
+                            "title": "Verify implementation against project checks",
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "completed",
+                                        "summary": "All requested verification commands completed successfully.",
+                                        "known_issues": [
+                                            "Repository worktree is dirty from pre-existing changes.",
+                                            "Build output contains non-fatal Browserslist warnings.",
+                                        ],
+                                        "commands_run": [
+                                            {
+                                                "command": "pnpm --dir frontend run build",
+                                                "exit_code": 0,
+                                                "stdout": "built successfully",
+                                                "stderr": "Browserslist: caniuse-lite is outdated",
+                                            }
+                                        ],
+                                    },
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        }
+        repair_doc = root / "phase_repair_001.md"
+
+        write_phase_repair_document(
+            repair_doc,
+            phase=phase,
+            result=result,
+            promotion={"required_score": 0.85, "score": 0.7, "reasons": ["Coverage evidence is incomplete."]},
+            attempt_index=1,
+        )
+        text = repair_doc.read_text(encoding="utf-8")
+
+        self.assertNotIn("## Failing Verification Issues", text)
+        self.assertNotIn("Must repair T018 verification issue", text)
+        self.assertNotIn("Browserslist", text)
+
     def test_bootstrap_recovers_prior_verification_failure_context(self) -> None:
         root = temp_root()
         phase_dir = root / "phase_010"
@@ -1386,6 +1454,95 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("run_attempt_041", text)
         self.assertIn("docs/legal/admin-compliance.zh.md", text)
         self.assertIn("frontend/src/components/admin/AdminComplianceDialog.vue", text)
+
+    def test_latest_verification_issue_context_stops_after_clean_test_verification(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_010"
+        phase_dir.mkdir(parents=True)
+        phase = RoadmapPhase(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            requirements=["Close frontend CRM build and compliance artifacts."],
+        )
+        failing_run = phase_dir / "run_attempt_041"
+        clean_run = phase_dir / "run_attempt_044"
+        failing_run.mkdir()
+        clean_run.mkdir()
+        write_json(
+            failing_run / "state.json",
+            {
+                "completed_tasks": ["T014"],
+                "evaluation": {"final_gate_score": 0.425, "hard_failures": ["Required tests are failing."]},
+                "task_graph": {
+                    "nodes": [
+                        {
+                            "id": "T014",
+                            "type": "test",
+                            "status": "completed",
+                            "title": "Verify implementation against project checks",
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "partial",
+                                        "summary": "Frontend build failed on missing raw Markdown imports.",
+                                        "tests_failed": ["pnpm --dir frontend run build failed."],
+                                        "known_issues": [
+                                            "docs/legal/admin-compliance.zh.md and docs/legal/admin-compliance.en.md are missing.",
+                                        ],
+                                        "commands_run": [
+                                            {
+                                                "command": "pnpm --dir frontend run build",
+                                                "exit_code": 1,
+                                                "stderr": 'Could not resolve "../../../../docs/legal/admin-compliance.zh.md?raw".',
+                                            }
+                                        ],
+                                    },
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+        write_json(
+            clean_run / "state.json",
+            {
+                "completed_tasks": ["T018"],
+                "evaluation": {"final_gate_score": 0.7, "dimension_scores": {"test_health": 1.0}},
+                "task_graph": {
+                    "nodes": [
+                        {
+                            "id": "T018",
+                            "type": "test",
+                            "status": "completed",
+                            "title": "Verify implementation against project checks",
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "completed",
+                                        "summary": "All requested verification commands completed successfully.",
+                                        "known_issues": [
+                                            "Repository worktree is dirty from pre-existing changes.",
+                                            "Build output contains non-fatal warning noise.",
+                                        ],
+                                        "commands_run": [
+                                            {"command": "pnpm --dir frontend run build", "exit_code": 0}
+                                        ],
+                                    },
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+
+        context = latest_verification_issue_context_document(phase_dir, phase=phase)
+
+        self.assertEqual(context, "")
+        self.assertEqual(list(phase_dir.glob("phase_repair_resume_*.md")), [])
 
     def test_executor_bootstraps_blocked_phase_resume_with_repair_evidence(self) -> None:
         root = temp_root()

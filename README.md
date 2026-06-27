@@ -1510,6 +1510,15 @@ gate with missing traceability.
 
 See `docs/113_v2_104_preserved_coverage_handoff.md`.
 
+## V2.105 Clean Verification Recovery
+
+V2.105 prevents successful verification workers with non-fatal warning evidence
+from becoming fresh repair instructions. Historical verification recovery now
+stops when a newer clean test verification pass is present, so already-fixed
+older failures are not revived after a successful repair verification.
+
+See `docs/114_v2_105_clean_verification_recovery.md`.
+
 Run a smoke execution:
 
 ```bash

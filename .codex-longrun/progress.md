@@ -1574,3 +1574,13 @@ PY"`
 - Real phase_010 graph probe now shows T017 repair pending, T018 preserved coverage completed, T019 verification pending, and T020 review pending.
 - Verification passed: focused planner regression `1 passed`, full `tests/test_document_to_plan.py` `25 passed`, full `tests/test_full_roadmap_execution.py` `61 passed`, and targeted `compileall` passed.
 - Next step: commit/push V2.104 and relaunch Billing Core through Alchemy; expected path is T017 repair, T018 preserved coverage, T019 verification, T020 review, then phase_010 promotion if coverage gate accepts the preserved node.
+
+## 2026-06-28T01:05:00+08:00 V2.105 Clean Verification Recovery
+
+- Answered the stop-state question by auditing the live workspace: no Billing Core Alchemy worker was running, `run_attempt_044` was complete, and T018 verification had status `completed` with zero failed commands/tests but two non-fatal `known_issues`.
+- Found a new Alchemy recovery risk before relaunching V2.104: successful verification warnings could be treated as repair evidence, and if ignored without a supersession stop, older already-fixed T014 build evidence could still be revived by backward attempt scanning.
+- Implemented V2.105 in `autodev/full_roadmap_executor.py`: `worker_result_has_repair_issue()` now requires failed tests, failed commands, failed/partial/blocked/timed-out status, or non-successful warning/follow-up evidence; historical verification recovery stops at a newer clean test verification pass.
+- Added regressions proving successful verification warnings do not create `Failing Verification Issues`, while older real verification failures are still recovered when no newer clean test supersedes them.
+- Verification passed: focused recovery regressions `3 passed`, full `tests/test_full_roadmap_execution.py` `63 passed`, full `tests/test_document_to_plan.py` `25 passed`, and `python -m compileall autodev planner tests -q` passed.
+- An explicit `-m gpt-5.4` Codex smoke timed out and its scoped child process was stopped, but the worker-like default-model Codex CLI smoke (`--disable plugins exec --json --cd`, prompt through stdin) passed with `OK`; this matches the current Alchemy real-worker path.
+- Next step: commit/push V2.105, then relaunch Billing Core through Alchemy only and confirm phase_010 no longer revives stale T014 evidence after the clean T018 pass.
