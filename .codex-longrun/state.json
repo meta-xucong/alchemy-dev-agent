@@ -1,7 +1,7 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "blocked_on_codex_cli_usage_limit",
-  "phase_status": "blocked",
+  "current_phase": "billing_core_crm_supervision_assessment_documented",
+  "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
     "resumed Billing Core _012 from run_attempt_010 and verified T004 dispatch",
@@ -21,12 +21,13 @@
     "implemented V2.84 worker-timeout stop hardening so timeout failures do not create same-scope debug tasks or replay the parent task",
     "implemented V2.85 terminal-active resume skip so stopped timeout attempts are not reused as resume_from sources",
     "implemented V2.86 package lockfile boundary expansion so manifest-scoped frontend tasks do not fail on same-directory lockfile updates",
-    "implemented V2.87 dead debug active resume skip so stopped debug workers are not reused as resume_from sources"
+    "implemented V2.87 dead debug active resume skip so stopped debug workers are not reused as resume_from sources",
+    "documented Billing Core CRM supervision assessment, usability gaps, delivery gates, and Codex/Alchemy operating contract"
   ],
   "next_actions": [
-    "Wait until the local Codex CLI usage limit resets after 2026-06-27 03:46 +08:00, or configure an approved alternate model provider path for Alchemy.",
-    "After access is available again, rerun the minimal Codex OK smoke.",
-    "Relaunch Billing Core through a fresh Alchemy full-roadmap attempt only; confirm phase_010 skips stale run_attempt_020 dead debug state, creates a new attempt, allows frontend/pnpm-lock.yaml when frontend/package.json is allowed, and keeps any future worker timeout as a non-partial technical blocker."
+    "Commit and push the Billing Core CRM supervision assessment document.",
+    "Relaunch Billing Core through a fresh Alchemy full-roadmap attempt only; confirm phase_010 skips stale run_attempt_020 dead debug state, creates a new attempt, allows frontend/pnpm-lock.yaml when frontend/package.json is allowed, and keeps any future worker timeout as a non-partial technical blocker.",
+    "After the controlled run, reassess CRM usability, update the supervision document if new evidence appears, and continue the fix/monitor loop."
   ],
   "tests_run": [
     "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_last.md \"Reply with exactly OK and nothing else.\" => passed",
@@ -118,7 +119,9 @@
     "python -B -m py_compile runtime\\orchestrator.py autodev\\full_roadmap_executor.py tests\\test_runtime.py tests\\test_full_roadmap_execution.py => passed",
     "git diff --check -- runtime/orchestrator.py autodev/full_roadmap_executor.py tests/test_runtime.py tests/test_full_roadmap_execution.py => passed",
     "python -c \"from pathlib import Path; from autodev.full_roadmap_executor import interrupted_phase_resume_source; r=interrupted_phase_resume_source(Path('.alchemy/billing_core_v274_20260624_012/phases/phase_010')); print('resume_from=', r.resume_from); print('active_run_dir=', r.active_run_dir); print('blockers=', r.blockers)\" => passed with resume_from=None, active_run_dir=None, blockers=[]",
-    "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_20260627_v287.md \"Reply with exactly OK and nothing else.\" => failed before response because local Codex CLI usage limit was reached; CLI said try again at 3:46 AM"
+    "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_20260627_v287.md \"Reply with exactly OK and nothing else.\" => failed before response because local Codex CLI usage limit was reached; CLI said try again at 3:46 AM",
+    "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_20260627_resume_after_limit.md \"Reply with exactly OK and nothing else.\" => passed",
+    "python -c \"from pathlib import Path; from autodev.full_roadmap_executor import interrupted_phase_resume_source; r=interrupted_phase_resume_source(Path('.alchemy/billing_core_v274_20260624_012/phases/phase_010')); print('resume_from=', r.resume_from); print('active_run_dir=', r.active_run_dir); print('blockers=', r.blockers)\" => passed with resume_from=None, active_run_dir=None, blockers=[]"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -136,15 +139,13 @@
     "Before V2.87, a manually stopped debug worker could leave active_tasks pointing at T002-DEBUG-1 with a dead running lifecycle record, causing the next Billing Core resume to replay stale debug work. V2.87 skips dead active debug attempts while preserving ordinary interrupted task resume.",
     "As of 2026-06-27 02:31 +08:00, local Codex CLI real-model access is temporarily blocked by account usage limits. Real Alchemy workers use that Codex CLI login path, so launching Billing Core before the reset would create a false run failure."
   ],
-  "blockers": [
-    "Local Codex CLI usage limit reached during the post-V2.87 smoke; CLI reported to try again at 2026-06-27 03:46 +08:00. Real Billing Core workers should not be launched until access resets or an approved alternate provider path is configured."
-  ],
+  "blockers": [],
   "done_criteria": [
     "Requested implementation work is complete",
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T02:32:00+08:00",
+  "last_verified_at": "2026-06-27T12:42:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T02:32:00+08:00"
+  "updated_at": "2026-06-27T12:42:00+08:00"
 }

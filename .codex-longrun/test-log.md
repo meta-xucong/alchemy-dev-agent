@@ -2833,3 +2833,15 @@
 - result: failed
 - relevant error summary: local Codex CLI reported `You've hit your usage limit` and `try again at 3:46 AM`; no Billing Core worker was launched.
 - next verification command: rerun the same smoke after the usage window resets, then relaunch Billing Core through Alchemy.
+
+## 2026-06-27T12:42:00+08:00 resume readiness and assessment document
+
+- command: `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\logs\codex_network_smoke_20260627_resume_after_limit.md "Reply with exactly OK and nothing else."`
+- result: passed
+- relevant evidence: direct Codex CLI returned `OK`; usage-limit blocker has cleared.
+- next verification command: recheck phase_010 resume selector.
+
+- command: `python -c "from pathlib import Path; from autodev.full_roadmap_executor import interrupted_phase_resume_source; r=interrupted_phase_resume_source(Path('.alchemy/billing_core_v274_20260624_012/phases/phase_010')); print('resume_from=', r.resume_from); print('active_run_dir=', r.active_run_dir); print('blockers=', r.blockers)"`
+- result: passed
+- relevant evidence: `resume_from=None`, `active_run_dir=None`, `blockers=[]`.
+- next verification command: commit assessment document and launch controlled Alchemy resume.

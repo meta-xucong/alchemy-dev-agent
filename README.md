@@ -226,6 +226,8 @@ docs/
                               V2.86 package lockfile boundary expansion.
   95_v2_87_dead_debug_resume_skip.md
                               V2.87 dead debug active attempt resume skip.
+  96_billing_core_crm_supervision_assessment.md
+                              Billing Core CRM supervision assessment and delivery gates.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.

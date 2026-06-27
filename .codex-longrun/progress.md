@@ -1417,3 +1417,11 @@ PY"`
 - Did not launch Billing Core through Alchemy because real workers use the same local Codex CLI login/config path; launching now would create a false failure unrelated to Billing Core or Alchemy logic.
 - Current blocker: wait until the local Codex usage window resets after 2026-06-27 03:46 +08:00, or explicitly configure an approved alternate model provider path before resuming real workers.
 
+## 2026-06-27T12:42:00+08:00 CRM Supervision Assessment And Resume Readiness
+
+- Re-ran the minimal Codex OK smoke after the usage-limit window; it passed.
+- Rechecked Billing Core phase_010 resume selection; it returns no `resume_from` and no live-worker blocker, so stale `run_attempt_020` debug state should be skipped.
+- Audited current roadmap evidence: phases 001-009 are done, while phase_010 frontend closure, phase_011 schema pruning/build, and phase_012 demo smoke remain pending.
+- Wrote `docs/96_billing_core_crm_supervision_assessment.md` documenting the Codex/Alchemy operating contract, current Alchemy health, CRM usability gaps, next supervision loop, delivery gates, and stop rules.
+- Current judgment: Alchemy is ready for another controlled Billing Core run; the CRM is not deliverable yet because frontend closure, schema pruning, demo smoke, and authoritative worktree handoff remain unresolved.
+
