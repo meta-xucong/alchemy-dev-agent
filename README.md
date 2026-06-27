@@ -1585,6 +1585,15 @@ on to server/domain table contracts.
 
 See `docs/121_v2_112_schema_migration_checkpoint_split.md`.
 
+## V2.113 Cumulative Schema Repair Context
+
+V2.113 keeps a longer ordinary repair-document chain for schema/build phases so
+later retries do not lose earlier split evidence. This preserves the T002/T003
+schema-prune and migration checkpoint graph even after more than two repair
+briefs exist.
+
+See `docs/122_v2_113_cumulative_schema_repair_context.md`.
+
 Run a smoke execution:
 
 ```bash

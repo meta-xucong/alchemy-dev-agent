@@ -48,12 +48,13 @@
     "implemented V2.109 schema prune second timeout split so Billing Core phase_011 does not replay the same narrower T002 after timeout",
     "implemented V2.110 supervisor-stopped repair doc retention so guarded stops do not hide existing phase repair briefs",
     "implemented V2.111 schema migration timeout split so focused T003 repairs do not replay the same migration/server contract task",
-    "implemented V2.112 schema migration checkpoint split so repeated migration-only T003 timeouts start with inventory and patch checkpoint tasks"
+    "implemented V2.112 schema migration checkpoint split so repeated migration-only T003 timeouts start with inventory and patch checkpoint tasks",
+    "implemented V2.113 cumulative schema repair context so long schema/build repair chains keep earlier split evidence"
   ],
   "next_actions": [
-    "Commit and push V2.112 schema migration checkpoint split.",
+    "Commit and push V2.113 cumulative schema repair context.",
     "Launch the next controlled Billing Core run through Alchemy only for phase_011 schema pruning/build.",
-    "Confirm the next phase_011 attempt preserves T001/T002 and starts from T003 Inventory Ent migration contract deltas, not from the stale migration-only task.",
+    "Confirm the next phase_011 attempt retains phase_repair_001.md through phase_repair_004.md and starts from T003 Inventory Ent migration contract deltas.",
     "Monitor phase_011 for schema/build/product blocker evidence; if an Alchemy controller issue appears, stop and fix Alchemy before continuing.",
     "After phase_011 promotes, continue to phase_012 demo smoke, then reassess CRM deliverability and final handoff readiness.",
     "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after the current verification-repair handoff is proven."
@@ -340,7 +341,16 @@
     "python -B -m pytest tests/test_runtime_handoff.py -q => 4 passed after V2.112",
     "python -B -m compileall planner tests -q => passed after V2.112",
     "git diff --check => passed with .codex-longrun CRLF warning only after V2.112",
-    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.112"
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.112",
+    "Billing Core run_attempt_010 after V2.112 => stopped before stale context-collapsed graph could continue; graph had old T002 Prune legacy Ent schemas completed and T003 Regenerate Ent clients active",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget -q => 1 passed after V2.113",
+    "Real phase_011 bootstrap and graph probe after V2.113 => retained phase_repair_001.md through phase_repair_004.md and rebuilt the correct schema/migration checkpoint graph",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 70 passed after V2.113",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 29 passed after V2.113",
+    "python -B -m pytest tests/test_runtime_handoff.py -q => 4 passed after V2.113",
+    "python -B -m compileall autodev planner tests -q => passed after V2.113",
+    "git diff --check => passed with .codex-longrun CRLF warning only after V2.113",
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.113"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -391,7 +401,8 @@
     "Before V2.109, Billing Core phase_011 could replay the same narrower T002 Prune legacy Ent schemas and table contracts task after that split task timed out, requiring a second-level schema-prune split.",
     "Before V2.110, a newer supervisor-stopped phase record could hide existing ordinary phase_repair_NNN.md files, causing a relaunch to rebuild from the original phase requirements and replay stale T001/T002 work.",
     "Before V2.111, Billing Core phase_011 T003 timeout repair replayed the same combined migration/server contract task instead of splitting migration contracts from server/domain contracts.",
-    "Before V2.112, Billing Core phase_011 repeated migration-only T003 timeouts still replayed the same migration task instead of switching to checkpoint/inventory repair."
+    "Before V2.112, Billing Core phase_011 repeated migration-only T003 timeouts still replayed the same migration task instead of switching to checkpoint/inventory repair.",
+    "Before V2.113, schema/build repair chains longer than two ordinary repair docs could lose earlier split context and collapse back to stale task graphs."
   ],
   "blockers": [],
   "done_criteria": [
@@ -399,7 +410,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T07:20:00+08:00",
+  "last_verified_at": "2026-06-28T07:35:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T07:20:00+08:00"
+  "updated_at": "2026-06-28T07:35:00+08:00"
 }

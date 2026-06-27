@@ -2218,6 +2218,54 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         names = [Path(item).name for item in docs]
         self.assertEqual(names, ["phase_repair_001.md", "phase_repair_002.md"])
 
+    def test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_011"
+        stopped = phase_dir / "run_attempt_010"
+        stopped.mkdir(parents=True)
+        record_path = phase_dir / "phase_record.json"
+        write_json(record_path, {"phase_id": "phase_011", "status": "blocked", "output_dir": str(stopped)})
+        write_json(stopped / "supervisor_stop.json", {"reason": "stale split context stopped"})
+        for index, task_id in ((1, "T002"), (2, "T002"), (3, "T003"), (4, "T003")):
+            repair_doc = phase_dir / f"phase_repair_{index:03d}.md"
+            repair_doc.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        f"- Primary failed task IDs: {task_id}.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            old_time = time.time() - (120 - index)
+            os.utime(repair_doc, (old_time, old_time))
+        new_time = time.time()
+        os.utime(record_path, (new_time, new_time))
+        previous_record = PhaseExecutionRecord(
+            phase_id="phase_011",
+            title="Schema build",
+            status="blocked",
+            output_dir=str(stopped),
+            result={"status": "blocked", "runtime_state": {"blockers": []}},
+            promotion={"can_promote": False, "reasons": ["Phase has blockers."]},
+        )
+
+        docs = bootstrap_phase_repair_documents(
+            phase_dir,
+            phase=RoadmapPhase(
+                phase_id="phase_011",
+                title="Schema build",
+                requirements=["Prune Ent schema.", "Fresh DB migration succeeds."],
+            ),
+            previous_record=previous_record,
+            max_repair_documents=2,
+        )
+
+        names = [Path(item).name for item in docs]
+        self.assertEqual(names, ["phase_repair_001.md", "phase_repair_002.md", "phase_repair_003.md", "phase_repair_004.md"])
+
     def test_supervisor_stopped_attempt_context_preserves_newer_completed_tasks(self) -> None:
         root = temp_root()
         phase_dir = root / "phase_010"

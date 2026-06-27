@@ -1658,3 +1658,11 @@ PY"`
 - Implemented V2.112 in `planner/task_graph_builder.py`: any focused schema/build T003 timeout now becomes checkpoint tasks, starting with `Inventory Ent migration contract deltas` and then `Patch Ent migration contract deltas`, before server/domain alignment.
 - Real phase_011 graph probe with `phase_repair_004.md` now starts from the inventory checkpoint and restricts migration checkpoint tasks to `backend/ent/migrate/schema.go` plus `backend/go.mod`.
 - Next step: commit/push V2.112, relaunch Billing Core through Alchemy, and monitor whether the checkpoint task completes or reveals a concrete migration blocker.
+
+## 2026-06-28T07:35:00+08:00 V2.113 Cumulative Schema Repair Context
+
+- Relaunched Billing Core after V2.112 and found another parent recovery issue: `run_attempt_010` lost the early repair context and collapsed back to an older graph where `T002 Prune legacy Ent schemas and table contracts` was completed and `T003 Regenerate Ent clients and migration artifacts` was active.
+- Stopped `run_attempt_010` with `supervisor_stop.json` before the stale graph could spend another worker window.
+- Implemented V2.113 in `autodev/full_roadmap_executor.py`: schema/build phases now retain at least four ordinary repair docs as cumulative context, without increasing the new repair-attempt budget.
+- Real phase_011 bootstrap and graph probe now retains `phase_repair_001.md` through `phase_repair_004.md` and rebuilds the correct T002 schema-prune plus T003 migration checkpoint graph.
+- Next step: commit/push V2.113, relaunch Billing Core through Alchemy, and confirm the next attempt starts from the migration inventory checkpoint.

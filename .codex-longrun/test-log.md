@@ -3611,6 +3611,46 @@
 - result: passed
 - next verification command: commit/push V2.112, then controlled Billing Core relaunch.
 
+## 2026-06-28T07:35:00+08:00 V2.113 cumulative schema repair context verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: stale graph stopped by supervisor
+- relevant evidence: `run_attempt_010` lost early phase repair context and rebuilt an older graph with `T002 Prune legacy Ent schemas and table contracts` completed plus `T003 Regenerate Ent clients and migration artifacts` active.
+- next verification command: focused full-roadmap context retention regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget -q`
+- result: `1 passed`
+- next verification command: real phase_011 bootstrap and graph probe.
+
+- command: real phase_011 bootstrap and graph probe after `run_attempt_010`
+- result: passed
+- relevant evidence: bootstrap retains `phase_repair_001.md`, `phase_repair_002.md`, `phase_repair_003.md`, and `phase_repair_004.md`; graph keeps `Prune Ent schema definitions`, `Inventory Ent migration contract deltas`, and `Patch Ent migration contract deltas`.
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `70 passed`
+- next verification command: document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `29 passed`
+- next verification command: runtime handoff regression.
+
+- command: `python -B -m pytest tests/test_runtime_handoff.py -q`
+- result: `4 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev planner tests -q`
+- result: passed
+- next verification command: diff check, state validation, commit/push, then controlled Billing Core relaunch.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.113, then controlled Billing Core relaunch.
+
 - command: `git diff --check`
 - result: passed with existing `.codex-longrun` CRLF warnings only
 - next verification command: long-run state validation.

@@ -795,18 +795,19 @@ def bootstrap_phase_repair_documents(
 
     if max_repair_documents <= 0:
         return []
+    repair_context_limit = cumulative_repair_document_limit(phase, max_repair_documents)
     if previous_record is None:
-        return latest_existing_phase_repair_documents(phase_dir, max_repair_documents=max_repair_documents)
+        return latest_existing_phase_repair_documents(phase_dir, max_repair_documents=repair_context_limit)
     previous_record = effective_previous_repair_record(phase_dir, phase=phase, previous_record=previous_record)
     existing_documents = latest_existing_phase_repair_documents(
         phase_dir,
-        max_repair_documents=max_repair_documents,
+        max_repair_documents=repair_context_limit,
     )
     if existing_documents:
         return existing_documents
     context_documents = latest_existing_phase_repair_documents(
         phase_dir,
-        max_repair_documents=max_repair_documents,
+        max_repair_documents=repair_context_limit,
         require_newer_than_phase_record=False,
     )
     previous_output_dir = Path(previous_record.output_dir)
@@ -848,6 +849,13 @@ def bootstrap_phase_repair_documents(
             ),
         ]
     )
+
+
+def cumulative_repair_document_limit(phase: RoadmapPhase, max_repair_documents: int) -> int:
+    text = " ".join([phase.title, *phase.requirements]).lower()
+    if any(marker in text for marker in ("schema", "ent", "migration", "migrate", "fresh db")):
+        return max(max_repair_documents, 4)
+    return max_repair_documents
 
 
 def revalidated_promotable_phase_record(phase_dir: Path, phase: RoadmapPhase) -> PhaseExecutionRecord | None:
