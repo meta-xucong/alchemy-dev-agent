@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_91_usage_limit_false_positive_guard",
+  "current_phase": "v2_92_frontend_api_caller_repair_scope",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -26,13 +26,14 @@
     "implemented V2.88 focused phase repair resume so blocked Billing Core phase resumes carry T006 evidence instead of broad-replanning from scratch",
     "implemented V2.89 repair scope handoff so focused Billing Core repair evidence produces frontend large-refactor tasks instead of replaying narrow router/package scope",
     "implemented V2.90 Codex usage-limit blocker classification so local model quota failures stop as environment blockers instead of product debug/retry loops",
-    "implemented V2.91 usage-limit false-positive guard so historical quota text inside successful Codex JSONL does not stop Billing Core resumes"
+    "implemented V2.91 usage-limit false-positive guard so historical quota text inside successful Codex JSONL does not stop Billing Core resumes",
+    "implemented V2.92 frontend API caller repair scope so T003 can edit components, composables, and constants when repair evidence identifies retired API callers there"
   ],
   "next_actions": [
-    "Run full-roadmap regression, diff check, and long-run state validation for V2.91.",
-    "Commit and push V2.91 usage-limit false-positive guard changes.",
-    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_028 and runs in the inherited isolated worktree without false usage-limit blocking.",
-    "Monitor whether the next Alchemy worker advances the CRM extraction work beyond the false T001 blocker; if it exposes another controller issue, stop and fix Alchemy before continuing.",
+    "Run diff check and long-run state validation for V2.92.",
+    "Commit and push V2.92 frontend API caller repair scope changes.",
+    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_030 and lets T003 repair API caller surfaces directly.",
+    "Monitor whether the next Alchemy worker advances the CRM extraction work beyond the T003 caller-scope blocker; if it exposes another controller issue, stop and fix Alchemy before continuing.",
     "After the controlled run, reassess CRM usability, update the supervision document if new evidence appears, and continue the fix/monitor loop."
   ],
   "tests_run": [
@@ -157,6 +158,15 @@
     "python -c \"from pathlib import Path; from autodev.full_roadmap_executor import interrupted_phase_resume_source; r=interrupted_phase_resume_source(Path('.alchemy/billing_core_v274_20260624_012/phases/phase_010')); print('resume_from=', r.resume_from); print('active_run_dir=', r.active_run_dir); print('blockers=', r.blockers)\" => passed with resume_from=None, active_run_dir=None, blockers=[]",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 54 passed",
     "git diff --check => passed with existing .codex-longrun CRLF warnings only",
+    "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed",
+    "Billing Core controlled resume via .alchemy\\billing_core_v274_20260624_012\\resume_v2_88_supervised_probe.ps1 => run_attempt_029 completed T001/T002 and exposed T003 caller-scope blocker; run_attempt_030 was supervisor-stopped before replaying the stale T003 scope",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_repair_docs_do_not_collapse_to_scoped_router_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap -q => 2 passed",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 20 passed",
+    "python -B -m py_compile planner\\task_graph_builder.py tests\\test_document_to_plan.py => passed",
+    "Real phase_010 graph rebuild probe with phase_repair_005.md => T003 includes frontend/src/api/**, frontend/src/components/**, frontend/src/composables/**, and frontend/src/constants/**",
+    "python -B -m pytest tests/test_document_run_pipeline.py -q => 26 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 54 passed",
+    "git diff --check => passed with existing .codex-longrun CRLF warnings only",
     "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed"
   ],
   "known_bugs": [
@@ -184,7 +194,8 @@
     "Timeout handling is safer after V2.84/V2.88, but still not progress-aware. Later optimization should add worker heartbeats, checkpoints, and bounded grace rather than simply raising max_worker_seconds.",
     "Before V2.90, local Codex CLI usage-limit JSONL could be summarized as unparseable worker output, causing unnecessary debug/retry work and a false product repair phase.",
     "As of 2026-06-27 17:02 +08:00, local Codex CLI real-model access was temporarily blocked by account usage limits until about 2026-06-27 17:39 +08:00; the 17:39 post-reset smoke passed.",
-    "Before V2.91, V2.90's usage-limit detector scanned the whole successful Codex JSONL stream and could misclassify historical quota text in repair evidence as a live Codex usage-limit blocker."
+    "Before V2.91, V2.90's usage-limit detector scanned the whole successful Codex JSONL stream and could misclassify historical quota text in repair evidence as a live Codex usage-limit blocker.",
+    "Before V2.92, a focused repair document could identify T003 retired API caller files in components, composables, and constants, but the rebuilt graph kept T003 on its old API-only scope and risked replaying the same non-partial blocker before later tasks could run."
   ],
   "blockers": [],
   "done_criteria": [
@@ -192,7 +203,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T17:57:00+08:00",
+  "last_verified_at": "2026-06-27T18:37:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T17:57:00+08:00"
+  "updated_at": "2026-06-27T18:37:00+08:00"
 }

@@ -236,6 +236,8 @@ docs/
                               V2.90 local Codex usage-limit blocker classification.
   100_v2_91_usage_limit_false_positive.md
                               V2.91 usage-limit false positive guard.
+  101_v2_92_frontend_api_caller_repair_scope.md
+                              V2.92 frontend API caller repair scope expansion.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1380,6 +1382,16 @@ still recognizes structured Codex error events, explicit summaries, known
 issues, stderr, and plain non-JSON usage-limit errors.
 
 See `docs/100_v2_91_usage_limit_false_positive.md`.
+
+## V2.92 Frontend API Caller Repair Scope
+
+V2.92 expands the frontend API-service cleanup task to include caller surfaces
+under `frontend/src/components/**`, `frontend/src/composables/**`, and
+`frontend/src/constants/**`. This keeps focused repair evidence aligned with
+the task that can stop the run, instead of leaving the fix to a later task that
+may never execute after a non-partial T003 blocker.
+
+See `docs/101_v2_92_frontend_api_caller_repair_scope.md`.
 
 Run a smoke execution:
 

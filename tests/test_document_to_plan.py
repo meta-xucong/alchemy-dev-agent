@@ -857,6 +857,7 @@ class DocumentToPlanTests(unittest.TestCase):
             (repo / "frontend" / "src" / "components" / "admin" / "usage").mkdir(parents=True)
             (repo / "frontend" / "src" / "components" / "layout").mkdir(parents=True)
             (repo / "frontend" / "src" / "composables").mkdir(parents=True)
+            (repo / "frontend" / "src" / "constants").mkdir(parents=True)
             (repo / "frontend" / "src" / "views" / "admin").mkdir(parents=True)
             (repo / "frontend" / "src" / "views" / "auth").mkdir(parents=True)
             (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
@@ -867,6 +868,7 @@ class DocumentToPlanTests(unittest.TestCase):
             (repo / "frontend" / "src" / "components" / "admin" / "usage" / "UsageTable.vue").write_text("<template />\n", encoding="utf-8")
             (repo / "frontend" / "src" / "components" / "layout" / "AppSidebar.vue").write_text("<template />\n", encoding="utf-8")
             (repo / "frontend" / "src" / "composables" / "usePersistedPageSize.ts").write_text("export const pageSize = 1000;\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "constants" / "channelMonitor.ts").write_text("export const legacy = true;\n", encoding="utf-8")
             (repo / "frontend" / "src" / "views" / "admin" / "DashboardView.vue").write_text("<template />\n", encoding="utf-8")
             (repo / "frontend" / "src" / "views" / "auth" / "EmailVerifyView.vue").write_text("<template />\n", encoding="utf-8")
             phase = root / "phase.md"
@@ -903,6 +905,7 @@ class DocumentToPlanTests(unittest.TestCase):
                         "- Fix persisted page-size default with frontend/src/composables/usePersistedPageSize.ts.",
                         "- Guard DashboardView cost formatting with frontend/src/views/admin/DashboardView.vue.",
                         "- Wire API key navigation through frontend/src/components/layout/AppSidebar.vue.",
+                        "- Expand allowed_files to include frontend/src/components/**, frontend/src/composables/**, and frontend/src/constants/**, then remove remaining direct retired API callers.",
                     ]
                 ),
                 encoding="utf-8",
@@ -930,6 +933,12 @@ class DocumentToPlanTests(unittest.TestCase):
             self.assertEqual(implementation["assigned_agent"], "frontend")
             self.assertEqual(implementation["boundary_mode"], "large_refactor")
             self.assertNotIn("cd backend && go test ./...", implementation["commands_to_run"])
+
+        api_task = next(node for node in implementation_nodes if node["title"] == "Clean frontend API service references")
+        self.assertIn("frontend/src/api/**", api_task["relevant_files"])
+        self.assertIn("frontend/src/components/**", api_task["relevant_files"])
+        self.assertIn("frontend/src/composables/**", api_task["relevant_files"])
+        self.assertIn("frontend/src/constants/**", api_task["relevant_files"])
 
         usage_task = next(node for node in implementation_nodes if node["title"] == "Close usage API key and admin user workflows")
         self.assertIn("frontend/src/components/account/**", usage_task["relevant_files"])

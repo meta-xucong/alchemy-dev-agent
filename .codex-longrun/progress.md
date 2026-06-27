@@ -1469,3 +1469,12 @@ PY"`
 - Implemented V2.91 in Alchemy: usage-limit detection now trusts structured Codex `error`/`turn.failed`/`response.failed` events, explicit summaries/known issues/stderr, or plain non-JSON error lines, but not arbitrary successful command output.
 - Added `supervisor_stop.json` to `run_attempt_028` so the next Billing Core resume skips the false blocked attempt.
 - Verification passed: focused V2.91 regressions `4 passed`, full `tests/test_runtime.py` `127 passed`, targeted `py_compile` passed, and the phase_010 resume selector again reports `resume_from=None`, `active_run_dir=None`, and `blockers=[]`.
+
+## 2026-06-27T18:35:00+08:00 V2.92 Frontend API Caller Repair Scope
+
+- Relaunched Billing Core after V2.91. `run_attempt_029` confirmed the execution chain was healthy: T001 completed, T002 completed, and T003 ran as real frontend API cleanup work.
+- T003 stopped on a real technical scope blocker after retry exhaustion: task-local retired API tests passed, but remaining direct retired API callers live in `frontend/src/components/**`, `frontend/src/composables/**`, and `frontend/src/constants/**`.
+- The parent generated `phase_repair_005.md` with the correct focused instruction to expand those paths, but `run_attempt_030` rebuilt T003 with the old API-only scope while placing the needed paths in later tasks. Since T003 can stop the run before later tasks execute, I stopped `run_attempt_030` and added `supervisor_stop.json`.
+- Implemented V2.92 in Alchemy: the frontend API-service cleanup task now includes caller surfaces under components, composables, and constants, keeping the failing T003 scope aligned with its repair evidence.
+- Real Billing Core graph probe with `phase_repair_005.md` now shows T003 includes `frontend/src/api/**`, `frontend/src/components/**`, `frontend/src/composables/**`, and `frontend/src/constants/**`.
+- Verification passed: focused planner tests `2 passed`, full `tests/test_document_to_plan.py` `20 passed`, full `tests/test_document_run_pipeline.py` `26 passed`, full `tests/test_full_roadmap_execution.py` `54 passed`, and targeted `py_compile` passed.

@@ -678,6 +678,9 @@ FRONTEND_LARGE_REFACTOR_TASK_SPECS = (
         ),
         "files": (
             "frontend/src/api/**",
+            "frontend/src/components/**",
+            "frontend/src/composables/**",
+            "frontend/src/constants/**",
             "frontend/src/types/**",
             "frontend/src/stores/**",
             "frontend/src/views/**",

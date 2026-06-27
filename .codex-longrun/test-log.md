@@ -2994,3 +2994,44 @@
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.91, then relaunch Billing Core through Alchemy.
+
+## 2026-06-27T18:35:00+08:00 V2.92 frontend API caller scope verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: stopped by supervisor for Alchemy repair-scope fix
+- relevant evidence: `run_attempt_029` completed T001/T002 and stopped T003 on a real technical scope blocker; `phase_repair_005.md` asked to expand components/composables/constants, but `run_attempt_030` kept T003 on its old API-only scope.
+- fix attempted: added `run_attempt_030/supervisor_stop.json` and expanded the frontend API-service cleanup task to include caller surfaces under components, composables, and constants.
+- next verification command: focused planner regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_repair_docs_do_not_collapse_to_scoped_router_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap -q`
+- result: `2 passed`
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `20 passed`
+- next verification command: targeted py_compile and real Billing Core graph rebuild probe.
+
+- command: `python -B -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py`
+- result: passed
+- next verification command: real Billing Core graph rebuild probe.
+
+- command: real `phase_010` graph rebuild probe using `phase_requirements.md` and `phase_repair_005.md`
+- result: passed
+- relevant evidence: T003 relevant files now include `frontend/src/api/**`, `frontend/src/components/**`, `frontend/src/composables/**`, and `frontend/src/constants/**`.
+- next verification command: document-run pipeline and full-roadmap regressions.
+
+- command: `python -B -m pytest tests/test_document_run_pipeline.py -q`
+- result: `26 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `54 passed`
+- next verification command: diff check, state validation, commit/push V2.92, then relaunch Billing Core through Alchemy.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.92, then relaunch Billing Core through Alchemy.

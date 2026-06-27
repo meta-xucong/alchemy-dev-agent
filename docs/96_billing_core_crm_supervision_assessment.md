@@ -254,6 +254,26 @@ resume skips that false state. The execution chain remains correct: Codex
 Desktop supervises, Alchemy real workers implement, and product code is edited
 only inside the inherited run worktree.
 
+## 2026-06-27 V2.92 Follow-Up
+
+After V2.91, `run_attempt_029` proved the usage-limit false positive was fixed:
+T001 completed, T002 completed, and T003 ran as a real frontend API cleanup
+task.
+
+T003 then exposed a different framework issue. The worker successfully narrowed
+and tested the allowed API surface, but remaining direct retired API callers
+were in `frontend/src/components/**`, `frontend/src/composables/**`, and
+`frontend/src/constants/**`. `phase_repair_005.md` correctly asked the next
+repair attempt to expand those files, but the rebuilt graph kept T003 on the
+old API-only scope and put the needed paths into a later task. Because T003 can
+stop the run before later tasks execute, this could replay the same blocker.
+
+V2.92 expands the T003 "Clean frontend API service references" task so API
+cleanup includes caller cleanup in components, composables, and constants. The
+pre-fix `run_attempt_030` has a supervisor stop marker and should be skipped.
+The next attempt should let T003 address the caller surface directly rather
+than looping through the same non-partial blocker.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable
