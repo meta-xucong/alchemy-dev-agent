@@ -1013,6 +1013,14 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("Sweep frontend i18n product copy", titles)
         self.assertIn("Sweep frontend view and component product copy", titles)
         self.assertNotIn("Sweep frontend product copy and i18n", titles)
+        nodes_by_id = {node["id"]: node for node in graph["nodes"]}
+        for task_id in ("T001", "T002", "T003", "T004", "T005", "T006"):
+            self.assertEqual(nodes_by_id[task_id]["status"], "completed")
+            self.assertTrue(
+                any(item["type"] == "focused_repair_preserved_task" for item in nodes_by_id[task_id]["evidence"])
+            )
+        self.assertEqual(nodes_by_id["T007"]["status"], "pending")
+        self.assertEqual(nodes_by_id["T008"]["status"], "pending")
 
         i18n_task = next(node for node in implementation_nodes if node["title"] == "Sweep frontend i18n product copy")
         self.assertIn("frontend/src/i18n/**", i18n_task["relevant_files"])

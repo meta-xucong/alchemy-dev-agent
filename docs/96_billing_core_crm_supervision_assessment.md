@@ -317,6 +317,23 @@ The real phase_010 probe now selects `phase_repair_006.md` and generates
 component product copy`, and `T009 Complete remaining frontend closure
 requirements`.
 
+## 2026-06-27 V2.95 Follow-Up
+
+`run_attempt_034` confirmed that V2.94 restored the correct repair brief and
+split graph, but it also exposed remaining waste: after T001 completed, Alchemy
+still dispatched T002 even though `phase_repair_006.md` said `Completed tasks
+to preserve: T001, T002, T003, T004, T005, T006`.
+
+That was not the old "broad T007" loop, but it was still unnecessary repeat
+work. A human supervisor would naturally remember not to rerun completed
+chapters; V2.95 makes that explicit in Alchemy. The planner now marks task IDs
+listed in `Completed tasks to preserve` as completed in the rebuilt graph, with
+preservation evidence attached. The real phase_010 graph probe now shows T001
+through T006 completed and T007/T008/T009 pending.
+
+This means the next controlled resume should skip the repeated T002-T006
+frontend work and start from the split copy/i18n repair boundary.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

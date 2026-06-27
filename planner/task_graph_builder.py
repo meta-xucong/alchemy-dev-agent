@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from context.models import ContextBundle, RepositoryFile, Requirement
@@ -126,6 +127,7 @@ class TaskGraphBuilder:
         dependencies = [Dependency(source="T001", target=node.id, type="blocks") for node in implementation_nodes]
         dependencies.extend(Dependency(source=node.id, target=verify_id, type="requires_test_pass") for node in implementation_nodes)
         dependencies.append(Dependency(source=verify_id, target=review_id, type="requires_review"))
+        mark_preserved_completed_tasks(nodes, focused_repair_completed_task_ids(requirements))
         return TaskGraph(graph_id=f"{context_bundle.project_id}-document-plan", version=1, nodes=nodes, dependencies=dependencies)
 
     def _implementation_nodes(
@@ -880,6 +882,34 @@ def focused_timeout_repair_for_task(requirements: list[Requirement], task_id: st
         and any(marker in text for marker in ("timeout", "timed out", "worker timeout"))
         and any(marker in text for marker in ("split", "checkpoint"))
     )
+
+
+COMPLETED_TASKS_TO_PRESERVE_PATTERN = re.compile(r"completed tasks to preserve:\s*([^.\n]+)", re.IGNORECASE)
+TASK_ID_PATTERN = re.compile(r"\bT\d{3}(?:-DEBUG-\d+)*\b", re.IGNORECASE)
+
+
+def focused_repair_completed_task_ids(requirements: list[Requirement]) -> list[str]:
+    task_ids: list[str] = []
+    for requirement in requirements:
+        for match in COMPLETED_TASKS_TO_PRESERVE_PATTERN.finditer(requirement.text):
+            task_ids.extend(item.upper() for item in TASK_ID_PATTERN.findall(match.group(1)))
+    return dedupe(task_ids)
+
+
+def mark_preserved_completed_tasks(nodes: list[TaskNode], task_ids: list[str]) -> None:
+    preserved_ids = set(task_ids)
+    if not preserved_ids:
+        return
+    for node in nodes:
+        if node.id.upper() not in preserved_ids:
+            continue
+        node.status = "completed"
+        node.evidence.append(
+            {
+                "type": "focused_repair_preserved_task",
+                "summary": "Task preserved as completed from focused repair brief evidence.",
+            }
+        )
 
 
 def should_decompose_large_refactor_frontend_phase(requirements: list[Requirement], *, assigned_agent: str) -> bool:

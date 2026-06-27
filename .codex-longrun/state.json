@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_94_disk_repair_brief_resume",
+  "current_phase": "v2_95_preserve_completed_repair_tasks",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -29,11 +29,13 @@
     "implemented V2.91 usage-limit false-positive guard so historical quota text inside successful Codex JSONL does not stop Billing Core resumes",
     "implemented V2.92 frontend API caller repair scope so T003 can edit components, composables, and constants when repair evidence identifies retired API callers there",
     "implemented V2.93 timeout repair split so T007 frontend copy/i18n timeouts produce smaller i18n and view/component copy-sweep tasks instead of replaying the broad worker scope",
-    "implemented V2.94 disk repair brief resume so stale phase records do not hide newer phase_repair_NNN.md evidence during full-roadmap relaunch"
+    "implemented V2.94 disk repair brief resume so stale phase records do not hide newer phase_repair_NNN.md evidence during full-roadmap relaunch",
+    "implemented V2.95 completed repair task preservation so focused repair resumes do not redispatch tasks listed in Completed tasks to preserve"
   ],
   "next_actions": [
-    "Commit and push V2.94 disk repair brief resume changes.",
-    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_033 and uses phase_repair_006.md to split T007/T008.",
+    "Run full-roadmap regression, diff check, and long-run state validation for V2.95.",
+    "Commit and push V2.95 completed repair task preservation changes.",
+    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_034 and starts from pending T007/T008 instead of redispatching T002-T006.",
     "Monitor whether the next Alchemy worker advances the CRM extraction work past the T007 timeout boundary; if it exposes another controller issue, stop and fix Alchemy before continuing.",
     "After the controlled run, reassess CRM usability, update the supervision document if new evidence appears, and continue the fix/monitor loop."
   ],
@@ -188,6 +190,16 @@
     "python -B -m pytest tests/test_document_to_plan.py -q => 21 passed",
     "python -B -m py_compile autodev\\full_roadmap_executor.py tests\\test_full_roadmap_execution.py => passed",
     "git diff --check => passed with existing .codex-longrun CRLF warnings only",
+    "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed",
+    "Billing Core controlled resume via .alchemy\\billing_core_v274_20260624_012\\resume_v2_88_supervised_probe.ps1 => run_attempt_034 selected phase_repair_006.md and split T007/T008 but redispatched completed T002 work; stopped for V2.95 preservation fix",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task -q => 1 passed",
+    "python -B -m py_compile planner\\task_graph_builder.py tests\\test_document_to_plan.py => passed",
+    "Real phase_010 graph rebuild probe after V2.95 => T001-T006 completed and T007/T008/T009 pending",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 21 passed",
+    "python -B -m pytest tests/test_document_run_pipeline.py -q => 26 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 55 passed",
+    "python -B -m py_compile planner\\task_graph_builder.py tests\\test_document_to_plan.py => passed",
+    "git diff --check => passed with existing .codex-longrun CRLF warnings only",
     "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed"
   ],
   "known_bugs": [
@@ -218,7 +230,8 @@
     "Before V2.91, V2.90's usage-limit detector scanned the whole successful Codex JSONL stream and could misclassify historical quota text in repair evidence as a live Codex usage-limit blocker.",
     "Before V2.92, a focused repair document could identify T003 retired API caller files in components, composables, and constants, but the rebuilt graph kept T003 on its old API-only scope and risked replaying the same non-partial blocker before later tasks could run.",
     "Before V2.93, a T007 timeout repair document could advise splitting/checkpointing, but the rebuilt graph still contained the same broad copy/i18n worker scope and could replay the 900 second timeout.",
-    "Before V2.94, a supervisor-stopped parent run could leave a newer phase_repair_NNN.md on disk while phase_record.json stayed stale; full-roadmap relaunch then ignored the fresh repair brief and replayed the broad phase graph from T001."
+    "Before V2.94, a supervisor-stopped parent run could leave a newer phase_repair_NNN.md on disk while phase_record.json stayed stale; full-roadmap relaunch then ignored the fresh repair brief and replayed the broad phase graph from T001.",
+    "Before V2.95, focused repair briefs could list completed tasks to preserve, but the rebuilt graph still marked those tasks pending/ready and could redispatch already completed Billing Core work."
   ],
   "blockers": [],
   "done_criteria": [
@@ -226,7 +239,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T20:17:00+08:00",
+  "last_verified_at": "2026-06-27T20:42:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T20:17:00+08:00"
+  "updated_at": "2026-06-27T20:42:00+08:00"
 }

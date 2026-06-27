@@ -242,6 +242,8 @@ docs/
                               V2.93 timeout repair split for frontend copy sweep.
   103_v2_94_disk_repair_brief_resume.md
                               V2.94 disk repair brief resume handoff.
+  104_v2_95_preserve_completed_repair_tasks.md
+                              V2.95 completed repair task preservation.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1414,6 +1416,15 @@ supervisor-stopped parent run from losing the fresh repair evidence it already
 wrote and falling back to the original broad phase graph.
 
 See `docs/103_v2_94_disk_repair_brief_resume.md`.
+
+## V2.95 Preserve Completed Repair Tasks
+
+V2.95 makes focused repair resumes honor `Completed tasks to preserve` evidence
+from repair briefs. Rebuilt graphs mark those task IDs completed with
+preservation evidence, so a T007 repair does not dispatch already completed
+T002-T006 work again.
+
+See `docs/104_v2_95_preserve_completed_repair_tasks.md`.
 
 Run a smoke execution:
 

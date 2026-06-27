@@ -1495,3 +1495,10 @@ PY"`
 - Found the Alchemy controller root cause: `phase_repair_006.md` was newer and correct, but `phase_record.json` was stale from an older blocked attempt, and full-roadmap bootstrap did not reuse newer ordinary disk repair briefs.
 - Implemented V2.94 in `autodev/full_roadmap_executor.py`: before bootstrapping from a previous phase record, Alchemy now passes the newest ordinary `phase_repair_NNN.md` if it is newer than `phase_record.json`.
 - Added a regression proving stale phase records hand off the newer disk repair brief, plus a real Billing Core probe confirming bootstrap selects `phase_repair_006.md` and the graph splits T007 into i18n and view/component copy tasks.
+
+## 2026-06-27T20:35:00+08:00 V2.95 Preserve Completed Repair Tasks
+
+- Relaunched Billing Core after V2.94. `run_attempt_034` proved the disk repair brief handoff was fixed: the graph selected `phase_repair_006.md` and contained split `T007 Sweep frontend i18n product copy` and `T008 Sweep frontend view and component product copy`.
+- Found a remaining efficiency/regression risk: after T001 completed, the graph still dispatched T002 even though the repair brief said `Completed tasks to preserve: T001, T002, T003, T004, T005, T006`. I stopped `run_attempt_034` and added `supervisor_stop.json` before it could spend more time rerunning completed frontend work.
+- Implemented V2.95 in `planner/task_graph_builder.py`: focused repair briefs now mark listed completed task IDs as completed in the rebuilt graph and attach `focused_repair_preserved_task` evidence.
+- Real Billing Core graph probe now shows T001-T006 completed, with T007/T008/T009 pending. The next relaunch should skip repeated T002-T006 work and continue from the split timeout repair boundary.

@@ -3025,6 +3025,22 @@
 - next verification command: full-roadmap regression.
 
 - command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `55 passed`
+- next verification command: py_compile, diff check, and state validation.
+
+- command: `python -B -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py`
+- result: passed
+- next verification command: diff check.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.95, then relaunch Billing Core through Alchemy.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
 - result: `54 passed`
 - next verification command: diff check, state validation, commit/push V2.92, then relaunch Billing Core through Alchemy.
 
@@ -3127,3 +3143,32 @@
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.94, then relaunch Billing Core through Alchemy.
+
+## 2026-06-27T20:35:00+08:00 V2.95 completed repair task preservation verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: stopped by supervisor for completed-task preservation fix
+- relevant evidence: `run_attempt_034` correctly selected `phase_repair_006.md` and generated split T007/T008 tasks, but after T001 completed it dispatched T002 even though the repair brief listed T001-T006 as completed tasks to preserve.
+- fix attempted: added `run_attempt_034/supervisor_stop.json` and taught the planner to mark tasks listed in `Completed tasks to preserve` as completed in rebuilt repair graphs.
+- next verification command: focused planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task -q`
+- result: `1 passed`
+- next verification command: targeted py_compile and real Billing Core graph probe.
+
+- command: `python -B -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py`
+- result: passed
+- next verification command: real Billing Core graph rebuild probe.
+
+- command: real phase_010 graph rebuild probe using `phase_requirements.md` and `phase_repair_006.md`
+- result: passed
+- relevant evidence: graph marks T001-T006 completed and leaves T007/T008/T009 pending.
+- next verification command: full document-to-plan, document-run pipeline, full-roadmap regression, diff check, and state validation.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `21 passed`
+- next verification command: document-run pipeline regression.
+
+- command: `python -B -m pytest tests/test_document_run_pipeline.py -q`
+- result: `26 passed`
+- next verification command: full-roadmap regression.
