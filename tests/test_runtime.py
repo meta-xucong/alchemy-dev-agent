@@ -1810,6 +1810,100 @@ class EvaluatorTests(unittest.TestCase):
         self.assertTrue(result.done)
         self.assertEqual(result.dimension_scores["risk_quality"], 1.0)
 
+    def test_evaluator_counts_preserved_repair_evidence_for_alignment(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            manager = StateManager(Path(tmp_dir) / "state.json")
+            state = manager.initialize("objective")
+
+        state.task_graph.nodes = []
+        for index in range(1, 9):
+            state.task_graph.nodes.append(
+                TaskNode(
+                    id=f"T{index:03d}",
+                    title=f"Preserved frontend task {index}",
+                    description="Preserved completed Billing Core frontend closure task.",
+                    type="frontend" if index > 1 else "architecture",
+                    assigned_agent="frontend",
+                    status="completed",
+                    completion_criteria=["Preserved completion evidence is carried forward."],
+                    evidence=[
+                        {
+                            "type": "focused_repair_preserved_task",
+                            "result": {"status": "completed"},
+                        }
+                    ],
+                )
+            )
+        state.task_graph.nodes.extend(
+            [
+                TaskNode(
+                    id="T021",
+                    title="Verify implementation against project checks",
+                    description="Run verification.",
+                    type="test",
+                    assigned_agent="test",
+                    status="completed",
+                    completion_criteria=["Verification passes."],
+                    evidence=[
+                        {
+                            "type": "worker_result",
+                            "result": {
+                                "status": "completed",
+                                "tests_failed": [],
+                                "known_issues": [
+                                    "Worktree is already very dirty outside this task; no repository files were edited.",
+                                    "Frontend build emitted a non-fatal Vite dynamic/static import chunking warning.",
+                                ],
+                            },
+                        }
+                    ],
+                ),
+                TaskNode(
+                    id="T022",
+                    title="Review delivery readiness",
+                    description="Review evidence.",
+                    type="review",
+                    assigned_agent="review",
+                    status="completed",
+                    completion_criteria=["Reviewer approves."],
+                    evidence=[
+                        {
+                            "type": "worker_result",
+                            "result": {"status": "completed", "tests_failed": []},
+                        }
+                    ],
+                ),
+                TaskNode(
+                    id="T023",
+                    title="Record delivery evidence",
+                    description="Record evidence.",
+                    type="release",
+                    assigned_agent="release",
+                    status="completed",
+                    completion_criteria=["Delivery evidence is recorded."],
+                    evidence=[
+                        {
+                            "type": "ci_result",
+                            "result": {"status": "completed"},
+                        }
+                    ],
+                ),
+            ]
+        )
+        state.github = {"commit": "local-evidence", "pull_request_url": "local-delivery"}
+        state.repository["requirement_coverage"] = {
+            "coverage_score": 0.8689,
+            "missing_must_requirement_ids": [],
+            "partial_must_requirement_ids": [],
+        }
+
+        result = Evaluator().evaluate(state)
+
+        self.assertTrue(result.done)
+        self.assertGreaterEqual(result.final_score, 0.85)
+        self.assertEqual(result.dimension_scores["spec_alignment"], 0.8689)
+        self.assertEqual(result.dimension_scores["risk_quality"], 1.0)
+
     def test_evaluator_ignores_completed_debug_historical_failures(self) -> None:
         engine = TaskGraphEngine()
         with temp_project_dir() as tmp_dir:

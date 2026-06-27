@@ -6,6 +6,13 @@ from dataclasses import dataclass, field
 
 from .models import RuntimeState, TaskNode, utc_now_iso
 
+SPEC_ALIGNMENT_EVIDENCE_TYPES = {
+    "worker_result",
+    "focused_repair_preserved_task",
+    "focused_repair_preserved_coverage",
+    "ci_result",
+}
+
 
 @dataclass(slots=True)
 class EvaluationResult:
@@ -165,7 +172,8 @@ class Evaluator:
         with_criteria = [
             node
             for node in completed
-            if node.completion_criteria and any(item.get("type") == "worker_result" for item in node.evidence)
+            if node.completion_criteria
+            and any(str(item.get("type", "")) in SPEC_ALIGNMENT_EVIDENCE_TYPES for item in node.evidence)
         ]
         return len(with_criteria) / len(nodes)
 
@@ -326,5 +334,15 @@ def _is_risk_relevant_known_issue(issue: str) -> bool:
         ".go.",
         "did not affect",
         "documentation intentionally",
+        "active git branch",
+        "not the task package branch",
+        "worktree is already very dirty",
+        "pre-existing changes",
+        "temporary copy",
+        "empty allowed_files/no-repository-edits",
+        "non-fatal",
+        "vue-i18n",
+        "vite dynamic",
+        "eslint --fix",
     )
     return not any(marker in lowered for marker in benign_markers)

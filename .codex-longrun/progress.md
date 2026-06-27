@@ -1594,3 +1594,13 @@ PY"`
 - Real phase_010 bootstrap after V2.106 selects `phase_repair_008.md`, `phase_repair_009.md`, and `phase_repair_resume_010.md`; graph probe marks T001-T008 completed and leaves only T021 verification and T022 review pending.
 - Verification passed: focused recovery regressions `7 passed`, full `tests/test_full_roadmap_execution.py` `67 passed`, full `tests/test_document_to_plan.py` `25 passed`, and `python -m compileall autodev planner tests -q` passed.
 - Next step: commit/push V2.106, then relaunch Billing Core through Alchemy and monitor T021/T022 rather than allowing any broad frontend worker replay.
+
+## 2026-06-28T02:35:00+08:00 V2.107 Preserved Evidence Evaluator Revalidation
+
+- Relaunched Billing Core after V2.106. `run_attempt_046` used the correct narrow graph: T001-T008 completed, T021 verification active, T022 review pending, T23 evidence pending. T021/T022/T023 completed; `run_attempt_047` repeated the same verification/review/evidence closure as T024/T025/T026.
+- Both 046 and 047 had passing verification/review evidence but scored only `0.6945` with no hard failures because `Evaluator._spec_alignment()` counted only `worker_result` evidence and ignored `focused_repair_preserved_task` evidence on the preserved implementation nodes.
+- The parent launched `run_attempt_048`; T027 verification timed out after 900 seconds. Alchemy correctly stopped with non-partial blocker `B-T027-1` and did not dispatch a same-scope debug task.
+- Implemented V2.107 in `runtime/evaluator.py` and `autodev/full_roadmap_executor.py`: preserved repair evidence and CI evidence now count for spec alignment, common successful-verification warning notes are benign for risk scoring, and full-roadmap resume revalidates existing attempt reports before launching another worker.
+- Real revalidation probe now selects `phase_010/run_attempt_047` as promotable with score `0.9607`, despite the current phase record pointing at timed-out `run_attempt_048`.
+- Verification passed: focused regressions `2 passed`, evaluator regression group `4 passed`, `tests/test_runtime.py` `132 passed`, `tests/test_full_roadmap_execution.py` `68 passed`, `tests/test_document_to_plan.py` `25 passed`, and compileall passed.
+- Next step: commit/push V2.107, relaunch Billing Core, and confirm phase_010 is marked done from existing run_attempt_047 evidence without launching another verification worker.

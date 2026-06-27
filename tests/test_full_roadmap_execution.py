@@ -20,6 +20,7 @@ from autodev.full_roadmap_executor import (
     next_phase_run_dir,
     phase_repository_path,
     phase_run_payload,
+    read_json,
     should_auto_repair_phase,
     write_json,
     write_phase_document,
@@ -1710,6 +1711,142 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("Completed tasks to preserve: T017, T018, T019, T020", text)
         self.assertIn("Must requirements are missing coverage", text)
         self.assertNotIn("operator stop request", text)
+
+    def test_executor_revalidates_existing_promotable_attempt_before_new_phase_run(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        output = root / "run"
+        phase_dir = output / "phases" / "phase_010"
+        repairable_run = phase_dir / "run_attempt_047"
+        blocked_run = phase_dir / "run_attempt_048"
+        repairable_run.mkdir(parents=True)
+        blocked_run.mkdir()
+        plan = RoadmapExecutionPlan(
+            root_objective="Convert Billing Core into an independent CRM system.",
+            phases=[
+                RoadmapPhase(
+                    phase_id="phase_010",
+                    title="Frontend CRM Closure",
+                    requirements=["Close frontend CRM workflows."],
+                )
+            ],
+            confidence=0.9,
+        )
+        write_json(output / "roadmap_execution_plan.json", plan.to_dict())
+        write_json(output / "roadmap_audit.json", {"status": "passed", "issues": []})
+        write_json(output / "project_analysis_report.json", {"ready_to_start": True})
+        write_json(
+            phase_dir / "phase_record.json",
+            {
+                "phase_id": "phase_010",
+                "title": "Frontend CRM Closure",
+                "status": "blocked",
+                "output_dir": str(blocked_run),
+                "result": {"status": "blocked", "runtime_state": {"blockers": []}},
+                "promotion": {"can_promote": False, "score": 0.1455, "reasons": ["Phase has blockers."]},
+            },
+        )
+        runtime_state = {
+            "objective": "phase 010",
+            "task_graph": {
+                "graph_id": "phase-010",
+                "version": 1,
+                "nodes": [
+                    {
+                        "id": "T001",
+                        "title": "Preserved frontend closure",
+                        "description": "Preserved completed frontend work.",
+                        "type": "frontend",
+                        "assigned_agent": "frontend",
+                        "status": "completed",
+                        "completion_criteria": ["Preserved completion evidence is carried forward."],
+                        "evidence": [{"type": "focused_repair_preserved_task", "result": {"status": "completed"}}],
+                    },
+                    {
+                        "id": "T024",
+                        "title": "Verify implementation against project checks",
+                        "description": "Run verification.",
+                        "type": "test",
+                        "assigned_agent": "test",
+                        "status": "completed",
+                        "completion_criteria": ["Verification passes."],
+                        "evidence": [
+                            {
+                                "type": "worker_result",
+                                "result": {
+                                    "status": "completed",
+                                    "tests_failed": [],
+                                    "known_issues": ["Frontend build emitted a non-fatal Vite dynamic import warning."],
+                                },
+                            }
+                        ],
+                    },
+                    {
+                        "id": "T025",
+                        "title": "Review delivery readiness",
+                        "description": "Review evidence.",
+                        "type": "review",
+                        "assigned_agent": "review",
+                        "status": "completed",
+                        "completion_criteria": ["Reviewer approves."],
+                        "evidence": [{"type": "worker_result", "result": {"status": "completed", "tests_failed": []}}],
+                    },
+                    {
+                        "id": "T026",
+                        "title": "Record delivery evidence",
+                        "description": "Record evidence.",
+                        "type": "release",
+                        "assigned_agent": "release",
+                        "status": "completed",
+                        "completion_criteria": ["Delivery evidence is recorded."],
+                        "evidence": [{"type": "ci_result", "result": {"status": "completed"}}],
+                    },
+                ],
+                "dependencies": [],
+            },
+            "active_tasks": [],
+            "completed_tasks": ["T001", "T024", "T025", "T026"],
+            "failed_tasks": [],
+            "blockers": [],
+            "github": {"commit": "local-evidence", "pull_request_url": "local-delivery"},
+            "repository": {
+                "requirement_coverage": {
+                    "coverage_score": 0.9,
+                    "missing_must_requirement_ids": [],
+                    "partial_must_requirement_ids": [],
+                }
+            },
+        }
+        write_json(
+            repairable_run / "document_run_report.json",
+            {
+                "status": "done",
+                "runtime_state": runtime_state,
+                "delivery_report": {
+                    "ready_for_review": False,
+                    "final_gate": {"score": 0.6945, "reason": "Old evaluator score was below threshold."},
+                },
+            },
+        )
+
+        def fail_runner(**_kwargs):
+            self.fail("promotable existing attempt should be reused before launching a new phase run")
+
+        result = FullRoadmapExecutor(document_runner=fail_runner).run(
+            objective="Convert Billing Core into an independent CRM system.",
+            documents=[],
+            repository_path=repo,
+            output_dir=output,
+            max_phases=1,
+            run_payload={"max_phase_repair_attempts": 2},
+        )
+        record = read_json(phase_dir / "phase_record.json")
+
+        self.assertEqual(result.phase_records[-1]["status"], "done")
+        self.assertEqual(record["status"], "done")
+        self.assertEqual(record["output_dir"], str(repairable_run))
+        self.assertGreaterEqual(record["promotion"]["score"], 0.85)
 
     def test_executor_bootstraps_blocked_phase_resume_with_repair_evidence(self) -> None:
         root = temp_root()

@@ -3152,6 +3152,41 @@
 
 - next verification command: diff check, long-run state validation, commit/push V2.106, then controlled Billing Core relaunch through Alchemy.
 
+## 2026-06-28T02:35:00+08:00 V2.107 preserved evidence evaluator revalidation
+
+- command: Billing Core controlled resume after V2.106
+- result: `run_attempt_046` and `run_attempt_047` used narrow verification/review/evidence graphs only; no broad frontend implementation worker was replayed.
+- relevant evidence: T021/T022/T023 and T024/T025/T026 completed, but both attempts scored `0.6945` because preserved implementation evidence did not count toward spec alignment.
+
+- command: Billing Core `run_attempt_048` monitor
+- result: T027 verification timed out after 900 seconds, and Alchemy stopped with non-partial blocker `B-T027-1` without dispatching same-scope debug work.
+
+- command: focused evaluator/full-roadmap regressions
+- result: `2 passed`
+
+- command: evaluator regression group
+- result: `4 passed`
+
+- command: real `run_attempt_047/state.json` evaluation probe after V2.107
+- result: final gate score `0.9607`, done=true, no hard failures.
+
+- command: real `revalidated_promotable_phase_record()` probe against phase_010
+- result: selected `phase_010/run_attempt_047` with promotion score `0.9607` while current phase_record points at timed-out `run_attempt_048`.
+
+- command: `python -m pytest tests/test_runtime.py -q`
+- result: first parallel run hit the tool timeout; serial rerun passed with `132 passed in 288.70s`.
+
+- command: `python -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `68 passed`
+
+- command: `python -m pytest tests/test_document_to_plan.py -q`
+- result: `25 passed`
+
+- command: `python -m compileall autodev runtime planner tests -q`
+- result: passed
+
+- next verification command: diff check, long-run state validation, commit/push V2.107, then controlled Billing Core relaunch through Alchemy.
+
 ## 2026-06-27T22:43:00+08:00 V2.100 worker output budget hygiene verification
 
 - command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`

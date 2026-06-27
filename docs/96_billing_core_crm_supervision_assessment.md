@@ -562,6 +562,29 @@ The real phase_010 probe after V2.106 now selects `phase_repair_008.md`,
 `phase_repair_009.md`, and `phase_repair_resume_010.md`; the rebuilt graph has
 T001-T008 completed and only T021 verification plus T022 review pending.
 
+## 2026-06-28 V2.107 Follow-Up
+
+The V2.106 relaunch proved the graph was no longer replaying broad frontend
+work. `run_attempt_046` and `run_attempt_047` ran only verification, review, and
+delivery-evidence nodes, and their verification workers passed the requested
+frontend/backend checks. They still scored `0.6945`, with no hard failures,
+because the evaluator counted only `worker_result` evidence for
+`spec_alignment`. The preserved implementation nodes used
+`focused_repair_preserved_task`, so the score ignored the already completed
+frontend work.
+
+The parent then launched `run_attempt_048`, which timed out on a repeated
+verification worker after 900 seconds. Alchemy correctly stopped at the timeout
+with a non-partial blocker and did not dispatch same-scope debug work. The
+timeout exposed the need for the progress-aware timeout optimization that was
+already noted, but the immediate root cause was evaluator scoring.
+
+V2.107 fixes the evaluator and adds full-roadmap revalidation of existing
+attempt reports before launching a new worker. Revalidating real
+`run_attempt_047` now yields score `0.9607` and no hard failures, so the next
+resume should promote phase_010 from existing evidence rather than run another
+verification worker.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

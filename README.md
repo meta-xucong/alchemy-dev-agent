@@ -1528,6 +1528,16 @@ poisoning the next recovery launch.
 
 See `docs/115_v2_106_stopped_attempt_repair_record_fallback.md`.
 
+## V2.107 Preserved Evidence Evaluator Revalidation
+
+V2.107 teaches the evaluator that focused preserved-task and preserved-coverage
+evidence count toward spec alignment, treats common successful-verification
+warning notes as benign risk signals, and revalidates existing attempts before
+launching another phase worker. This lets a previously low-scored attempt
+promote after an evaluator fix instead of spending another worker window.
+
+See `docs/116_v2_107_preserved_evidence_evaluator_revalidation.md`.
+
 Run a smoke execution:
 
 ```bash

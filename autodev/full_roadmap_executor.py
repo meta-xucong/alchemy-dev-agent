@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
+from runtime.evaluator import Evaluator
+from runtime.models import RuntimeState
 from runtime.worker_lifecycle import process_exists
 
 from .document_reference_expander import expand_development_documents
@@ -236,6 +238,23 @@ class FullRoadmapExecutor:
             phase_records = [record for record in phase_records if record.phase_id != phase.phase_id]
             phase_dir = output / "phases" / phase.phase_id
             phase_dir.mkdir(parents=True, exist_ok=True)
+            revalidated_record = revalidated_promotable_phase_record(phase_dir, phase)
+            if revalidated_record is not None:
+                phase.status = "completed"
+                phase_records.append(revalidated_record)
+                write_json(phase_dir / "phase_record.json", revalidated_record.to_dict())
+                write_json(output / "roadmap_execution_plan.json", plan.to_dict())
+                write_running_report(
+                    output / "full_roadmap_report.json",
+                    plan=plan,
+                    roadmap_audit=audit_payload,
+                    project_analysis=analysis_payload,
+                    document_expansion=document_expansion_payload,
+                    generated_development_package=generated_package,
+                    phase_records=phase_records,
+                    active_phase=None,
+                )
+                continue
             write_running_report(
                 output / "full_roadmap_report.json",
                 plan=plan,
@@ -819,6 +838,55 @@ def bootstrap_phase_repair_documents(
             ),
         ]
     )
+
+
+def revalidated_promotable_phase_record(phase_dir: Path, phase: RoadmapPhase) -> PhaseExecutionRecord | None:
+    for run_dir in reversed(list_phase_run_dirs(phase_dir)):
+        payload = read_optional_json(run_dir / "document_run_report.json")
+        if not payload:
+            continue
+        refreshed = result_with_current_evaluation(payload)
+        promotion = phase_promotion_decision(phase, refreshed)
+        if not bool(promotion.get("can_promote")):
+            continue
+        return PhaseExecutionRecord(
+            phase_id=phase.phase_id,
+            title=phase.title,
+            status="done",
+            output_dir=str(run_dir),
+            result=refreshed,
+            promotion=promotion,
+        )
+    return None
+
+
+def result_with_current_evaluation(result: dict[str, object]) -> dict[str, object]:
+    runtime_state = _dict(result.get("runtime_state"))
+    if not runtime_state:
+        return result
+    try:
+        evaluation = Evaluator().evaluate(RuntimeState.from_dict(runtime_state)).to_dict()
+    except (KeyError, TypeError, ValueError):
+        return result
+    refreshed = dict(result)
+    delivery = _dict(refreshed.get("delivery_report"))
+    final_gate = _dict(delivery.get("final_gate"))
+    final_gate.update(
+        {
+            "score": evaluation.get("final_gate_score", evaluation.get("final_score", 0.0)),
+            "final_score": evaluation.get("final_score", evaluation.get("final_gate_score", 0.0)),
+            "dimension_scores": evaluation.get("dimension_scores", {}),
+            "hard_failures": evaluation.get("hard_failures", []),
+            "required_changes": evaluation.get("required_changes", []),
+            "reason": evaluation.get("reason", ""),
+        }
+    )
+    delivery["final_gate"] = final_gate
+    delivery["ready_for_review"] = bool(evaluation.get("done"))
+    refreshed["delivery_report"] = delivery
+    if bool(evaluation.get("done")) and str(refreshed.get("status", "")) == "done":
+        refreshed["status"] = "done"
+    return refreshed
 
 
 def effective_previous_repair_record(
