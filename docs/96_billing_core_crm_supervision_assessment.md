@@ -177,6 +177,34 @@ V2.88 adds focused `phase_repair_resume_NNN.md` generation and narrows the
 credential markers. The next Billing Core resume should therefore enter
 `phase_010` with a T006-focused repair brief.
 
+## 2026-06-27 V2.89 Follow-Up
+
+The supervised V2.88 relaunch proved that the repair brief was focused, but the
+planner still produced the wrong task graph in `run_attempt_024` and
+`run_attempt_025`.
+
+New Alchemy issues found and addressed:
+
+- Repair narrative containing phrases like "in allowed scope" could be parsed
+  as a global allowed-scope contract, causing later "previous relevant files"
+  evidence to narrow the whole phase to old task files.
+- Frontend `large_refactor` planning was short-circuited by scoped file
+  evidence before it reached the frontend task decomposition logic.
+- `.vue` paths in repair evidence were not extracted, weakening the handoff for
+  Vue frontend failures.
+- A manually stopped bad attempt needed an explicit terminal marker so later
+  resumes would not reuse it.
+
+V2.89 fixes those issues. Rebuilding current `phase_010` inputs now produces
+seven frontend `large_refactor` implementation tasks, including a usage/API-key
+task scoped to `AccountUsageCell`, `UsageTable`, `EmailVerifyView`,
+`usePersistedPageSize`, `DashboardView`, router, and sidebar files.
+
+The timeout concern remains recorded as a follow-up rather than a reason to
+blindly raise worker budgets. The next optimization should make timeout
+handling progress-aware through heartbeats/checkpoints/bounded grace, while
+keeping hard stops for stuck workers.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

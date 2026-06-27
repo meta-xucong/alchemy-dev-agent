@@ -1114,6 +1114,8 @@ def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:
     """Find the newest interrupted active attempt that can be resumed safely."""
 
     for run_dir in reversed(list_phase_run_dirs(phase_dir)):
+        if supervisor_stop_marker_exists(run_dir):
+            return InterruptedPhaseResume()
         state = read_optional_json(run_dir / "state.json")
         active_task_ids = active_task_ids_from_state(state)
         if not active_task_ids:
@@ -1154,6 +1156,10 @@ def list_phase_run_dirs(phase_dir: Path) -> list[Path]:
         candidates.append(default)
     candidates.extend(sorted(phase_dir.glob("run_attempt_*"), key=_phase_run_sort_key))
     return candidates
+
+
+def supervisor_stop_marker_exists(run_dir: Path) -> bool:
+    return any((run_dir / name).exists() for name in ("supervisor_stop.json", "operator_stop.json"))
 
 
 def active_task_ids_from_state(state: dict[str, object]) -> list[str]:

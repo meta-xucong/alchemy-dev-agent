@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_88_focused_phase_repair_resume",
+  "current_phase": "v2_89_repair_scope_handoff",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -23,12 +23,13 @@
     "implemented V2.86 package lockfile boundary expansion so manifest-scoped frontend tasks do not fail on same-directory lockfile updates",
     "implemented V2.87 dead debug active resume skip so stopped debug workers are not reused as resume_from sources",
     "documented Billing Core CRM supervision assessment, usability gaps, delivery gates, and Codex/Alchemy operating contract",
-    "implemented V2.88 focused phase repair resume so blocked Billing Core phase resumes carry T006 evidence instead of broad-replanning from scratch"
+    "implemented V2.88 focused phase repair resume so blocked Billing Core phase resumes carry T006 evidence instead of broad-replanning from scratch",
+    "implemented V2.89 repair scope handoff so focused Billing Core repair evidence produces frontend large-refactor tasks instead of replaying narrow router/package scope"
   ],
   "next_actions": [
-    "Commit and push V2.88 focused phase repair resume changes.",
-    "Relaunch Billing Core through Alchemy only; confirm phase_010 creates a fresh run_attempt after run_attempt_023 and includes a phase_repair_resume_NNN.md document focused on T006.",
-    "Monitor whether the next Alchemy task graph turns T006 out-of-scope full-suite/typecheck failures into narrower repair tasks with explicit allowed files, rather than replaying the whole frontend closure phase.",
+    "Commit and push V2.89 repair scope handoff changes.",
+    "Relaunch Billing Core through Alchemy only; confirm phase_010 creates a fresh run_attempt after the supervisor-stopped run_attempt_025 and produces frontend large-refactor repair tasks instead of the narrow router/package task.",
+    "Monitor whether the next Alchemy worker advances the inherited isolated worktree on the failing frontend areas; if it exposes another controller issue, stop and fix Alchemy before continuing.",
     "After the controlled run, reassess CRM usability, update the supervision document if new evidence appears, and continue the fix/monitor loop."
   ],
   "tests_run": [
@@ -127,7 +128,17 @@
     "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_document_path_preserves_existing_repair_briefs tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_document_includes_focused_failed_task_evidence tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_bootstraps_blocked_phase_resume_with_repair_evidence tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_distinguishes_technical_and_environment_blockers -q => 4 passed",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 53 passed",
     "python -B -m py_compile autodev\\full_roadmap_executor.py tests\\test_full_roadmap_execution.py => passed",
-    "git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py README.md docs/96_billing_core_crm_supervision_assessment.md docs/97_v2_88_focused_phase_repair_resume.md .codex-longrun/progress.md => passed with existing .codex-longrun/progress.md CRLF warning only"
+    "git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py README.md docs/96_billing_core_crm_supervision_assessment.md docs/97_v2_88_focused_phase_repair_resume.md .codex-longrun/progress.md => passed with existing .codex-longrun/progress.md CRLF warning only",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_repair_narrative_allowed_scope_does_not_seed_scope_controls tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_repair_docs_do_not_collapse_to_scoped_router_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap tests/test_document_to_plan.py::DocumentToPlanTests::test_docs_only_scope_builds_documentation_task_with_lightweight_verification -q => 4 passed",
+    "Real phase_010 graph rebuild probe with current phase_requirements.md, phase_repair_resume_001.md, and phase_repair_003.md => passed; generated seven frontend large_refactor implementation tasks and usage task includes AccountUsageCell/UsageTable/EmailVerifyView/usePersistedPageSize/DashboardView/router/sidebar files",
+    "python -B -m pytest tests/test_document_to_plan.py -q => first run failed on auto-feedback bullet Target files being promoted to graph-wide scope; after parser fix rerun passed with 20 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_supervisor_stopped_active_phase_attempt_is_not_resumed tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_terminal_active_phase_attempt_is_not_resumed tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_dead_debug_active_phase_attempt_is_not_resumed -q => 4 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 54 passed",
+    "python -B -m pytest tests/test_document_run_pipeline.py -q => 26 passed",
+    "python -B -m pytest tests/test_runtime.py -q => 123 passed",
+    "python -B -m py_compile context\\requirement_extractor.py planner\\task_graph_builder.py autodev\\full_roadmap_executor.py tests\\test_document_to_plan.py tests\\test_full_roadmap_execution.py => passed",
+    "git diff --check => passed with existing .codex-longrun CRLF warnings only",
+    "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -146,7 +157,12 @@
     "As of 2026-06-27 02:31 +08:00, local Codex CLI real-model access is temporarily blocked by account usage limits. Real Alchemy workers use that Codex CLI login path, so launching Billing Core before the reset would create a false run failure.",
     "Before V2.88, resuming a previously blocked full-roadmap phase could launch with only the original broad phase requirements instead of a repair brief seeded from the previous blocker evidence, making phase_010 feel like it was starting over.",
     "Before V2.88, bare api key/auth non-repairable marker matching could misclassify CRM API-key or identity product workflow blockers as credential blockers. V2.88 narrows those markers to credential-shaped phrases.",
-    "Billing Core phase_010/run_attempt_023 is now cleanly blocked at T006: T001-T005 are completed, targeted frontend checks passed, and remaining failures are out-of-scope full-suite/typecheck issues that need narrower Alchemy repair tasks with expanded allowed files."
+    "Billing Core phase_010/run_attempt_023 is now cleanly blocked at T006: T001-T005 are completed, targeted frontend checks passed, and remaining failures are out-of-scope full-suite/typecheck issues that need narrower Alchemy repair tasks with expanded allowed files.",
+    "Before V2.89, repair narrative such as 'in allowed scope' could accidentally seed graph-wide allowed_prefixes, causing later 'previous relevant files' evidence to collapse a frontend closure phase back to old narrow files.",
+    "Before V2.89, frontend large_refactor planning was short-circuited by scoped file evidence before the frontend decomposition path, producing a backend strict T002 task for Billing Core phase_010 instead of focused frontend repair tasks.",
+    "Before V2.89, .vue file paths in repair evidence were not extracted, weakening handoff for Vue frontend failures such as AppSidebar, EmailVerifyView, UsageTable, and DashboardView.",
+    "Before V2.89, a supervisor-stopped bad attempt could still be considered by resume selection unless a newer terminal state superseded it; supervisor_stop.json/operator_stop.json are now explicit terminal attempt markers.",
+    "Timeout handling is safer after V2.84/V2.88, but still not progress-aware. Later optimization should add worker heartbeats, checkpoints, and bounded grace rather than simply raising max_worker_seconds."
   ],
   "blockers": [],
   "done_criteria": [
@@ -154,7 +170,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T15:39:00+08:00",
+  "last_verified_at": "2026-06-27T16:24:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T15:39:00+08:00"
+  "updated_at": "2026-06-27T16:24:00+08:00"
 }

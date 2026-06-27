@@ -599,6 +599,26 @@ class DocumentToPlanTests(unittest.TestCase):
             ],
         )
 
+    def test_repair_narrative_allowed_scope_does_not_seed_scope_controls(self) -> None:
+        repair_text = "\n".join(
+            [
+                "- B-T006-2: Worker completed a CRM-ready API key workflow in allowed scope.",
+                "- Previous relevant files: frontend/package.json, frontend/src/router/index.ts.",
+                "- The route is outside allowed_files: frontend/src/components/layout/AppSidebar.vue.",
+                "- Keep the phase scope controls and protected paths unchanged.",
+            ]
+        )
+
+        controls = extract_scope_controls(repair_text)
+
+        self.assertEqual(controls.allowed_prefixes, [])
+        self.assertEqual(controls.protected_prefixes, [])
+        self.assertEqual(controls.target_files, [])
+        self.assertIn(
+            "frontend/src/components/layout/AppSidebar.vue",
+            explicit_paths_from_text(repair_text),
+        )
+
     def test_v3_independence_text_infers_owned_scope_and_protected_legacy_paths(self) -> None:
         controls = extract_scope_controls(
             "\n".join(
@@ -827,6 +847,97 @@ class DocumentToPlanTests(unittest.TestCase):
             self.assertNotIn("npm --prefix frontend test", implementation["commands_to_run"])
         payment_task = next(node for node in implementation_nodes if node["title"] == "Convert wallet recharge and payment surfaces")
         self.assertIn("frontend/src/views/admin/orders/**", payment_task["relevant_files"])
+
+    def test_large_refactor_frontend_repair_docs_do_not_collapse_to_scoped_router_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend").mkdir(parents=True)
+            (repo / "frontend" / "src" / "router").mkdir(parents=True)
+            (repo / "frontend" / "src" / "components" / "account").mkdir(parents=True)
+            (repo / "frontend" / "src" / "components" / "admin" / "usage").mkdir(parents=True)
+            (repo / "frontend" / "src" / "components" / "layout").mkdir(parents=True)
+            (repo / "frontend" / "src" / "composables").mkdir(parents=True)
+            (repo / "frontend" / "src" / "views" / "admin").mkdir(parents=True)
+            (repo / "frontend" / "src" / "views" / "auth").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "frontend" / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            (repo / "frontend" / "src" / "router" / "index.ts").write_text("export const routes = [];\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "components" / "account" / "AccountUsageCell.vue").write_text("<template />\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "components" / "admin" / "usage" / "UsageTable.vue").write_text("<template />\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "components" / "layout" / "AppSidebar.vue").write_text("<template />\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "composables" / "usePersistedPageSize.ts").write_text("export const pageSize = 1000;\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "views" / "admin" / "DashboardView.vue").write_text("<template />\n", encoding="utf-8")
+            (repo / "frontend" / "src" / "views" / "auth" / "EmailVerifyView.vue").write_text("<template />\n", encoding="utf-8")
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase: Frontend closure",
+                        "## Requirements",
+                        "- Must close frontend router, menu, and direct pages.",
+                        "- Must clean frontend API service references.",
+                        "- Must convert wallet recharge, payment provider, and order surfaces.",
+                        "- Must convert redeem code pages to balance-only flows.",
+                        "- Must close usage API key and admin users workflows.",
+                        "- Must sweep token relay product copy and i18n.",
+                        "",
+                        "## Boundary Mode",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair = root / "phase_repair.md"
+            repair.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        "## Focused Repair Scope",
+                        "- B-T006-2: Worker completed the API key workflow in allowed scope.",
+                        "- Previous relevant files: frontend/package.json, frontend/src/router/index.ts.",
+                        "- Convert out-of-scope full-suite failures into focused follow-up tasks with expanded allowed files.",
+                        "- Fix AccountUsageCell with frontend/src/components/account/AccountUsageCell.vue.",
+                        "- Fix admin UsageTable with frontend/src/components/admin/usage/UsageTable.vue.",
+                        "- Fix EmailVerifyView affiliate payload with frontend/src/views/auth/EmailVerifyView.vue.",
+                        "- Fix persisted page-size default with frontend/src/composables/usePersistedPageSize.ts.",
+                        "- Guard DashboardView cost formatting with frontend/src/views/admin/DashboardView.vue.",
+                        "- Wire API key navigation through frontend/src/components/layout/AppSidebar.vue.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core frontend closure.",
+                documents=[phase, repair],
+                repository_path=repo,
+                created_at="2026-06-27T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        self.assertEqual(bundle.scope_controls["boundary_mode"], "large_refactor")
+        self.assertEqual(bundle.scope_controls["allowed_prefixes"], [])
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertGreaterEqual(len(implementation_nodes), 5)
+        self.assertNotIn("Implement scoped V3 foundation target files", [node["title"] for node in implementation_nodes])
+        for implementation in implementation_nodes:
+            self.assertEqual(implementation["assigned_agent"], "frontend")
+            self.assertEqual(implementation["boundary_mode"], "large_refactor")
+            self.assertNotIn("cd backend && go test ./...", implementation["commands_to_run"])
+
+        usage_task = next(node for node in implementation_nodes if node["title"] == "Close usage API key and admin user workflows")
+        self.assertIn("frontend/src/components/account/**", usage_task["relevant_files"])
+        self.assertIn("frontend/src/components/admin/usage/**", usage_task["relevant_files"])
+        self.assertIn("frontend/src/components/layout/AppSidebar.vue", usage_task["relevant_files"])
+        self.assertIn("frontend/src/composables/**", usage_task["relevant_files"])
+        self.assertIn("frontend/src/views/admin/DashboardView.vue", usage_task["relevant_files"])
+        self.assertIn("frontend/src/views/auth/**", usage_task["relevant_files"])
 
     def test_docs_only_scope_builds_documentation_task_with_lightweight_verification(self) -> None:
         with temp_plan_dir() as root:

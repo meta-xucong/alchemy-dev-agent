@@ -65,7 +65,7 @@ REQUIREMENT_HEADINGS = (
 )
 
 PATH_PATTERN = re.compile(
-    r"(?P<path>[\w./-]+\.(?:tsx|jsx|yaml|yml|py|js|ts|go|rs|java|cs|rb|php|html|css|sql|md|json))(?![\w/-])"
+    r"(?P<path>[\w./-]+\.(?:vue|tsx|jsx|yaml|yml|py|js|ts|go|rs|java|cs|rb|php|html|css|sql|md|json))(?![\w/-])"
 )
 LEADING_MARKER_PATTERN = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 PROTECTED_TERM_REWRITES = (
@@ -266,34 +266,39 @@ def extract_scope_controls(text: str) -> ScopeControls:
         lowered = line.lower()
         if not line:
             continue
+        control_line = strip_leading_marker(line).strip()
+        control_lowered = control_line.lower()
+        if line.startswith("#") and mode not in {"allowed_code", "protected_code"}:
+            mode = ""
         if (
-            "all implementation code and tests must live under" in lowered
-            or ("only" in lowered and "may be changed" in lowered)
-            or ("only" in lowered and "create or modify" in lowered)
-            or "allowed paths" in lowered
-            or "allowed scope" in lowered
-            or "allowed change scope" in lowered
-            or "allowed implementation scope" in lowered
-            or "limited to" in lowered
-            or "must live under" in lowered
+            "all implementation code and tests must live under" in control_lowered
+            or ("only" in control_lowered and "may be changed" in control_lowered)
+            or ("only" in control_lowered and "create or modify" in control_lowered)
+            or control_lowered.startswith("allowed paths")
+            or control_lowered.startswith("allowed scope")
+            or control_lowered.startswith("allowed change scope")
+            or control_lowered.startswith("allowed implementation scope")
+            or (control_lowered.startswith("limited to") or control_lowered.endswith(" limited to:"))
+            or "must live under" in control_lowered
             or (
-                "build" in lowered
-                and " under" in lowered
-                and any(marker in lowered for marker in ("app/", "tests/", "alchemy_creative_agent_3_0"))
+                "build" in control_lowered
+                and " under" in control_lowered
+                and any(marker in control_lowered for marker in ("app/", "tests/", "alchemy_creative_agent_3_0"))
             )
         ):
             mode = "allowed"
         elif (
-            "do not edit any file under" in lowered
-            or "protected areas" in lowered
-            or "protected paths" in lowered
-            or "protected change scope" in lowered
-            or "reference material only" in lowered
+            control_lowered.startswith("do not edit any file under")
+            or control_lowered.startswith("protected areas")
+            or control_lowered.startswith("protected paths")
+            or control_lowered.startswith("protected change scope")
+            or control_lowered.startswith("reference material only")
         ):
             mode = "protected"
         elif lowered.startswith("target files"):
-            target_files.extend(explicit_paths_from_text(line))
-            mode = "target"
+            inline_targets = explicit_paths_from_text(line)
+            target_files.extend(inline_targets)
+            mode = "target" if not inline_targets or line.endswith(":") else ""
         elif line.startswith("```"):
             if mode == "allowed":
                 mode = "allowed_code"

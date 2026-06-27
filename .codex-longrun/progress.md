@@ -1441,3 +1441,13 @@ PY"`
 - Added repair-brief path preservation so new ordinary `phase_repair_NNN.md` files use the next available number instead of overwriting older repair artifacts in long-running phase directories.
 - Added `docs/97_v2_88_focused_phase_repair_resume.md`, updated `docs/96_billing_core_crm_supervision_assessment.md`, and added the README entry.
 - Verification passed: focused V2.88 regressions `4 passed`, full `tests/test_full_roadmap_execution.py` `53 passed`, `py_compile` passed, and targeted `git diff --check` passed with only the existing `.codex-longrun` CRLF warning.
+
+## 2026-06-27T16:24:00+08:00 V2.89 Repair Scope Handoff
+
+- Audited the V2.88 relaunch artifacts. `phase_010/run_attempt_024` and `run_attempt_025` proved that repair docs were focused, but the planner still collapsed the next graph into `Implement scoped V3 foundation target files` with only `frontend/package.json` and `frontend/src/router/index.ts`.
+- Stopped the bad `run_attempt_025` with `supervisor_stop.json` and killed only its parent/worker processes. No stale Billing Core Alchemy worker remains from that probe.
+- Found the new Alchemy root causes: repair narrative such as "in allowed scope" could become a global allowed-scope parser state; frontend `large_refactor` was short-circuited by scoped file evidence; `.vue` paths were not extracted; and supervisor-stopped attempts needed an explicit non-resume marker.
+- Implemented V2.89 in Alchemy: scope-control parsing now ignores repair narrative, bullet feedback target files stay requirement-local, `.vue` paths are recognized, frontend large-refactor phases stay on the decomposed frontend task path, file-level stale frontend scope can relax to `frontend/`, usage/admin workflow files include the real failing areas, and supervisor/operator stop markers are terminal for resume selection.
+- Rebuilt the real `phase_010` inputs with a capped repository index. The graph now has seven frontend `large_refactor` implementation tasks, and the usage/API-key task includes `AccountUsageCell`, `UsageTable`, `EmailVerifyView`, `usePersistedPageSize`, `DashboardView`, router, and sidebar files.
+- Recorded the timeout concern as a follow-up: fixed timeouts are still useful burn-rate guards, but later optimization should add progress-aware heartbeats, checkpoints, and bounded grace rather than blindly raising worker budgets.
+- Verification passed so far: focused V2.89 planner/parser tests `4 passed`, full `tests/test_document_to_plan.py` `20 passed` after fixing an auto-feedback target-files regression, full `tests/test_full_roadmap_execution.py` `54 passed`, full `tests/test_document_run_pipeline.py` `26 passed`, full `tests/test_runtime.py` `123 passed`, and targeted `py_compile` passed.

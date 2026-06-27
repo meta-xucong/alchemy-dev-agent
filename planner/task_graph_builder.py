@@ -32,7 +32,10 @@ class TaskGraphBuilder:
     def _build_document_driven_graph(self, context_bundle: ContextBundle) -> TaskGraph:
         requirements = context_bundle.requirements
         test_commands = context_bundle.test_commands or ["static artifact inspection"]
-        scope_controls = normalize_scope_controls(context_bundle.scope_controls)
+        scope_controls = large_refactor_planning_scope_controls(
+            normalize_scope_controls(context_bundle.scope_controls),
+            requirements,
+        )
         nodes: list[TaskNode] = [
             TaskNode(
                 id="T001",
@@ -140,9 +143,9 @@ class TaskGraphBuilder:
         if not requirements:
             return nodes, requirement_task_ids
         scoped_targets = scoped_target_files(scope_controls)
-        if scoped_targets:
+        docs_only_scope = is_docs_only_scope(scoped_targets)
+        if scoped_targets and (docs_only_scope or boundary_mode(scope_controls) != "large_refactor"):
             task_id = "T002"
-            docs_only_scope = is_docs_only_scope(scoped_targets)
             task_type = "documentation" if docs_only_scope else "integration"
             assigned_agent = "architect" if docs_only_scope else "backend"
             nodes.append(
@@ -335,6 +338,53 @@ def normalize_scope_controls(scope_controls: dict[str, object] | None) -> dict[s
         "target_files": dedupe(str(item) for item in scope_controls.get("target_files", []) or []),
         "boundary_mode": [str(scope_controls.get("boundary_mode", "strict") or "strict")],
     }
+
+
+def large_refactor_planning_scope_controls(
+    scope_controls: dict[str, list[str]],
+    requirements: list[Requirement],
+) -> dict[str, list[str]]:
+    """Relax stale file-level frontend repair scopes without dropping protections."""
+
+    if boundary_mode(scope_controls) != "large_refactor" or not is_large_refactor_frontend_phase(requirements):
+        return scope_controls
+    allowed = list(scope_controls.get("allowed_prefixes", []))
+    targets = list(scope_controls.get("target_files", []))
+    frontend_scope_items = [
+        normalize_repo_path(path)
+        for path in [*allowed, *targets]
+        if normalize_repo_path(path).startswith("frontend/")
+    ]
+    if not frontend_scope_items:
+        return scope_controls
+
+    widened_allowed: list[str] = []
+    widened = False
+    for path in allowed:
+        normalized = normalize_repo_path(path)
+        if normalized.startswith("frontend/") and Path(normalized).suffix:
+            widened_allowed.append("frontend/")
+            widened = True
+        else:
+            widened_allowed.append(path)
+    if not any(is_frontend_directory_scope(path) for path in widened_allowed) and any(Path(path).suffix for path in frontend_scope_items):
+        widened_allowed.append("frontend/")
+        widened = True
+    if not widened:
+        return scope_controls
+    return {
+        "allowed_prefixes": dedupe(widened_allowed),
+        "protected_prefixes": list(scope_controls.get("protected_prefixes", [])),
+        "target_files": targets,
+        "boundary_mode": list(scope_controls.get("boundary_mode", ["large_refactor"])),
+    }
+
+
+def is_frontend_directory_scope(path: str) -> bool:
+    normalized = normalize_repo_path(path)
+    if normalized == "frontend" or normalized == "frontend/**":
+        return True
+    return normalized.startswith("frontend/") and not Path(normalized).suffix
 
 
 def boundary_mode(scope_controls: dict[str, list[str]] | None) -> str:
@@ -712,9 +762,17 @@ FRONTEND_LARGE_REFACTOR_TASK_SPECS = (
             "frontend/src/views/user/*Key*.vue",
             "frontend/src/views/admin/*Usage*.vue",
             "frontend/src/views/admin/*User*.vue",
+            "frontend/src/components/account/**",
+            "frontend/src/components/admin/usage/**",
+            "frontend/src/components/layout/AppSidebar.vue",
+            "frontend/src/composables/**",
+            "frontend/src/router/index.ts",
+            "frontend/src/views/admin/DashboardView.vue",
+            "frontend/src/views/auth/**",
             "frontend/src/api/**",
             "frontend/src/types/**",
             "frontend/src/stores/**",
+            "frontend/src/utils/**",
             "frontend/src/i18n/**",
             "frontend/package.json",
         ),
@@ -852,13 +910,22 @@ def frontend_large_refactor_relevant_files(
     fallback: list[str],
 ) -> list[str]:
     requirement_files = [
-        file
+        frontend_requirement_file(file)
         for requirement in requirements
         for file in requirement.related_files
-        if normalize_repo_path(file).startswith("frontend/")
+        if frontend_requirement_file(file)
     ]
     files = dedupe([*base_files, *requirement_files, "frontend/package.json"])
     return scoped_files(files, scope_controls, fallback=fallback)
+
+
+def frontend_requirement_file(path: str) -> str:
+    normalized = normalize_repo_path(path)
+    if normalized.startswith("frontend/"):
+        return normalized
+    if normalized.startswith("src/"):
+        return f"frontend/{normalized}"
+    return ""
 
 
 def frontend_large_refactor_commands(test_commands: list[str], *, package_files: list[str] | None = None) -> list[str]:

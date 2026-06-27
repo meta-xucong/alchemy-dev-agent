@@ -2864,3 +2864,58 @@
 - command: `git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py README.md docs/96_billing_core_crm_supervision_assessment.md docs/97_v2_88_focused_phase_repair_resume.md .codex-longrun/progress.md`
 - result: passed with existing `.codex-longrun/progress.md` CRLF warning only.
 - next verification command: validate long-run state, commit/push V2.88, then relaunch Billing Core through Alchemy.
+
+## 2026-06-27T16:24:00+08:00 V2.89 repair scope handoff verification
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_repair_narrative_allowed_scope_does_not_seed_scope_controls tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_repair_docs_do_not_collapse_to_scoped_router_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_phase_survives_repository_index_cap tests/test_document_to_plan.py::DocumentToPlanTests::test_docs_only_scope_builds_documentation_task_with_lightweight_verification -q`
+- result: `4 passed`
+- relevant evidence: repair narrative no longer seeds global allowed scope; Billing-shaped repair docs produce frontend large-refactor tasks; docs-only scoped plans remain lightweight.
+- next verification command: full `tests/test_document_to_plan.py`.
+
+- command: `python -B -m py_compile context\requirement_extractor.py planner\task_graph_builder.py tests\test_document_to_plan.py`
+- result: passed
+- next verification command: real phase_010 graph rebuild probe.
+
+- command: real `phase_010` graph rebuild probe using `ProjectBriefBuilder`, `ContextBundleBuilder(RepositoryIndexer(max_files=200))`, and `TaskGraphBuilder`.
+- result: passed
+- relevant evidence: scope controls are `boundary_mode=large_refactor` with no narrow allowed prefixes; graph has seven frontend large-refactor implementation tasks; usage task includes AccountUsageCell, UsageTable, EmailVerifyView, usePersistedPageSize, DashboardView, router, and sidebar paths.
+- next verification command: full `tests/test_document_to_plan.py`.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: failed, then passed after fix
+- relevant error summary: first run failed `test_auto_feedback_target_files_seed_debug_task_allowed_files` because bullet `Target files: app.py` was incorrectly promoted into graph-wide scope controls and collapsed the feedback graph into a generic scoped integration task.
+- fix attempted: changed scope-control parsing so only top-level `Target files` lines define graph-wide scope; bullet feedback target files remain requirement-local related-file evidence.
+- next verification command: rerun full `tests/test_document_to_plan.py`.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `20 passed`
+- next verification command: full-roadmap and document-run pipeline regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_supervisor_stopped_active_phase_attempt_is_not_resumed tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_interrupted_active_phase_attempt_is_resumable tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_terminal_active_phase_attempt_is_not_resumed tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_dead_debug_active_phase_attempt_is_not_resumed -q`
+- result: `4 passed`
+- relevant evidence: `supervisor_stop.json` prevents a bad stopped attempt from becoming a resume source while ordinary interrupted attempts remain resumable.
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `54 passed`
+- next verification command: document-run pipeline regression.
+
+- command: `python -B -m pytest tests/test_document_run_pipeline.py -q`
+- result: `26 passed`
+- next verification command: runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `123 passed`
+- next verification command: targeted `py_compile`, `git diff --check`, and long-run state validation.
+
+- command: `python -B -m py_compile context\requirement_extractor.py planner\task_graph_builder.py autodev\full_roadmap_executor.py tests\test_document_to_plan.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: `git diff --check`.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only.
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: stage changes, run cached diff check, commit/push V2.89, then relaunch Billing Core through Alchemy.

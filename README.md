@@ -228,6 +228,10 @@ docs/
                               V2.87 dead debug active attempt resume skip.
   96_billing_core_crm_supervision_assessment.md
                               Billing Core CRM supervision assessment and delivery gates.
+  97_v2_88_focused_phase_repair_resume.md
+                              V2.88 focused blocked-phase repair resume handoff.
+  98_v2_89_repair_scope_handoff.md
+                              V2.89 repair scope handoff and frontend large-refactor recovery.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1343,6 +1347,17 @@ key management or identity/auth workflows is not mistaken for a missing
 external credential.
 
 See `docs/97_v2_88_focused_phase_repair_resume.md`.
+
+## V2.89 Repair Scope Handoff
+
+V2.89 fixes the Billing Core recovery path where good repair evidence still
+collapsed into the same narrow router/package task. The planner now keeps
+frontend `large_refactor` phases on the frontend decomposition path, avoids
+treating repair narrative as global scope controls, recognizes `.vue` file
+paths, and treats `supervisor_stop.json`/`operator_stop.json` as terminal
+attempt markers.
+
+See `docs/98_v2_89_repair_scope_handoff.md`.
 
 Run a smoke execution:
 
