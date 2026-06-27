@@ -1451,3 +1451,12 @@ PY"`
 - Rebuilt the real `phase_010` inputs with a capped repository index. The graph now has seven frontend `large_refactor` implementation tasks, and the usage/API-key task includes `AccountUsageCell`, `UsageTable`, `EmailVerifyView`, `usePersistedPageSize`, `DashboardView`, router, and sidebar files.
 - Recorded the timeout concern as a follow-up: fixed timeouts are still useful burn-rate guards, but later optimization should add progress-aware heartbeats, checkpoints, and bounded grace rather than blindly raising worker budgets.
 - Verification passed so far: focused V2.89 planner/parser tests `4 passed`, full `tests/test_document_to_plan.py` `20 passed` after fixing an auto-feedback target-files regression, full `tests/test_full_roadmap_execution.py` `54 passed`, full `tests/test_document_run_pipeline.py` `26 passed`, full `tests/test_runtime.py` `123 passed`, and targeted `py_compile` passed.
+
+## 2026-06-27T17:02:00+08:00 V2.90 Codex Usage-Limit Blocker
+
+- Relaunched Billing Core through Alchemy after V2.89. `run_attempt_026` proved the corrected execution chain is not looping: T001 planning completed, T002 router/menu closure completed, T003 API service cleanup completed, and T004 wallet/recharge/payment/order surfaces completed.
+- T005 failed because the local Codex CLI hit a usage limit and reported `try again at 5:39 PM`. This was visible in raw worker output, but Alchemy summarized it as unparseable worker JSON, created `T005-DEBUG-1`, retried T005 once, and then stopped on non-partial blocker `B-T005-2`.
+- Stopped the newly created `run_attempt_027` before it could launch another product worker and added a supervisor stop marker. No residual Billing Core parent or worker process remains.
+- Implemented V2.90 in Alchemy: real worker JSONL usage-limit errors now return a blocked result with the reset evidence, orchestrator records them as `environment` blockers without debug/retry, and full-roadmap auto-repair treats usage-limit descriptions as non-repairable even when older states stored them as `technical_limit`.
+- Current Billing Core status: phase_010 has real forward progress through T004 in the inherited isolated worktree, but cannot safely continue until the local Codex usage window resets or an approved provider path is configured.
+- Verification passed: focused V2.90 tests `4 passed`, full `tests/test_runtime.py` `125 passed`, full `tests/test_full_roadmap_execution.py` `54 passed`, and targeted `py_compile` passed.

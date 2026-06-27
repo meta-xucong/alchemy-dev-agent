@@ -27,6 +27,10 @@ ENVIRONMENT_BLOCKER_PATTERNS = (
     "frontend dependencies are absent",
     "cannot resolve vitest",
     "verification is blocked until frontend dependencies",
+    "codex cli usage limit reached",
+    "you've hit your usage limit",
+    "purchase more credits",
+    "local codex cli usage limit reached",
 )
 
 PACKAGE_LOCKFILE_COMPANIONS = (
@@ -252,7 +256,13 @@ class Orchestrator:
         if result.status == "blocked":
             self.graph_engine.mark_blocked(state.task_graph, task.id, evidence)
             state.failed_tasks = self._add_unique(state.failed_tasks, task.id)
-            self._record_blocker(state, task, result.summary)
+            environment_summary = _worker_result_environment_blocker_summary(result)
+            self._record_blocker(
+                state,
+                task,
+                environment_summary or result.summary,
+                blocker_type="environment" if environment_summary else "technical_limit",
+            )
             self._record_history(state, "task_blocked", f"{task.id} blocked.", task.id)
             return
 
@@ -508,6 +518,18 @@ class Orchestrator:
                 state,
                 task,
                 f"{task.id} returned {result.status}: {result.summary}",
+            )
+            return
+
+        environment_summary = _worker_result_environment_blocker_summary(result)
+        if environment_summary:
+            task.status = "blocked"
+            self._record_blocker(state, task, environment_summary, blocker_type="environment")
+            self._record_history(
+                state,
+                "worker_environment_blocker",
+                f"{task.id} blocked by worker environment or local Codex CLI availability.",
+                task.id,
             )
             return
 
@@ -1253,6 +1275,47 @@ def _worker_result_timed_out(result: CodexWorkerResult | dict | None) -> bool:
         "timed out after",
     )
     return any(marker in text for marker in timeout_markers)
+
+
+def _worker_result_environment_blocker_summary(result: CodexWorkerResult | dict | None) -> str:
+    if result is None:
+        return ""
+    if isinstance(result, CodexWorkerResult):
+        commands = result.commands_run
+        text_parts = [
+            result.summary,
+            result.raw_output,
+            *result.known_issues,
+            *result.tests_failed,
+        ]
+        for command in commands:
+            text_parts.extend([command.summary, command.stdout, command.stderr])
+    else:
+        commands = _list(result.get("commands_run", []))
+        text_parts = [
+            str(result.get("summary", "") or ""),
+            str(result.get("raw_output", "") or ""),
+            *[str(item) for item in _list(result.get("known_issues", []))],
+            *[str(item) for item in _list(result.get("tests_failed", []))],
+        ]
+        for command in commands:
+            if isinstance(command, dict):
+                text_parts.extend(
+                    [
+                        str(command.get("summary", "") or ""),
+                        str(command.get("stdout", "") or ""),
+                        str(command.get("stderr", "") or ""),
+                    ]
+                )
+            else:
+                text_parts.append(str(command))
+    text = "\n".join(part for part in text_parts if part).lower()
+    if not any(pattern in text for pattern in ENVIRONMENT_BLOCKER_PATTERNS):
+        return ""
+    return (
+        "Worker environment or local Codex CLI availability blocked execution. "
+        "Evidence indicates missing dependencies, unavailable verification tooling, or local Codex usage limits."
+    )
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:

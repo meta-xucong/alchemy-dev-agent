@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_89_repair_scope_handoff",
+  "current_phase": "v2_90_codex_usage_limit_blocker",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -24,12 +24,14 @@
     "implemented V2.87 dead debug active resume skip so stopped debug workers are not reused as resume_from sources",
     "documented Billing Core CRM supervision assessment, usability gaps, delivery gates, and Codex/Alchemy operating contract",
     "implemented V2.88 focused phase repair resume so blocked Billing Core phase resumes carry T006 evidence instead of broad-replanning from scratch",
-    "implemented V2.89 repair scope handoff so focused Billing Core repair evidence produces frontend large-refactor tasks instead of replaying narrow router/package scope"
+    "implemented V2.89 repair scope handoff so focused Billing Core repair evidence produces frontend large-refactor tasks instead of replaying narrow router/package scope",
+    "implemented V2.90 Codex usage-limit blocker classification so local model quota failures stop as environment blockers instead of product debug/retry loops"
   ],
   "next_actions": [
-    "Commit and push V2.89 repair scope handoff changes.",
-    "Relaunch Billing Core through Alchemy only; confirm phase_010 creates a fresh run_attempt after the supervisor-stopped run_attempt_025 and produces frontend large-refactor repair tasks instead of the narrow router/package task.",
-    "Monitor whether the next Alchemy worker advances the inherited isolated worktree on the failing frontend areas; if it exposes another controller issue, stop and fix Alchemy before continuing.",
+    "Commit and push V2.90 Codex usage-limit blocker classification changes.",
+    "Wait until the local Codex usage window resets after 2026-06-27 17:39 +08:00, then rerun the minimal Codex OK smoke.",
+    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_027 and continues from the inherited isolated worktree toward T005 or later frontend closure tasks.",
+    "Monitor whether the next Alchemy worker advances the CRM extraction work without replaying completed T001-T004 work; if it exposes another controller issue, stop and fix Alchemy before continuing.",
     "After the controlled run, reassess CRM usability, update the supervision document if new evidence appears, and continue the fix/monitor loop."
   ],
   "tests_run": [
@@ -138,6 +140,13 @@
     "python -B -m pytest tests/test_runtime.py -q => 123 passed",
     "python -B -m py_compile context\\requirement_extractor.py planner\\task_graph_builder.py autodev\\full_roadmap_executor.py tests\\test_document_to_plan.py tests\\test_full_roadmap_execution.py => passed",
     "git diff --check => passed with existing .codex-longrun CRLF warnings only",
+    "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed",
+    "python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_usage_limit_jsonl_blocks_without_parse_retry tests/test_runtime.py::OrchestratorTests::test_worker_usage_limit_blocks_without_debug_retry tests/test_runtime.py::OrchestratorTests::test_debug_environment_blocker_blocks_parent_without_retry -q => 3 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_distinguishes_technical_and_environment_blockers -q => 1 passed",
+    "python -B -m py_compile runtime\\codex_worker.py runtime\\orchestrator.py autodev\\full_roadmap_executor.py tests\\test_runtime.py tests\\test_full_roadmap_execution.py => passed",
+    "python -B -m pytest tests/test_runtime.py -q => 125 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 54 passed",
+    "git diff --check => passed with existing .codex-longrun CRLF warnings only",
     "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed"
   ],
   "known_bugs": [
@@ -162,7 +171,9 @@
     "Before V2.89, frontend large_refactor planning was short-circuited by scoped file evidence before the frontend decomposition path, producing a backend strict T002 task for Billing Core phase_010 instead of focused frontend repair tasks.",
     "Before V2.89, .vue file paths in repair evidence were not extracted, weakening handoff for Vue frontend failures such as AppSidebar, EmailVerifyView, UsageTable, and DashboardView.",
     "Before V2.89, a supervisor-stopped bad attempt could still be considered by resume selection unless a newer terminal state superseded it; supervisor_stop.json/operator_stop.json are now explicit terminal attempt markers.",
-    "Timeout handling is safer after V2.84/V2.88, but still not progress-aware. Later optimization should add worker heartbeats, checkpoints, and bounded grace rather than simply raising max_worker_seconds."
+    "Timeout handling is safer after V2.84/V2.88, but still not progress-aware. Later optimization should add worker heartbeats, checkpoints, and bounded grace rather than simply raising max_worker_seconds.",
+    "Before V2.90, local Codex CLI usage-limit JSONL could be summarized as unparseable worker output, causing unnecessary debug/retry work and a false product repair phase.",
+    "As of 2026-06-27 17:02 +08:00, local Codex CLI real-model access is temporarily blocked by account usage limits until about 2026-06-27 17:39 +08:00. Billing Core should not be relaunched before a fresh OK smoke passes."
   ],
   "blockers": [],
   "done_criteria": [
@@ -170,7 +181,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T16:24:00+08:00",
+  "last_verified_at": "2026-06-27T17:06:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T16:24:00+08:00"
+  "updated_at": "2026-06-27T17:06:00+08:00"
 }

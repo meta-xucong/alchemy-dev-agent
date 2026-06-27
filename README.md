@@ -232,6 +232,8 @@ docs/
                               V2.88 focused blocked-phase repair resume handoff.
   98_v2_89_repair_scope_handoff.md
                               V2.89 repair scope handoff and frontend large-refactor recovery.
+  99_v2_90_codex_usage_limit_blocker.md
+                              V2.90 local Codex usage-limit blocker classification.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1358,6 +1360,15 @@ paths, and treats `supervisor_stop.json`/`operator_stop.json` as terminal
 attempt markers.
 
 See `docs/98_v2_89_repair_scope_handoff.md`.
+
+## V2.90 Codex Usage-Limit Blocker
+
+V2.90 classifies local Codex CLI usage-limit JSONL errors as environment
+blockers. Alchemy now preserves the raw reset-time evidence, stops without
+debug/retry product work, and prevents full-roadmap auto-repair from treating
+account quota as a CRM implementation task.
+
+See `docs/99_v2_90_codex_usage_limit_blocker.md`.
 
 Run a smoke execution:
 

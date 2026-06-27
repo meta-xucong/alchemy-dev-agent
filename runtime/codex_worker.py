@@ -26,6 +26,11 @@ from .worker_lifecycle import ManagedSubprocessRunner, WorkerLifecycleRecorder
 
 
 RAW_OUTPUT_LIMIT = 20_000
+CODEX_USAGE_LIMIT_MARKERS = (
+    "you've hit your usage limit",
+    "usage limit",
+    "purchase more credits",
+)
 
 
 @dataclass(slots=True)
@@ -378,6 +383,29 @@ class CodexWorkerAdapter:
                 known_issues=[
                     "Out-of-scope files changed: " + ", ".join(boundary_violation),
                     "Allowed files: " + (", ".join(worker_input.allowed_files) if worker_input.allowed_files else "(none)"),
+                ],
+                confidence=0.0,
+                raw_output=_truncate_raw_output(raw_output),
+                worker_lifecycle=lifecycle_record.to_dict() if lifecycle_record is not None else {},
+            )
+        usage_limit_message = _codex_usage_limit_message(raw_output)
+        if usage_limit_message:
+            return CodexWorkerResult(
+                task_id=worker_input.task_id,
+                status="blocked",
+                summary=f"Codex CLI usage limit reached: {usage_limit_message}",
+                files_changed=changed_files,
+                commands_run=[
+                    CommandResult(
+                        command=" ".join(args),
+                        exit_code=completed.returncode,
+                        summary="Codex subprocess stopped before returning structured worker output because local usage is limited.",
+                        stdout=stdout,
+                        stderr=stderr,
+                    )
+                ],
+                known_issues=[
+                    "Local Codex CLI usage limit reached; wait for the reset time or configure an approved provider before retrying.",
                 ],
                 confidence=0.0,
                 raw_output=_truncate_raw_output(raw_output),
@@ -775,6 +803,33 @@ def _truncate_raw_output(output: str, *, limit: int = RAW_OUTPUT_LIMIT) -> str:
     head = budget // 2
     tail = budget - head
     return output[:head] + marker + output[-tail:]
+
+
+def _codex_usage_limit_message(output: str) -> str:
+    messages: list[str] = []
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        message = str(payload.get("message", "") or "")
+        error = payload.get("error")
+        if isinstance(error, dict):
+            message = message or str(error.get("message", "") or "")
+        if message:
+            messages.append(message)
+    if not messages:
+        messages.append(output)
+    for message in messages:
+        lowered = message.lower()
+        if any(marker in lowered for marker in CODEX_USAGE_LIMIT_MARKERS):
+            return message.strip()
+    return ""
 
 
 def _normalize_repo_path(path: str) -> str:

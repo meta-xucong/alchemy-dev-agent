@@ -1348,6 +1348,19 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                 ]
             )
         )
+        self.assertFalse(
+            blockers_are_auto_repairable(
+                [
+                    {
+                        "id": "B-T005-2",
+                        "type": "technical_limit",
+                        "description": "Retry policy exhausted after 2 attempt(s): Codex CLI usage limit reached; try again at 5:39 PM.",
+                        "task_ids": ["T005"],
+                        "can_continue_partially": False,
+                    }
+                ]
+            )
+        )
 
     def test_real_codex_phases_continue_in_previous_phase_worktree(self) -> None:
         root = temp_root()

@@ -2919,3 +2919,35 @@
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: stage changes, run cached diff check, commit/push V2.89, then relaunch Billing Core through Alchemy.
+
+## 2026-06-27T17:04:00+08:00 V2.90 usage-limit blocker verification
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_usage_limit_jsonl_blocks_without_parse_retry tests/test_runtime.py::OrchestratorTests::test_worker_usage_limit_blocks_without_debug_retry tests/test_runtime.py::OrchestratorTests::test_debug_environment_blocker_blocks_parent_without_retry -q`
+- result: `3 passed`
+- relevant evidence: real Codex usage-limit JSONL now returns `status=blocked`; orchestrator records usage-limit evidence as an environment blocker and does not create debug work.
+- next verification command: focused full-roadmap blocker classifier regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_distinguishes_technical_and_environment_blockers -q`
+- result: `1 passed`
+- relevant evidence: usage-limit wording remains non-repairable even when stored under older `technical_limit` blocker state.
+- next verification command: targeted py_compile and broader regressions.
+
+- command: `python -B -m py_compile runtime\codex_worker.py runtime\orchestrator.py autodev\full_roadmap_executor.py tests\test_runtime.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `125 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `54 passed`
+- next verification command: `git diff --check`, long-run state validation, commit/push V2.90, then wait for Codex usage reset before relaunching Billing Core through Alchemy.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.90, then wait for Codex usage reset before relaunching Billing Core through Alchemy.

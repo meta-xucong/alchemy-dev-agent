@@ -205,6 +205,29 @@ blindly raise worker budgets. The next optimization should make timeout
 handling progress-aware through heartbeats/checkpoints/bounded grace, while
 keeping hard stops for stuck workers.
 
+## 2026-06-27 V2.90 Follow-Up
+
+The V2.89 relaunch answered the "is it looping?" question with concrete state:
+`run_attempt_026` completed T001, T002, T003, and T004, then stopped at T005.
+That is forward progress, not a from-scratch loop.
+
+The T005 blocker was not a CRM product failure. Raw Codex JSONL showed the local
+Codex CLI account hit a usage limit and reported a reset time of 5:39 PM. Before
+V2.90, Alchemy collapsed that into "worker did not return parseable JSON", which
+caused one debug task and one retry before the non-partial blocker stopped the
+run.
+
+V2.90 classifies this as an environment blocker:
+
+- Codex CLI usage-limit JSONL is parsed before generic worker-output failure.
+- Orchestrator records local model availability as `type=environment`.
+- Full-roadmap auto-repair will not create CRM product repair attempts for
+  usage-limit descriptions.
+
+The correct next action is to wait for the usage window to reset, then resume
+through Alchemy. Do not edit Billing Core product files from Codex Desktop to
+work around an account quota blocker.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

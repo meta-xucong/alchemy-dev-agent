@@ -493,6 +493,40 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.summary, "bytes decoded")
         self.assertIn("\ufffd", result.raw_output)
 
+    def test_real_worker_usage_limit_jsonl_blocks_without_parse_retry(self) -> None:
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            event_stream = "\n".join(
+                [
+                    json.dumps({"type": "thread.started", "thread_id": "thread-usage"}),
+                    json.dumps({"type": "turn.started"}),
+                    json.dumps(
+                        {
+                            "type": "error",
+                            "message": "You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 5:39 PM.",
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "type": "turn.failed",
+                            "error": {
+                                "message": "You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 5:39 PM."
+                            },
+                        }
+                    ),
+                ]
+            )
+            return subprocess.CompletedProcess(args, 1, event_stream, "Reading prompt from stdin...\n")
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T012L", goal="handle local usage limit", repository_path="."))
+
+        self.assertEqual(result.status, "blocked")
+        self.assertIn("Codex CLI usage limit reached", result.summary)
+        self.assertIn("5:39 PM", result.summary)
+        self.assertIn("usage limit", result.known_issues[0].lower())
+        self.assertIn("turn.failed", result.raw_output)
+        self.assertEqual(result.commands_run[0].exit_code, 1)
+
     def test_real_worker_truncates_large_raw_output_after_parsing(self) -> None:
         def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
             payload = {
@@ -2303,6 +2337,55 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(state.blockers[0]["type"], "environment")
         self.assertIn("dependency setup succeeds", state.blockers[0]["description"])
         self.assertTrue(any(event["type"] == "debug_environment_blocker" for event in state.iteration_history))
+
+    def test_worker_usage_limit_blocks_without_debug_retry(self) -> None:
+        class UsageLimitWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="blocked",
+                    summary="Codex CLI usage limit reached: You've hit your usage limit; try again at 5:39 PM.",
+                    known_issues=["Local Codex CLI usage limit reached; wait for reset."],
+                    raw_output="{\"type\":\"error\",\"message\":\"You've hit your usage limit.\"}",
+                )
+
+        graph = TaskGraph(
+            graph_id="usage-limit-blocker",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Implement when model is available",
+                    description="Should block without spawning debug work.",
+                    type="frontend",
+                    assigned_agent="frontend",
+                    priority=90,
+                )
+            ],
+        )
+        worker = UsageLimitWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "stop on usage limit",
+                initial_state=RuntimeState(objective="stop on usage limit", task_graph=graph),
+                max_iterations=3,
+            )
+
+        self.assertEqual(worker.calls, ["T001"])
+        self.assertEqual(len(state.task_graph.nodes), 1)
+        self.assertEqual(state.task_graph.nodes[0].status, "blocked")
+        self.assertEqual(state.blockers[0]["type"], "environment")
+        self.assertIn("local Codex", state.blockers[0]["description"])
+        self.assertFalse(any(event["type"] == "debug_task_created" for event in state.iteration_history))
 
     def test_existing_nested_debug_chain_is_collapsed_to_parent_retry(self) -> None:
         class CompletingWorker:
