@@ -1168,6 +1168,72 @@ SCHEMA_MIGRATION_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+SCHEMA_MIGRATION_CONTRACT_CHECKPOINT_TASK_SPECS = (
+    {
+        "title": "Inventory Ent migration contract deltas",
+        "description": (
+            "Create a narrow checkpoint of the Ent migration table-contract delta before patching, including "
+            "obsolete CRM-incompatible table references and the exact migrate/schema.go sections to change."
+        ),
+        "markers": (
+            "migration",
+            "migrate",
+            "table",
+            "schema",
+            "timeout",
+        ),
+        "files": (
+            "backend/ent/migrate/schema.go",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Patch Ent migration contract deltas",
+        "description": (
+            "Apply only the migration-contract patch identified by the checkpoint and verify the Ent migration "
+            "package without reopening server/domain alignment."
+        ),
+        "markers": (
+            "fresh migration",
+            "migration",
+            "migrate",
+            "table",
+            "schema",
+        ),
+        "files": (
+            "backend/ent/migrate/schema.go",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Align server and domain table contracts",
+        "description": (
+            "Then align server startup, domain constants, and fresh DB behavior with the narrowed migration "
+            "contract without reopening Ent schema definitions or service cleanup."
+        ),
+        "markers": (
+            "fresh db",
+            "server",
+            "domain",
+            "table",
+            "schema",
+        ),
+        "files": (
+            "backend/internal/domain/**",
+            "backend/internal/server/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -1388,6 +1454,11 @@ def schema_build_large_refactor_task_specs(requirements: list[Requirement]) -> t
             for split_spec in SCHEMA_PRUNE_TIMEOUT_SPLIT_TASK_SPECS:
                 if (
                     split_spec["title"] == "Align Ent migration and server table contracts"
+                    and focused_schema_migration_contract_timeout_repair(requirements)
+                ):
+                    specs.extend(SCHEMA_MIGRATION_CONTRACT_CHECKPOINT_TASK_SPECS)
+                elif (
+                    split_spec["title"] == "Align Ent migration and server table contracts"
                     and focused_schema_migration_timeout_repair(requirements)
                 ):
                     specs.extend(SCHEMA_MIGRATION_TIMEOUT_SPLIT_TASK_SPECS)
@@ -1403,6 +1474,10 @@ def focused_schema_prune_timeout_repair(requirements: list[Requirement]) -> bool
 
 
 def focused_schema_migration_timeout_repair(requirements: list[Requirement]) -> bool:
+    return focused_timeout_repair_for_task(requirements, "T003")
+
+
+def focused_schema_migration_contract_timeout_repair(requirements: list[Requirement]) -> bool:
     return focused_timeout_repair_for_task(requirements, "T003")
 
 

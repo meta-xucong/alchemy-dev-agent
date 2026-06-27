@@ -1576,6 +1576,15 @@ scopes back together.
 
 See `docs/120_v2_111_schema_migration_timeout_split.md`.
 
+## V2.112 Schema Migration Checkpoint Split
+
+V2.112 changes focused schema/build T003 timeout repairs to checkpoint-style
+tasks when even the migration-only scope times out. The next graph inventories
+the Ent migration delta first, then applies the migration patch, before moving
+on to server/domain table contracts.
+
+See `docs/121_v2_112_schema_migration_checkpoint_split.md`.
+
 Run a smoke execution:
 
 ```bash

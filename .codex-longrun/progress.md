@@ -1649,3 +1649,12 @@ PY"`
 - Implemented V2.111 in `planner/task_graph_builder.py`: focused T003 schema/build timeouts now split migration contracts from server/domain table contracts, with each split task restricted to its own relevant files.
 - Real phase_011 graph probe now produces migration-contract and server/domain-contract split tasks instead of replaying `Align Ent migration and server table contracts`.
 - Next step: commit/push V2.111, relaunch Billing Core through Alchemy, and confirm the next attempt starts from the new T003 migration-contract split while preserving completed T001/T002.
+
+## 2026-06-28T07:20:00+08:00 V2.112 Schema Migration Checkpoint Split
+
+- Relaunched Billing Core after V2.111. `run_attempt_008` preserved T001/T002 and started the new `T003 Align Ent migration contracts` task in the inherited worktree.
+- The migration-only T003 still timed out at 900 seconds. Alchemy correctly recorded a non-partial timeout blocker.
+- The parent launched `run_attempt_009`, but it replayed the same migration-only T003. Codex Desktop stopped it immediately with `supervisor_stop.json`.
+- Implemented V2.112 in `planner/task_graph_builder.py`: any focused schema/build T003 timeout now becomes checkpoint tasks, starting with `Inventory Ent migration contract deltas` and then `Patch Ent migration contract deltas`, before server/domain alignment.
+- Real phase_011 graph probe with `phase_repair_004.md` now starts from the inventory checkpoint and restricts migration checkpoint tasks to `backend/ent/migrate/schema.go` plus `backend/go.mod`.
+- Next step: commit/push V2.112, relaunch Billing Core through Alchemy, and monitor whether the checkpoint task completes or reveals a concrete migration blocker.
