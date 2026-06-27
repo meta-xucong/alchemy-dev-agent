@@ -585,6 +585,11 @@ attempt reports before launching a new worker. Revalidating real
 resume should promote phase_010 from existing evidence rather than run another
 verification worker.
 
+The V2.107 controlled relaunch confirmed that behavior. No new worker attempt
+was created; phase_010 was marked `done` from `run_attempt_047` with promotion
+score `0.9607`. The roadmap now has phase_001 through phase_010 completed, with
+phase_011 schema pruning/build and phase_012 demo smoke still pending.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

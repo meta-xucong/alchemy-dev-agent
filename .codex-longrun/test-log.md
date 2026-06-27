@@ -3187,6 +3187,19 @@
 
 - next verification command: diff check, long-run state validation, commit/push V2.107, then controlled Billing Core relaunch through Alchemy.
 
+## 2026-06-28T02:55:00+08:00 Billing Core phase_010 V2.107 relaunch verification
+
+- command: controlled Billing Core resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: passed. No new run_attempt was created; full-roadmap revalidation updated phase_010 from existing `run_attempt_047` evidence.
+
+- command: inspect `phase_010/phase_record.json`
+- result: `status=done`, `can_promote=true`, `score=0.9607`, `output_dir=...run_attempt_047`.
+
+- command: inspect `full_roadmap_report.json` and `roadmap_execution_plan.json`
+- result: phase_001 through phase_010 are done/completed; phase_011 and phase_012 remain pending. Full report remains blocked because max_phases=1 and required phases remain.
+
+- next verification command: commit the updated supervision state, then launch the next controlled Alchemy run for phase_011.
+
 ## 2026-06-27T22:43:00+08:00 V2.100 worker output budget hygiene verification
 
 - command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`

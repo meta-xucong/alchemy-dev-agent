@@ -1604,3 +1604,11 @@ PY"`
 - Real revalidation probe now selects `phase_010/run_attempt_047` as promotable with score `0.9607`, despite the current phase record pointing at timed-out `run_attempt_048`.
 - Verification passed: focused regressions `2 passed`, evaluator regression group `4 passed`, `tests/test_runtime.py` `132 passed`, `tests/test_full_roadmap_execution.py` `68 passed`, `tests/test_document_to_plan.py` `25 passed`, and compileall passed.
 - Next step: commit/push V2.107, relaunch Billing Core, and confirm phase_010 is marked done from existing run_attempt_047 evidence without launching another verification worker.
+
+## 2026-06-28T02:55:00+08:00 Billing Core Phase 010 Promoted
+
+- Relaunched Billing Core after V2.107. The run did not create a new run_attempt or worker; it revalidated existing `run_attempt_047` evidence and updated `phase_010/phase_record.json`.
+- Phase_010 is now `done` with promotion score `0.9607`, `can_promote=true`, and output_dir pointing at `run_attempt_047`.
+- `full_roadmap_report.json` is still blocked only because `--max-phases 1` stopped after this phase and phase_011/phase_012 remain pending. Phase records now show phase_001 through phase_010 done.
+- Remaining roadmap work: phase_011 `Schema 裁剪与构建`, then phase_012 `Demo Smoke Test`, followed by final audit/handoff.
+- T027's 900-second timeout remains a real Alchemy optimization target for progress-aware worker heartbeat/checkpoint/grace, but it no longer blocks phase_010 because V2.107 reused the successful 047 evidence.
