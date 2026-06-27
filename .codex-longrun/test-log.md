@@ -3579,3 +3579,34 @@
 - command: `python -B -m pytest tests/test_document_run_pipeline.py -q`
 - result: `26 passed`
 - next verification command: full-roadmap regression.
+
+## 2026-06-28T05:25:00+08:00 V2.109 schema prune second timeout split verification
+
+- command: real phase_011 graph probe using `phase_repair_001.md`, `phase_repair_002.md`, and both repair docs
+- result: passed
+- relevant evidence: all three graphs split implementation tasks into `Prune Ent schema definitions`, `Align Ent migration and server table contracts`, `Regenerate Ent clients and migration artifacts`, `Clean legacy backend services repositories and tests`, and `Stabilize schema and build verification contracts`; neither `Implement large refactor integration` nor `Prune legacy Ent schemas and table contracts` appears.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `27 passed`
+- next verification command: runtime handoff regression.
+
+- command: `python -B -m pytest tests/test_runtime_handoff.py -q`
+- result: `4 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `68 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner tests -q`
+- result: passed
+- next verification command: diff check, state validation, commit/push, then controlled Billing Core relaunch.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.109, then controlled Billing Core relaunch.

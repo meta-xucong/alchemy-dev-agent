@@ -1076,6 +1076,52 @@ SCHEMA_BUILD_LARGE_REFACTOR_TASK_SPECS = (
 )
 
 
+SCHEMA_PRUNE_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Prune Ent schema definitions",
+        "description": (
+            "Narrow the timed-out schema-pruning workflow to Ent schema definition files and remove obsolete "
+            "token-relay table definitions from that layer first."
+        ),
+        "markers": (
+            "ent schema",
+            "schema",
+            "prune",
+            "table",
+            "token relay table",
+        ),
+        "files": (
+            "backend/ent/schema/**",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+    },
+    {
+        "title": "Align Ent migration and server table contracts",
+        "description": (
+            "After schema definitions are narrowed, align migration/server table contracts and fresh DB behavior "
+            "without reopening service cleanup or frontend build work."
+        ),
+        "markers": (
+            "fresh db",
+            "fresh migration",
+            "migration",
+            "migrate",
+            "table",
+            "schema",
+        ),
+        "files": (
+            "backend/ent/migrate/**",
+            "backend/internal/domain/**",
+            "backend/internal/server/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -1212,7 +1258,7 @@ def large_refactor_schema_build_nodes(
         requirement for requirement in requirements if not is_focused_repair_metadata_requirement(requirement)
     ]
 
-    for spec in SCHEMA_BUILD_LARGE_REFACTOR_TASK_SPECS:
+    for spec in schema_build_large_refactor_task_specs(requirements):
         matched_requirements = [
             requirement
             for requirement in phase_requirements
@@ -1284,6 +1330,23 @@ def large_refactor_schema_build_nodes(
             requirement_task_ids.setdefault(requirement.id, residual_node.id)
 
     return nodes, requirement_task_ids
+
+
+def schema_build_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
+    specs: list[dict[str, object]] = []
+    for spec in SCHEMA_BUILD_LARGE_REFACTOR_TASK_SPECS:
+        if (
+            spec["title"] == "Prune legacy Ent schemas and table contracts"
+            and focused_schema_prune_timeout_repair(requirements)
+        ):
+            specs.extend(SCHEMA_PRUNE_TIMEOUT_SPLIT_TASK_SPECS)
+        else:
+            specs.append(spec)
+    return tuple(specs)
+
+
+def focused_schema_prune_timeout_repair(requirements: list[Requirement]) -> bool:
+    return focused_timeout_repair_for_task(requirements, "T002")
 
 
 def schema_build_refactor_relevant_files(

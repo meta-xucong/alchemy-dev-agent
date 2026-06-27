@@ -1621,3 +1621,12 @@ PY"`
 - Added a regression for phase_011-style timeout repair and verified a real graph probe using `phase_011/phase_requirements.md` plus `phase_repair_001.md`: T001 is preserved completed; T002-T005 are the four schema/build split tasks; T006/T007 are verification/review.
 - New environment finding: D: had only about 100 KB free, which caused a Git/apply_patch write failure and temporarily truncated `planner/task_graph_builder.py`. I cleared only safe cache directories, restored the file from Git, and continued. Before any real worker relaunch, free disk space must be checked because this can cause false worker failures or transient file corruption.
 - Next step: commit/push V2.108, then relaunch phase_011 through the existing Alchemy resume script only if disk space is adequate for a real worker.
+
+## 2026-06-28T05:25:00+08:00 V2.109 Schema Prune Second Timeout Split
+
+- Answered the stop-state question: the current Billing Core task was not phase-complete. Codex Desktop supervisor stopped `phase_011/run_attempt_004` because it replayed the same `T002 Prune legacy Ent schemas and table contracts` scope after `run_attempt_003` had already timed out on that task.
+- Confirmed no residual Billing Core Alchemy parent/worker process was running; process matches during inspection were the inspection commands themselves.
+- Implemented V2.109 in `planner/task_graph_builder.py`: when a schema/build repair identifies failed `T002`, the old schema-prune task is split into `Prune Ent schema definitions` and `Align Ent migration and server table contracts`.
+- Added planner regression coverage for `phase_repair_002`-style schema-prune timeout repair.
+- Real phase_011 graph probes using `phase_repair_001.md`, `phase_repair_002.md`, and both repair docs now all produce T002-T006 as schema definition pruning, migration/server contract alignment, Ent regeneration, backend cleanup, and schema/build verification tasks, with no broad integration or repeated legacy schema-prune task.
+- Next step: commit/push V2.109, then relaunch Billing Core through the supervised Alchemy resume script and monitor that the next attempt starts from `Prune Ent schema definitions` in the inherited isolated worktree.

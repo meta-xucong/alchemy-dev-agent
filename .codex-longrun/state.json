@@ -44,12 +44,13 @@
     "implemented V2.106 stopped-attempt repair record fallback so blocked low-score gate results seed repair docs and empty supervisor-stopped attempts do not poison the next recovery",
     "implemented V2.107 preserved evidence evaluator revalidation so preserved repair evidence counts for promotion and existing promotable attempts are reused before launching another worker",
     "promoted Billing Core phase_010 from existing run_attempt_047 evidence with score 0.9607; roadmap now has phase_001 through phase_010 completed",
-    "implemented V2.108 schema/build timeout split so Billing Core phase_011 repair no longer regenerates the same broad T002 after timeout"
+    "implemented V2.108 schema/build timeout split so Billing Core phase_011 repair no longer regenerates the same broad T002 after timeout",
+    "implemented V2.109 schema prune second timeout split so Billing Core phase_011 does not replay the same narrower T002 after timeout"
   ],
   "next_actions": [
-    "Commit and push V2.108 schema/build timeout split.",
-    "Check D: free disk space and free/archive safe old artifacts before launching another real Billing Core worker.",
-    "Launch the next controlled Billing Core run through Alchemy only for phase_011 schema pruning/build once disk space is safe.",
+    "Commit and push V2.109 schema prune second timeout split.",
+    "Launch the next controlled Billing Core run through Alchemy only for phase_011 schema pruning/build.",
+    "Confirm the next phase_011 attempt starts from T002 Prune Ent schema definitions in the inherited isolated worktree, not the repeated legacy schema-prune scope.",
     "Monitor phase_011 for schema/build/product blocker evidence; if an Alchemy controller issue appears, stop and fix Alchemy before continuing.",
     "After phase_011 promotes, continue to phase_012 demo smoke, then reassess CRM deliverability and final handoff readiness.",
     "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after the current verification-repair handoff is proven."
@@ -300,7 +301,14 @@
     "python -m pytest tests/test_document_to_plan.py -q => 26 passed after V2.108",
     "python -m pytest tests/test_runtime_handoff.py -q => 4 passed after V2.108",
     "python -m pytest tests/test_full_roadmap_execution.py -q => 68 passed after V2.108",
-    "python -m compileall planner tests -q => passed after V2.108"
+    "python -m compileall planner tests -q => passed after V2.108",
+    "Real phase_011 graph probe after V2.109 using phase_repair_001.md, phase_repair_002.md, and both repair docs => all split T002 into Prune Ent schema definitions plus Align Ent migration and server table contracts, with no broad integration or repeated legacy schema-prune task",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 27 passed after V2.109",
+    "python -B -m pytest tests/test_runtime_handoff.py -q => 4 passed after V2.109",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 68 passed after V2.109",
+    "python -B -m compileall planner tests -q => passed after V2.109",
+    "git diff --check => passed with .codex-longrun CRLF warning only after V2.109",
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.109"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -347,7 +355,8 @@
     "Before V2.106, blocked low-score phase results with no runtime blockers did not seed repair docs, so a post-V2.105 relaunch could regenerate the broad original phase graph; once stopped, that empty supervisor-stopped attempt could also poison the next recovery unless skipped.",
     "Before V2.107, preserved repair evidence and CI evidence did not count toward spec alignment, successful verification warning notes could depress risk_quality, and a timed-out later verification attempt could hide an older attempt that now promotes under the fixed evaluator.",
     "Before V2.108, Billing Core phase_011 timeout repair regenerated the same broad T002 Implement large refactor integration task instead of splitting schema pruning/build work.",
-    "As of 2026-06-28 04:05 +08:00, D: had only about 41 MB free after safe cache cleanup; another real Billing Core worker should not be launched until disk space is made safe."
+    "As of 2026-06-28 04:05 +08:00, D: had only about 41 MB free after safe cache cleanup; another real Billing Core worker should not be launched until disk space is made safe.",
+    "Before V2.109, Billing Core phase_011 could replay the same narrower T002 Prune legacy Ent schemas and table contracts task after that split task timed out, requiring a second-level schema-prune split."
   ],
   "blockers": [],
   "done_criteria": [
@@ -355,7 +364,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T04:05:00+08:00",
+  "last_verified_at": "2026-06-28T05:25:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T04:05:00+08:00"
+  "updated_at": "2026-06-28T05:25:00+08:00"
 }

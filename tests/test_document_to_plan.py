@@ -1223,22 +1223,25 @@ class DocumentToPlanTests(unittest.TestCase):
         ]
         titles = [node["title"] for node in implementation_nodes]
         self.assertNotIn("Implement large refactor integration", titles)
-        self.assertIn("Prune legacy Ent schemas and table contracts", titles)
+        self.assertNotIn("Prune legacy Ent schemas and table contracts", titles)
+        self.assertIn("Prune Ent schema definitions", titles)
+        self.assertIn("Align Ent migration and server table contracts", titles)
         self.assertIn("Regenerate Ent clients and migration artifacts", titles)
         self.assertIn("Clean legacy backend services repositories and tests", titles)
         self.assertIn("Stabilize schema and build verification contracts", titles)
 
         nodes_by_id = {node["id"]: node for node in graph["nodes"]}
         self.assertEqual(nodes_by_id["T001"]["status"], "completed")
-        for task_id in ("T002", "T003", "T004", "T005"):
-            self.assertEqual(nodes_by_id[task_id]["assigned_agent"], "backend")
-            self.assertEqual(nodes_by_id[task_id]["boundary_mode"], "large_refactor")
-            self.assertNotIn("backend/**", nodes_by_id[task_id]["relevant_files"])
-            self.assertNotIn("frontend/**", nodes_by_id[task_id]["relevant_files"])
+        for node in implementation_nodes:
+            self.assertEqual(node["assigned_agent"], "backend")
+            self.assertEqual(node["boundary_mode"], "large_refactor")
+            self.assertNotIn("backend/**", node["relevant_files"])
+            self.assertNotIn("frontend/**", node["relevant_files"])
 
-        schema_task = next(node for node in implementation_nodes if node["title"] == "Prune legacy Ent schemas and table contracts")
+        schema_task = next(node for node in implementation_nodes if node["title"] == "Prune Ent schema definitions")
         self.assertIn("backend/ent/schema/**", schema_task["relevant_files"])
         self.assertIn("backend/go.mod", schema_task["relevant_files"])
+        self.assertNotIn("backend/ent/migrate/**", schema_task["relevant_files"])
         self.assertTrue(any("go test" in command for command in schema_task["commands_to_run"]))
 
         build_task = next(
@@ -1247,6 +1250,96 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("frontend/package.json", build_task["relevant_files"])
         self.assertIn("frontend/pnpm-lock.yaml", build_task["relevant_files"])
         self.assertTrue(any("pnpm --dir frontend" in command for command in build_task["commands_to_run"]))
+
+    def test_schema_prune_timeout_repair_splits_timed_out_schema_task_again(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            for directory in (
+                "backend/ent/schema",
+                "backend/ent/migrate",
+                "backend/internal/domain",
+                "backend/internal/server",
+                "backend/internal/service",
+                "frontend/src",
+            ):
+                (repo / directory).mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "backend" / "ent" / "schema" / "relay.go").write_text("package schema\n", encoding="utf-8")
+            (repo / "backend" / "ent" / "migrate" / "schema.go").write_text("package migrate\n", encoding="utf-8")
+            (repo / "backend" / "internal" / "server" / "routes.go").write_text("package server\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase 8: Schema pruning and build",
+                        "## Requirements",
+                        "- Must prune Ent schema for CRM billing only.",
+                        "- Must regenerate Ent clients.",
+                        "- Must update migrations.",
+                        "- Must clean unused service/repository/test code.",
+                        "- Must prove a fresh DB migration succeeds.",
+                        "- Fresh DB migration must not create token relay tables.",
+                        "- `go test ./backend/internal/...` must pass or leave only documented legacy tests.",
+                        "- Frontend build/typecheck must pass.",
+                        "",
+                        "## Boundary Mode",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair = root / "phase_repair_002.md"
+            repair.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair For Phase 8",
+                        "## Focused Repair Scope",
+                        "- Primary failed task IDs: T002.",
+                        "- Completed tasks to preserve: T001.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T002 - Prune legacy Ent schemas and table contracts",
+                        "- Previous relevant files: backend/ent/schema/**, backend/ent/migrate/**, backend/internal/domain/**, backend/internal/server/**, backend/cmd/server/**, backend/go.mod, backend/ent/migrate/schema.go.",
+                        "- Worker summary: Codex worker timed out after 900 seconds.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core schema prune timeout.",
+                documents=[phase, repair],
+                repository_path=repo,
+                created_at="2026-06-28T05:05:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        titles = [node["title"] for node in implementation_nodes]
+        self.assertNotIn("Prune legacy Ent schemas and table contracts", titles)
+        self.assertIn("Prune Ent schema definitions", titles)
+        self.assertIn("Align Ent migration and server table contracts", titles)
+
+        nodes_by_id = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes_by_id["T001"]["status"], "completed")
+        schema_task = next(node for node in implementation_nodes if node["title"] == "Prune Ent schema definitions")
+        self.assertIn("backend/ent/schema/**", schema_task["relevant_files"])
+        self.assertNotIn("backend/ent/migrate/**", schema_task["relevant_files"])
+        self.assertNotIn("backend/internal/server/**", schema_task["relevant_files"])
+
+        migration_task = next(
+            node for node in implementation_nodes if node["title"] == "Align Ent migration and server table contracts"
+        )
+        self.assertIn("backend/ent/migrate/**", migration_task["relevant_files"])
+        self.assertIn("backend/internal/server/**", migration_task["relevant_files"])
+        self.assertNotIn("backend/internal/service/**", migration_task["relevant_files"])
 
     def test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task(self) -> None:
         with temp_plan_dir() as root:

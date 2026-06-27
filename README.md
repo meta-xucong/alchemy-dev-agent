@@ -1548,6 +1548,16 @@ Core phase_011 timeout repair from regenerating the same broad
 
 See `docs/117_v2_108_schema_build_timeout_split.md`.
 
+## V2.109 Schema Prune Second Timeout Split
+
+V2.109 adds a second-level split for schema/build repairs when the narrower
+`Prune legacy Ent schemas and table contracts` task itself times out. The repair
+graph now separates Ent schema definition pruning from migration/server table
+contract alignment, so the next Billing Core phase_011 resume should not replay
+the same T002 scope again.
+
+See `docs/118_v2_109_schema_prune_second_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash
