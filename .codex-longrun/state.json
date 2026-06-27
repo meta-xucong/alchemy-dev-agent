@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_98_repair_context_budget",
+  "current_phase": "v2_99_split_state_api_closure_timeout",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -33,12 +33,13 @@
     "implemented V2.95 completed repair task preservation so focused repair resumes do not redispatch tasks listed in Completed tasks to preserve",
     "implemented V2.96 remaining frontend closure timeout split so focused T009 repair resumes do not replay the broad frontend/** task",
     "implemented V2.97 cumulative repair brief context so relaunches keep prior split evidence and avoid task-ID preservation drift",
-    "implemented V2.98 repair context budget so historical repair briefs do not consume new repair allowance and blocked resumes retain recent context"
+    "implemented V2.98 repair context budget so historical repair briefs do not consume new repair allowance and blocked resumes retain recent context",
+    "implemented V2.99 state/API closure timeout split so focused T010 repair resumes do not replay the same wide task"
   ],
   "next_actions": [
-    "Commit and push V2.98 repair context budget changes.",
-    "Relaunch Billing Core through Alchemy only; confirm phase_010 carries phase_repair_006.md and phase_repair_007.md context plus a focused T010 repair/resume document.",
-    "Monitor whether T010 is split or otherwise narrowed instead of replaying the same state/API closure timeout.",
+    "Commit and push V2.99 state/API closure timeout split changes.",
+    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_039 and starts from split T010/T011/T012 state/API closure tasks.",
+    "Monitor whether the split state/API closure tasks advance without broad replay; if another controller issue appears, stop and fix Alchemy before continuing.",
     "After phase_010 promotion, continue toward phase_011 schema pruning/build and phase_012 demo smoke, then reassess CRM deliverability.",
     "Track progress-aware timeout heartbeat/checkpointing as a later Alchemy optimization."
   ],
@@ -222,7 +223,14 @@
     "python -B -m py_compile autodev\\full_roadmap_executor.py tests\\test_full_roadmap_execution.py => passed after V2.98",
     "Real phase_010 resume-source probe after run_attempt_038 terminal timeout => resume_from=None, active_run_dir=None, blockers=[]",
     "git diff --check => passed with existing .codex-longrun CRLF warnings only after V2.98",
-    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.98"
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.98",
+    "Billing Core run_attempt_039 => carried phase_repair_006.md, phase_repair_007.md, and phase_repair_resume_004.md, preserved T001-T009, but replayed T010 state/API closure; stopped before another 900s window and added supervisor_stop.json.",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_remaining_closure_task -q => 2 passed",
+    "Real phase_010 graph rebuild probe with phase_repair_006.md, phase_repair_007.md, and phase_repair_resume_004.md => T001-T009 completed and T010/T011/T012 split into API service, store-composable, and constants-type closure tasks",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 23 passed",
+    "python -B -m py_compile planner\\task_graph_builder.py tests\\test_document_to_plan.py => passed after V2.99",
+    "git diff --check => passed with existing .codex-longrun CRLF warnings only after V2.99",
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.99"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -257,7 +265,8 @@
     "Before V2.96, a focused T009 timeout repair for the remaining frontend closure fallback still rebuilt one broad frontend/** task, so Alchemy could spend another full worker window replaying the same over-wide scope even after preserving T001-T008.",
     "Before V2.97, full-roadmap relaunches reused only the newest ordinary repair brief, so a later T009 repair could lose the earlier T007/T008 split context and apply Completed tasks to preserve to drifted task IDs.",
     "Before V2.98, historical repair context documents consumed the same max_phase_repair_attempts budget as newly generated repair documents, so a T010 timeout after carrying phase_repair_006.md and phase_repair_007.md could block without writing the next focused repair brief.",
-    "Before V2.98, blocked-phase resume repair documents could omit recent ordinary repair context when phase_record.json was newer, risking task-ID drift after a terminal blocked attempt."
+    "Before V2.98, blocked-phase resume repair documents could omit recent ordinary repair context when phase_record.json was newer, risking task-ID drift after a terminal blocked attempt.",
+    "Before V2.99, focused T010 timeout repair evidence still rebuilt the same state/API closure task, so a relaunch could replay a task that had already consumed a full 900 second worker window."
   ],
   "blockers": [],
   "done_criteria": [
@@ -265,7 +274,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T22:08:00+08:00",
+  "last_verified_at": "2026-06-27T22:26:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T22:08:00+08:00"
+  "updated_at": "2026-06-27T22:26:00+08:00"
 }

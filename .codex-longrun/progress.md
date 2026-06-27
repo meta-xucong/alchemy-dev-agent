@@ -1524,3 +1524,10 @@ PY"`
 - The timeout stop behavior was correct, but the parent did not write `phase_repair_008.md` because historical context docs `phase_repair_006.md` and `phase_repair_007.md` consumed the same limit used for newly generated repair docs.
 - Implemented V2.98 in `autodev/full_roadmap_executor.py`: historical repair context no longer consumes the current parent run's new-repair budget, and blocked-phase resume docs include recent ordinary repair context even when `phase_record.json` is newer.
 - Current next step: commit/push V2.98, relaunch Billing Core through Alchemy, confirm it carries 006/007 context and generates/follows a focused T010 repair instead of stopping at the context-doc limit.
+
+## 2026-06-27T22:24:00+08:00 V2.99 Split State/API Closure Timeout
+
+- Relaunched Billing Core after V2.98. `run_attempt_039` correctly carried `phase_repair_006.md`, `phase_repair_007.md`, and `phase_repair_resume_004.md`, preserving T001-T009, but it still activated the same T010 state/API closure task that had already timed out.
+- Stopped `run_attempt_039` before another full 900 second worker window and added `supervisor_stop.json`.
+- Implemented V2.99 in `planner/task_graph_builder.py`: focused T010 timeout repair now splits the state/API closure task into API service, store/composable, and constants/type closure tasks.
+- Real phase_010 graph probe now preserves T001-T009 and leaves T010-T013 pending as narrower implementation tasks.

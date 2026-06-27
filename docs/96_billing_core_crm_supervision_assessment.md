@@ -399,6 +399,18 @@ newer. The next relaunch should be able to carry 006/007 context, generate a
 focused T010 repair, and split the state/API closure task instead of losing
 the graph again.
 
+## 2026-06-27 V2.99 Follow-Up
+
+The V2.98 relaunch wrote `phase_repair_resume_004.md` and rebuilt the graph
+with 006/007/resume context, preserving T001 through T009 correctly. It still
+activated the same T010 state/API closure task that had already timed out.
+
+I stopped `run_attempt_039` before it spent another full worker window. V2.99
+now splits focused T010 timeout repair into API service, store/composable, and
+constants/type closure tasks. The real phase_010 graph probe now preserves
+T001 through T009 and leaves T010 through T013 pending as smaller closure
+tasks.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

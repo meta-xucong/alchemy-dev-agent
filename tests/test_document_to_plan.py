@@ -1138,6 +1138,131 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("frontend/src/views/**", view_task["relevant_files"])
         self.assertIn("frontend/src/components/**", view_task["relevant_files"])
 
+    def test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            for directory in (
+                "backend",
+                "frontend/src/api",
+                "frontend/src/components",
+                "frontend/src/composables",
+                "frontend/src/constants",
+                "frontend/src/i18n",
+                "frontend/src/router",
+                "frontend/src/stores",
+                "frontend/src/types",
+                "frontend/src/utils",
+                "frontend/src/views",
+            ):
+                (repo / directory).mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps({"scripts": {"test": "vitest run"}}),
+                encoding="utf-8",
+            )
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase: Frontend closure",
+                        "## Requirements",
+                        "- Must close frontend router, menu, and direct pages.",
+                        "- Must clean frontend API service references.",
+                        "- Must convert wallet recharge, payment provider, and order surfaces.",
+                        "- Must convert redeem code pages to balance-only flows.",
+                        "- Must close usage API key and admin users workflows.",
+                        "- Must sweep token relay product copy and i18n.",
+                        "- Must close residual CRM frontend usability gaps and visible escape hatches.",
+                        "",
+                        "## Boundary Mode",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair_t009 = root / "phase_repair_007.md"
+            repair_t009.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        "## Focused Repair Scope",
+                        "- Primary failed task IDs: T009.",
+                        "- Completed tasks to preserve: T007, T008, T001, T002, T003, T004, T005, T006.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair_t010 = root / "phase_repair_resume_004.md"
+            repair_t010.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        "## Focused Repair Scope",
+                        "- Primary failed task IDs: T010.",
+                        "- Completed tasks to preserve: T009, T001, T002, T003, T004, T005, T006, T007, T008.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T010 - Complete remaining frontend state and API closure",
+                        "- Previous relevant files: frontend/src/api/**, frontend/src/stores/**, frontend/src/composables/**, frontend/src/constants/**, frontend/src/types/**, frontend/src/utils/**, frontend/package.json.",
+                        "- Worker summary: Codex worker timed out after 900 seconds.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core frontend state/API closure timeout.",
+                documents=[phase, repair_t009, repair_t010],
+                repository_path=repo,
+                created_at="2026-06-27T22:20:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        titles = [node["title"] for node in implementation_nodes]
+        self.assertNotIn("Complete remaining frontend state and API closure", titles)
+        self.assertIn("Complete remaining frontend API service closure", titles)
+        self.assertIn("Complete remaining frontend store and composable closure", titles)
+        self.assertIn("Complete remaining frontend constants and type closure", titles)
+        self.assertIn("Complete remaining frontend view workflow closure", titles)
+
+        nodes_by_id = {node["id"]: node for node in graph["nodes"]}
+        for task_id in ("T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009"):
+            self.assertEqual(nodes_by_id[task_id]["status"], "completed")
+        for task_id in ("T010", "T011", "T012"):
+            self.assertEqual(nodes_by_id[task_id]["status"], "pending")
+            self.assertNotIn("frontend/**", nodes_by_id[task_id]["relevant_files"])
+
+        api_task = next(
+            node for node in implementation_nodes if node["title"] == "Complete remaining frontend API service closure"
+        )
+        self.assertIn("frontend/src/api/**", api_task["relevant_files"])
+        self.assertIn("frontend/src/types/**", api_task["relevant_files"])
+
+        store_task = next(
+            node
+            for node in implementation_nodes
+            if node["title"] == "Complete remaining frontend store and composable closure"
+        )
+        self.assertIn("frontend/src/stores/**", store_task["relevant_files"])
+        self.assertIn("frontend/src/composables/**", store_task["relevant_files"])
+        self.assertIn("frontend/src/utils/**", store_task["relevant_files"])
+
+        constants_task = next(
+            node
+            for node in implementation_nodes
+            if node["title"] == "Complete remaining frontend constants and type closure"
+        )
+        self.assertIn("frontend/src/constants/**", constants_task["relevant_files"])
+        self.assertIn("frontend/src/types/**", constants_task["relevant_files"])
+
     def test_docs_only_scope_builds_documentation_task_with_lightweight_verification(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

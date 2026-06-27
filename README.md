@@ -1455,6 +1455,14 @@ blocked-phase resume briefs now carry recent ordinary repair context even when
 
 See `docs/107_v2_98_repair_context_budget.md`.
 
+## V2.99 Split State/API Closure Timeout
+
+V2.99 extends frontend timeout splitting to the remaining state/API closure
+task. Focused T010 timeout repair now replaces the prior state/API task with
+separate API service, store/composable, and constants/type closure tasks.
+
+See `docs/108_v2_99_split_state_api_closure_timeout.md`.
+
 Run a smoke execution:
 
 ```bash

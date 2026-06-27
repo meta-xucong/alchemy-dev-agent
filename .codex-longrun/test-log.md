@@ -3082,6 +3082,35 @@
 - result: passed
 - next verification command: diff check and state validation.
 
+## 2026-06-27T22:24:00+08:00 V2.99 split state/API closure timeout verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: stopped by supervisor for T010 timeout-split fix
+- relevant evidence: `run_attempt_039` carried 006/007/resume_004 context and preserved T001-T009, but activated the same `Complete remaining frontend state and API closure` task that had timed out in `run_attempt_038`.
+- fix attempted: added `run_attempt_039/supervisor_stop.json` and split focused T010 timeout repair into API service, store/composable, and constants/type closure tasks.
+- next verification command: focused planner regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_remaining_closure_task -q`
+- result: `2 passed`
+- next verification command: real graph probe.
+
+- command: real phase_010 graph rebuild probe using `phase_repair_006.md`, `phase_repair_007.md`, and `phase_repair_resume_004.md`
+- result: passed
+- relevant evidence: graph preserves T001-T009 and splits T010 into API service, store/composable, and constants/type closure tasks.
+- next verification command: full document-to-plan and full-roadmap regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `23 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `58 passed`
+- next verification command: py_compile, diff check, and state validation.
+
+- command: `python -B -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py`
+- result: passed
+- next verification command: diff check and state validation.
+
 ## 2026-06-27T21:19:00+08:00 V2.96 final verification
 
 - command: `git diff --check`

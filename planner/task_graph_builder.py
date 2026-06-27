@@ -911,6 +911,38 @@ FRONTEND_REMAINING_CLOSURE_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+FRONTEND_STATE_API_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Complete remaining frontend API service closure",
+        "description": "Close residual frontend API service and shared type gaps left after prior closure tasks.",
+        "files": (
+            "frontend/src/api/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Complete remaining frontend store and composable closure",
+        "description": "Close residual frontend store, composable, and utility gaps left after prior closure tasks.",
+        "files": (
+            "frontend/src/stores/**",
+            "frontend/src/composables/**",
+            "frontend/src/utils/**",
+            "frontend/package.json",
+        ),
+    },
+    {
+        "title": "Complete remaining frontend constants and type closure",
+        "description": "Close residual frontend constants and type gaps left after prior closure tasks.",
+        "files": (
+            "frontend/src/constants/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+        ),
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -924,9 +956,21 @@ def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple
 
 
 def frontend_remaining_closure_timeout_split_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
-    if not focused_timeout_repair_for_task(requirements, "T009"):
+    if not (
+        focused_timeout_repair_for_task(requirements, "T009")
+        or focused_timeout_repair_for_task(requirements, "T010")
+    ):
         return ()
-    return FRONTEND_REMAINING_CLOSURE_TIMEOUT_SPLIT_TASK_SPECS
+    specs: list[dict[str, object]] = []
+    for spec in FRONTEND_REMAINING_CLOSURE_TIMEOUT_SPLIT_TASK_SPECS:
+        if (
+            spec["title"] == "Complete remaining frontend state and API closure"
+            and focused_timeout_repair_for_task(requirements, "T010")
+        ):
+            specs.extend(FRONTEND_STATE_API_TIMEOUT_SPLIT_TASK_SPECS)
+        else:
+            specs.append(spec)
+    return tuple(specs)
 
 
 def focused_timeout_repair_for_task(requirements: list[Requirement], task_id: str) -> bool:
