@@ -1531,3 +1531,18 @@ PY"`
 - Stopped `run_attempt_039` before another full 900 second worker window and added `supervisor_stop.json`.
 - Implemented V2.99 in `planner/task_graph_builder.py`: focused T010 timeout repair now splits the state/API closure task into API service, store/composable, and constants/type closure tasks.
 - Real phase_010 graph probe now preserves T001-T009 and leaves T010-T013 pending as narrower implementation tasks.
+
+## 2026-06-27T22:43:00+08:00 V2.100 Worker Output Budget Hygiene
+
+- Relaunched Billing Core after V2.99. `run_attempt_040` used the correct split graph, preserved T001-T009, completed T010 `Complete remaining frontend API service closure`, and advanced to T011.
+- Audited the repeated T001 concern: recent T001 entries belong to separate attempts and are normal planning nodes, but several stopped attempts were real controller-repair waste that V2.88-V2.99 addressed.
+- Found a new Alchemy efficiency issue: T010 succeeded but its worker turn carried very large command output/raw event context from broad searches and a dirty large worktree, causing high token use even for a successful narrow task.
+- Added `run_attempt_040/supervisor_stop.json` so the current run pauses before dispatching further phase_010 tasks after the active T011 boundary.
+- Implemented V2.100 in `runtime/codex_worker.py`: real worker prompts now require low-output search/diff/test-log habits, and parsed structured result text fields are capped before they can pollute repair context.
+
+## 2026-06-27T22:50:00+08:00 V2.101 Live Supervisor Stop Marker
+
+- Found that `run_attempt_040/supervisor_stop.json` was not live control for the already-running parent: after T011 completed, the parent still dispatched T012.
+- Stopped the clearly scoped `run_attempt_040` process tree to avoid further pre-V2.100 worker token burn. No residual Billing Core Alchemy parent/worker processes remained after cleanup.
+- Implemented V2.101 in `runtime/control.py` and `autodev/document_run.py`: document runs now wrap controllers with a marker-file controller that reads `supervisor_stop.json`/`operator_stop.json` before task dispatch and while workers are running.
+- Current Billing Core artifact state: T010 and T011 completed; T012 is stale active state because its process was terminated; `supervisor_stop.json` ensures future resume selection should not reuse `run_attempt_040` directly.

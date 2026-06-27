@@ -411,6 +411,49 @@ constants/type closure tasks. The real phase_010 graph probe now preserves
 T001 through T009 and leaves T010 through T013 pending as smaller closure
 tasks.
 
+## 2026-06-27 V2.100 Follow-Up
+
+`run_attempt_040` confirmed that V2.99 was effective. The graph preserved
+T001 through T009, completed the new narrow T010 API service closure task, and
+advanced to T011. This is not a T001 loop and not a full restart.
+
+The same T010 worker exposed a separate token-cost issue. It completed the
+task, but the Codex worker turn carried very large command output and raw event
+evidence from broad searches and a dirty large worktree. Alchemy already
+truncated final raw output before saving it, but that happens after the worker
+model has spent tokens reading command output.
+
+V2.100 adds prompt-level output-budget rules for real Codex workers and caps
+structured text fields in parsed worker results. This should reduce both live
+worker token burn and later repair-context pollution. It does not eliminate the
+need for progress-aware heartbeats/checkpoints, which remains the next
+controller optimization.
+
+Current judgment on token use: the many T001 labels are mostly normal per-run
+planning nodes, but the historical token overrun was not normal mature
+Alchemy behavior. It came from using a very large legacy migration to harden
+Alchemy's resume, timeout, repair-context, preservation, and now worker-output
+controls. Ordinary Alchemy development should be cheaper after these fixes,
+but large repositories still need strict output budgets and task slicing.
+
+## 2026-06-27 V2.101 Follow-Up
+
+While applying V2.100 supervision, I wrote `run_attempt_040/supervisor_stop.json`
+after T010 completed. T011 then completed, but the still-running parent
+dispatched T012 anyway. This exposed a live-control bug: the marker file was
+used by future resume selection but not by the running document-run controller.
+
+I stopped the clearly scoped `run_attempt_040` process tree to avoid further
+pre-V2.100 worker token burn. V2.101 adds a marker-file execution controller
+and wires it into `DocumentRunPipeline` by default. From now on,
+`supervisor_stop.json` and `operator_stop.json` should stop dispatch before the
+next task and request cancellation while a worker is running.
+
+Current phase_010 state after this supervised stop: T010 and T011 completed;
+T012 is active only as stale state because its process was terminated. The next
+Alchemy relaunch must skip `run_attempt_040` as supervisor-stopped and must not
+blindly resume stale T012.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

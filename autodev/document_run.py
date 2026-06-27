@@ -12,7 +12,7 @@ from context import ContextBundleBuilder
 from intake import Blocker, GitHubSourceRuntime, PrivateGitHubSourceRuntime, ProjectBriefBuilder
 from planner import TaskGraphBuilder
 from planner.task_graph_builder import migrate_resumed_frontend_tasks_for_repository
-from runtime.control import ExecutionController
+from runtime.control import ExecutionController, with_marker_file_controller
 from runtime import (
     AcceptanceScenarioPlanner,
     BrowserArtifactEvidenceVerifier,
@@ -122,6 +122,7 @@ class DocumentRunPipeline:
     ) -> DocumentRunResult:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
+        controller = with_marker_file_controller(output, controller)
         generated_repository = False
         if not repository_url and not repository_path and primary_input_mode == "document_driven":
             repository_path = output / "generated_repository"

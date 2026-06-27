@@ -354,6 +354,34 @@ class DocumentRunPipelineTests(unittest.TestCase):
             self.assertTrue(resumed.recovery["checkpoint"]["continued_task_ids"])
             self.assertTrue((resumed_output / "state.json").exists())
 
+    def test_pipeline_honors_supervisor_stop_marker_by_default(self) -> None:
+        with temp_document_run_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            write_repo(repo)
+            spec = root / "workspace_feature_spec.md"
+            write_spec(spec)
+            output = root / "run"
+            output.mkdir()
+            (output / "supervisor_stop.json").write_text(
+                json.dumps({"reason": "pause before next task"}),
+                encoding="utf-8",
+            )
+
+            result = DocumentRunPipeline().run(
+                objective="Add workspace support",
+                documents=[spec],
+                repository_url="https://github.com/example/saas-dashboard",
+                repository_path=repo,
+                output_dir=output,
+                max_iterations=5,
+            )
+
+            self.assertEqual(result.status, "blocked")
+            self.assertFalse(result.runtime_state["done"])
+            self.assertEqual(result.runtime_state["blockers"][0]["id"], "B-RUN-STOPPED")
+            self.assertIn("pause before next task", result.runtime_state["blockers"][0]["description"])
+
     def test_resumed_frontend_task_graph_migration_refreshes_stale_commands_and_boundaries(self) -> None:
         with temp_document_run_dir() as root:
             repo = root / "repo"

@@ -3024,6 +3024,52 @@
 - result: `26 passed`
 - next verification command: full-roadmap regression.
 
+## 2026-06-27T22:43:00+08:00 V2.100 worker output budget hygiene verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: `run_attempt_040` preserved T001-T009, completed split T010, and advanced to T011; supervisor stop marker added before further dispatch because T010 evidence showed excessive worker command/raw output token use.
+- fix attempted: added real-worker prompt rules for capped search/diff/status/test-log output and structured result text truncation in `runtime/codex_worker.py`.
+- next verification command: focused runtime regressions.
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_includes_output_budget_hygiene tests/test_runtime.py::CodexWorkerTests::test_worker_result_truncates_large_structured_text_fields tests/test_runtime.py::CodexWorkerTests::test_real_worker_truncates_large_raw_output_after_parsing -q`
+- result: `3 passed`
+- next verification command: targeted py_compile.
+
+- command: `python -B -m py_compile runtime\codex_worker.py tests\test_runtime.py`
+- result: passed
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `129 passed`
+- next verification command: diff check, state validation, and controlled Billing Core relaunch after V2.100 is committed.
+
+## 2026-06-27T22:50:00+08:00 V2.101 live supervisor stop marker verification
+
+- command: process audit/cleanup for `billing_core_v274_20260624_012`
+- result: stopped clearly scoped `run_attempt_040` parent/worker/test process tree after `supervisor_stop.json` failed to prevent T012 dispatch; follow-up process audit showed no residual Billing Core Alchemy parent/worker process.
+- fix attempted: added `MarkerFileExecutionController`, controller composition, and default document-run marker wrapping.
+- next verification command: focused live-stop regressions.
+
+- command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_marker_file_controller_blocks_before_dispatching_worker tests/test_runtime.py::OrchestratorTests::test_marker_file_controller_requests_running_worker_stop tests/test_document_run_pipeline.py::DocumentRunPipelineTests::test_pipeline_honors_supervisor_stop_marker_by_default -q`
+- result: `3 passed`
+- next verification command: targeted py_compile and full affected suites.
+
+- command: `python -B -m py_compile runtime\control.py autodev\document_run.py tests\test_runtime.py tests\test_document_run_pipeline.py`
+- result: passed
+- next verification command: full runtime/document-run regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `131 passed`
+- next verification command: full document-run regression.
+
+- command: `python -B -m pytest tests/test_document_run_pipeline.py -q`
+- result: `27 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `58 passed`
+- next verification command: diff check, state validation, commit/push, then controlled Billing Core relaunch.
+
 ## 2026-06-27T21:34:00+08:00 V2.97 cumulative repair brief context verification
 
 - command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`

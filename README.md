@@ -1463,6 +1463,24 @@ separate API service, store/composable, and constants/type closure tasks.
 
 See `docs/108_v2_99_split_state_api_closure_timeout.md`.
 
+## V2.100 Worker Output Budget Hygiene
+
+V2.100 adds worker prompt and result-sanitization guardrails for large
+repositories. Real Codex workers are now instructed to cap broad search, diff,
+status, and test-log output, and structured worker result text fields are
+truncated before they can pollute later repair context.
+
+See `docs/109_v2_100_worker_output_budget_hygiene.md`.
+
+## V2.101 Live Supervisor Stop Marker
+
+V2.101 makes `supervisor_stop.json` and `operator_stop.json` live execution
+controls for document-run attempts. Marker files are now checked before task
+dispatch and while workers are running, instead of only affecting future resume
+selection.
+
+See `docs/110_v2_101_live_supervisor_stop_marker.md`.
+
 Run a smoke execution:
 
 ```bash

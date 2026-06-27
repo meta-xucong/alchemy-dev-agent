@@ -16,7 +16,7 @@ from runtime.agent_router import AgentRouter
 from runtime.acceptance_scenarios import AcceptanceScenarioPlanner
 from runtime.artifact_profile import ArtifactProfileDetector
 from runtime.artifact_verifier import BrowserArtifactEvidenceVerifier, BrowserArtifactRunner, StaticWebArtifactVerifier
-from runtime.control import ControlDecision
+from runtime.control import ControlDecision, MarkerFileExecutionController
 from runtime.codex_worker import (
     RAW_OUTPUT_LIMIT,
     CodexWorkerAdapter,
@@ -224,6 +224,21 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertIn("do not send regex alternation such as `|`", prompt)
         self.assertIn("already populated `GOMODCACHE`", prompt)
         self.assertIn("Do not launch multiple parallel `go test` processes", prompt)
+
+    def test_worker_prompt_includes_output_budget_hygiene(self) -> None:
+        prompt = CodexWorkerAdapter().build_prompt(
+            CodexWorkerInput(
+                task_id="T003",
+                goal="close a large frontend domain surface",
+                allowed_files=["frontend/src/api/**", "frontend/src/types/**"],
+            )
+        )
+
+        self.assertIn("Keep command output small", prompt)
+        self.assertIn("rg -l", prompt)
+        self.assertIn("Select-Object -First 80", prompt)
+        self.assertIn("Do not run broad `rg -n` searches", prompt)
+        self.assertIn("summarize large outputs", prompt)
 
     def test_real_worker_parses_structured_subprocess_output(self) -> None:
         calls: list[list[str]] = []
@@ -624,6 +639,44 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.tests_passed, ["unit tests"])
         self.assertEqual(result.evidence, ["verified"])
         self.assertEqual(result.confidence, 0.8)
+
+    def test_worker_result_truncates_large_structured_text_fields(self) -> None:
+        large = "a" * 6000
+        payload = {
+            "task_id": "T012T",
+            "status": "completed",
+            "summary": large,
+            "files_changed": [],
+            "commands_run": [
+                {
+                    "command": "rg -n old-term frontend/src",
+                    "exit_code": 0,
+                    "summary": large,
+                    "stdout": large,
+                    "stderr": large,
+                }
+            ],
+            "tests_passed": [large],
+            "tests_failed": [],
+            "evidence": [large],
+            "known_issues": [large],
+            "follow_up_tasks": [large],
+            "confidence": 0.9,
+            "raw_output": "r" * (RAW_OUTPUT_LIMIT + 100),
+        }
+
+        result = CodexWorkerResult.from_dict(payload)
+
+        self.assertLessEqual(len(result.summary), 4000)
+        self.assertLessEqual(len(result.commands_run[0].summary), 4000)
+        self.assertLessEqual(len(result.commands_run[0].stdout), 1000)
+        self.assertLessEqual(len(result.commands_run[0].stderr), 1000)
+        self.assertLessEqual(len(result.evidence[0]), 4000)
+        self.assertLessEqual(len(result.known_issues[0]), 4000)
+        self.assertLessEqual(len(result.follow_up_tasks[0]), 4000)
+        self.assertLessEqual(len(result.raw_output), RAW_OUTPUT_LIMIT)
+        self.assertIn("truncated", result.commands_run[0].stdout)
+        self.assertIn("raw output truncated", result.raw_output)
 
     def test_real_worker_rolls_back_out_of_scope_changes(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -2832,6 +2885,45 @@ class OrchestratorTests(unittest.TestCase):
             self.assertFalse(state.done)
             self.assertEqual(state.blockers[0]["id"], "B-RUN-STOPPED")
             self.assertEqual(state.iteration_history[-1]["type"], "run_stopped")
+
+    def test_marker_file_controller_blocks_before_dispatching_worker(self) -> None:
+        class CountingWorker:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls += 1
+                return CodexWorkerResult(task_id=worker_input.task_id, status="completed", summary="done")
+
+        with temp_project_dir() as tmp_dir:
+            state_path = Path(tmp_dir) / ".alchemy" / "state.json"
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            (state_path.parent / "supervisor_stop.json").write_text(
+                json.dumps({"reason": "pause for controller fix"}),
+                encoding="utf-8",
+            )
+            worker = CountingWorker()
+            orchestrator = Orchestrator(
+                StateManager(state_path),
+                worker=worker,  # type: ignore[arg-type]
+                controller=MarkerFileExecutionController(state_path.parent),
+                repository_path=tmp_dir,
+            )
+
+            state = orchestrator.run("build a todo app with login", reset=True)
+
+            self.assertEqual(worker.calls, 0)
+            self.assertFalse(state.done)
+            self.assertEqual(state.blockers[0]["id"], "B-RUN-STOPPED")
+            self.assertIn("pause for controller fix", state.blockers[0]["description"])
+
+    def test_marker_file_controller_requests_running_worker_stop(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            controller = MarkerFileExecutionController(tmp_dir)
+            self.assertFalse(controller.should_stop_worker("T001"))
+            (Path(tmp_dir) / "operator_stop.json").write_text("{}", encoding="utf-8")
+
+            self.assertTrue(controller.should_stop_worker("T001"))
 
     def test_orchestrator_records_worker_lifecycle_in_runtime_state(self) -> None:
         class LifecycleWorker:

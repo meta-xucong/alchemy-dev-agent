@@ -26,6 +26,8 @@ from .worker_lifecycle import ManagedSubprocessRunner, WorkerLifecycleRecorder
 
 
 RAW_OUTPUT_LIMIT = 20_000
+WORKER_TEXT_FIELD_LIMIT = 4_000
+COMMAND_OUTPUT_FIELD_LIMIT = 1_000
 CODEX_USAGE_LIMIT_MARKERS = (
     "you've hit your usage limit",
     "usage limit",
@@ -44,11 +46,11 @@ class CommandResult:
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "CommandResult":
         return cls(
-            command=str(payload.get("command", "")),
+            command=_truncate_text(str(payload.get("command", "")), limit=WORKER_TEXT_FIELD_LIMIT),
             exit_code=int(payload.get("exit_code", 0)),
-            summary=str(payload.get("summary", "")),
-            stdout=str(payload.get("stdout", "")),
-            stderr=str(payload.get("stderr", "")),
+            summary=_truncate_text(str(payload.get("summary", "")), limit=WORKER_TEXT_FIELD_LIMIT),
+            stdout=_truncate_text(str(payload.get("stdout", "")), limit=COMMAND_OUTPUT_FIELD_LIMIT),
+            stderr=_truncate_text(str(payload.get("stderr", "")), limit=COMMAND_OUTPUT_FIELD_LIMIT),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -128,16 +130,16 @@ class CodexWorkerResult:
         return cls(
             task_id=str(payload.get("task_id", "")),
             status=status,
-            summary=str(payload.get("summary", "")),
+            summary=_truncate_text(str(payload.get("summary", "")), limit=WORKER_TEXT_FIELD_LIMIT),
             files_changed=[str(item) for item in _coerce_list(payload.get("files_changed", []))],
             commands_run=commands,
-            tests_passed=[str(item) for item in _coerce_list(payload.get("tests_passed", []))],
-            tests_failed=[str(item) for item in _coerce_list(payload.get("tests_failed", []))],
-            evidence=[str(item) for item in _coerce_list(payload.get("evidence", []))],
-            known_issues=[str(item) for item in _coerce_list(payload.get("known_issues", []))],
-            follow_up_tasks=[str(item) for item in _coerce_list(payload.get("follow_up_tasks", []))],
+            tests_passed=_coerce_text_list(payload.get("tests_passed", [])),
+            tests_failed=_coerce_text_list(payload.get("tests_failed", [])),
+            evidence=_coerce_text_list(payload.get("evidence", [])),
+            known_issues=_coerce_text_list(payload.get("known_issues", [])),
+            follow_up_tasks=_coerce_text_list(payload.get("follow_up_tasks", [])),
             confidence=_coerce_float(payload.get("confidence", 0.0)),
-            raw_output=str(payload.get("raw_output", "")),
+            raw_output=_truncate_raw_output(str(payload.get("raw_output", ""))),
             worker_lifecycle=dict(payload.get("worker_lifecycle", {})) if isinstance(payload.get("worker_lifecycle", {}), dict) else {},
         )
 
@@ -213,6 +215,13 @@ class CodexWorkerAdapter:
             "cannot be completed without edits.\n\n"
             "Before opening, patching, or testing a file whose path is uncertain, confirm the exact repository "
             "path from repository evidence such as `rg --files` or `rg -n` instead of guessing.\n\n"
+            "Keep command output small. Prefer path-scoped searches, `rg -l`, `rg --count`, or searches piped to "
+            "`Select-Object -First 80` before printing matching lines. Do not run broad `rg -n` searches for common "
+            "terms across large directories unless the command limits output. Do not print full `git diff`, full "
+            "`git status --short` for a very dirty tree, generated files, dependency directories, build artifacts, "
+            "or long test logs; use path filters, summaries, counts, or targeted line ranges instead. In the final "
+            "JSON, keep `commands_run.stdout`, `commands_run.stderr`, `raw_output`, and each evidence string brief; "
+            "summarize large outputs instead of pasting them.\n\n"
             "You may run package-manager install commands when they are needed for verification and existing "
             "dependency manifests or lockfiles define the dependency set. Keep install output limited to ignored "
             "dependency/cache directories such as node_modules; do not modify manifests or lockfiles unless those "
@@ -768,6 +777,10 @@ def _coerce_list(value: Any) -> list[Any]:
     return [value]
 
 
+def _coerce_text_list(value: Any) -> list[str]:
+    return [_truncate_text(str(item), limit=WORKER_TEXT_FIELD_LIMIT) for item in _coerce_list(value)]
+
+
 def _coerce_command_result(value: Any) -> CommandResult:
     if isinstance(value, CommandResult):
         return value
@@ -791,6 +804,18 @@ def _decode_subprocess_output(value: Any) -> str:
     if isinstance(value, bytes):
         return value.decode("utf-8", errors="replace")
     return str(value)
+
+
+def _truncate_text(value: str, *, limit: int) -> str:
+    if len(value) <= limit:
+        return value
+    marker = f"...[truncated to {limit} chars; omitted {len(value) - limit} chars]..."
+    if len(marker) >= limit:
+        return value[:limit]
+    budget = limit - len(marker)
+    head = max(budget // 2, 0)
+    tail = max(budget - head, 0)
+    return value[:head] + marker + value[-tail:]
 
 
 def _truncate_raw_output(output: str, *, limit: int = RAW_OUTPUT_LIMIT) -> str:
