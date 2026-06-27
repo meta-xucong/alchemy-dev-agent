@@ -1490,6 +1490,16 @@ lists, preventing task-ID drift after a supervised pause.
 
 See `docs/111_v2_102_supervisor_stopped_completion_context.md`.
 
+## V2.103 Verification Failure Repair Handoff
+
+V2.103 carries concrete failed verification evidence from completed test/review
+tasks into phase repair briefs. Blocked-phase bootstrap can recover older run
+attempts that still contain the failing worker result, and the planner creates
+an unpreserved focused repair task for those target files instead of marking the
+whole regenerated graph completed.
+
+See `docs/112_v2_103_verification_failure_repair_handoff.md`.
+
 Run a smoke execution:
 
 ```bash

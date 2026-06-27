@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -50,6 +51,10 @@ NON_REPAIRABLE_BLOCKER_MARKERS = (
     "preflight",
     "recovery",
     "operator",
+)
+
+REPAIR_EVIDENCE_PATH_PATTERN = re.compile(
+    r"(?P<path>[\w./-]+\.(?:vue|tsx|jsx|yaml|yml|py|js|ts|go|rs|java|cs|rb|php|html|css|sql|md|json))(?![\w/-])"
 )
 
 
@@ -792,6 +797,12 @@ def bootstrap_phase_repair_documents(
     )
     if stopped_attempt_context:
         return dedupe_strings([*context_documents, stopped_attempt_context])
+    verification_issue_context = latest_verification_issue_context_document(
+        phase_dir,
+        phase=phase,
+    )
+    if verification_issue_context:
+        return dedupe_strings([*context_documents, verification_issue_context])
     path = next_phase_repair_resume_path(phase_dir)
     return dedupe_strings(
         [
@@ -897,6 +908,82 @@ def existing_supervisor_stopped_attempt_context_document(phase_dir: Path, run_di
     return ""
 
 
+def latest_verification_issue_context_document(
+    phase_dir: Path,
+    *,
+    phase: RoadmapPhase,
+) -> str:
+    """Recover concrete failed verification evidence from older phase attempts."""
+
+    for run_dir in reversed(list_phase_run_dirs(phase_dir)):
+        state = read_optional_json(run_dir / "state.json")
+        if not state:
+            continue
+        result = verification_issue_result_from_state(state)
+        if not phase_verification_issue_lines(result):
+            continue
+        existing_context = existing_verification_issue_context_document(phase_dir, run_dir)
+        if existing_context:
+            return existing_context
+        return write_verification_issue_context_document(
+            next_phase_repair_resume_path(phase_dir),
+            phase=phase,
+            run_dir=run_dir,
+            result=result,
+        )
+    return ""
+
+
+def existing_verification_issue_context_document(phase_dir: Path, run_dir: Path) -> str:
+    marker = f"Verification issue run directory: {run_dir}"
+    for candidate in sorted(phase_dir.glob("phase_repair_resume_*.md"), reverse=True):
+        try:
+            text = candidate.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if "Repair attempt: verification-issue context" in text and marker in text:
+            return str(candidate.resolve())
+    return ""
+
+
+def write_verification_issue_context_document(
+    path: Path,
+    *,
+    phase: RoadmapPhase,
+    run_dir: Path,
+    result: dict[str, object],
+) -> str:
+    state = _dict(result.get("runtime_state"))
+    evaluation = _dict(state.get("evaluation"))
+    promotion = {
+        "required_score": 0.85,
+        "score": evaluation.get("final_gate_score", evaluation.get("score", 0.0)),
+        "reasons": evaluation.get("hard_failures", ["Recovered failed verification evidence from prior attempt."]),
+    }
+    resolved = Path(
+        write_phase_repair_document(
+            path,
+            phase=phase,
+            result=result,
+            promotion=promotion,
+            attempt_index="verification-issue context",
+        )
+    )
+    with resolved.open("a", encoding="utf-8") as handle:
+        handle.write("\n## Recovery Source\n\n")
+        handle.write(f"- Verification issue run directory: {run_dir}\n")
+    return str(resolved)
+
+
+def verification_issue_result_from_state(state: dict[str, object]) -> dict[str, object]:
+    evaluation = _dict(state.get("evaluation"))
+    return {
+        "status": "done",
+        "delivery_report": {"final_gate": evaluation},
+        "runtime_state": state,
+    }
+
+
 def write_supervisor_stopped_attempt_context_document(
     path: Path,
     *,
@@ -990,7 +1077,7 @@ def write_phase_repair_document(
     phase: RoadmapPhase,
     result: dict[str, object],
     promotion: dict[str, object],
-    attempt_index: int,
+    attempt_index: int | str,
 ) -> str:
     """Write a machine-actionable repair brief for a failed phase gate."""
 
@@ -1009,6 +1096,7 @@ def write_phase_repair_document(
         *[str(item) for item in _list(evaluation.get("required_changes"))],
     ]
     blockers = [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
+    verification_issue_lines = phase_verification_issue_lines(result)
     focused_repair_lines = phase_focused_repair_lines(result, blockers)
     hard_failures = [
         *[str(item) for item in _list(final_gate.get("hard_failures"))],
@@ -1054,6 +1142,9 @@ def write_phase_repair_document(
         lines.extend(f"- {item}" for item in dedupe_strings(required_changes))
     else:
         lines.append("- Improve the low gate dimensions with concrete implementation, tests, or review evidence.")
+    if verification_issue_lines:
+        lines.extend(["", "## Failing Verification Issues", ""])
+        lines.extend(verification_issue_lines)
     lines.extend(focused_repair_lines)
     lines.extend(
         [
@@ -1079,6 +1170,114 @@ def write_phase_repair_document(
     path = path.resolve()
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return str(path)
+
+
+def phase_verification_issue_lines(result: dict[str, object]) -> list[str]:
+    runtime_state = _dict(result.get("runtime_state"))
+    task_graph = _dict(runtime_state.get("task_graph"))
+    nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
+    lines: list[str] = []
+    for node in nodes:
+        if str(node.get("type", "")).lower() not in {"test", "review"}:
+            continue
+        worker_result = latest_worker_result_from_task(node)
+        if not worker_result_has_repair_issue(worker_result):
+            continue
+        task_id = str(node.get("id", "") or "unknown")
+        title = str(node.get("title", "") or "").strip()
+        heading = f"- Must repair {task_id} verification issue"
+        if title:
+            heading += f" ({title})"
+        summary = str(worker_result.get("summary", "") or "").strip()
+        if summary:
+            heading += f": {summary}"
+        else:
+            heading += "."
+        lines.append(heading)
+        failed_commands = failed_command_summaries(worker_result)
+        if failed_commands:
+            lines.append(f"- Failed commands: {'; '.join(failed_commands)}.")
+        for label, key in (
+            ("Tests failed", "tests_failed"),
+            ("Known issues", "known_issues"),
+            ("Follow-up tasks", "follow_up_tasks"),
+        ):
+            values = dedupe_strings(str(item) for item in _list(worker_result.get(key)))[:6]
+            if values:
+                lines.append(f"- {label}: {'; '.join(values)}.")
+        target_paths = repair_issue_target_paths(node, worker_result)
+        if target_paths:
+            lines.append(f"- Target files: {', '.join(target_paths)}.")
+    return dedupe_strings(lines)
+
+
+def worker_result_has_repair_issue(worker_result: dict[str, object]) -> bool:
+    if not worker_result:
+        return False
+    if _list(worker_result.get("tests_failed")):
+        return True
+    if _list(worker_result.get("known_issues")):
+        return True
+    if _list(worker_result.get("follow_up_tasks")):
+        return True
+    for command in _list(worker_result.get("commands_run")):
+        if isinstance(command, dict) and int_or_zero(command.get("exit_code")) != 0:
+            return True
+    return str(worker_result.get("status", "")).lower() in {"failed", "partial", "blocked", "timed_out"}
+
+
+def failed_command_summaries(worker_result: dict[str, object]) -> list[str]:
+    summaries: list[str] = []
+    for command in _list(worker_result.get("commands_run")):
+        if not isinstance(command, dict):
+            continue
+        if int_or_zero(command.get("exit_code")) == 0:
+            continue
+        command_text = str(command.get("command", "") or "").strip()
+        details = " ".join(
+            str(command.get(key, "") or "").strip()
+            for key in ("summary", "stderr", "stdout")
+            if str(command.get(key, "") or "").strip()
+        )
+        text = command_text
+        if details:
+            text = f"{text}: {short_repair_text(details)}" if text else short_repair_text(details)
+        if text:
+            summaries.append(text)
+    return dedupe_strings(summaries)[:4]
+
+
+def repair_issue_target_paths(node: dict[str, object], worker_result: dict[str, object]) -> list[str]:
+    texts: list[str] = []
+    for key in ("summary", "tests_failed", "known_issues", "follow_up_tasks", "evidence"):
+        value = worker_result.get(key)
+        if isinstance(value, str):
+            texts.append(value)
+        else:
+            texts.extend(str(item) for item in _list(value))
+    for command in _list(worker_result.get("commands_run")):
+        if not isinstance(command, dict):
+            continue
+        texts.extend(
+            str(command.get(key, "") or "")
+            for key in ("command", "summary", "stderr", "stdout")
+            if str(command.get(key, "") or "")
+        )
+    texts.extend(str(item) for item in _list(node.get("relevant_files")))
+    return dedupe_strings(
+        normalize_repair_path(match.group("path"))
+        for text in texts
+        for match in REPAIR_EVIDENCE_PATH_PATTERN.finditer(text)
+    )[:12]
+
+
+def normalize_repair_path(path: str) -> str:
+    return str(path).replace("\\", "/").strip().strip("`").strip().strip(".").strip("/")
+
+
+def short_repair_text(text: str, *, limit: int = 240) -> str:
+    clean = " ".join(text.split())
+    return clean if len(clean) <= limit else clean[: limit - 3].rstrip() + "..."
 
 
 def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[object]) -> list[str]:
@@ -1583,6 +1782,13 @@ def float_or_zero(value: object) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def int_or_zero(value: object) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def dedupe_strings(values: Sequence[str]) -> list[str]:

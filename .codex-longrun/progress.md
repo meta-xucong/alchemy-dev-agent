@@ -1553,3 +1553,14 @@ PY"`
 - Implemented V2.102 in `autodev/full_roadmap_executor.py` and `planner/task_graph_builder.py`: bootstrap now writes/reuses a supervisor-stopped context brief from newer stopped attempts, and focused timeout matching parses task ID lists such as `T012, T010`.
 - Real phase_010 bootstrap produced `phase_repair_resume_007.md` preserving T010/T011 and keeping T010 split context active.
 - Real graph probe now shows T001-T011 completed, T012 constants/type closure pending, T013 view workflow closure pending, and T014/T015 verification/review pending.
+
+## 2026-06-28T00:24:00+08:00 V2.103 Verification Failure Repair Handoff
+
+- Audited the phase_010 stop after run_attempt_041/run_attempt_042/run_attempt_043. run_attempt_041 completed T001-T016, but T014 verification recorded a concrete frontend build blocker: `pnpm --dir frontend run build` could not resolve `docs/legal/admin-compliance.zh.md` / `.en.md` imported by `frontend/src/components/admin/AdminComplianceDialog.vue`.
+- Found the Alchemy root cause: completed test/review tasks with `tests_failed`, `known_issues`, failed commands, and follow-up tasks were not copied into the next phase repair document, so phase_repair_008/009 preserved completed tasks but did not create an actionable repair task.
+- Implemented V2.103 in `autodev/full_roadmap_executor.py`: phase repair documents now include `Failing Verification Issues`, failed commands, known issues, follow-up tasks, and target paths from completed verification workers.
+- Added blocked-phase bootstrap recovery for older run attempts that still contain the useful verification issue evidence, so newer low-score preserve-only attempts do not hide the original failure details.
+- Implemented V2.103 planner support in `planner/task_graph_builder.py`: concrete verification repair evidence creates an unpreserved focused frontend repair task, with downstream verification/review IDs beyond the completed-task preserve range; repair metadata lines no longer become generic remaining frontend tasks.
+- Real phase_010 graph probe now recovers `phase_repair_resume_009.md` from historical T014 evidence and leaves only T017 `Repair failing frontend verification assets`, T018 verification, and T019 review pending; the broad `Complete remaining frontend closure requirements` fallback is suppressed for this resume.
+- Verification passed: focused V2.103 regressions `3 passed`, full `tests/test_document_to_plan.py` `25 passed`, full `tests/test_full_roadmap_execution.py` `61 passed`, and targeted `compileall` passed.
+- Next step: commit/push V2.103, then relaunch Billing Core through Alchemy only and confirm phase_010 produces a focused repair task for the missing admin compliance Markdown/build blocker instead of preserving T001-T016 and stopping again.

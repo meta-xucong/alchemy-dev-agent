@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_102_supervisor_stopped_completion_context",
+  "current_phase": "v2_103_verification_failure_repair_handoff",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -37,15 +37,16 @@
     "implemented V2.99 state/API closure timeout split so focused T010 repair resumes do not replay the same wide task",
     "implemented V2.100 worker output budget hygiene so real Codex workers avoid unbounded search/diff/status output and large structured evidence fields are truncated",
     "implemented V2.101 live supervisor stop marker handling so supervisor_stop/operator_stop files stop current document-run dispatch and running workers",
-    "implemented V2.102 supervisor-stopped completion context so newer stopped attempts preserve completed task evidence when phase_record.json is stale"
+    "implemented V2.102 supervisor-stopped completion context so newer stopped attempts preserve completed task evidence when phase_record.json is stale",
+    "implemented V2.103 verification failure repair handoff so completed test/review worker failures become focused unpreserved repair tasks and older attempt state can recover lost build-failure evidence"
   ],
   "next_actions": [
-    "Run final diff check and state validation for V2.100/V2.101/V2.102.",
-    "Commit and push V2.102 Alchemy fixes.",
-    "Relaunch Billing Core through Alchemy only after the fixes are committed; confirm phase_010 skips supervisor-stopped run_attempt_040 and resumes with T001-T011 completed, T012/T013 pending.",
-    "Monitor whether the optimized worker prompt reduces broad command-output token burn; if another controller issue appears, stop and fix Alchemy before continuing.",
+    "Run final diff check and state validation for V2.103.",
+    "Commit and push V2.103 Alchemy fixes.",
+    "Relaunch Billing Core through Alchemy only after the fixes are committed; confirm phase_010 recovers run_attempt_041 T014 build-failure evidence and creates a focused unpreserved repair task for the missing admin compliance Markdown files.",
+    "Monitor whether phase_010 promotes after the focused build repair; if another controller issue appears, stop and fix Alchemy before continuing.",
     "After phase_010 promotion, continue toward phase_011 schema pruning/build and phase_012 demo smoke, then reassess CRM deliverability.",
-    "Implement progress-aware worker heartbeat/checkpointing and bounded grace as the next Alchemy optimization if timeout observability remains weak."
+    "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after the current verification-repair handoff is proven."
   ],
   "tests_run": [
     "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_last.md \"Reply with exactly OK and nothing else.\" => passed",
@@ -249,7 +250,12 @@
     "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_supervisor_stopped_attempt_context_preserves_newer_completed_tasks -q => 1 passed",
     "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_focused_timeout_repair_matches_task_inside_primary_failed_id_list tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_supervisor_stopped_attempt_context_preserves_newer_completed_tasks -q => 3 passed",
     "python -B -m pytest tests/test_document_to_plan.py -q => 24 passed after V2.102",
-    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 59 passed after V2.102"
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 59 passed after V2.102",
+    "python -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_document_includes_completed_verification_failures tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_bootstrap_recovers_prior_verification_failure_context tests/test_document_to_plan.py::DocumentToPlanTests::test_completed_verification_repair_creates_unpreserved_frontend_task -q => 3 passed after V2.103",
+    "python -m pytest tests/test_document_to_plan.py -q => 25 passed after V2.103",
+    "python -m pytest tests/test_full_roadmap_execution.py -q => 61 passed after V2.103",
+    "python -m compileall autodev planner tests -q => passed after V2.103",
+    "Real phase_010 bootstrap/graph probe after V2.103 => selected phase_repair_resume_009.md with historical T014 build evidence and regenerated only T017 repair, T018 verify, T019 review as pending nodes"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -288,7 +294,9 @@
     "Before V2.99, focused T010 timeout repair evidence still rebuilt the same state/API closure task, so a relaunch could replay a task that had already consumed a full 900 second worker window.",
     "Before V2.100, real Codex worker prompts did not strongly constrain broad command output, so a successful narrow Billing Core worker could still consume excessive tokens by printing large rg/diff/status/raw evidence from a dirty large worktree.",
     "Before V2.101, supervisor_stop.json/operator_stop.json affected future full-roadmap resume selection but were not live controls for the already-running document-run parent, so run_attempt_040 still dispatched T012 after the marker was written.",
-    "Before V2.102, stale phase_record.json could hide newer completed tasks from a supervisor-stopped attempt, causing T010/T011 completion evidence to be lost or mapped to drifted task IDs."
+    "Before V2.102, stale phase_record.json could hide newer completed tasks from a supervisor-stopped attempt, causing T010/T011 completion evidence to be lost or mapped to drifted task IDs.",
+    "Before V2.103, completed test/review tasks could contain tests_failed, known_issues, failed commands, and follow-up tasks but still be omitted from phase repair documents because only failed/blocked task IDs were expanded into focused repair detail.",
+    "Before V2.103, newer preserve-only low-score attempts could hide older concrete verification failures, so Billing Core phase_010 lost run_attempt_041 T014 build evidence and exhausted repair attempts without creating a task for the missing admin compliance Markdown files."
   ],
   "blockers": [],
   "done_criteria": [
@@ -296,7 +304,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T23:09:00+08:00",
+  "last_verified_at": "2026-06-28T00:24:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T23:09:00+08:00"
+  "updated_at": "2026-06-28T00:24:00+08:00"
 }

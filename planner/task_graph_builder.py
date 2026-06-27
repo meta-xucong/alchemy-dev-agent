@@ -32,6 +32,7 @@ class TaskGraphBuilder:
 
     def _build_document_driven_graph(self, context_bundle: ContextBundle) -> TaskGraph:
         requirements = context_bundle.requirements
+        preserved_task_ids = focused_repair_completed_task_ids(requirements)
         test_commands = context_bundle.test_commands or ["static artifact inspection"]
         scope_controls = large_refactor_planning_scope_controls(
             normalize_scope_controls(context_bundle.scope_controls),
@@ -85,7 +86,7 @@ class TaskGraphBuilder:
             ]
         )
 
-        verify_id = f"T{len(nodes) + 1:03d}"
+        verify_id = next_graph_task_id(nodes, preserved_task_ids)
         nodes.append(
             TaskNode(
                 id=verify_id,
@@ -101,7 +102,7 @@ class TaskGraphBuilder:
             )
         )
 
-        review_id = f"T{len(nodes) + 1:03d}"
+        review_id = next_graph_task_id(nodes, preserved_task_ids)
         nodes.append(
             TaskNode(
                 id=review_id,
@@ -127,7 +128,7 @@ class TaskGraphBuilder:
         dependencies = [Dependency(source="T001", target=node.id, type="blocks") for node in implementation_nodes]
         dependencies.extend(Dependency(source=node.id, target=verify_id, type="requires_test_pass") for node in implementation_nodes)
         dependencies.append(Dependency(source=verify_id, target=review_id, type="requires_review"))
-        mark_preserved_completed_tasks(nodes, focused_repair_completed_task_ids(requirements))
+        mark_preserved_completed_tasks(nodes, preserved_task_ids)
         return TaskGraph(graph_id=f"{context_bundle.project_id}-document-plan", version=1, nodes=nodes, dependencies=dependencies)
 
     def _implementation_nodes(
@@ -195,7 +196,10 @@ class TaskGraphBuilder:
                     ),
                 ]
             )
-            if should_decompose_large_refactor_frontend_phase(requirements, assigned_agent=assigned_agent):
+            if should_decompose_large_refactor_frontend_phase(
+                requirements,
+                assigned_agent=assigned_agent,
+            ) or should_decompose_frontend_verification_repair(requirements, assigned_agent=assigned_agent):
                 return large_refactor_frontend_nodes(
                     requirements,
                     test_commands,
@@ -988,6 +992,21 @@ PRIMARY_FAILED_TASK_IDS_PATTERN = re.compile(r"primary failed task ids:\s*([^\n]
 TASK_ID_PATTERN = re.compile(r"\bT\d{3}(?:-DEBUG-\d+)*\b", re.IGNORECASE)
 
 
+def next_graph_task_id(nodes: list[TaskNode], reserved_task_ids: list[str] | set[str]) -> str:
+    max_id = 0
+    for task_id in [*(node.id for node in nodes), *reserved_task_ids]:
+        match = re.match(r"^T(\d{3})$", str(task_id).upper())
+        if match:
+            max_id = max(max_id, int(match.group(1)))
+    return f"T{max_id + 1:03d}"
+
+
+def next_unreserved_task_id(task_index: int, reserved_task_ids: set[str]) -> tuple[str, int]:
+    while f"T{task_index:03d}" in reserved_task_ids:
+        task_index += 1
+    return f"T{task_index:03d}", task_index + 1
+
+
 def focused_repair_primary_failed_task_ids_include(text: str, normalized_task_id: str) -> bool:
     for match in PRIMARY_FAILED_TASK_IDS_PATTERN.finditer(text):
         task_ids = {item.lower() for item in TASK_ID_PATTERN.findall(match.group(1))}
@@ -1030,6 +1049,10 @@ def should_decompose_large_refactor_frontend_phase(requirements: list[Requiremen
     return matching_specs >= 3
 
 
+def should_decompose_frontend_verification_repair(requirements: list[Requirement], *, assigned_agent: str) -> bool:
+    return assigned_agent == "frontend" and bool(focused_verification_repair_requirements(requirements))
+
+
 def large_refactor_frontend_nodes(
     requirements: list[Requirement],
     test_commands: list[str],
@@ -1042,6 +1065,7 @@ def large_refactor_frontend_nodes(
     requirement_task_ids: dict[str, str] = {}
     frontend_commands = frontend_large_refactor_commands(test_commands, package_files=package_files)
     task_index = 2
+    preserved_task_ids = set(focused_repair_completed_task_ids(requirements))
     matched_requirement_ids: set[str] = set()
     for spec in frontend_large_refactor_task_specs(requirements):
         matched_requirements = [
@@ -1078,7 +1102,45 @@ def large_refactor_frontend_nodes(
             )
         )
 
+    verification_repair_requirements = focused_verification_repair_requirements(requirements)
+    if verification_repair_requirements:
+        task_id, task_index = next_unreserved_task_id(task_index, preserved_task_ids)
+        matched_requirement_ids.update(requirement.id for requirement in verification_repair_requirements)
+        for requirement in verification_repair_requirements:
+            requirement_task_ids.setdefault(requirement.id, task_id)
+        nodes.append(
+            TaskNode(
+                id=task_id,
+                title="Repair failing frontend verification assets",
+                description=frontend_large_refactor_description(
+                    "Repair the concrete frontend build or test evidence from the latest verification gate.",
+                    verification_repair_requirements,
+                ),
+                type="frontend",
+                assigned_agent="frontend",
+                dependencies=["T001"],
+                completion_criteria=dedupe(
+                    [criterion for item in verification_repair_requirements for criterion in item.acceptance_criteria]
+                )
+                or ["The failing frontend verification command passes after the targeted repair."],
+                relevant_files=frontend_verification_repair_relevant_files(
+                    verification_repair_requirements,
+                    scope_controls=scope_controls,
+                    fallback=base_relevant_files,
+                ),
+                commands_to_run=frontend_commands,
+                priority=max(priority_for_requirement(item) for item in verification_repair_requirements),
+                boundary_mode="large_refactor",
+            )
+        )
+
+    matched_requirement_ids.update(requirement.id for requirement in focused_repair_metadata_requirements(requirements))
     remaining_requirements = [requirement for requirement in requirements if requirement.id not in matched_requirement_ids]
+    if should_suppress_remaining_frontend_fallback_after_verification_repair(
+        verification_repair_requirements,
+        preserved_task_ids,
+    ):
+        remaining_requirements = []
     if remaining_requirements:
         split_specs = frontend_remaining_closure_timeout_split_task_specs(requirements)
         if split_specs:
@@ -1147,6 +1209,88 @@ def large_refactor_frontend_nodes(
 def frontend_large_refactor_description(prefix: str, requirements: list[Requirement]) -> str:
     requirement_refs = "; ".join(f"{requirement.id}: {shorten(requirement.text, 120)}" for requirement in requirements)
     return f"{prefix} Phase requirements: {requirement_refs}"
+
+
+def focused_verification_repair_requirements(requirements: list[Requirement]) -> list[Requirement]:
+    return [requirement for requirement in requirements if is_focused_verification_repair_requirement(requirement)]
+
+
+def focused_repair_metadata_requirements(requirements: list[Requirement]) -> list[Requirement]:
+    return [requirement for requirement in requirements if is_focused_repair_metadata_requirement(requirement)]
+
+
+def should_suppress_remaining_frontend_fallback_after_verification_repair(
+    verification_repair_requirements: list[Requirement],
+    preserved_task_ids: set[str],
+) -> bool:
+    if not verification_repair_requirements:
+        return False
+    numeric_ids = [
+        int(match.group(1))
+        for task_id in preserved_task_ids
+        if (match := re.match(r"^T(\d{3})$", str(task_id).upper()))
+    ]
+    return len(numeric_ids) >= 8 and max(numeric_ids, default=0) >= 10
+
+
+def is_focused_repair_metadata_requirement(requirement: Requirement) -> bool:
+    text = requirement.text.lower().strip()
+    metadata_prefixes = (
+        "completed tasks to preserve:",
+        "primary failed task ids:",
+        "target files:",
+        "do not regenerate",
+        "convert out-of-scope",
+        "treat a worker timeout",
+        "previous relevant files:",
+        "worker summary:",
+        "retry state:",
+        "tests passed:",
+        "tests failed:",
+        "known issues:",
+        "follow-up tasks:",
+        "files changed:",
+        "failed commands:",
+    )
+    return any(text.startswith(prefix) for prefix in metadata_prefixes)
+
+
+def is_focused_verification_repair_requirement(requirement: Requirement) -> bool:
+    text = requirement.text.lower()
+    if not requirement.related_files:
+        return False
+    verification_markers = (
+        "failing verification",
+        "verification issue",
+        "tests failed",
+        "failed commands",
+        "known issues",
+        "follow-up tasks",
+        "build failed",
+        "build blocker",
+        "could not resolve",
+    )
+    repair_markers = ("must repair", "repair ", "fix ", "missing", "target files")
+    return any(marker in text for marker in verification_markers) and any(marker in text for marker in repair_markers)
+
+
+def frontend_verification_repair_relevant_files(
+    requirements: list[Requirement],
+    *,
+    scope_controls: dict[str, list[str]] | None,
+    fallback: list[str],
+) -> list[str]:
+    files = dedupe(
+        [
+            file
+            for requirement in requirements
+            for file in requirement.related_files
+            if normalize_repo_path(file).startswith(("frontend/", "docs/"))
+        ]
+    )
+    if "frontend/package.json" not in files:
+        files.append("frontend/package.json")
+    return scoped_files(files, scope_controls, fallback=fallback)
 
 
 def frontend_large_refactor_relevant_files(

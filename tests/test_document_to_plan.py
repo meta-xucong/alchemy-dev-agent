@@ -1279,6 +1279,80 @@ class DocumentToPlanTests(unittest.TestCase):
 
         self.assertTrue(focused_timeout_repair_for_task(requirements, "T010"))
 
+    def test_completed_verification_repair_creates_unpreserved_frontend_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            for directory in (
+                "backend",
+                "frontend/src/components/admin",
+                "frontend/src/views/user",
+                "frontend/src/router",
+            ):
+                (repo / directory).mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps({"scripts": {"build": "vite build", "test": "vitest run"}}),
+                encoding="utf-8",
+            )
+            (repo / "frontend" / "src" / "components" / "admin" / "AdminComplianceDialog.vue").write_text(
+                "<script setup lang=\"ts\"></script>\n",
+                encoding="utf-8",
+            )
+            (repo / "frontend" / "src" / "router" / "index.ts").write_text(
+                "export const routes = [];\n",
+                encoding="utf-8",
+            )
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase: Frontend closure",
+                        "## Requirements",
+                        "- Must close frontend router, menu, and direct pages.",
+                        "",
+                        "## Boundary Mode",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair = root / "phase_repair.md"
+            repair.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        "## Failing Verification Issues",
+                        "- Must repair T014 verification issue: pnpm --dir frontend run build failed because Rollup could not resolve docs/legal/admin-compliance.zh.md from frontend/src/components/admin/AdminComplianceDialog.vue.",
+                        "- Target files: docs/legal/admin-compliance.zh.md, docs/legal/admin-compliance.en.md, frontend/src/components/admin/AdminComplianceDialog.vue.",
+                        "",
+                        "## Focused Repair Scope",
+                        "- Completed tasks to preserve: T001, T002, T003, T004, T005, T006, T007, T008, T009, T010, T011, T012, T013, T014, T015, T016.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core frontend build verification.",
+                documents=[phase, repair],
+                repository_path=repo,
+                created_at="2026-06-27T23:50:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        nodes_by_id = {node["id"]: node for node in graph["nodes"]}
+        repair_task = next(node for node in graph["nodes"] if node["title"] == "Repair failing frontend verification assets")
+
+        self.assertEqual(repair_task["id"], "T017")
+        self.assertEqual(repair_task["status"], "pending")
+        self.assertIn("docs/legal/admin-compliance.zh.md", repair_task["relevant_files"])
+        self.assertIn("docs/legal/admin-compliance.en.md", repair_task["relevant_files"])
+        self.assertIn("frontend/src/components/admin/AdminComplianceDialog.vue", repair_task["relevant_files"])
+        self.assertEqual(nodes_by_id["T018"]["title"], "Verify implementation against project checks")
+        self.assertEqual(nodes_by_id["T019"]["title"], "Review delivery readiness")
+        self.assertNotIn("Complete remaining frontend closure requirements", [node["title"] for node in graph["nodes"]])
+
     def test_docs_only_scope_builds_documentation_task_with_lightweight_verification(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

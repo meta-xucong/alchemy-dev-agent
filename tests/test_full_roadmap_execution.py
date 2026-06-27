@@ -1222,6 +1222,171 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("expanded allowed files", text)
         self.assertIn("split this workflow", text)
 
+    def test_phase_repair_document_includes_completed_verification_failures(self) -> None:
+        root = temp_root()
+        phase = RoadmapPhase(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            requirements=["Close frontend CRM build and compliance artifacts."],
+        )
+        result = {
+            "status": "done",
+            "delivery_report": {
+                "final_gate": {
+                    "score": 0.42,
+                    "dimension_scores": {"test_health": 0.0, "spec_alignment": 0.25},
+                    "hard_failures": ["Required tests are failing."],
+                    "required_changes": [],
+                }
+            },
+            "runtime_state": {
+                "completed_tasks": ["T001", "T014"],
+                "task_graph": {
+                    "nodes": [
+                        {"id": "T001", "status": "completed", "title": "Plan implementation"},
+                        {
+                            "id": "T014",
+                            "type": "test",
+                            "status": "completed",
+                            "title": "Verify implementation against project checks",
+                            "relevant_files": ["frontend/src/components/admin/AdminComplianceDialog.vue"],
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "partial",
+                                        "summary": "Frontend build failed on missing raw Markdown imports.",
+                                        "tests_failed": [
+                                            "pnpm --dir frontend run build failed.",
+                                        ],
+                                        "known_issues": [
+                                            "docs/legal/admin-compliance.zh.md and docs/legal/admin-compliance.en.md are missing.",
+                                        ],
+                                        "follow_up_tasks": [
+                                            "Add docs/legal/admin-compliance.zh.md and docs/legal/admin-compliance.en.md.",
+                                        ],
+                                        "commands_run": [
+                                            {
+                                                "command": "pnpm --dir frontend run build",
+                                                "exit_code": 1,
+                                                "stderr": 'Could not resolve "../../../../docs/legal/admin-compliance.zh.md?raw" from frontend/src/components/admin/AdminComplianceDialog.vue.',
+                                                "stdout": "",
+                                            }
+                                        ],
+                                    },
+                                }
+                            ],
+                        },
+                    ]
+                },
+            },
+        }
+        repair_doc = root / "phase_repair_001.md"
+
+        write_phase_repair_document(
+            repair_doc,
+            phase=phase,
+            result=result,
+            promotion={"required_score": 0.85, "score": 0.42, "reasons": ["Phase score 0.42 is below required 0.85."]},
+            attempt_index=1,
+        )
+        text = repair_doc.read_text(encoding="utf-8")
+
+        self.assertIn("## Failing Verification Issues", text)
+        self.assertIn("Must repair T014 verification issue", text)
+        self.assertIn("pnpm --dir frontend run build", text)
+        self.assertIn("Target files:", text)
+        self.assertIn("docs/legal/admin-compliance.zh.md", text)
+        self.assertIn("docs/legal/admin-compliance.en.md", text)
+        self.assertIn("frontend/src/components/admin/AdminComplianceDialog.vue", text)
+
+    def test_bootstrap_recovers_prior_verification_failure_context(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_010"
+        phase_dir.mkdir(parents=True)
+        phase = RoadmapPhase(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            requirements=["Close frontend CRM build and compliance artifacts."],
+        )
+        failing_run = phase_dir / "run_attempt_041"
+        later_run = phase_dir / "run_attempt_043"
+        failing_run.mkdir()
+        later_run.mkdir()
+        write_json(
+            failing_run / "state.json",
+            {
+                "completed_tasks": ["T001", "T014"],
+                "evaluation": {
+                    "final_gate_score": 0.425,
+                    "hard_failures": ["Required tests are failing."],
+                    "dimension_scores": {"test_health": 0.0},
+                },
+                "task_graph": {
+                    "nodes": [
+                        {"id": "T001", "status": "completed", "title": "Plan implementation"},
+                        {
+                            "id": "T014",
+                            "type": "test",
+                            "status": "completed",
+                            "title": "Verify implementation against project checks",
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "partial",
+                                        "summary": "Frontend build failed on missing raw Markdown imports.",
+                                        "tests_failed": ["pnpm --dir frontend run build failed."],
+                                        "known_issues": [
+                                            "docs/legal/admin-compliance.zh.md and docs/legal/admin-compliance.en.md are missing.",
+                                        ],
+                                        "commands_run": [
+                                            {
+                                                "command": "pnpm --dir frontend run build",
+                                                "exit_code": 1,
+                                                "stderr": 'Could not resolve "../../../../docs/legal/admin-compliance.zh.md?raw" from frontend/src/components/admin/AdminComplianceDialog.vue.',
+                                            }
+                                        ],
+                                    },
+                                }
+                            ],
+                        },
+                    ]
+                },
+            },
+        )
+        write_json(
+            later_run / "state.json",
+            {
+                "completed_tasks": ["T001"],
+                "evaluation": {"final_gate_score": 0.7, "dimension_scores": {"spec_alignment": 0.0}},
+                "task_graph": {"nodes": [{"id": "T001", "status": "completed", "title": "Plan implementation"}]},
+            },
+        )
+        previous_record = PhaseExecutionRecord(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            status="blocked",
+            output_dir=str(later_run),
+            result={"status": "done", "runtime_state": {}, "delivery_report": {"final_gate": {"score": 0.7}}},
+            promotion={"can_promote": False, "required_score": 0.85, "score": 0.7, "reasons": ["Low score."]},
+        )
+
+        docs = bootstrap_phase_repair_documents(
+            phase_dir,
+            phase=phase,
+            previous_record=previous_record,
+            max_repair_documents=2,
+        )
+
+        self.assertEqual(len(docs), 1)
+        text = Path(docs[0]).read_text(encoding="utf-8")
+        self.assertIn("Repair attempt: verification-issue context", text)
+        self.assertIn("Verification issue run directory:", text)
+        self.assertIn("run_attempt_041", text)
+        self.assertIn("docs/legal/admin-compliance.zh.md", text)
+        self.assertIn("frontend/src/components/admin/AdminComplianceDialog.vue", text)
+
     def test_executor_bootstraps_blocked_phase_resume_with_repair_evidence(self) -> None:
         root = temp_root()
         repo = root / "repo"

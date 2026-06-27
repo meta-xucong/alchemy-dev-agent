@@ -3024,6 +3024,40 @@
 - result: `26 passed`
 - next verification command: full-roadmap regression.
 
+## 2026-06-28T00:24:00+08:00 V2.103 verification failure repair handoff
+
+- command: `python -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_document_includes_completed_verification_failures -q`
+- result: `1 passed`
+- relevant evidence: repair documents now include failing completed verification worker evidence and target paths.
+- next verification command: focused planner repair task regression.
+
+- command: `python -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_completed_verification_repair_creates_unpreserved_frontend_task -q`
+- result: `1 passed`
+- relevant evidence: planner creates pending T017 `Repair failing frontend verification assets` instead of preserving all regenerated tasks.
+- next verification command: focused bootstrap recovery regression.
+
+- command: `python -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_bootstrap_recovers_prior_verification_failure_context -q`
+- result: `1 passed`
+- relevant evidence: blocked-phase bootstrap recovers historical T014 failure context from older run attempts when newer attempts lost the concrete evidence.
+- next verification command: affected full regression suites.
+
+- command: `python -m pytest tests/test_document_to_plan.py -q`
+- result: `25 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `61 passed`
+- next verification command: compileall, diff check, state validation, then commit/push V2.103.
+
+- command: `python -m compileall autodev planner tests -q`
+- result: passed
+- next verification command: real phase_010 graph probe.
+
+- command: real phase_010 bootstrap and graph rebuild probe against `.alchemy\billing_core_v274_20260624_012\phases\phase_010`
+- result: passed
+- relevant evidence: bootstrap selected `phase_repair_008.md`, `phase_repair_009.md`, and new `phase_repair_resume_009.md`; the regenerated graph leaves only T017 `Repair failing frontend verification assets`, T018 verification, and T019 review pending.
+- next verification command: `git diff --check` and long-run state validation.
+
 ## 2026-06-27T22:43:00+08:00 V2.100 worker output budget hygiene verification
 
 - command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`

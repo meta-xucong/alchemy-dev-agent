@@ -473,6 +473,32 @@ T001 through T011 completed, T012 constants/type closure pending, T013 view
 workflow closure pending, then verification/review. This is now safe to relaunch
 through Alchemy without replaying T010/T011.
 
+## 2026-06-27 V2.103 Follow-Up
+
+After V2.102, Alchemy resumed phase_010 and completed the remaining frontend
+closure nodes through T016. The product-side progress is now high, but the phase
+still did not promote: `run_attempt_041` scored 0.425 because frontend build
+failed, and later repair attempts reached 0.70 without fixing the actual build
+blocker.
+
+The concrete CRM blocker was not hidden in the product code. T014 recorded it
+clearly: `pnpm --dir frontend run build` could not resolve the raw Markdown
+imports used by `frontend/src/components/admin/AdminComplianceDialog.vue`.
+The expected files are `docs/legal/admin-compliance.zh.md` and
+`docs/legal/admin-compliance.en.md`.
+
+The Alchemy bug was in evidence handoff. Because T014 itself was marked
+`completed`, the repair document preserved T001 through T016 but did not carry
+the failing command, known issue, follow-up task, or target file paths into the
+next planner pass. V2.103 fixes that handoff and recovers historical
+verification issue evidence from prior run attempt state files, so the next
+Alchemy relaunch should create a new focused repair task beyond the preserved
+T001-T016 range.
+
+Current delivery estimate remains roughly 85%-88% complete. The remaining work
+is to let Alchemy repair this phase_010 build blocker, promote phase_010, then
+run phase_011 schema/build cleanup and phase_012 demo smoke/final handoff.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable
