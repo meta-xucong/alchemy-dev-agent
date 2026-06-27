@@ -1538,6 +1538,16 @@ promote after an evaluator fix instead of spending another worker window.
 
 See `docs/116_v2_107_preserved_evidence_evaluator_revalidation.md`.
 
+## V2.108 Schema/Build Timeout Split
+
+V2.108 splits large-refactor schema/build phases into narrower backend tasks
+when Ent schema pruning, Ent regeneration, migrations, fresh DB checks, backend
+tests, and frontend build/typecheck markers are present. This prevents Billing
+Core phase_011 timeout repair from regenerating the same broad
+`Implement large refactor integration` worker after T002 times out.
+
+See `docs/117_v2_108_schema_build_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash

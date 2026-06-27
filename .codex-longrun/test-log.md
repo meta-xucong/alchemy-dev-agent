@@ -3024,6 +3024,40 @@
 - result: `26 passed`
 - next verification command: full-roadmap regression.
 
+## 2026-06-28T04:05:00+08:00 V2.108 schema/build timeout split verification
+
+- command: phase_011 process audit for `billing_core_v274`, `sub2api-billing-core`, `resume_v2_88`, and `full_roadmap`
+- result: no residual Billing Core Alchemy parent/worker process; only the self-check command matched
+- next verification command: focused planner regression
+
+- command: `python -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_schema_timeout_repair_splits_backend_build_task -q`
+- result: `1 passed`
+- next verification command: real phase_011 graph probe
+
+- command: real phase_011 graph probe using `.alchemy\billing_core_v274_20260624_012\phases\phase_011\phase_requirements.md` and `phase_repair_001.md`
+- result: passed; graph preserves T001 completed and splits T002-T005 into schema/build tasks instead of `Implement large refactor integration`
+- next verification command: full document-to-plan regression
+
+- command: `python -m pytest tests/test_document_to_plan.py -q`
+- result: `26 passed`
+- next verification command: runtime handoff, full-roadmap, and compileall regressions
+
+- command: `python -m pytest tests/test_runtime_handoff.py -q`
+- result: `4 passed`
+- next verification command: full-roadmap regression
+
+- command: `python -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `68 passed`
+- next verification command: compileall
+
+- command: `python -m compileall planner tests -q`
+- result: passed
+- next verification command: docs/state validation, commit/push V2.108, then controlled phase_011 relaunch if disk space is adequate
+
+- command: D: free-space audit after safe cache cleanup
+- result: about 41 MB free; enough for source edits/tests, probably not enough for another safe real-worker run
+- next verification command: free more space or move/archive old artifacts before launching a real Billing Core worker
+
 ## 2026-06-28T00:24:00+08:00 V2.103 verification failure repair handoff
 
 - command: `python -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_document_includes_completed_verification_failures -q`

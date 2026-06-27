@@ -207,6 +207,17 @@ class TaskGraphBuilder:
                     scope_controls=scope_controls,
                     base_relevant_files=relevant_files,
                 )
+            if should_decompose_large_refactor_schema_build_phase(
+                requirements,
+                assigned_agent=assigned_agent,
+            ):
+                return large_refactor_schema_build_nodes(
+                    requirements,
+                    test_commands,
+                    package_files=package_files or [],
+                    scope_controls=scope_controls,
+                    base_relevant_files=relevant_files,
+                )
 
             task_id = "T002"
             nodes.append(
@@ -947,6 +958,124 @@ FRONTEND_STATE_API_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+SCHEMA_BUILD_PHASE_MARKER_GROUPS = (
+    ("ent schema", "schema pruning", "prune ent"),
+    ("regenerate ent", "generate ent", "ent generate"),
+    ("migration", "migrate", "fresh db", "fresh database"),
+    ("service/repository/test", "service repository test", "repository/test"),
+    ("go test ./backend/internal", "go test ./backend", "backend/internal"),
+    ("build/typecheck", "frontend build", "typecheck"),
+)
+
+
+SCHEMA_BUILD_LARGE_REFACTOR_TASK_SPECS = (
+    {
+        "title": "Prune legacy Ent schemas and table contracts",
+        "description": (
+            "Remove obsolete token-relay schema/table contracts from the backend data model while preserving "
+            "the CRM identity, wallet, billing, metering, and audit schema surface."
+        ),
+        "markers": (
+            "ent schema",
+            "schema",
+            "prune",
+            "table",
+            "fresh db",
+            "token relay table",
+            "fresh migration",
+        ),
+        "files": (
+            "backend/ent/schema/**",
+            "backend/ent/migrate/**",
+            "backend/internal/domain/**",
+            "backend/internal/server/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+    },
+    {
+        "title": "Regenerate Ent clients and migration artifacts",
+        "description": (
+            "Regenerate Ent output and migration artifacts from the pruned schema, then keep fresh database "
+            "migration behavior aligned with the Billing Core v1 contract."
+        ),
+        "markers": (
+            "regenerate ent",
+            "generate ent",
+            "migration",
+            "migrate",
+            "fresh db",
+            "fresh database",
+            "ent",
+        ),
+        "files": (
+            "backend/ent/**",
+            "backend/migrations/**",
+            "backend/internal/repository/**",
+            "backend/go.mod",
+            "backend/go.sum",
+        ),
+        "include_frontend_commands": False,
+    },
+    {
+        "title": "Clean legacy backend services repositories and tests",
+        "description": (
+            "Remove or rewrite backend services, repositories, route registrations, and tests that still depend "
+            "on token relay, provider/channel, subscription-fulfillment, or gateway semantics."
+        ),
+        "markers": (
+            "service/repository/test",
+            "service",
+            "repository",
+            "test",
+            "route",
+            "paymentservice",
+            "redeemservice",
+            "usage billing",
+            "walletservice",
+            "admin routes",
+            "gateway",
+            "provider",
+            "channel",
+        ),
+        "files": (
+            "backend/internal/service/**",
+            "backend/internal/repository/**",
+            "backend/internal/handler/**",
+            "backend/internal/server/**",
+            "backend/internal/config/**",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+    },
+    {
+        "title": "Stabilize schema and build verification contracts",
+        "description": (
+            "Close backend test/build and frontend build/typecheck contract gaps introduced by schema pruning "
+            "without reopening broad product-surface work."
+        ),
+        "markers": (
+            "go test",
+            "build/typecheck",
+            "frontend build",
+            "typecheck",
+            "test ./backend/internal",
+            "passes",
+        ),
+        "files": (
+            "backend/go.mod",
+            "backend/go.sum",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+            "Makefile",
+            ".github/workflows/**",
+        ),
+        "include_frontend_commands": True,
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -1051,6 +1180,177 @@ def should_decompose_large_refactor_frontend_phase(requirements: list[Requiremen
 
 def should_decompose_frontend_verification_repair(requirements: list[Requirement], *, assigned_agent: str) -> bool:
     return assigned_agent == "frontend" and bool(focused_verification_repair_requirements(requirements))
+
+
+def should_decompose_large_refactor_schema_build_phase(requirements: list[Requirement], *, assigned_agent: str) -> bool:
+    if assigned_agent != "backend":
+        return False
+    return is_large_refactor_schema_build_phase(requirements)
+
+
+def is_large_refactor_schema_build_phase(requirements: list[Requirement]) -> bool:
+    text = "\n".join(requirement.text for requirement in requirements).lower()
+    marker_score = sum(1 for group in SCHEMA_BUILD_PHASE_MARKER_GROUPS if any(marker in text for marker in group))
+    if marker_score < 3:
+        return False
+    return any(marker in text for marker in ("ent", "schema", "fresh db", "migration", "migrate"))
+
+
+def large_refactor_schema_build_nodes(
+    requirements: list[Requirement],
+    test_commands: list[str],
+    *,
+    package_files: list[str],
+    scope_controls: dict[str, list[str]] | None,
+    base_relevant_files: list[str],
+) -> tuple[list[TaskNode], dict[str, str]]:
+    nodes: list[TaskNode] = []
+    requirement_task_ids: dict[str, str] = {}
+    task_index = 2
+    matched_requirement_ids: set[str] = set()
+    phase_requirements = [
+        requirement for requirement in requirements if not is_focused_repair_metadata_requirement(requirement)
+    ]
+
+    for spec in SCHEMA_BUILD_LARGE_REFACTOR_TASK_SPECS:
+        matched_requirements = [
+            requirement
+            for requirement in phase_requirements
+            if requirement_matches_markers(requirement, spec["markers"])
+        ]
+        if not matched_requirements:
+            continue
+        task_id = f"T{task_index:03d}"
+        task_index += 1
+        matched_requirement_ids.update(requirement.id for requirement in matched_requirements)
+        for requirement in matched_requirements:
+            requirement_task_ids.setdefault(requirement.id, task_id)
+        nodes.append(
+            TaskNode(
+                id=task_id,
+                title=str(spec["title"]),
+                description=frontend_large_refactor_description(str(spec["description"]), matched_requirements),
+                type="backend",
+                assigned_agent="backend",
+                dependencies=["T001"],
+                completion_criteria=dedupe([criterion for item in matched_requirements for criterion in item.acceptance_criteria])
+                or ["The targeted schema/build workflow is closed against the phase requirements."],
+                relevant_files=schema_build_refactor_relevant_files(
+                    list(spec["files"]),
+                    matched_requirements,
+                    package_files=package_files,
+                    scope_controls=scope_controls,
+                    fallback=base_relevant_files,
+                ),
+                commands_to_run=schema_build_refactor_commands(
+                    test_commands,
+                    package_files=package_files,
+                    include_frontend=bool(spec["include_frontend_commands"]),
+                ),
+                priority=max(priority_for_requirement(item) for item in matched_requirements),
+                boundary_mode="large_refactor",
+            )
+        )
+
+    if not nodes:
+        return nodes, requirement_task_ids
+
+    remaining_requirements = [
+        requirement for requirement in phase_requirements if requirement.id not in matched_requirement_ids
+    ]
+    if remaining_requirements:
+        residual_node = nodes[-1]
+        residual_node.description = frontend_large_refactor_description(
+            (
+                f"{residual_node.description} Preserve remaining phase-level CRM constraints while closing "
+                "schema/build verification."
+            ),
+            remaining_requirements,
+        )
+        residual_node.completion_criteria = dedupe(
+            [
+                *residual_node.completion_criteria,
+                *[criterion for item in remaining_requirements for criterion in item.acceptance_criteria],
+            ]
+        )
+        residual_node.relevant_files = schema_build_refactor_relevant_files(
+            residual_node.relevant_files,
+            remaining_requirements,
+            package_files=package_files,
+            scope_controls=scope_controls,
+            fallback=base_relevant_files,
+        )
+        for requirement in remaining_requirements:
+            requirement_task_ids.setdefault(requirement.id, residual_node.id)
+
+    return nodes, requirement_task_ids
+
+
+def schema_build_refactor_relevant_files(
+    base_files: list[str],
+    requirements: list[Requirement],
+    *,
+    package_files: list[str],
+    scope_controls: dict[str, list[str]] | None,
+    fallback: list[str],
+) -> list[str]:
+    requirement_files = [
+        normalize_repo_path(file)
+        for requirement in requirements
+        for file in requirement.related_files
+        if schema_build_requirement_file(file)
+    ]
+    package_hints = schema_build_package_files(package_files, base_files)
+    files = dedupe([*base_files, *requirement_files, *package_hints])
+    narrowed = [file for file in files if normalize_repo_path(file) not in {"backend/**", "frontend/**"}]
+    return scoped_files(narrowed or files, scope_controls, fallback=fallback)
+
+
+def schema_build_requirement_file(path: str) -> str:
+    normalized = normalize_repo_path(path)
+    if normalized.startswith("backend/"):
+        return normalized
+    if normalized in {"Makefile", "Dockerfile", "README.md"}:
+        return normalized
+    if normalized.startswith(".github/workflows/"):
+        return normalized
+    if normalized.startswith("frontend/") and Path(normalized).name in {
+        "package.json",
+        "pnpm-lock.yaml",
+        "package-lock.json",
+        "yarn.lock",
+    }:
+        return normalized
+    return ""
+
+
+def schema_build_package_files(package_files: list[str], base_files: list[str]) -> list[str]:
+    normalized_base = {normalize_repo_path(file) for file in base_files}
+    selected: list[str] = []
+    for file in package_files:
+        normalized = normalize_repo_path(file)
+        if normalized.startswith("backend/"):
+            selected.append(normalized)
+        if normalized.startswith("frontend/") and any(item.startswith("frontend/") for item in normalized_base):
+            selected.append(normalized)
+    return dedupe(selected)
+
+
+def schema_build_refactor_commands(
+    test_commands: list[str],
+    *,
+    package_files: list[str],
+    include_frontend: bool,
+) -> list[str]:
+    backend_commands = [
+        command
+        for command in dedupe(test_commands)
+        if any(marker in command.lower() for marker in ("go test", "go build", "backend"))
+    ]
+    if not include_frontend:
+        return backend_commands or dedupe(test_commands)
+    frontend_commands = frontend_large_refactor_commands(test_commands, package_files=package_files)
+    return dedupe([*(backend_commands or []), *frontend_commands]) or dedupe(test_commands)
 
 
 def large_refactor_frontend_nodes(

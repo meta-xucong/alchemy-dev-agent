@@ -1612,3 +1612,12 @@ PY"`
 - `full_roadmap_report.json` is still blocked only because `--max-phases 1` stopped after this phase and phase_011/phase_012 remain pending. Phase records now show phase_001 through phase_010 done.
 - Remaining roadmap work: phase_011 `Schema 裁剪与构建`, then phase_012 `Demo Smoke Test`, followed by final audit/handoff.
 - T027's 900-second timeout remains a real Alchemy optimization target for progress-aware worker heartbeat/checkpoint/grace, but it no longer blocks phase_010 because V2.107 reused the successful 047 evidence.
+
+## 2026-06-28T04:05:00+08:00 V2.108 Schema/Build Timeout Split
+
+- Audited the phase_011 stop after the user asked why work had stopped. It was not a phase-complete pause: `run/state.json` shows T002 timed out after 900 seconds and created non-partial blocker `B-T002-1`; `run_attempt_002/supervisor_stop.json` records that Codex Desktop stopped the next attempt because it regenerated the same broad `Implement large refactor integration` task.
+- Process scan found no residual Billing Core full-roadmap parent or worker. The current stop is intentional supervision, not hidden background progress.
+- Implemented V2.108 in `planner/task_graph_builder.py`: large-refactor schema/build phases now split into Ent schema pruning, Ent/migration regeneration, legacy backend service/repository/test cleanup, and schema/build verification contract tasks instead of replaying one broad T002.
+- Added a regression for phase_011-style timeout repair and verified a real graph probe using `phase_011/phase_requirements.md` plus `phase_repair_001.md`: T001 is preserved completed; T002-T005 are the four schema/build split tasks; T006/T007 are verification/review.
+- New environment finding: D: had only about 100 KB free, which caused a Git/apply_patch write failure and temporarily truncated `planner/task_graph_builder.py`. I cleared only safe cache directories, restored the file from Git, and continued. Before any real worker relaunch, free disk space must be checked because this can cause false worker failures or transient file corruption.
+- Next step: commit/push V2.108, then relaunch phase_011 through the existing Alchemy resume script only if disk space is adequate for a real worker.

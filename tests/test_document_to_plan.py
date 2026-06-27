@@ -1140,6 +1140,114 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("frontend/src/views/**", view_task["relevant_files"])
         self.assertIn("frontend/src/components/**", view_task["relevant_files"])
 
+    def test_large_refactor_schema_timeout_repair_splits_backend_build_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            for directory in (
+                ".github/workflows",
+                "backend/ent/schema",
+                "backend/ent/migrate",
+                "backend/internal/config",
+                "backend/internal/domain",
+                "backend/internal/handler",
+                "backend/internal/repository",
+                "backend/internal/server",
+                "backend/internal/service",
+                "frontend/src",
+            ):
+                (repo / directory).mkdir(parents=True)
+            (repo / ".github" / "workflows" / "backend-ci.yml").write_text("name: backend\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "backend" / "go.sum").write_text("", encoding="utf-8")
+            (repo / "backend" / "ent" / "schema" / "user.go").write_text("package schema\n", encoding="utf-8")
+            (repo / "backend" / "internal" / "service" / "payment.go").write_text("package service\n", encoding="utf-8")
+            (repo / "frontend" / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps({"scripts": {"test": "vitest run", "build": "vite build", "typecheck": "vue-tsc"}}),
+                encoding="utf-8",
+            )
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase 8: Schema pruning and build",
+                        "## Requirements",
+                        "- Must prune Ent schema for CRM billing only.",
+                        "- Must regenerate Ent clients.",
+                        "- Must update migrations.",
+                        "- Must clean unused service/repository/test code.",
+                        "- Must prove a fresh DB migration succeeds.",
+                        "- Fresh DB migration must not create token relay tables.",
+                        "- `go test ./backend/internal/...` must pass or leave only documented legacy tests.",
+                        "- Frontend build/typecheck must pass.",
+                        "",
+                        "## Boundary Mode",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair = root / "phase_repair_001.md"
+            repair.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair For Phase 8",
+                        "## Focused Repair Scope",
+                        "- Primary failed task IDs: T002.",
+                        "- Completed tasks to preserve: T001.",
+                        "- Do not regenerate a broad phase graph when blocker task IDs identify a specific failed task.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T002 - Implement large refactor integration",
+                        "- Previous relevant files: .github/**, backend/**, frontend/**, backend/go.mod, frontend/package.json, frontend/pnpm-lock.yaml.",
+                        "- Worker summary: Codex worker timed out after 900 seconds.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core schema pruning timeout.",
+                documents=[phase, repair],
+                repository_path=repo,
+                created_at="2026-06-28T03:45:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        titles = [node["title"] for node in implementation_nodes]
+        self.assertNotIn("Implement large refactor integration", titles)
+        self.assertIn("Prune legacy Ent schemas and table contracts", titles)
+        self.assertIn("Regenerate Ent clients and migration artifacts", titles)
+        self.assertIn("Clean legacy backend services repositories and tests", titles)
+        self.assertIn("Stabilize schema and build verification contracts", titles)
+
+        nodes_by_id = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes_by_id["T001"]["status"], "completed")
+        for task_id in ("T002", "T003", "T004", "T005"):
+            self.assertEqual(nodes_by_id[task_id]["assigned_agent"], "backend")
+            self.assertEqual(nodes_by_id[task_id]["boundary_mode"], "large_refactor")
+            self.assertNotIn("backend/**", nodes_by_id[task_id]["relevant_files"])
+            self.assertNotIn("frontend/**", nodes_by_id[task_id]["relevant_files"])
+
+        schema_task = next(node for node in implementation_nodes if node["title"] == "Prune legacy Ent schemas and table contracts")
+        self.assertIn("backend/ent/schema/**", schema_task["relevant_files"])
+        self.assertIn("backend/go.mod", schema_task["relevant_files"])
+        self.assertTrue(any("go test" in command for command in schema_task["commands_to_run"]))
+
+        build_task = next(
+            node for node in implementation_nodes if node["title"] == "Stabilize schema and build verification contracts"
+        )
+        self.assertIn("frontend/package.json", build_task["relevant_files"])
+        self.assertIn("frontend/pnpm-lock.yaml", build_task["relevant_files"])
+        self.assertTrue(any("pnpm --dir frontend" in command for command in build_task["commands_to_run"]))
+
     def test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"
