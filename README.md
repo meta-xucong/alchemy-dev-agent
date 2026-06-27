@@ -1567,6 +1567,15 @@ restarting a phase from the original broad requirements.
 
 See `docs/119_v2_110_supervisor_stopped_repair_doc_retention.md`.
 
+## V2.111 Schema Migration Timeout Split
+
+V2.111 splits the schema/build migration/server contract task after a focused
+T003 timeout. The graph now separates Ent migration contracts from server/domain
+table contracts and prevents previous-relevant-file evidence from merging those
+scopes back together.
+
+See `docs/120_v2_111_schema_migration_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash

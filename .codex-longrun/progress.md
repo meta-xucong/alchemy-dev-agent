@@ -1639,3 +1639,13 @@ PY"`
 - Added a full-roadmap regression for supervisor-stopped records hiding older repair docs.
 - Real phase_011 bootstrap and graph probes after the stop now retain `phase_repair_001.md` and `phase_repair_002.md` and rebuild the correct second-level schema-prune split graph.
 - Next step: commit/push V2.110, relaunch Billing Core through Alchemy, and verify the next attempt starts from the split schema definition task instead of T001/legacy schema-prune replay.
+
+## 2026-06-28T06:45:00+08:00 V2.111 Schema Migration Timeout Split
+
+- Relaunched Billing Core after V2.110. `run_attempt_006` used the correct inherited worktree and correct split graph: T001 preserved completed, T002 `Prune Ent schema definitions` active, and no stale legacy schema-prune replay.
+- T002 completed successfully with backend Ent/schema/migrate and `go test ./...` evidence, proving the V2.109 split had real effect.
+- T003 `Align Ent migration and server table contracts` then timed out at 900 seconds. Alchemy correctly stopped with a non-partial timeout blocker and wrote `phase_repair_003.md`.
+- The parent launched `run_attempt_007`, but it replayed the same T003 scope. Codex Desktop stopped it immediately with `supervisor_stop.json`; the scoped worker was cancelled before another full worker window was spent.
+- Implemented V2.111 in `planner/task_graph_builder.py`: focused T003 schema/build timeouts now split migration contracts from server/domain table contracts, with each split task restricted to its own relevant files.
+- Real phase_011 graph probe now produces migration-contract and server/domain-contract split tasks instead of replaying `Align Ent migration and server table contracts`.
+- Next step: commit/push V2.111, relaunch Billing Core through Alchemy, and confirm the next attempt starts from the new T003 migration-contract split while preserving completed T001/T002.

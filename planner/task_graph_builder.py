@@ -1122,6 +1122,52 @@ SCHEMA_PRUNE_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+SCHEMA_MIGRATION_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Align Ent migration contracts",
+        "description": (
+            "Narrow the timed-out migration/server alignment workflow to Ent migration artifacts and fresh "
+            "migration table contracts first."
+        ),
+        "markers": (
+            "fresh migration",
+            "migration",
+            "migrate",
+            "table",
+            "schema",
+        ),
+        "files": (
+            "backend/ent/migrate/**",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Align server and domain table contracts",
+        "description": (
+            "Then align server startup, domain constants, and fresh DB behavior with the narrowed migration "
+            "contract without reopening Ent schema definitions or service cleanup."
+        ),
+        "markers": (
+            "fresh db",
+            "server",
+            "domain",
+            "table",
+            "schema",
+        ),
+        "files": (
+            "backend/internal/domain/**",
+            "backend/internal/server/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -1283,7 +1329,7 @@ def large_refactor_schema_build_nodes(
                 or ["The targeted schema/build workflow is closed against the phase requirements."],
                 relevant_files=schema_build_refactor_relevant_files(
                     list(spec["files"]),
-                    matched_requirements,
+                    [] if bool(spec.get("restrict_relevant_files_to_spec", False)) else matched_requirements,
                     package_files=package_files,
                     scope_controls=scope_controls,
                     fallback=base_relevant_files,
@@ -1339,7 +1385,14 @@ def schema_build_large_refactor_task_specs(requirements: list[Requirement]) -> t
             spec["title"] == "Prune legacy Ent schemas and table contracts"
             and focused_schema_prune_timeout_repair(requirements)
         ):
-            specs.extend(SCHEMA_PRUNE_TIMEOUT_SPLIT_TASK_SPECS)
+            for split_spec in SCHEMA_PRUNE_TIMEOUT_SPLIT_TASK_SPECS:
+                if (
+                    split_spec["title"] == "Align Ent migration and server table contracts"
+                    and focused_schema_migration_timeout_repair(requirements)
+                ):
+                    specs.extend(SCHEMA_MIGRATION_TIMEOUT_SPLIT_TASK_SPECS)
+                else:
+                    specs.append(split_spec)
         else:
             specs.append(spec)
     return tuple(specs)
@@ -1347,6 +1400,10 @@ def schema_build_large_refactor_task_specs(requirements: list[Requirement]) -> t
 
 def focused_schema_prune_timeout_repair(requirements: list[Requirement]) -> bool:
     return focused_timeout_repair_for_task(requirements, "T002")
+
+
+def focused_schema_migration_timeout_repair(requirements: list[Requirement]) -> bool:
+    return focused_timeout_repair_for_task(requirements, "T003")
 
 
 def schema_build_refactor_relevant_files(

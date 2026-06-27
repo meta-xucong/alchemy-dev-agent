@@ -3609,6 +3609,14 @@
 
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
+- next verification command: commit/push V2.111, then controlled Billing Core relaunch.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
 - next verification command: commit/push V2.109, then controlled Billing Core relaunch.
 
 ## 2026-06-28T06:05:00+08:00 V2.110 supervisor-stopped repair doc retention verification
@@ -3650,3 +3658,35 @@
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.110, then controlled Billing Core relaunch.
+
+## 2026-06-28T06:45:00+08:00 V2.111 schema migration timeout split verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: T002 completed, T003 timed out, same-scope T003 replay stopped by supervisor
+- relevant evidence: `run_attempt_006` completed `T002 Prune Ent schema definitions` with backend test evidence, then blocked on `B-T003-1`; `run_attempt_007` replayed `T003 Align Ent migration and server table contracts` and was stopped before another worker window.
+- next verification command: focused planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_migration_timeout_repair_splits_timed_out_contract_task_again -q`
+- result: `1 passed`
+- next verification command: real phase_011 graph probe.
+
+- command: real phase_011 graph probe using `phase_repair_001.md`, `phase_repair_002.md`, and `phase_repair_003.md`
+- result: passed
+- relevant evidence: graph replaces `Align Ent migration and server table contracts` with `Align Ent migration contracts` and `Align server and domain table contracts`; split relevant files stay scoped to migration vs server/domain paths.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `28 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `69 passed`
+- next verification command: runtime handoff regression.
+
+- command: `python -B -m pytest tests/test_runtime_handoff.py -q`
+- result: `4 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner tests -q`
+- result: passed
+- next verification command: diff check, state validation, commit/push, then controlled Billing Core relaunch.
