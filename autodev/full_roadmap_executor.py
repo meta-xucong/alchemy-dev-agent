@@ -30,8 +30,14 @@ DocumentRunner = Callable[..., Any]
 
 NON_REPAIRABLE_BLOCKER_MARKERS = (
     "credential",
-    "api key",
-    "auth",
+    "missing api key",
+    "api key required",
+    "requires api key",
+    "invalid api key",
+    "provider api key",
+    "auth required",
+    "authentication required",
+    "unauthenticated",
     "not logged in",
     "permission",
     "approval",
@@ -212,6 +218,10 @@ class FullRoadmapExecutor:
                 break
             phase_count += 1
             phase.status = "running"
+            previous_phase_record = next(
+                (record for record in reversed(phase_records) if record.phase_id == phase.phase_id),
+                None,
+            )
             phase_records = [record for record in phase_records if record.phase_id != phase.phase_id]
             phase_dir = output / "phases" / phase.phase_id
             phase_dir.mkdir(parents=True, exist_ok=True)
@@ -231,7 +241,12 @@ class FullRoadmapExecutor:
                 phase=phase,
                 plan=plan,
             )
-            repair_documents: list[str] = []
+            repair_documents = bootstrap_phase_repair_documents(
+                phase_dir,
+                phase=phase,
+                previous_record=previous_phase_record,
+                max_repair_documents=max_phase_repair_attempts,
+            )
             attempt_records: list[dict[str, object]] = []
             phase_payload: dict[str, object] = {}
             promotion: dict[str, object] = {}
@@ -305,7 +320,7 @@ class FullRoadmapExecutor:
                     )
                     break
                 repair_document = write_phase_repair_document(
-                    phase_dir / f"phase_repair_{repair_attempt_index:03d}.md",
+                    next_phase_repair_path(phase_dir),
                     phase=phase,
                     result=phase_payload,
                     promotion=promotion,
@@ -737,6 +752,49 @@ def result_repository_path(result: dict[str, object]) -> str:
     return ""
 
 
+def bootstrap_phase_repair_documents(
+    phase_dir: Path,
+    *,
+    phase: RoadmapPhase,
+    previous_record: PhaseExecutionRecord | None,
+    max_repair_documents: int,
+) -> list[str]:
+    """Seed a resumed blocked phase with the previous blocker evidence."""
+
+    if max_repair_documents <= 0 or previous_record is None:
+        return []
+    if str(previous_record.status).lower() not in {"blocked", "failed"}:
+        return []
+    if not should_auto_repair_phase(previous_record.promotion, previous_record.result):
+        return []
+    path = next_phase_repair_resume_path(phase_dir)
+    return [
+        write_phase_repair_document(
+            path,
+            phase=phase,
+            result=previous_record.result,
+            promotion=previous_record.promotion,
+            attempt_index=1,
+        )
+    ]
+
+
+def next_phase_repair_resume_path(phase_dir: Path) -> Path:
+    for index in range(1, 1000):
+        candidate = phase_dir / f"phase_repair_resume_{index:03d}.md"
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError(f"Too many phase repair resume documents for {phase_dir}")
+
+
+def next_phase_repair_path(phase_dir: Path) -> Path:
+    for index in range(1, 1000):
+        candidate = phase_dir / f"phase_repair_{index:03d}.md"
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError(f"Too many phase repair documents for {phase_dir}")
+
+
 def write_phase_repair_document(
     path: Path,
     *,
@@ -762,6 +820,7 @@ def write_phase_repair_document(
         *[str(item) for item in _list(evaluation.get("required_changes"))],
     ]
     blockers = [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
+    focused_repair_lines = phase_focused_repair_lines(result, blockers)
     hard_failures = [
         *[str(item) for item in _list(final_gate.get("hard_failures"))],
         *[str(item) for item in _list(evaluation.get("hard_failures"))],
@@ -806,6 +865,7 @@ def write_phase_repair_document(
         lines.extend(f"- {item}" for item in dedupe_strings(required_changes))
     else:
         lines.append("- Improve the low gate dimensions with concrete implementation, tests, or review evidence.")
+    lines.extend(focused_repair_lines)
     lines.extend(
         [
             "",
@@ -813,7 +873,11 @@ def write_phase_repair_document(
             "",
             "- Do not restart the phase from scratch.",
             "- Preserve all completed work from previous roadmap phases.",
+            "- Preserve completed tasks from this phase unless a focused failed-task dependency requires a scoped edit.",
+            "- Prefer a narrow follow-up graph around the failed task IDs and failing tests listed above.",
             "- Keep the phase scope controls and protected paths unchanged.",
+            "- If full-suite failures are outside the previous task allowed_files, create a focused repair task with those files in scope instead of retrying the same narrow task unchanged.",
+            "- If retry exhaustion or timeout repeats, split the task by failing workflow or test file before launching another large worker.",
             "- Add or update implementation, tests, and reviewer evidence so the promotion gate reaches at least 0.85.",
             "- If a low score is caused by missing evidence rather than missing code, add deterministic verification evidence.",
             "- Stop only if a real external blocker exists.",
@@ -826,6 +890,113 @@ def write_phase_repair_document(
     path = path.resolve()
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return str(path)
+
+
+def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[object]) -> list[str]:
+    runtime_state = _dict(result.get("runtime_state"))
+    task_graph = _dict(runtime_state.get("task_graph"))
+    nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
+    nodes_by_id = {str(node.get("id", "")): node for node in nodes if str(node.get("id", ""))}
+    focus_task_ids = repair_focus_task_ids(blockers, nodes)
+    completed_task_ids = repair_completed_task_ids(runtime_state, nodes)
+    lines = ["", "## Focused Repair Scope", ""]
+    if focus_task_ids:
+        lines.append(f"- Primary failed task IDs: {', '.join(focus_task_ids)}.")
+    else:
+        lines.append("- Primary failed task IDs: none reported; infer the narrowest failing task from the gate evidence.")
+    if completed_task_ids:
+        lines.append(f"- Completed tasks to preserve: {', '.join(completed_task_ids)}.")
+    lines.extend(
+        [
+            "- Do not regenerate a broad phase graph when blocker task IDs identify a specific failed task.",
+            "- Convert out-of-scope full-suite failures into focused follow-up tasks with expanded allowed files.",
+            "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+        ]
+    )
+    for task_id in focus_task_ids:
+        task = nodes_by_id.get(task_id, {"id": task_id})
+        lines.extend(repair_task_focus_lines(task_id, task))
+    return lines
+
+
+def repair_focus_task_ids(blockers: Sequence[object], nodes: Sequence[dict[str, object]]) -> list[str]:
+    task_ids: list[str] = []
+    for blocker in blockers:
+        if not isinstance(blocker, dict):
+            continue
+        task_ids.extend(str(item) for item in _list(blocker.get("task_ids")))
+    if task_ids:
+        return dedupe_strings(task_ids)
+    failed_statuses = {"failed", "blocked", "timed_out", "cancelled"}
+    return dedupe_strings(
+        str(node.get("id", ""))
+        for node in nodes
+        if str(node.get("status", "")).lower() in failed_statuses
+    )
+
+
+def repair_completed_task_ids(runtime_state: dict[str, Any], nodes: Sequence[dict[str, object]]) -> list[str]:
+    completed = [str(item) for item in _list(runtime_state.get("completed_tasks"))]
+    completed.extend(
+        str(node.get("id", ""))
+        for node in nodes
+        if str(node.get("status", "")).lower() in {"done", "completed"}
+    )
+    return dedupe_strings(completed)
+
+
+def repair_task_focus_lines(task_id: str, task: dict[str, object]) -> list[str]:
+    title = str(task.get("title", "") or "").strip()
+    status = str(task.get("status", "") or "").strip()
+    result = latest_worker_result_from_task(task)
+    lines = ["", f"### Task {task_id}{f' - {title}' if title else ''}", ""]
+    if status:
+        lines.append(f"- Last task status: {status}.")
+    relevant_files = dedupe_strings(str(item) for item in _list(task.get("relevant_files")))
+    if relevant_files:
+        lines.append(f"- Previous relevant files: {', '.join(relevant_files)}.")
+    retry_count = task.get("retry_count")
+    retry_policy = _dict(task.get("retry_policy"))
+    if retry_count is not None or retry_policy:
+        max_attempts = retry_policy.get("max_attempts", retry_policy.get("attempts", "unknown"))
+        lines.append(f"- Retry state: {retry_count if retry_count is not None else 'unknown'} of {max_attempts} attempts used.")
+    if result:
+        summary = str(result.get("summary", "") or "").strip()
+        if summary:
+            lines.append(f"- Worker summary: {summary}")
+        for label, key in (
+            ("Tests passed", "tests_passed"),
+            ("Tests failed", "tests_failed"),
+            ("Known issues", "known_issues"),
+            ("Follow-up tasks", "follow_up_tasks"),
+            ("Files changed", "files_changed"),
+        ):
+            values = dedupe_strings(str(item) for item in _list(result.get(key)))
+            if values:
+                lines.append(f"- {label}:")
+                lines.extend(f"  - {item}" for item in values)
+        lifecycle = _dict(result.get("worker_lifecycle"))
+        timeout_seconds = lifecycle.get("timeout_seconds")
+        timed_out_at = str(lifecycle.get("timed_out_at", "") or "").strip()
+        if timeout_seconds or timed_out_at or str(result.get("status", "")).lower() == "timed_out":
+            lines.append(
+                "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout."
+            )
+    else:
+        lines.append("- Worker result: none recorded for this task; inspect task evidence before widening scope.")
+    return lines
+
+
+def latest_worker_result_from_task(task: dict[str, object]) -> dict[str, object]:
+    for evidence in reversed(_list(task.get("evidence"))):
+        if not isinstance(evidence, dict):
+            continue
+        if str(evidence.get("type", "")) != "worker_result":
+            continue
+        result = _dict(evidence.get("result"))
+        if result:
+            return result
+    return {}
 
 
 def should_auto_repair_phase(promotion: dict[str, object], result: dict[str, object]) -> bool:

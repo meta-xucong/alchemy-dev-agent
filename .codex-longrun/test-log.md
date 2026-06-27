@@ -2845,3 +2845,22 @@
 - result: passed
 - relevant evidence: `resume_from=None`, `active_run_dir=None`, `blockers=[]`.
 - next verification command: commit assessment document and launch controlled Alchemy resume.
+
+## 2026-06-27T15:39:00+08:00 V2.88 focused repair resume verification
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_document_path_preserves_existing_repair_briefs tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_document_includes_focused_failed_task_evidence tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_executor_bootstraps_blocked_phase_resume_with_repair_evidence tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_distinguishes_technical_and_environment_blockers -q`
+- result: `4 passed`
+- relevant evidence: focused repair docs include T006 evidence; blocked phase resume receives `phase_repair_resume_NNN.md`; product API key workflow blockers remain repairable; old `phase_repair_NNN.md` briefs are not overwritten.
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `53 passed`
+- next verification command: py_compile and targeted diff check.
+
+- command: `python -B -m py_compile autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py`
+- result: passed
+- next verification command: targeted diff check.
+
+- command: `git diff --check -- autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py README.md docs/96_billing_core_crm_supervision_assessment.md docs/97_v2_88_focused_phase_repair_resume.md .codex-longrun/progress.md`
+- result: passed with existing `.codex-longrun/progress.md` CRLF warning only.
+- next verification command: validate long-run state, commit/push V2.88, then relaunch Billing Core through Alchemy.

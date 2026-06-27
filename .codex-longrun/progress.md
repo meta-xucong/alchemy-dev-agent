@@ -1425,3 +1425,19 @@ PY"`
 - Wrote `docs/96_billing_core_crm_supervision_assessment.md` documenting the Codex/Alchemy operating contract, current Alchemy health, CRM usability gaps, next supervision loop, delivery gates, and stop rules.
 - Current judgment: Alchemy is ready for another controlled Billing Core run; the CRM is not deliverable yet because frontend closure, schema pruning, demo smoke, and authoritative worktree handoff remain unresolved.
 
+## 2026-06-27T13:58:00+08:00 Timeout Mechanism Follow-Up
+
+- User raised a valid supervision concern: the current fixed `--max-worker-seconds 900` timeout is a useful burn-rate guard, but it can still interrupt a worker that is making real progress on large frontend refactors.
+- Current evidence: `phase_010/run_attempt_021` T006 timed out and was converted into a non-partial blocker without same-scope debug; `run_attempt_022` then continued from the inherited worktree and completed T001-T003 before starting T004. This means the mechanism avoided runaway loops, but it still needs progress-aware refinement.
+- Follow-up after the active Alchemy parent run stops: audit and optimize Alchemy timeout/lifecycle handling so hard timeouts remain as a final guard, while active-progress workers either checkpoint, receive bounded grace, or are split into smaller repair tasks.
+
+## 2026-06-27T15:39:00+08:00 V2.88 Focused Phase Repair Resume
+
+- Audited the completed Billing Core V2.88 probe. `phase_010/run_attempt_023` is blocked, not running; no residual Billing Core parent/worker process is active.
+- Current Billing Core phase state: T001-T005 completed in the inherited isolated worktree; T006 blocked with `B-T006-2` after retry exhaustion. Targeted/task-local frontend checks passed, but full frontend tests and typecheck still fail in files outside T006's previous allowed scope.
+- Found an Alchemy controller issue that explains the "starting over" feel: a blocked phase resume could launch its first fresh attempt with only the original broad phase requirements, losing the previous blocker/task evidence until another failure generated a new repair doc.
+- Found a second classifier bug: bare `api key` and `auth` marker matching could misclassify CRM API-key/identity product work as a non-repairable credential problem.
+- Implemented V2.88 in `autodev/full_roadmap_executor.py`: resumed blocked phases now seed `phase_repair_resume_NNN.md`; repair briefs include focused task IDs, completed tasks to preserve, latest worker failures/follow-ups/files, out-of-scope repair guidance, and timeout split/checkpoint guidance; credential markers are narrowed.
+- Added repair-brief path preservation so new ordinary `phase_repair_NNN.md` files use the next available number instead of overwriting older repair artifacts in long-running phase directories.
+- Added `docs/97_v2_88_focused_phase_repair_resume.md`, updated `docs/96_billing_core_crm_supervision_assessment.md`, and added the README entry.
+- Verification passed: focused V2.88 regressions `4 passed`, full `tests/test_full_roadmap_execution.py` `53 passed`, `py_compile` passed, and targeted `git diff --check` passed with only the existing `.codex-longrun` CRLF warning.

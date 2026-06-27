@@ -1329,6 +1329,21 @@ framework.
 
 See `docs/95_v2_87_dead_debug_resume_skip.md`.
 
+## V2.88 Focused Phase Repair Resume
+
+V2.88 seeds a resumed blocked full-roadmap phase with a focused
+`phase_repair_resume_NNN.md` document built from the previous blocker evidence.
+The repair brief now lists failed task IDs, completed tasks to preserve, worker
+test failures, out-of-scope follow-ups, changed files, retry state, and timeout
+guidance so the next Alchemy attempt can split or widen the exact failed scope
+instead of replanning the whole phase.
+
+The blocker classifier also narrows credential markers so product work on API
+key management or identity/auth workflows is not mistaken for a missing
+external credential.
+
+See `docs/97_v2_88_focused_phase_repair_resume.md`.
+
 Run a smoke execution:
 
 ```bash

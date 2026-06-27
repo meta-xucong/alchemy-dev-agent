@@ -13,11 +13,13 @@ from autodev.full_roadmap_executor import (
     FullRoadmapExecutor,
     blockers_are_auto_repairable,
     interrupted_phase_resume_source,
+    next_phase_repair_path,
     next_phase_run_dir,
     phase_repository_path,
     phase_run_payload,
     write_json,
     write_phase_document,
+    write_phase_repair_document,
 )
 from autodev.phase_promotion import final_handoff_allowed, next_ready_phase, phase_promotion_decision
 from autodev.project_analysis_gate import ProjectAnalysisGate
@@ -589,6 +591,15 @@ class FullRoadmapExecutionTests(unittest.TestCase):
 
         self.assertEqual(next_phase_run_dir(phase_dir), phase_dir / "run_attempt_002")
 
+    def test_phase_repair_document_path_preserves_existing_repair_briefs(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phases" / "phase_010"
+        phase_dir.mkdir(parents=True)
+        (phase_dir / "phase_repair_001.md").write_text("old repair", encoding="utf-8")
+        (phase_dir / "phase_repair_002.md").write_text("old repair", encoding="utf-8")
+
+        self.assertEqual(next_phase_repair_path(phase_dir), phase_dir / "phase_repair_003.md")
+
     def test_interrupted_active_phase_attempt_is_resumable(self) -> None:
         root = temp_root()
         phase_dir = root / "phases" / "phase_004"
@@ -1099,6 +1110,177 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(payload["phase_records"][0]["promotion"]["attempts"][0]["status"], "blocked")
         self.assertEqual(payload["phase_records"][0]["promotion"]["attempts"][1]["status"], "done")
 
+    def test_phase_repair_document_includes_focused_failed_task_evidence(self) -> None:
+        root = temp_root()
+        phase = RoadmapPhase(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            requirements=["Close user API key and admin usage workflows."],
+        )
+        blocker = {
+            "id": "B-T006-2",
+            "type": "technical_limit",
+            "description": "Retry policy exhausted for frontend API key closure.",
+            "task_ids": ["T006"],
+            "can_continue_partially": False,
+        }
+        result = {
+            "status": "blocked",
+            "delivery_report": {
+                "final_gate": {
+                    "score": 0.27,
+                    "dimension_scores": {"test_health": 0.0, "spec_alignment": 0.5},
+                    "hard_failures": ["One or more required tasks failed or are blocked."],
+                    "required_changes": ["T006: resolve failed task."],
+                }
+            },
+            "runtime_state": {
+                "blockers": [blocker],
+                "completed_tasks": ["T001", "T002", "T005"],
+                "task_graph": {
+                    "nodes": [
+                        {"id": "T001", "status": "completed", "title": "Plan implementation"},
+                        {
+                            "id": "T006",
+                            "status": "failed",
+                            "title": "Close usage API key and admin user workflows",
+                            "retry_count": 2,
+                            "retry_policy": {"max_attempts": 2},
+                            "relevant_files": ["frontend/src/views/user/*Key*.vue", "frontend/src/api/**"],
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "partial",
+                                        "summary": "Targeted checks passed, but full-suite failures are outside allowed_files.",
+                                        "tests_passed": ["Targeted Vitest verification passed."],
+                                        "tests_failed": [
+                                            "src/components/account/__tests__/AccountUsageCell.spec.ts failed.",
+                                            "src/views/admin/DashboardView.vue unhandled render error.",
+                                        ],
+                                        "known_issues": [
+                                            "Out-of-scope full-suite failures remain in AccountUsageCell and DashboardView."
+                                        ],
+                                        "follow_up_tasks": [
+                                            "Update out-of-scope AccountUsageCell tests or component call contract."
+                                        ],
+                                        "files_changed": ["frontend/src/api/keys.ts"],
+                                        "worker_lifecycle": {"timeout_seconds": 900},
+                                    },
+                                }
+                            ],
+                        },
+                    ]
+                },
+            },
+        }
+        repair_doc = root / "phase_repair_001.md"
+
+        write_phase_repair_document(
+            repair_doc,
+            phase=phase,
+            result=result,
+            promotion={"required_score": 0.85, "score": 0.27, "reasons": ["Phase has blockers."]},
+            attempt_index=1,
+        )
+        text = repair_doc.read_text(encoding="utf-8")
+
+        self.assertIn("## Focused Repair Scope", text)
+        self.assertIn("Primary failed task IDs: T006", text)
+        self.assertIn("Completed tasks to preserve: T001, T002, T005", text)
+        self.assertIn("AccountUsageCell.spec.ts", text)
+        self.assertIn("expanded allowed files", text)
+        self.assertIn("split this workflow", text)
+
+    def test_executor_bootstraps_blocked_phase_resume_with_repair_evidence(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        blocker = {
+            "id": "B-T006-2",
+            "type": "technical_limit",
+            "description": "Retry policy exhausted for frontend API key closure.",
+            "task_ids": ["T006"],
+            "can_continue_partially": False,
+        }
+
+        class BlockingPhaseResult:
+            def to_dict(self) -> dict[str, object]:
+                return {
+                    "status": "blocked",
+                    "delivery_report": {
+                        "final_gate": {
+                            "score": 0.27,
+                            "dimension_scores": {"test_health": 0.0, "spec_alignment": 0.5},
+                            "hard_failures": ["One or more required tasks failed or are blocked."],
+                            "required_changes": ["T006: resolve failed task."],
+                        },
+                        "ready_for_review": False,
+                    },
+                    "runtime_state": {
+                        "done": False,
+                        "blockers": [blocker],
+                        "completed_tasks": ["T001", "T002", "T005"],
+                        "task_graph": {
+                            "nodes": [
+                                {"id": "T001", "status": "completed", "title": "Plan implementation"},
+                                {
+                                    "id": "T006",
+                                    "status": "failed",
+                                    "title": "Close usage API key and admin user workflows",
+                                    "evidence": [
+                                        {
+                                            "type": "worker_result",
+                                            "result": {
+                                                "status": "partial",
+                                                "summary": "Full-suite failures are outside allowed_files.",
+                                                "tests_failed": ["src/components/account/__tests__/AccountUsageCell.spec.ts failed."],
+                                            },
+                                        }
+                                    ],
+                                },
+                            ]
+                        },
+                    },
+                }
+
+        first_result = FullRoadmapExecutor(document_runner=lambda **_: BlockingPhaseResult()).run(
+            objective="Convert Billing Core into an independent CRM system.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={"max_phase_repair_attempts": 0},
+        )
+        self.assertEqual(first_result.status, "blocked")
+
+        calls: list[list[str]] = []
+
+        def resume_runner(**kwargs):
+            docs = [str(item) for item in kwargs["documents"]]
+            calls.append(docs)
+            return FakePhaseResult("resumed phase")
+
+        second_result = FullRoadmapExecutor(document_runner=resume_runner).run(
+            objective="Convert Billing Core into an independent CRM system.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            run_payload={"max_phase_repair_attempts": 1},
+        )
+        payload = second_result.to_dict()
+        repair_doc = root / "run" / "phases" / "phase_001" / "phase_repair_resume_001.md"
+
+        self.assertEqual(payload["status"], "done")
+        self.assertGreaterEqual(len(calls), 1)
+        self.assertTrue(
+            any("phase_001" in item and "phase_repair_resume_" in item for docs in calls for item in docs),
+            calls,
+        )
+        self.assertTrue(repair_doc.exists())
+        self.assertIn("Primary failed task IDs: T006", repair_doc.read_text(encoding="utf-8"))
+
     def test_phase_repair_distinguishes_technical_and_environment_blockers(self) -> None:
         self.assertTrue(
             blockers_are_auto_repairable(
@@ -1108,6 +1290,19 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                         "type": "technical_limit",
                         "description": "Retry policy exhausted for wallet recharge surfaces.",
                         "task_ids": ["T004"],
+                        "can_continue_partially": False,
+                    }
+                ]
+            )
+        )
+        self.assertTrue(
+            blockers_are_auto_repairable(
+                [
+                    {
+                        "id": "B-T006-2",
+                        "type": "technical_limit",
+                        "description": "Retry policy exhausted for the product API key management workflow.",
+                        "task_ids": ["T006"],
                         "can_continue_partially": False,
                     }
                 ]

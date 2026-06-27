@@ -147,6 +147,36 @@ Do not consider the CRM deliverable until all gates below pass:
 - Final handoff identifies the authoritative worktree and avoids silently
   mixing dirty original checkout state with Alchemy run artifacts.
 
+## 2026-06-27 Follow-Up
+
+The supervised V2.88 probe reached `phase_010/run_attempt_023` and stopped
+cleanly. There are no live Billing Core parent or worker processes left from
+that run.
+
+Current execution state:
+
+- T001-T005 are completed in the inherited isolated worktree.
+- T006 is blocked by `B-T006-2` after retry exhaustion.
+- T006's targeted/task-local frontend checks passed, but the full frontend
+  suite and typecheck still expose failures outside the previous allowed scope.
+- The remaining product work should be split into focused Alchemy tasks around
+  the failing frontend files and route/sidebar wiring, not replayed as a broad
+  phase restart.
+
+New Alchemy issues found and addressed:
+
+- Resuming a blocked phase did not automatically carry the prior blocker
+  evidence into the first new phase attempt.
+- Repair documents were too generic and did not preserve the concrete failed
+  task, completed tasks, out-of-scope test failures, or timeout/splitting
+  guidance.
+- Bare `api key` and `auth` blocker marker matching could misclassify CRM
+  identity/API-key product work as a non-repairable credential problem.
+
+V2.88 adds focused `phase_repair_resume_NNN.md` generation and narrows the
+credential markers. The next Billing Core resume should therefore enter
+`phase_010` with a T006-focused repair brief.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable
