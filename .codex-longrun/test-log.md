@@ -3058,6 +3058,36 @@
 - relevant evidence: bootstrap selected `phase_repair_008.md`, `phase_repair_009.md`, and new `phase_repair_resume_009.md`; the regenerated graph leaves only T017 `Repair failing frontend verification assets`, T018 verification, and T019 review pending.
 - next verification command: `git diff --check` and long-run state validation.
 
+## 2026-06-28T00:45:00+08:00 V2.104 preserved coverage handoff
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: phase_010 remained blocked after product fix
+- relevant evidence: run_attempt_044 correctly dispatched T017 in the inherited worktree and the worker added `docs/legal/admin-compliance.en.md` plus `docs/legal/admin-compliance.zh.md`; frontend install, tests, build, and lint passed. The phase still scored 0.7018 because coverage was missing for preserved original requirements.
+- fix attempted: added a completed preserved-coverage node for unmatched frontend requirements when a focused verification repair has a substantial completed-task preserve list.
+- next verification command: focused planner regression.
+
+- command: `python -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_completed_verification_repair_creates_unpreserved_frontend_task -q`
+- result: `1 passed`
+- relevant evidence: graph creates T017 pending repair, T018 completed `Preserve completed frontend closure coverage`, T019 verification, and T020 review.
+- next verification command: real phase_010 graph probe.
+
+- command: real phase_010 graph rebuild probe against current artifacts
+- result: passed
+- relevant evidence: T018 is a completed preserved coverage node and no broad `Complete remaining frontend closure requirements` task is generated.
+- next verification command: affected full regression suites.
+
+- command: `python -m pytest tests/test_document_to_plan.py -q`
+- result: `25 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `61 passed`
+- next verification command: compileall, diff check, state validation, then commit/push V2.104.
+
+- command: `python -m compileall planner tests -q`
+- result: passed
+- next verification command: `git diff --check` and long-run state validation.
+
 ## 2026-06-27T22:43:00+08:00 V2.100 worker output budget hygiene verification
 
 - command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`

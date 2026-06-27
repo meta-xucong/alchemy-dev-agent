@@ -1564,3 +1564,13 @@ PY"`
 - Real phase_010 graph probe now recovers `phase_repair_resume_009.md` from historical T014 evidence and leaves only T017 `Repair failing frontend verification assets`, T018 verification, and T019 review pending; the broad `Complete remaining frontend closure requirements` fallback is suppressed for this resume.
 - Verification passed: focused V2.103 regressions `3 passed`, full `tests/test_document_to_plan.py` `25 passed`, full `tests/test_full_roadmap_execution.py` `61 passed`, and targeted `compileall` passed.
 - Next step: commit/push V2.103, then relaunch Billing Core through Alchemy only and confirm phase_010 produces a focused repair task for the missing admin compliance Markdown/build blocker instead of preserving T001-T016 and stopping again.
+
+## 2026-06-28T00:45:00+08:00 V2.104 Preserved Coverage Handoff
+
+- Relaunched Billing Core after V2.103. run_attempt_044 used the correct execution chain: T017 was dispatched through Alchemy real Codex in the inherited isolated worktree, not directly by Codex Desktop against the original checkout.
+- T017 completed successfully and added `docs/legal/admin-compliance.en.md` and `docs/legal/admin-compliance.zh.md`; frontend install, tests, production build, and lint all passed inside the Alchemy worker.
+- Phase_010 still blocked at score 0.7018 because the regenerated graph had only T001-T007 plus T017-T020. Suppressing the broad fallback removed coverage carriers for some old already-completed frontend closure requirements, causing missing coverage for REQ-009, REQ-022, REQ-023, REQ-024, REQ-030, and REQ-032.
+- Implemented V2.104 in `planner/task_graph_builder.py`: focused verification repair resumes with a substantial completed-task preserve list now create a completed `Preserve completed frontend closure coverage` node for unmatched original frontend requirements instead of dispatching a broad fallback or dropping coverage.
+- Real phase_010 graph probe now shows T017 repair pending, T018 preserved coverage completed, T019 verification pending, and T020 review pending.
+- Verification passed: focused planner regression `1 passed`, full `tests/test_document_to_plan.py` `25 passed`, full `tests/test_full_roadmap_execution.py` `61 passed`, and targeted `compileall` passed.
+- Next step: commit/push V2.104 and relaunch Billing Core through Alchemy; expected path is T017 repair, T018 preserved coverage, T019 verification, T020 review, then phase_010 promotion if coverage gate accepts the preserved node.

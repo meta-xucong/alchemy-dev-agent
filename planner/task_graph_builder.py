@@ -1140,6 +1140,21 @@ def large_refactor_frontend_nodes(
         verification_repair_requirements,
         preserved_task_ids,
     ):
+        if remaining_requirements:
+            task_id, task_index = next_unreserved_task_id(
+                task_index,
+                {*preserved_task_ids, *(node.id for node in nodes)},
+            )
+            for requirement in remaining_requirements:
+                requirement_task_ids.setdefault(requirement.id, task_id)
+            nodes.append(
+                preserved_frontend_coverage_node(
+                    task_id,
+                    remaining_requirements,
+                    scope_controls=scope_controls,
+                    fallback=base_relevant_files,
+                )
+            )
         remaining_requirements = []
     if remaining_requirements:
         split_specs = frontend_remaining_closure_timeout_split_task_specs(requirements)
@@ -1291,6 +1306,44 @@ def frontend_verification_repair_relevant_files(
     if "frontend/package.json" not in files:
         files.append("frontend/package.json")
     return scoped_files(files, scope_controls, fallback=fallback)
+
+
+def preserved_frontend_coverage_node(
+    task_id: str,
+    requirements: list[Requirement],
+    *,
+    scope_controls: dict[str, list[str]] | None,
+    fallback: list[str],
+) -> TaskNode:
+    return TaskNode(
+        id=task_id,
+        title="Preserve completed frontend closure coverage",
+        description=frontend_large_refactor_description(
+            "Carry forward completed frontend closure work from the focused repair preserve list without dispatching a broad fallback worker.",
+            requirements,
+        ),
+        type="frontend",
+        assigned_agent="frontend",
+        status="completed",
+        dependencies=["T001"],
+        completion_criteria=dedupe([criterion for item in requirements for criterion in item.acceptance_criteria])
+        or ["Previously completed frontend closure requirements remain covered."],
+        evidence=[
+            {
+                "type": "focused_repair_preserved_coverage",
+                "summary": "Coverage preserved from completed task evidence in the focused repair brief.",
+            }
+        ],
+        relevant_files=frontend_large_refactor_relevant_files(
+            ["frontend/**", "frontend/package.json"],
+            requirements,
+            scope_controls=scope_controls,
+            fallback=fallback,
+        ),
+        commands_to_run=[],
+        priority=max(priority_for_requirement(item) for item in requirements) if requirements else 50,
+        boundary_mode="large_refactor",
+    )
 
 
 def frontend_large_refactor_relevant_files(

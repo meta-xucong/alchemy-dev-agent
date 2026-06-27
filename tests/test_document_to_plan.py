@@ -1309,6 +1309,7 @@ class DocumentToPlanTests(unittest.TestCase):
                         "# Phase: Frontend closure",
                         "## Requirements",
                         "- Must close frontend router, menu, and direct pages.",
+                        "- Must close residual CRM frontend usability gaps and visible escape hatches.",
                         "",
                         "## Boundary Mode",
                         "Scope boundary mode: large_refactor",
@@ -1349,8 +1350,13 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("docs/legal/admin-compliance.zh.md", repair_task["relevant_files"])
         self.assertIn("docs/legal/admin-compliance.en.md", repair_task["relevant_files"])
         self.assertIn("frontend/src/components/admin/AdminComplianceDialog.vue", repair_task["relevant_files"])
-        self.assertEqual(nodes_by_id["T018"]["title"], "Verify implementation against project checks")
-        self.assertEqual(nodes_by_id["T019"]["title"], "Review delivery readiness")
+        self.assertEqual(nodes_by_id["T018"]["title"], "Preserve completed frontend closure coverage")
+        self.assertEqual(nodes_by_id["T018"]["status"], "completed")
+        self.assertTrue(
+            any(item["type"] == "focused_repair_preserved_coverage" for item in nodes_by_id["T018"]["evidence"])
+        )
+        self.assertEqual(nodes_by_id["T019"]["title"], "Verify implementation against project checks")
+        self.assertEqual(nodes_by_id["T020"]["title"], "Review delivery readiness")
         self.assertNotIn("Complete remaining frontend closure requirements", [node["title"] for node in graph["nodes"]])
 
     def test_docs_only_scope_builds_documentation_task_with_lightweight_verification(self) -> None:

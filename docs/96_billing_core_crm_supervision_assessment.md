@@ -499,6 +499,26 @@ Current delivery estimate remains roughly 85%-88% complete. The remaining work
 is to let Alchemy repair this phase_010 build blocker, promote phase_010, then
 run phase_011 schema/build cleanup and phase_012 demo smoke/final handoff.
 
+## 2026-06-28 V2.104 Follow-Up
+
+The V2.103 relaunch entered the correct worktree and proved the execution chain
+is now healthy: T017 was dispatched to an Alchemy real worker in the inherited
+isolated worktree, not to the original checkout. The worker added
+`docs/legal/admin-compliance.zh.md` and `docs/legal/admin-compliance.en.md`.
+Frontend install, tests, production build, and lint passed.
+
+The phase still blocked because the regenerated repair graph no longer carried
+coverage nodes for some old frontend closure requirements after suppressing the
+broad fallback task. That was an Alchemy traceability issue, not a failed CRM
+product fix.
+
+V2.104 adds a completed `Preserve completed frontend closure coverage` node for
+these fully preserved repair resumes. The node maps unmatched original
+requirements to preserved completion evidence without opening another broad
+`frontend/**` worker. The next relaunch should keep T017 as the only product
+repair task, carry preserved coverage through T018, then verify/review with
+T019/T020.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

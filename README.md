@@ -1500,6 +1500,16 @@ whole regenerated graph completed.
 
 See `docs/112_v2_103_verification_failure_repair_handoff.md`.
 
+## V2.104 Preserved Coverage Handoff
+
+V2.104 prevents focused verification repairs from losing coverage for original
+requirements whose implementation tasks were already completed. The planner
+adds a completed preserved-coverage node for unmatched original frontend
+requirements instead of dispatching a broad fallback worker or leaving the final
+gate with missing traceability.
+
+See `docs/113_v2_104_preserved_coverage_handoff.md`.
+
 Run a smoke execution:
 
 ```bash
