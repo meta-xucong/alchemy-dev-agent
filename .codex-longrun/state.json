@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_105_clean_verification_recovery",
+  "current_phase": "v2_106_stopped_attempt_repair_record_fallback",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -40,13 +40,14 @@
     "implemented V2.102 supervisor-stopped completion context so newer stopped attempts preserve completed task evidence when phase_record.json is stale",
     "implemented V2.103 verification failure repair handoff so completed test/review worker failures become focused unpreserved repair tasks and older attempt state can recover lost build-failure evidence",
     "implemented V2.104 preserved coverage handoff so focused verification repairs keep traceability for original requirements without dispatching a broad fallback worker",
-    "implemented V2.105 clean verification recovery so successful verification warnings do not create repair evidence and newer clean test passes supersede stale historical failures"
+    "implemented V2.105 clean verification recovery so successful verification warnings do not create repair evidence and newer clean test passes supersede stale historical failures",
+    "implemented V2.106 stopped-attempt repair record fallback so blocked low-score gate results seed repair docs and empty supervisor-stopped attempts do not poison the next recovery"
   ],
   "next_actions": [
-    "Run final diff check and state validation for V2.105.",
-    "Commit and push V2.105 Alchemy fixes.",
-    "Relaunch Billing Core through Alchemy only after the fixes are committed; confirm phase_010 does not revive stale T014 evidence after the clean T018 verification pass.",
-    "Monitor whether phase_010 promotes after preserved coverage and clean-verification recovery are carried forward; if another controller issue appears, stop and fix Alchemy before continuing.",
+    "Run final diff check and state validation for V2.106.",
+    "Commit and push V2.106 Alchemy fixes.",
+    "Relaunch Billing Core through Alchemy only after the fixes are committed; confirm phase_010 skips stopped run_attempt_045, does not revive stale T014 evidence, and runs only verification/review closure.",
+    "Monitor whether phase_010 promotes after preserved coverage, clean-verification recovery, and stopped-attempt fallback are carried forward; if another controller issue appears, stop and fix Alchemy before continuing.",
     "After phase_010 promotion, continue toward phase_011 schema pruning/build and phase_012 demo smoke, then reassess CRM deliverability.",
     "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after the current verification-repair handoff is proven."
   ],
@@ -270,7 +271,14 @@
     "python -m pytest tests/test_document_to_plan.py -q => 25 passed after V2.105",
     "python -m compileall autodev planner tests -q => passed after V2.105",
     "codex.exe exec -m gpt-5.4 smoke => timed out after 120 seconds and its scoped child process was stopped; not used by current Alchemy worker path",
-    "worker-like default-model Codex CLI smoke with --disable plugins exec --json --cd and stdin prompt => exit 0 with OK after V2.105"
+    "worker-like default-model Codex CLI smoke with --disable plugins exec --json --cd and stdin prompt => exit 0 with OK after V2.105",
+    "Billing Core run_attempt_045 after V2.105 => entered correct inherited worktree but rebuilt broad original graph T001-T011; stopped immediately with supervisor_stop.json and scoped process cleanup",
+    "python -m pytest tests/test_full_roadmap_execution.py -q -k \"empty_supervisor_stopped_attempt or blocked_low_score_phase_without_blockers or blocked_credential_gate_without_runtime_blockers or bootstrap_writes_repair_doc_for_blocked_low_score or successful_verification_warnings or clean_test_verification or verification_failure_context\" => 7 passed, 60 deselected after V2.106",
+    "Real phase_010 bootstrap after V2.106 => selected phase_repair_008.md, phase_repair_009.md, and phase_repair_resume_010.md without operator-stop or stale T014 evidence",
+    "Real phase_010 graph probe after V2.106 => T001-T008 completed and only T021 verification plus T022 review pending",
+    "python -m pytest tests/test_full_roadmap_execution.py -q => 67 passed after V2.106",
+    "python -m pytest tests/test_document_to_plan.py -q => 25 passed after V2.106",
+    "python -m compileall autodev planner tests -q => passed after V2.106"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -313,7 +321,8 @@
     "Before V2.103, completed test/review tasks could contain tests_failed, known_issues, failed commands, and follow-up tasks but still be omitted from phase repair documents because only failed/blocked task IDs were expanded into focused repair detail.",
     "Before V2.103, newer preserve-only low-score attempts could hide older concrete verification failures, so Billing Core phase_010 lost run_attempt_041 T014 build evidence and exhausted repair attempts without creating a task for the missing admin compliance Markdown files.",
     "Before V2.104, suppressing a broad frontend fallback during a focused verification repair could remove graph coverage carriers for already-completed original requirements, causing the final gate to report missing coverage even after the product build repair passed.",
-    "Before V2.105, successful verification workers with non-fatal known_issues/follow_up evidence could be treated as repair evidence, and backward verification scanning could revive already-fixed historical failures even after a newer clean test verification pass."
+    "Before V2.105, successful verification workers with non-fatal known_issues/follow_up evidence could be treated as repair evidence, and backward verification scanning could revive already-fixed historical failures even after a newer clean test verification pass.",
+    "Before V2.106, blocked low-score phase results with no runtime blockers did not seed repair docs, so a post-V2.105 relaunch could regenerate the broad original phase graph; once stopped, that empty supervisor-stopped attempt could also poison the next recovery unless skipped."
   ],
   "blockers": [],
   "done_criteria": [
@@ -321,7 +330,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T01:05:00+08:00",
+  "last_verified_at": "2026-06-28T01:42:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T01:05:00+08:00"
+  "updated_at": "2026-06-28T01:42:00+08:00"
 }

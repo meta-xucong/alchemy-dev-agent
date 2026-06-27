@@ -778,6 +778,7 @@ def bootstrap_phase_repair_documents(
         return []
     if previous_record is None:
         return latest_existing_phase_repair_documents(phase_dir, max_repair_documents=max_repair_documents)
+    previous_record = effective_previous_repair_record(phase_dir, phase=phase, previous_record=previous_record)
     existing_documents = latest_existing_phase_repair_documents(
         phase_dir,
         max_repair_documents=max_repair_documents,
@@ -818,6 +819,49 @@ def bootstrap_phase_repair_documents(
             ),
         ]
     )
+
+
+def effective_previous_repair_record(
+    phase_dir: Path,
+    *,
+    phase: RoadmapPhase,
+    previous_record: PhaseExecutionRecord,
+) -> PhaseExecutionRecord:
+    """Skip empty supervisor-stopped attempts when selecting repair context."""
+
+    if not empty_supervisor_stopped_phase_record(previous_record):
+        return previous_record
+    previous_output = Path(previous_record.output_dir)
+    previous_key = _phase_run_sort_key(previous_output)
+    previous_resolved = str(previous_output.resolve())
+    for run_dir in reversed(list_phase_run_dirs(phase_dir)):
+        if str(run_dir.resolve()) == previous_resolved:
+            continue
+        if _phase_run_sort_key(run_dir) >= previous_key:
+            continue
+        payload = read_optional_json(run_dir / "document_run_report.json")
+        if not payload:
+            continue
+        promotion = phase_promotion_decision(phase, payload)
+        candidate = PhaseExecutionRecord(
+            phase_id=phase.phase_id,
+            title=phase.title,
+            status="done" if bool(promotion.get("can_promote")) else "blocked",
+            output_dir=str(run_dir),
+            result=payload,
+            promotion=promotion,
+        )
+        if should_auto_repair_phase(candidate.promotion, candidate.result):
+            return candidate
+    return previous_record
+
+
+def empty_supervisor_stopped_phase_record(record: PhaseExecutionRecord) -> bool:
+    output_dir = Path(record.output_dir)
+    if not output_dir.exists() or not supervisor_stop_marker_exists(output_dir):
+        return False
+    runtime_state = _dict(record.result.get("runtime_state"))
+    return not completed_task_ids_from_state(runtime_state)
 
 
 def latest_existing_phase_repair_documents(
@@ -1429,7 +1473,10 @@ def should_auto_repair_phase(promotion: dict[str, object], result: dict[str, obj
     required_changes = _list(final_gate.get("required_changes"))
     dimensions = _dict(final_gate.get("dimension_scores"))
     has_low_dimension = any(float_or_zero(value) < required_score for value in dimensions.values())
-    return status == "done" and (
+    repair_texts = [*hard_failures, *required_changes]
+    if repair_texts and not blockers_are_auto_repairable(repair_texts):
+        return False
+    return status in {"done", "blocked"} and (
         (score > 0 and score < required_score)
         or bool(required_changes)
         or bool(hard_failures)

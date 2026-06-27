@@ -1519,6 +1519,15 @@ older failures are not revived after a successful repair verification.
 
 See `docs/114_v2_105_clean_verification_recovery.md`.
 
+## V2.106 Stopped Attempt Repair Record Fallback
+
+V2.106 lets blocked low-score phase results without runtime blockers seed repair
+documents, and skips empty supervisor-stopped attempts when choosing repair
+context. This prevents a supervised stop of an invalid broad graph from
+poisoning the next recovery launch.
+
+See `docs/115_v2_106_stopped_attempt_repair_record_fallback.md`.
+
 Run a smoke execution:
 
 ```bash

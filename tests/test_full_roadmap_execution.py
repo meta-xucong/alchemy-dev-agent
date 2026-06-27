@@ -20,6 +20,7 @@ from autodev.full_roadmap_executor import (
     next_phase_run_dir,
     phase_repository_path,
     phase_run_payload,
+    should_auto_repair_phase,
     write_json,
     write_phase_document,
     write_phase_repair_document,
@@ -1543,6 +1544,172 @@ class FullRoadmapExecutionTests(unittest.TestCase):
 
         self.assertEqual(context, "")
         self.assertEqual(list(phase_dir.glob("phase_repair_resume_*.md")), [])
+
+    def test_blocked_low_score_phase_without_blockers_is_auto_repairable(self) -> None:
+        result = {
+            "status": "blocked",
+            "runtime_state": {"blockers": []},
+            "delivery_report": {
+                "final_gate": {
+                    "score": 0.7018,
+                    "hard_failures": [
+                        "Must requirements are missing coverage: REQ-009, REQ-022.",
+                    ],
+                    "required_changes": [],
+                    "dimension_scores": {"spec_alignment": 0.7},
+                }
+            },
+        }
+        promotion = {"can_promote": False, "required_score": 0.85, "score": 0.7018}
+
+        self.assertTrue(should_auto_repair_phase(promotion, result))
+
+    def test_blocked_credential_gate_without_runtime_blockers_is_not_auto_repairable(self) -> None:
+        result = {
+            "status": "blocked",
+            "runtime_state": {"blockers": []},
+            "delivery_report": {
+                "final_gate": {
+                    "score": 0.2,
+                    "hard_failures": ["Credential required before deployment verification can continue."],
+                    "required_changes": [],
+                    "dimension_scores": {"test_health": 0.2},
+                }
+            },
+        }
+        promotion = {"can_promote": False, "required_score": 0.85, "score": 0.2}
+
+        self.assertFalse(should_auto_repair_phase(promotion, result))
+
+    def test_bootstrap_writes_repair_doc_for_blocked_low_score_without_runtime_blockers(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_010"
+        phase_dir.mkdir(parents=True)
+        phase = RoadmapPhase(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            requirements=["Close frontend CRM build and coverage evidence."],
+        )
+        previous_record = PhaseExecutionRecord(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            status="blocked",
+            output_dir=str(phase_dir / "run_attempt_044"),
+            result={
+                "status": "blocked",
+                "runtime_state": {
+                    "blockers": [],
+                    "completed_tasks": ["T017", "T018", "T019", "T020"],
+                },
+                "delivery_report": {
+                    "final_gate": {
+                        "score": 0.7018,
+                        "hard_failures": [
+                            "Must requirements are missing coverage: REQ-009, REQ-022.",
+                        ],
+                        "required_changes": [],
+                        "dimension_scores": {"spec_alignment": 0.7},
+                    }
+                },
+            },
+            promotion={
+                "can_promote": False,
+                "required_score": 0.85,
+                "score": 0.7018,
+                "reasons": ["Phase score 0.70 is below required 0.85."],
+            },
+        )
+
+        docs = bootstrap_phase_repair_documents(
+            phase_dir,
+            phase=phase,
+            previous_record=previous_record,
+            max_repair_documents=2,
+        )
+
+        self.assertEqual(len(docs), 1)
+        text = Path(docs[0]).read_text(encoding="utf-8")
+        self.assertIn("Repair attempt: 1", text)
+        self.assertIn("Completed tasks to preserve: T017, T018, T019, T020", text)
+        self.assertIn("Must requirements are missing coverage", text)
+
+    def test_bootstrap_skips_empty_supervisor_stopped_attempt_for_prior_repairable_gate(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_010"
+        phase_dir.mkdir(parents=True)
+        phase = RoadmapPhase(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            requirements=["Close frontend CRM build and coverage evidence."],
+        )
+        repairable_run = phase_dir / "run_attempt_044"
+        stopped_run = phase_dir / "run_attempt_045"
+        repairable_run.mkdir()
+        stopped_run.mkdir()
+        write_json(
+            repairable_run / "document_run_report.json",
+            {
+                "status": "blocked",
+                "runtime_state": {
+                    "blockers": [],
+                    "completed_tasks": ["T017", "T018", "T019", "T020"],
+                },
+                "delivery_report": {
+                    "final_gate": {
+                        "score": 0.7018,
+                        "hard_failures": [
+                            "Must requirements are missing coverage: REQ-009, REQ-022.",
+                        ],
+                        "required_changes": [],
+                        "dimension_scores": {"spec_alignment": 0.7},
+                    }
+                },
+            },
+        )
+        write_json(
+            stopped_run / "supervisor_stop.json",
+            {"reason": "Stopped invalid broad graph."},
+        )
+        previous_record = PhaseExecutionRecord(
+            phase_id="phase_010",
+            title="Frontend CRM Closure",
+            status="blocked",
+            output_dir=str(stopped_run),
+            result={
+                "status": "blocked",
+                "runtime_state": {
+                    "blockers": [
+                        {
+                            "id": "B-T001-0",
+                            "type": "technical_limit",
+                            "description": "Codex worker was cancelled by operator stop request.",
+                            "task_ids": ["T001"],
+                            "can_continue_partially": False,
+                        }
+                    ],
+                    "completed_tasks": [],
+                },
+            },
+            promotion={
+                "can_promote": False,
+                "required_score": 0.85,
+                "score": 0.0,
+                "reasons": ["Phase has blockers."],
+            },
+        )
+
+        docs = bootstrap_phase_repair_documents(
+            phase_dir,
+            phase=phase,
+            previous_record=previous_record,
+            max_repair_documents=2,
+        )
+
+        self.assertEqual(len(docs), 1)
+        text = Path(docs[0]).read_text(encoding="utf-8")
+        self.assertIn("Completed tasks to preserve: T017, T018, T019, T020", text)
+        self.assertIn("Must requirements are missing coverage", text)
+        self.assertNotIn("operator stop request", text)
 
     def test_executor_bootstraps_blocked_phase_resume_with_repair_evidence(self) -> None:
         root = temp_root()

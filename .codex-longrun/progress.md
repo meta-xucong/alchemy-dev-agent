@@ -1584,3 +1584,13 @@ PY"`
 - Verification passed: focused recovery regressions `3 passed`, full `tests/test_full_roadmap_execution.py` `63 passed`, full `tests/test_document_to_plan.py` `25 passed`, and `python -m compileall autodev planner tests -q` passed.
 - An explicit `-m gpt-5.4` Codex smoke timed out and its scoped child process was stopped, but the worker-like default-model Codex CLI smoke (`--disable plugins exec --json --cd`, prompt through stdin) passed with `OK`; this matches the current Alchemy real-worker path.
 - Next step: commit/push V2.105, then relaunch Billing Core through Alchemy only and confirm phase_010 no longer revives stale T014 evidence after the clean T018 pass.
+
+## 2026-06-28T01:42:00+08:00 V2.106 Stopped Attempt Repair Record Fallback
+
+- Relaunched Billing Core after V2.105. The run used the correct script and inherited isolated worktree, but `run_attempt_045` rebuilt the broad original phase_010 graph with T001 active and T002-T011 pending instead of the focused verification/coverage closure graph.
+- Stopped `run_attempt_045` immediately with `supervisor_stop.json` and killed only the scoped parent/worker process tree launched by this supervisor. Follow-up process audit found no residual Billing Core Alchemy parent or worker process.
+- Found the Alchemy root cause: `should_auto_repair_phase()` only allowed low-score auto repair when the document-run status was `done`; real `run_attempt_044` was `blocked` with no runtime blockers but final-gate missing coverage, so bootstrap returned no repair docs.
+- Implemented V2.106 in `autodev/full_roadmap_executor.py`: blocked low-score gate results without runtime blockers can seed repair docs, and empty supervisor-stopped attempts with no completed tasks are skipped in favor of the newest older auto-repairable document-run report.
+- Real phase_010 bootstrap after V2.106 selects `phase_repair_008.md`, `phase_repair_009.md`, and `phase_repair_resume_010.md`; graph probe marks T001-T008 completed and leaves only T021 verification and T022 review pending.
+- Verification passed: focused recovery regressions `7 passed`, full `tests/test_full_roadmap_execution.py` `67 passed`, full `tests/test_document_to_plan.py` `25 passed`, and `python -m compileall autodev planner tests -q` passed.
+- Next step: commit/push V2.106, then relaunch Billing Core through Alchemy and monitor T021/T022 rather than allowing any broad frontend worker replay.

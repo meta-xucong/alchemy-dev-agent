@@ -538,6 +538,30 @@ The correct next step remains a controlled Alchemy-only relaunch of phase_010.
 Codex Desktop should continue to supervise and repair Alchemy, not edit Billing
 Core product code directly.
 
+## 2026-06-28 V2.106 Follow-Up
+
+The first V2.105 relaunch created `run_attempt_045` in the correct inherited
+worktree, but the graph regressed to the broad original frontend phase
+T001-T011. This was abnormal and was stopped immediately with
+`supervisor_stop.json`; no residual Billing Core parent or worker process was
+left running.
+
+Root cause: `run_attempt_044` was `status=blocked` because the final gate still
+had missing coverage, but it had no runtime blockers. Alchemy only allowed
+low-score auto repair for `status=done`, so bootstrap passed no repair docs and
+the document runner rebuilt from the original phase requirements. After stopping
+045, the latest phase record pointed at an empty operator-stopped attempt, so
+future recovery also needed to skip that empty stop record.
+
+V2.106 fixes both sides. Blocked low-score final-gate results with no runtime
+blockers can now seed repair docs, while credential/operator/external blockers
+remain non-repairable. Empty supervisor-stopped attempts with no completed tasks
+are skipped in favor of the newest older auto-repairable document-run report.
+
+The real phase_010 probe after V2.106 now selects `phase_repair_008.md`,
+`phase_repair_009.md`, and `phase_repair_resume_010.md`; the rebuilt graph has
+T001-T008 completed and only T021 verification plus T022 review pending.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

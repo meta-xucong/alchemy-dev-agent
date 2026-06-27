@@ -3122,6 +3122,36 @@
 
 - next verification command: diff check, long-run state validation, commit/push V2.105, then controlled Billing Core relaunch through Alchemy.
 
+## 2026-06-28T01:42:00+08:00 V2.106 stopped attempt repair record fallback
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: stopped by supervisor for repair-context fallback fix.
+- relevant evidence: `run_attempt_045` entered the inherited isolated worktree but rebuilt the broad original graph with T001 active and T002-T011 pending. This was not normal progress, so a `supervisor_stop.json` marker was written and the scoped parent/worker process tree was stopped.
+
+- command: process audit after stopping `run_attempt_045`
+- result: no residual Billing Core Alchemy parent or worker process remained.
+
+- command: focused V2.106 recovery regressions
+- result: `7 passed, 60 deselected`
+
+- command: real phase_010 bootstrap probe with current `phase_record.json` pointing at stopped `run_attempt_045`
+- result: selected `phase_repair_008.md`, `phase_repair_009.md`, and `phase_repair_resume_010.md`.
+- relevant evidence: the new resume brief contains missing-coverage gate evidence, excludes operator-stop text, and does not revive stale T014 verification evidence.
+
+- command: real phase_010 graph rebuild probe using `phase_requirements.md`, `phase_repair_008.md`, `phase_repair_009.md`, and `phase_repair_resume_010.md`
+- result: T001-T008 completed; only T021 verification and T022 review pending.
+
+- command: `python -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `67 passed`
+
+- command: `python -m pytest tests/test_document_to_plan.py -q`
+- result: `25 passed`
+
+- command: `python -m compileall autodev planner tests -q`
+- result: passed
+
+- next verification command: diff check, long-run state validation, commit/push V2.106, then controlled Billing Core relaunch through Alchemy.
+
 ## 2026-06-27T22:43:00+08:00 V2.100 worker output budget hygiene verification
 
 - command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
