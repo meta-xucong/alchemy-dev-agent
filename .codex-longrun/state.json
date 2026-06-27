@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "v2_90_codex_usage_limit_blocker",
+  "current_phase": "v2_91_usage_limit_false_positive_guard",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -25,13 +25,14 @@
     "documented Billing Core CRM supervision assessment, usability gaps, delivery gates, and Codex/Alchemy operating contract",
     "implemented V2.88 focused phase repair resume so blocked Billing Core phase resumes carry T006 evidence instead of broad-replanning from scratch",
     "implemented V2.89 repair scope handoff so focused Billing Core repair evidence produces frontend large-refactor tasks instead of replaying narrow router/package scope",
-    "implemented V2.90 Codex usage-limit blocker classification so local model quota failures stop as environment blockers instead of product debug/retry loops"
+    "implemented V2.90 Codex usage-limit blocker classification so local model quota failures stop as environment blockers instead of product debug/retry loops",
+    "implemented V2.91 usage-limit false-positive guard so historical quota text inside successful Codex JSONL does not stop Billing Core resumes"
   ],
   "next_actions": [
-    "Commit and push V2.90 Codex usage-limit blocker classification changes.",
-    "Wait until the local Codex usage window resets after 2026-06-27 17:39 +08:00, then rerun the minimal Codex OK smoke.",
-    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_027 and continues from the inherited isolated worktree toward T005 or later frontend closure tasks.",
-    "Monitor whether the next Alchemy worker advances the CRM extraction work without replaying completed T001-T004 work; if it exposes another controller issue, stop and fix Alchemy before continuing.",
+    "Run full-roadmap regression, diff check, and long-run state validation for V2.91.",
+    "Commit and push V2.91 usage-limit false-positive guard changes.",
+    "Relaunch Billing Core through Alchemy only; confirm phase_010 skips supervisor-stopped run_attempt_028 and runs in the inherited isolated worktree without false usage-limit blocking.",
+    "Monitor whether the next Alchemy worker advances the CRM extraction work beyond the false T001 blocker; if it exposes another controller issue, stop and fix Alchemy before continuing.",
     "After the controlled run, reassess CRM usability, update the supervision document if new evidence appears, and continue the fix/monitor loop."
   ],
   "tests_run": [
@@ -147,6 +148,15 @@
     "python -B -m pytest tests/test_runtime.py -q => 125 passed",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 54 passed",
     "git diff --check => passed with existing .codex-longrun CRLF warnings only",
+    "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed",
+    "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_20260627_v290_after_limit.md \"Reply with exactly OK and nothing else.\" => passed",
+    "Billing Core controlled resume via .alchemy\\billing_core_v274_20260624_012\\resume_v2_88_supervised_probe.ps1 => run_attempt_028 created fresh and used the inherited isolated worktree, then exposed a V2.90 false usage-limit classifier blocker on T001",
+    "python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_usage_limit_jsonl_blocks_without_parse_retry tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_usage_limit_text_inside_successful_jsonl_output tests/test_runtime.py::OrchestratorTests::test_worker_usage_limit_blocks_without_debug_retry tests/test_runtime.py::OrchestratorTests::test_worker_raw_usage_limit_context_does_not_become_environment_blocker -q => 4 passed after fixing a test import",
+    "python -B -m pytest tests/test_runtime.py -q => 127 passed",
+    "python -B -m py_compile runtime\\codex_worker.py runtime\\orchestrator.py tests\\test_runtime.py => passed",
+    "python -c \"from pathlib import Path; from autodev.full_roadmap_executor import interrupted_phase_resume_source; r=interrupted_phase_resume_source(Path('.alchemy/billing_core_v274_20260624_012/phases/phase_010')); print('resume_from=', r.resume_from); print('active_run_dir=', r.active_run_dir); print('blockers=', r.blockers)\" => passed with resume_from=None, active_run_dir=None, blockers=[]",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 54 passed",
+    "git diff --check => passed with existing .codex-longrun CRLF warnings only",
     "python \"C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py\" --project \"D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\" => passed"
   ],
   "known_bugs": [
@@ -173,7 +183,8 @@
     "Before V2.89, a supervisor-stopped bad attempt could still be considered by resume selection unless a newer terminal state superseded it; supervisor_stop.json/operator_stop.json are now explicit terminal attempt markers.",
     "Timeout handling is safer after V2.84/V2.88, but still not progress-aware. Later optimization should add worker heartbeats, checkpoints, and bounded grace rather than simply raising max_worker_seconds.",
     "Before V2.90, local Codex CLI usage-limit JSONL could be summarized as unparseable worker output, causing unnecessary debug/retry work and a false product repair phase.",
-    "As of 2026-06-27 17:02 +08:00, local Codex CLI real-model access is temporarily blocked by account usage limits until about 2026-06-27 17:39 +08:00. Billing Core should not be relaunched before a fresh OK smoke passes."
+    "As of 2026-06-27 17:02 +08:00, local Codex CLI real-model access was temporarily blocked by account usage limits until about 2026-06-27 17:39 +08:00; the 17:39 post-reset smoke passed.",
+    "Before V2.91, V2.90's usage-limit detector scanned the whole successful Codex JSONL stream and could misclassify historical quota text in repair evidence as a live Codex usage-limit blocker."
   ],
   "blockers": [],
   "done_criteria": [
@@ -181,7 +192,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-27T17:06:00+08:00",
+  "last_verified_at": "2026-06-27T17:57:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-27T17:06:00+08:00"
+  "updated_at": "2026-06-27T17:57:00+08:00"
 }

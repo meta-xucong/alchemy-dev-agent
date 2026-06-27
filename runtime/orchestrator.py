@@ -7,7 +7,7 @@ from pathlib import Path
 from .agent_router import AgentRouter
 from .artifact_verifier import StaticWebArtifactVerifier
 from .control import ExecutionController, NoopExecutionController
-from .codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult, CommandResult
+from .codex_worker import CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult, CommandResult, _codex_usage_limit_message
 from .evaluator import EvaluationResult, Evaluator
 from .generated_ci import StaticWebCIGenerator
 from .github_flow import GitHubFlow
@@ -31,6 +31,15 @@ ENVIRONMENT_BLOCKER_PATTERNS = (
     "you've hit your usage limit",
     "purchase more credits",
     "local codex cli usage limit reached",
+)
+CODEX_USAGE_LIMIT_ENVIRONMENT_PATTERNS = (
+    "codex cli usage limit reached",
+    "you've hit your usage limit",
+    "purchase more credits",
+    "local codex cli usage limit reached",
+)
+NON_USAGE_ENVIRONMENT_BLOCKER_PATTERNS = tuple(
+    pattern for pattern in ENVIRONMENT_BLOCKER_PATTERNS if pattern not in CODEX_USAGE_LIMIT_ENVIRONMENT_PATTERNS
 )
 
 PACKAGE_LOCKFILE_COMPANIONS = (
@@ -1280,37 +1289,46 @@ def _worker_result_timed_out(result: CodexWorkerResult | dict | None) -> bool:
 def _worker_result_environment_blocker_summary(result: CodexWorkerResult | dict | None) -> str:
     if result is None:
         return ""
+    raw_text_parts: list[str] = []
     if isinstance(result, CodexWorkerResult):
         commands = result.commands_run
         text_parts = [
             result.summary,
-            result.raw_output,
             *result.known_issues,
             *result.tests_failed,
         ]
+        raw_text_parts.append(result.raw_output)
         for command in commands:
-            text_parts.extend([command.summary, command.stdout, command.stderr])
+            text_parts.extend([command.summary, command.stderr])
+            raw_text_parts.append(command.stdout)
     else:
         commands = _list(result.get("commands_run", []))
         text_parts = [
             str(result.get("summary", "") or ""),
-            str(result.get("raw_output", "") or ""),
             *[str(item) for item in _list(result.get("known_issues", []))],
             *[str(item) for item in _list(result.get("tests_failed", []))],
         ]
+        raw_text_parts.append(str(result.get("raw_output", "") or ""))
         for command in commands:
             if isinstance(command, dict):
                 text_parts.extend(
                     [
                         str(command.get("summary", "") or ""),
-                        str(command.get("stdout", "") or ""),
                         str(command.get("stderr", "") or ""),
                     ]
                 )
+                raw_text_parts.append(str(command.get("stdout", "") or ""))
             else:
                 text_parts.append(str(command))
     text = "\n".join(part for part in text_parts if part).lower()
-    if not any(pattern in text for pattern in ENVIRONMENT_BLOCKER_PATTERNS):
+    raw_text = "\n".join(part for part in raw_text_parts if part).lower()
+    usage_limit_in_structured_error = any(
+        _codex_usage_limit_message(part) for part in raw_text_parts if part
+    )
+    has_environment_pattern = any(pattern in text for pattern in ENVIRONMENT_BLOCKER_PATTERNS) or any(
+        pattern in raw_text for pattern in NON_USAGE_ENVIRONMENT_BLOCKER_PATTERNS
+    )
+    if not has_environment_pattern and not usage_limit_in_structured_error:
         return ""
     return (
         "Worker environment or local Codex CLI availability blocked execution. "

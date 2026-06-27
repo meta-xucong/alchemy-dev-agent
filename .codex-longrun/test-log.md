@@ -2951,3 +2951,46 @@
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.90, then wait for Codex usage reset before relaunching Billing Core through Alchemy.
+
+## 2026-06-27T17:55:00+08:00 V2.91 usage-limit false-positive verification
+
+- command: `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\logs\codex_network_smoke_20260627_v290_after_limit.md "Reply with exactly OK and nothing else."`
+- result: passed
+- relevant evidence: local Codex CLI returned `OK` after the 5:39 PM reset window; provider was `openai`.
+- next verification command: relaunch Billing Core through Alchemy only.
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: blocked by new Alchemy false positive
+- relevant evidence: `phase_010/run_attempt_028` opened fresh and ran in the inherited isolated worktree; T001 subprocess exit code was 0, but V2.90 matched historical usage-limit text inside successful JSONL and recorded a false environment blocker.
+- fix attempted: narrowed usage-limit parsing to structured Codex error events, explicit summaries/known issues/stderr, and plain non-JSON error lines; added `run_attempt_028/supervisor_stop.json`.
+- next verification command: focused V2.91 runtime regressions.
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_usage_limit_jsonl_blocks_without_parse_retry tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_usage_limit_text_inside_successful_jsonl_output tests/test_runtime.py::OrchestratorTests::test_worker_usage_limit_blocks_without_debug_retry tests/test_runtime.py::OrchestratorTests::test_worker_raw_usage_limit_context_does_not_become_environment_blocker -q`
+- result: first run failed due missing test import; rerun passed with `4 passed`
+- fix attempted: imported `CommandResult` for the new orchestrator regression test.
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `127 passed`
+- next verification command: targeted py_compile and resume-selector check.
+
+- command: `python -B -m py_compile runtime\codex_worker.py runtime\orchestrator.py tests\test_runtime.py`
+- result: passed
+- next verification command: phase_010 resume selector check.
+
+- command: `python -c "from pathlib import Path; from autodev.full_roadmap_executor import interrupted_phase_resume_source; r=interrupted_phase_resume_source(Path('.alchemy/billing_core_v274_20260624_012/phases/phase_010')); print('resume_from=', r.resume_from); print('active_run_dir=', r.active_run_dir); print('blockers=', r.blockers)"`
+- result: passed
+- relevant evidence: `resume_from=None`, `active_run_dir=None`, `blockers=[]`; supervisor-stopped `run_attempt_028` will be skipped.
+- next verification command: full-roadmap regression, diff check, state validation, commit/push V2.91, then relaunch Billing Core through Alchemy.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `54 passed`
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.91, then relaunch Billing Core through Alchemy.

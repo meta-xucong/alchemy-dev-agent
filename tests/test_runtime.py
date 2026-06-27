@@ -17,7 +17,14 @@ from runtime.acceptance_scenarios import AcceptanceScenarioPlanner
 from runtime.artifact_profile import ArtifactProfileDetector
 from runtime.artifact_verifier import BrowserArtifactEvidenceVerifier, BrowserArtifactRunner, StaticWebArtifactVerifier
 from runtime.control import ControlDecision
-from runtime.codex_worker import RAW_OUTPUT_LIMIT, CodexWorkerAdapter, CodexWorkerInput, CodexWorkerResult, _build_codex_subprocess_env
+from runtime.codex_worker import (
+    RAW_OUTPUT_LIMIT,
+    CodexWorkerAdapter,
+    CodexWorkerInput,
+    CodexWorkerResult,
+    CommandResult,
+    _build_codex_subprocess_env,
+)
 from runtime.evaluator import Evaluator
 from runtime.github_flow import GitHubExecutionResult, GitHubFlow
 from runtime.orchestrator import Orchestrator
@@ -526,6 +533,47 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertIn("usage limit", result.known_issues[0].lower())
         self.assertIn("turn.failed", result.raw_output)
         self.assertEqual(result.commands_run[0].exit_code, 1)
+
+    def test_real_worker_ignores_usage_limit_text_inside_successful_jsonl_output(self) -> None:
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            payload = {
+                "task_id": "T012M",
+                "status": "completed",
+                "summary": "planned from repair evidence",
+                "files_changed": [],
+                "commands_run": [],
+                "tests_passed": ["planner evidence parsed"],
+                "tests_failed": [],
+                "evidence": ["repair note mentions Codex usage limit as historical context"],
+                "known_issues": [],
+                "follow_up_tasks": [],
+                "confidence": 0.9,
+            }
+            event_stream = "\n".join(
+                [
+                    json.dumps({"type": "thread.started", "thread_id": "thread-ok"}),
+                    json.dumps({"type": "turn.started"}),
+                    json.dumps(
+                        {
+                            "type": "item.completed",
+                            "item": {
+                                "type": "command_execution",
+                                "status": "completed",
+                                "aggregated_output": "phase repair note: local Codex usage limit was a previous blocker",
+                            },
+                        }
+                    ),
+                    json.dumps(payload),
+                ]
+            )
+            return subprocess.CompletedProcess(args, 0, event_stream, "")
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T012M", goal="plan with historical quota note", repository_path="."))
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.summary, "planned from repair evidence")
+        self.assertEqual(result.tests_passed, ["planner evidence parsed"])
 
     def test_real_worker_truncates_large_raw_output_after_parsing(self) -> None:
         def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
@@ -2386,6 +2434,76 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(state.blockers[0]["type"], "environment")
         self.assertIn("local Codex", state.blockers[0]["description"])
         self.assertFalse(any(event["type"] == "debug_task_created" for event in state.iteration_history))
+
+    def test_worker_raw_usage_limit_context_does_not_become_environment_blocker(self) -> None:
+        class HistoricalUsageLimitWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                raw_output = "\n".join(
+                    [
+                        json.dumps({"type": "thread.started", "thread_id": "thread-context"}),
+                        json.dumps({"type": "turn.started"}),
+                        json.dumps(
+                            {
+                                "type": "item.completed",
+                                "item": {
+                                    "type": "command_execution",
+                                    "status": "completed",
+                                    "aggregated_output": "historical repair note: Codex usage limit was resolved",
+                                },
+                            }
+                        ),
+                    ]
+                )
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="failed",
+                    summary="implementation needs a normal debug pass",
+                    tests_failed=["unit tests"],
+                    raw_output=raw_output,
+                    commands_run=[
+                        CommandResult(
+                            command="codex exec --json",
+                            exit_code=0,
+                            stdout=raw_output,
+                            stderr="",
+                        )
+                    ],
+                )
+
+        graph = TaskGraph(
+            graph_id="usage-limit-context",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Implement after historical usage limit",
+                    description="Mentioning old usage limits in raw command output is not an environment blocker.",
+                    type="frontend",
+                    assigned_agent="frontend",
+                    priority=90,
+                )
+            ],
+        )
+        worker = HistoricalUsageLimitWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "do not overclassify raw usage text",
+                initial_state=RuntimeState(objective="do not overclassify raw usage text", task_graph=graph),
+                max_iterations=1,
+            )
+
+        self.assertEqual(worker.calls, ["T001"])
+        self.assertFalse(state.blockers)
+        self.assertTrue(any(event["type"] == "debug_task_created" for event in state.iteration_history))
 
     def test_existing_nested_debug_chain_is_collapsed_to_parent_retry(self) -> None:
         class CompletingWorker:

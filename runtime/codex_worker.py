@@ -806,10 +806,13 @@ def _truncate_raw_output(output: str, *, limit: int = RAW_OUTPUT_LIMIT) -> str:
 
 
 def _codex_usage_limit_message(output: str) -> str:
-    messages: list[str] = []
     for raw_line in output.splitlines():
         line = raw_line.strip()
+        if not line:
+            continue
         if not line.startswith("{"):
+            if any(marker in line.lower() for marker in CODEX_USAGE_LIMIT_MARKERS):
+                return line
             continue
         try:
             payload = json.loads(line)
@@ -817,17 +820,16 @@ def _codex_usage_limit_message(output: str) -> str:
             continue
         if not isinstance(payload, dict):
             continue
-        message = str(payload.get("message", "") or "")
-        error = payload.get("error")
-        if isinstance(error, dict):
-            message = message or str(error.get("message", "") or "")
-        if message:
-            messages.append(message)
-    if not messages:
-        messages.append(output)
-    for message in messages:
-        lowered = message.lower()
-        if any(marker in lowered for marker in CODEX_USAGE_LIMIT_MARKERS):
+        event_type = str(payload.get("type", "") or "")
+        message = ""
+        if event_type == "error":
+            message = str(payload.get("message", "") or "")
+        elif event_type in {"turn.failed", "response.failed"}:
+            error = payload.get("error")
+            if isinstance(error, dict):
+                message = str(error.get("message", "") or "")
+            message = message or str(payload.get("message", "") or "")
+        if message and any(marker in message.lower() for marker in CODEX_USAGE_LIMIT_MARKERS):
             return message.strip()
     return ""
 

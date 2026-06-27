@@ -228,6 +228,32 @@ The correct next action is to wait for the usage window to reset, then resume
 through Alchemy. Do not edit Billing Core product files from Codex Desktop to
 work around an account quota blocker.
 
+## 2026-06-27 V2.91 Follow-Up
+
+After the 5:39 PM reset window, the Codex OK smoke passed and Billing Core was
+relaunched through Alchemy. `run_attempt_028` correctly used a fresh attempt and
+the inherited isolated worktree, but T001 stopped as an environment blocker.
+
+That was a new Alchemy classifier false positive. The Codex subprocess exited
+successfully; the raw JSONL merely contained historical repair evidence saying
+that the previous usage-limit blocker had been resolved. V2.90 scanned the whole
+JSONL stream for broad usage-limit substrings and therefore misclassified old
+context as a live quota failure.
+
+V2.91 narrows usage-limit detection:
+
+- structured Codex `error`, `turn.failed`, and `response.failed` events still
+  stop as environment blockers;
+- explicit summaries, known issues, stderr, and plain non-JSON usage-limit
+  errors still stop as environment blockers;
+- ordinary successful JSONL command output that mentions historical usage-limit
+  text no longer blocks the run.
+
+`run_attempt_028` has a `supervisor_stop.json` marker so the next Billing Core
+resume skips that false state. The execution chain remains correct: Codex
+Desktop supervises, Alchemy real workers implement, and product code is edited
+only inside the inherited run worktree.
+
 ## Stop Rules
 
 Continue iterating while Alchemy makes forward progress or exposes fixable

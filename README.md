@@ -234,6 +234,8 @@ docs/
                               V2.89 repair scope handoff and frontend large-refactor recovery.
   99_v2_90_codex_usage_limit_blocker.md
                               V2.90 local Codex usage-limit blocker classification.
+  100_v2_91_usage_limit_false_positive.md
+                              V2.91 usage-limit false positive guard.
 
 specs/
   project_brief_schema.json  Document-driven intake schema.
@@ -1369,6 +1371,15 @@ debug/retry product work, and prevents full-roadmap auto-repair from treating
 account quota as a CRM implementation task.
 
 See `docs/99_v2_90_codex_usage_limit_blocker.md`.
+
+## V2.91 Usage-Limit False Positive Guard
+
+V2.91 tightens usage-limit detection so historical quota text inside successful
+Codex JSONL command output does not become a live environment blocker. Alchemy
+still recognizes structured Codex error events, explicit summaries, known
+issues, stderr, and plain non-JSON usage-limit errors.
+
+See `docs/100_v2_91_usage_limit_false_positive.md`.
 
 Run a smoke execution:
 

@@ -1460,3 +1460,12 @@ PY"`
 - Implemented V2.90 in Alchemy: real worker JSONL usage-limit errors now return a blocked result with the reset evidence, orchestrator records them as `environment` blockers without debug/retry, and full-roadmap auto-repair treats usage-limit descriptions as non-repairable even when older states stored them as `technical_limit`.
 - Current Billing Core status: phase_010 has real forward progress through T004 in the inherited isolated worktree, but cannot safely continue until the local Codex usage window resets or an approved provider path is configured.
 - Verification passed: focused V2.90 tests `4 passed`, full `tests/test_runtime.py` `125 passed`, full `tests/test_full_roadmap_execution.py` `54 passed`, and targeted `py_compile` passed.
+
+## 2026-06-27T17:55:00+08:00 V2.91 Usage-Limit False Positive Guard
+
+- After waiting for the 5:39 PM local Codex quota window, the minimal Codex OK smoke passed with provider `openai`.
+- Relaunched Billing Core through Alchemy only. `phase_010/run_attempt_028` correctly skipped `run_attempt_027`, opened a fresh attempt, and ran T001 inside the inherited isolated worktree rather than the original Billing Core checkout.
+- Found a new Alchemy classifier bug: T001's Codex subprocess exited successfully, but V2.90 scanned the entire successful JSONL stream and matched historical repair text mentioning the previous usage limit. That produced a false `Codex CLI usage limit reached` blocked result.
+- Implemented V2.91 in Alchemy: usage-limit detection now trusts structured Codex `error`/`turn.failed`/`response.failed` events, explicit summaries/known issues/stderr, or plain non-JSON error lines, but not arbitrary successful command output.
+- Added `supervisor_stop.json` to `run_attempt_028` so the next Billing Core resume skips the false blocked attempt.
+- Verification passed: focused V2.91 regressions `4 passed`, full `tests/test_runtime.py` `127 passed`, targeted `py_compile` passed, and the phase_010 resume selector again reports `resume_from=None`, `active_run_dir=None`, and `blockers=[]`.
