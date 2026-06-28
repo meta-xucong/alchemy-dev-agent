@@ -86,17 +86,16 @@ class TaskGraphBuilder:
             ]
         )
 
+        base_verify_id = next_graph_task_id(nodes, [])
         verify_id = next_graph_task_id(nodes, preserved_task_ids)
-        if should_split_schema_final_verification_timeout(requirements, verify_id):
+        if should_split_schema_final_verification_timeout(requirements, base_verify_id):
             verification_nodes = schema_final_verification_timeout_split_nodes(
-                next_task_id=verify_id,
+                next_task_id=base_verify_id,
                 dependencies=implementation_ids or ["T001"],
                 verification_commands=verification_commands,
-                start_index=schema_final_verification_start_index(requirements),
                 scope_controls=scope_controls,
                 fallback_files=verification_files,
                 existing_nodes=nodes,
-                preserved_task_ids=preserved_task_ids,
             )
             nodes.extend(verification_nodes)
         else:
@@ -2264,33 +2263,22 @@ def should_split_schema_final_verification_timeout(requirements: list[Requiremen
     )
 
 
-def schema_final_verification_start_index(requirements: list[Requirement]) -> int:
-    text = "\n".join(requirement.text for requirement in requirements).lower()
-    if "verify implementation against project checks" in text:
-        return 0
-    for index, spec in enumerate(SCHEMA_FINAL_VERIFICATION_TIMEOUT_SPLIT_TASK_SPECS):
-        if str(spec["title"]).lower() in text:
-            return index
-    return 0
-
-
 def schema_final_verification_timeout_split_nodes(
     *,
     next_task_id: str,
     dependencies: list[str],
     verification_commands: list[str],
-    start_index: int,
     scope_controls: dict[str, list[str]] | None,
     fallback_files: list[str],
     existing_nodes: list[TaskNode],
-    preserved_task_ids: list[str] | set[str],
 ) -> list[TaskNode]:
     nodes: list[TaskNode] = []
     previous_dependencies = list(dependencies)
     command_groups = schema_final_verification_command_groups(verification_commands)
-    start_index = min(max(start_index, 0), len(SCHEMA_FINAL_VERIFICATION_TIMEOUT_SPLIT_TASK_SPECS) - 1)
-    for offset, spec in enumerate(SCHEMA_FINAL_VERIFICATION_TIMEOUT_SPLIT_TASK_SPECS[start_index:]):
-        task_id = next_task_id if offset == 0 else next_graph_task_id([*existing_nodes, *nodes], preserved_task_ids)
+    start_match = re.match(r"^T(\d{3})$", next_task_id.upper())
+    start_number = int(start_match.group(1)) if start_match else 0
+    for offset, spec in enumerate(SCHEMA_FINAL_VERIFICATION_TIMEOUT_SPLIT_TASK_SPECS):
+        task_id = f"T{start_number + offset:03d}" if start_number else next_graph_task_id([*existing_nodes, *nodes], [])
         command_group = str(spec["command_group"])
         commands = command_groups.get(command_group) or list(spec["default_commands"])
         nodes.append(
@@ -2304,7 +2292,7 @@ def schema_final_verification_timeout_split_nodes(
                 completion_criteria=list(spec["completion_criteria"]),
                 commands_to_run=list(commands),
                 relevant_files=scoped_files(list(spec["files"]), scope_controls, fallback=fallback_files),
-                priority=85 - start_index - offset,
+                priority=85 - offset,
             )
         )
         previous_dependencies = [task_id]

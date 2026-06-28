@@ -4177,3 +4177,39 @@
 - command: `git diff --check`
 - result: passed
 - next verification command: long-run state validation.
+
+## 2026-06-28T16:47:00+08:00 V2.124 Iteration-limit resume context
+
+- command: Billing Core controlled resume after V2.123
+- result: stopped bad restart
+- relevant evidence: `run_attempt_024` incorrectly started T001 after clean iteration-limit `run_attempt_023`; supervising Codex wrote `supervisor_stop.json`, and T001 was cancelled before another worker window was spent.
+- next verification command: focused planner resume regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_final_verification_timeout_repair_splits_verify_task -q`
+- result: `1 passed`
+- next verification command: focused full-roadmap bootstrap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_iteration_limit_context_preserves_clean_completed_tasks tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_build_phase_gets_minimum_iteration_budget_for_split_tail -q`
+- result: `2 passed`
+- next verification command: real phase_011 graph probe.
+
+- command: real phase_011 graph probe with synthetic iteration-limit context
+- result: passed
+- relevant evidence: T022-T25 are preserved completed and T026 is pending review.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `35 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `74 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation.

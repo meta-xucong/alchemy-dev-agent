@@ -14,7 +14,7 @@ from context.requirement_extractor import explicit_paths_from_text, extract_scop
 from intake import ProjectBriefBuilder
 from intake.schema_validation import validate_context_bundle_contract
 from planner import TaskGraphBuilder
-from planner.task_graph_builder import focused_timeout_repair_for_task, schema_final_verification_start_index
+from planner.task_graph_builder import focused_timeout_repair_for_task
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
@@ -2193,23 +2193,6 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes_by_id["T020"]["title"], "Compile residual backend cleanup contracts")
         self.assertEqual(nodes_by_id["T021"]["title"], "Stabilize schema and build verification contracts")
 
-    def test_schema_final_verification_split_resumes_from_failed_split_title(self) -> None:
-        requirements = [
-            Requirement(
-                id="R1",
-                source_document_id="repair",
-                text=(
-                    "Primary failed task IDs: T023.\n"
-                    "Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task.\n"
-                    "### Task T023 - Verify frontend tests\n"
-                    "Worker summary: Codex worker timed out after 900 seconds."
-                ),
-            )
-        ]
-
-        self.assertTrue(focused_timeout_repair_for_task(requirements, "T023"))
-        self.assertEqual(schema_final_verification_start_index(requirements), 1)
-
     def test_schema_final_verification_timeout_repair_splits_verify_task(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"
@@ -2359,6 +2342,29 @@ class DocumentToPlanTests(unittest.TestCase):
             )
 
             graph = TaskGraphBuilder().build(ContextBundleBuilder().build(brief)).to_dict()
+            resume_doc = root / "phase_repair_resume_001.md"
+            resume_doc.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair For Phase 8",
+                        "Repair attempt: iteration-limit context",
+                        "## Focused Repair Scope",
+                        "- Primary failed task IDs: T026, T027.",
+                        "- Completed tasks to preserve: T022, T023, T024, T025, T016, T017, T018, T019, T020, T021, T001, T002, T003, T004, T005, T006, T007, T008, T009, T010, T011, T012, T013, T014, T015.",
+                        "- Continue from the next incomplete review or delivery-evidence task instead of replaying split verification.",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            resumed_brief = ProjectBriefBuilder().build(
+                objective="Resume Billing Core after split verification iteration limit.",
+                documents=[phase, *(root / name for name in repair_docs), resume_doc],
+                repository_path=repo,
+                created_at="2026-06-28T16:45:00+08:00",
+            )
+
+            resumed_graph = TaskGraphBuilder().build(ContextBundleBuilder().build(resumed_brief)).to_dict()
 
         nodes_by_id = {node["id"]: node for node in graph["nodes"]}
         titles = [node["title"] for node in graph["nodes"]]
@@ -2382,6 +2388,14 @@ class DocumentToPlanTests(unittest.TestCase):
         )
         self.assertEqual(nodes_by_id["T026"]["title"], "Review delivery readiness")
         self.assertEqual(nodes_by_id["T026"]["dependencies"], ["T025"])
+        resumed_nodes_by_id = {node["id"]: node for node in resumed_graph["nodes"]}
+        self.assertEqual(resumed_nodes_by_id["T022"]["title"], "Verify backend tests")
+        self.assertEqual(resumed_nodes_by_id["T022"]["status"], "completed")
+        self.assertEqual(resumed_nodes_by_id["T025"]["title"], "Verify frontend build and lint")
+        self.assertEqual(resumed_nodes_by_id["T025"]["status"], "completed")
+        self.assertEqual(resumed_nodes_by_id["T026"]["title"], "Review delivery readiness")
+        self.assertEqual(resumed_nodes_by_id["T026"]["status"], "pending")
+        self.assertNotEqual(resumed_nodes_by_id["T026"]["title"], "Verify implementation against project checks")
 
     def test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task(self) -> None:
         with temp_plan_dir() as root:

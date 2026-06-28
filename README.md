@@ -1690,6 +1690,18 @@ caller-provided iteration budget.
 
 See `docs/132_v2_123_schema_build_iteration_budget.md`.
 
+## V2.124 Iteration-Limit Resume Context
+
+V2.124 preserves clean iteration-limit progress as resume context. If a
+schema/build attempt finishes verification tasks but exhausts its document-run
+iteration budget before review or delivery evidence, the next bootstrap now
+writes `phase_repair_resume_NNN.md` with completed task IDs and pending
+review/evidence IDs. Final verification split nodes are rebuilt with stable
+T022-T25 IDs so preserved verification tasks remain completed and T026 stays the
+review task.
+
+See `docs/133_v2_124_iteration_limit_resume_context.md`.
+
 Run a smoke execution:
 
 ```bash

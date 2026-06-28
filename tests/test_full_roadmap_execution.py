@@ -2471,6 +2471,86 @@ class FullRoadmapExecutionTests(unittest.TestCase):
 
         self.assertEqual([Path(item).name for item in docs_again], names)
 
+    def test_iteration_limit_context_preserves_clean_completed_tasks(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_011"
+        phase_dir.mkdir(parents=True)
+        iteration_run = phase_dir / "run_attempt_023"
+        stopped_run = phase_dir / "run_attempt_024"
+        iteration_run.mkdir()
+        stopped_run.mkdir()
+        record_path = phase_dir / "phase_record.json"
+        write_json(record_path, {"phase_id": "phase_011", "status": "blocked", "output_dir": str(stopped_run)})
+        for index, task_id in ((10, "T016"), (11, "T022")):
+            (phase_dir / f"phase_repair_{index:03d}.md").write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        f"- Primary failed task IDs: {task_id}.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+        write_json(
+            iteration_run / "state.json",
+            {
+                "active_tasks": [],
+                "blockers": [],
+                "completed_tasks": ["T022", "T023", "T024", "T025"],
+                "failed_tasks": [],
+                "execution_history": [
+                    {"type": "task_completed", "task_id": "T025"},
+                    {"type": "iteration_limit", "summary": "Stopped after 4 iterations."},
+                ],
+                "task_graph": {
+                    "nodes": [
+                        {"id": f"T{index:03d}", "status": "completed"}
+                        for index in range(1, 26)
+                    ]
+                    + [
+                        {"id": "T026", "status": "pending"},
+                        {"id": "T027", "status": "pending"},
+                    ]
+                },
+            },
+        )
+        write_json(stopped_run / "state.json", {"active_tasks": [], "completed_tasks": [], "task_graph": {"nodes": []}})
+        write_json(stopped_run / "supervisor_stop.json", {"reason": "bad restart stopped"})
+        old_time = time.time() - 120
+        os.utime(phase_dir / "phase_repair_010.md", (old_time, old_time))
+        os.utime(phase_dir / "phase_repair_011.md", (old_time + 10, old_time + 10))
+        os.utime(iteration_run / "state.json", (old_time + 20, old_time + 20))
+        os.utime(record_path, (old_time + 60, old_time + 60))
+        previous_record = PhaseExecutionRecord(
+            phase_id="phase_011",
+            title="Schema pruning and build",
+            status="blocked",
+            output_dir=str(stopped_run),
+            result={"status": "blocked", "runtime_state": {"blockers": []}},
+            promotion={"can_promote": False, "reasons": ["Phase score is below required threshold."]},
+        )
+
+        docs = bootstrap_phase_repair_documents(
+            phase_dir,
+            phase=RoadmapPhase(
+                phase_id="phase_011",
+                title="Schema pruning and build",
+                requirements=["Prune Ent schema.", "Fresh DB migration succeeds."],
+            ),
+            previous_record=previous_record,
+            max_repair_documents=2,
+        )
+
+        names = [Path(item).name for item in docs]
+        self.assertEqual(names, ["phase_repair_010.md", "phase_repair_011.md", "phase_repair_resume_001.md"])
+        context = Path(docs[-1]).read_text(encoding="utf-8")
+        self.assertIn("Repair attempt: iteration-limit context", context)
+        self.assertIn("Primary failed task IDs: T026, T027.", context)
+        self.assertIn("Completed tasks to preserve: T022, T023, T024, T025", context)
+        self.assertIn(f"Iteration-limit run directory: {iteration_run}", context)
+
     def test_existing_repair_context_does_not_exhaust_new_repair_budget(self) -> None:
         root = temp_root()
         repo = root / "repo"

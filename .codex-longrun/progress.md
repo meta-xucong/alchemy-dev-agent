@@ -1774,3 +1774,13 @@ PY"`
 - Added regression coverage proving schema/build `max_iterations=4` is raised to 8 and a frontend phase remains at 4.
 - Verification passed: focused full-roadmap regression, full `test_full_roadmap_execution.py`, compileall, and diff check.
 - Next step: commit/push V2.123, relaunch through the same resume entrypoint, and confirm T026/T027 run without manual product-code intervention.
+
+## 2026-06-28T16:47:00+08:00 V2.124 Iteration-Limit Resume Context
+
+- Relaunched after V2.123 and found another controller issue: `run_attempt_024` restarted at T001 instead of preserving `run_attempt_023` T022-T25 split verification evidence and continuing T026/T027.
+- Stopped `run_attempt_024` with `supervisor_stop.json`; T001 was cancelled and no stale Alchemy/Codex process remained.
+- Implemented V2.124 in `autodev/full_roadmap_executor.py`: clean iteration-limit attempts now write resume context preserving completed task IDs and naming pending review/evidence tasks.
+- Updated final verification split graph construction in `planner/task_graph_builder.py`: when final-verification timeout context is present, rebuild the fixed T022-T25 split chain even if those tasks are already preserved completed, so T026 remains `Review delivery readiness`.
+- Real phase_011 graph probe with iteration-limit context now marks T022-T25 completed and leaves T026 pending review.
+- Verification passed: focused planner regression, focused full-roadmap bootstrap regression, real graph probe, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, compileall, and diff check.
+- Next step: commit/push V2.124, relaunch through the same resume entrypoint, and confirm the next attempt starts at T026 rather than T001.

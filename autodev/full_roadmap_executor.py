@@ -841,6 +841,12 @@ def bootstrap_phase_repair_documents(
         max_repair_documents=repair_context_limit,
         require_newer_than_phase_record=False,
     )
+    iteration_limit_context = latest_iteration_limit_context_document(
+        phase_dir,
+        phase=phase,
+    )
+    if iteration_limit_context:
+        return dedupe_strings([*context_documents, iteration_limit_context])
     previous_output_dir = Path(previous_record.output_dir)
     if previous_output_dir.exists() and supervisor_stop_marker_exists(previous_output_dir):
         stopped_attempt_context = latest_supervisor_stopped_attempt_context_document(
@@ -1113,6 +1119,104 @@ def existing_verification_issue_context_document(phase_dir: Path, run_dir: Path)
     return ""
 
 
+def latest_iteration_limit_context_document(
+    phase_dir: Path,
+    *,
+    phase: RoadmapPhase,
+) -> str:
+    """Recover completed task evidence from a clean iteration-limit stop."""
+
+    for run_dir in reversed(list_phase_run_dirs(phase_dir)):
+        if supervisor_stop_marker_exists(run_dir):
+            continue
+        state = read_optional_json(run_dir / "state.json")
+        if not state_has_clean_iteration_limit_continuation(state):
+            continue
+        completed_task_ids = completed_task_ids_from_state(state)
+        pending_task_ids = pending_task_ids_from_state(state)
+        if not completed_task_ids or not pending_task_ids:
+            continue
+        existing_context = existing_iteration_limit_context_document(phase_dir, run_dir)
+        if existing_context:
+            return existing_context
+        return write_iteration_limit_context_document(
+            next_phase_repair_resume_path(phase_dir),
+            phase=phase,
+            run_dir=run_dir,
+            completed_task_ids=completed_task_ids,
+            pending_task_ids=pending_task_ids,
+        )
+    return ""
+
+
+def existing_iteration_limit_context_document(phase_dir: Path, run_dir: Path) -> str:
+    marker = f"Iteration-limit run directory: {run_dir}"
+    for candidate in sorted(phase_dir.glob("phase_repair_resume_*.md"), reverse=True):
+        try:
+            text = candidate.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if "Repair attempt: iteration-limit context" in text and marker in text:
+            return str(candidate.resolve())
+    return ""
+
+
+def state_has_clean_iteration_limit_continuation(state: dict[str, object]) -> bool:
+    if not state:
+        return False
+    if bool(state.get("done")):
+        return False
+    if _list(state.get("blockers")) or _list(state.get("active_tasks")) or _list(state.get("failed_tasks")):
+        return False
+    history = _list(state.get("execution_history"))
+    has_iteration_limit = any(
+        isinstance(item, dict)
+        and (
+            str(item.get("type", "")).lower() == "iteration_limit"
+            or "stopped after" in str(item.get("summary", "")).lower()
+        )
+        for item in history
+    )
+    return has_iteration_limit and bool(completed_task_ids_from_state(state)) and bool(pending_task_ids_from_state(state))
+
+
+def write_iteration_limit_context_document(
+    path: Path,
+    *,
+    phase: RoadmapPhase,
+    run_dir: Path,
+    completed_task_ids: Sequence[str],
+    pending_task_ids: Sequence[str],
+) -> str:
+    lines = [
+        f"# Auto Repair For {phase.title}",
+        "",
+        "Repair attempt: iteration-limit context",
+        "",
+        "## Why This Repair Exists",
+        "",
+        "A phase attempt stopped at its document-run iteration limit after completing tasks cleanly.",
+        "Do not restart the phase from scratch; preserve the completed task evidence and continue the pending review or delivery tasks.",
+        "",
+        "## Focused Repair Scope",
+        "",
+        f"- Primary failed task IDs: {', '.join(pending_task_ids)}.",
+        f"- Completed tasks to preserve: {', '.join(completed_task_ids)}.",
+        f"- Iteration-limit run directory: {run_dir}",
+        "- Continue from the next incomplete task after the preserved completed task IDs.",
+        "- Keep prior timeout split context active so task IDs do not drift when preserving completed verification tasks.",
+        "",
+        "## Repair Instructions",
+        "",
+        "- Do not restart the phase from scratch.",
+        "- Preserve all completed work from previous roadmap phases.",
+        "- Preserve completed tasks from this iteration-limit attempt unless a focused failed-task dependency requires a scoped edit.",
+        "- Continue from the pending review or delivery-evidence tasks before creating new implementation work.",
+    ]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return str(path.resolve())
+
+
 def write_verification_issue_context_document(
     path: Path,
     *,
@@ -1220,6 +1324,16 @@ def completed_task_ids_from_state(state: dict[str, object]) -> list[str]:
         if isinstance(node, dict) and str(node.get("status", "")).lower() == "completed"
     )
     return dedupe_strings(task_ids)
+
+
+def pending_task_ids_from_state(state: dict[str, object]) -> list[str]:
+    task_graph = _dict(state.get("task_graph"))
+    nodes = _list(task_graph.get("nodes"))
+    return dedupe_strings(
+        str(node.get("id", ""))
+        for node in nodes
+        if isinstance(node, dict) and str(node.get("status", "")).lower() in {"pending", "ready", "active"}
+    )
 
 
 def next_phase_repair_resume_path(phase_dir: Path) -> Path:
