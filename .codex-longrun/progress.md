@@ -1865,3 +1865,13 @@ PY"`
 - Real Billing Core graph probe generated `final_verification_repair_resume_002.md`, preserved T001/T002 completed, and made T003 `Repair final backend Ent schema contracts` the next pending task.
 - Verification passed: focused regressions, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, full `test_runtime.py`, compileall, and `git diff --check`.
 - Next step: commit/push V2.132, relaunch final verification through `resume_v2_88_supervised_probe.ps1`, and monitor that Alchemy starts at T003 in the inherited worktree rather than replaying T002 or the broad T003 bundle.
+
+## 2026-06-28T22:49:00+08:00 V2.133 Final Backend Go Module Companions
+
+- Relaunched after V2.132. `final_verification/run_attempt_007` correctly preserved T001/T002 and ran T003 `Repair final backend Ent schema contracts` in the inherited CRM worktree.
+- T003 completed before timeout, but Alchemy boundary audit failed it because Go tooling updated `backend/go.sum` while the task allowed only `backend/ent/**`, `backend/ent/schema/**`, and `backend/ent/migrate/**`.
+- Supervising Codex stopped `T003-DEBUG-1` with `supervisor_stop.json` because it inherited the same missing companion-file boundary and would likely repeat the failure.
+- Implemented V2.133 in `planner/task_graph_builder.py`: final backend Ent, domain/repository, and service/handler/server repair tasks now include `backend/go.mod` and `backend/go.sum` as allowed Go module companion files.
+- Real Billing Core graph probe generated `final_verification_repair_resume_003.md`, preserved T001/T002, and shows T003/T004/T005 all include `backend/go.sum`.
+- Verification passed: focused final repair graph test, full `test_document_to_plan.py`, focused final resume regression, compileall, `git diff --check`, and real Billing Core graph probe.
+- Next step: commit/push V2.133, relaunch final verification, and confirm T003 can complete without boundary rollback before Alchemy proceeds to T004.

@@ -606,6 +606,8 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                     "backend/ent/**",
                     "backend/ent/schema/**",
                     "backend/ent/migrate/**",
+                    "backend/go.mod",
+                    "backend/go.sum",
                 ],
                 "completion_criteria": [
                     "Backend Ent schema and generated table contracts align with identity, wallet, metering, charging, reconciliation, analytics, audit, and admin concepts.",
@@ -625,6 +627,8 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 "relevant_files": [
                     "backend/internal/domain/**",
                     "backend/internal/repository/**",
+                    "backend/go.mod",
+                    "backend/go.sum",
                 ],
                 "completion_criteria": [
                     "Domain and repository contracts no longer expose upstream account-pool, proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior.",
@@ -646,6 +650,8 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                     "backend/internal/handler/**",
                     "backend/internal/server/**",
                     "backend/cmd/**",
+                    "backend/go.mod",
+                    "backend/go.sum",
                 ],
                 "completion_criteria": [
                     "Service, handler, server, and command wiring expose CRM billing, identity, wallet, metering, charging, reconciliation, analytics, audit, and admin behavior only.",

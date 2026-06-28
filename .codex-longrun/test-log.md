@@ -4477,3 +4477,35 @@
 - result: passed
 - relevant evidence: generated `final_verification_repair_resume_002.md`; graph preserves T001/T002 completed and starts next at T003 `Repair final backend Ent schema contracts`.
 - next verification command: commit/push and controlled Billing Core final verification relaunch.
+
+## 2026-06-28T22:49:00+08:00 V2.133 Final backend Go module companions
+
+- command: Billing Core final verification resume after V2.132
+- result: T003 completed before timeout but failed Alchemy boundary audit
+- relevant evidence: `run_attempt_007` T003 changed Ent files and `backend/go.sum`; boundary audit reported `Out-of-scope files changed: backend/go.sum`. `T003-DEBUG-1` was supervisor-stopped before repeating the same missing boundary.
+- next verification command: focused final repair graph test.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_repair_context_builds_editable_repair_task -q`
+- result: `1 passed`
+- next verification command: real Billing Core final-verification graph probe.
+
+- command: real Billing Core final-verification graph probe against `.alchemy\billing_core_v274_20260624_012\final_verification`
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_003.md`; graph preserves T001/T002 and T003/T004/T005 include `backend/go.mod` and `backend/go.sum`.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `37 passed`
+- next verification command: focused final resume regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_relaunch_writes_fresh_resume_for_latest_failed_attempt -q`
+- result: `1 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner tests -q`
+- result: passed
+- next verification command: diff check.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation and V2.133 relaunch.

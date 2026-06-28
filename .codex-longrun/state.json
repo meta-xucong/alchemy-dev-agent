@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_final_repair_resume_progress_grace_v2_132",
+  "current_phase": "billing_core_final_backend_go_module_companions_v2_133",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -71,15 +71,16 @@
     "implemented V2.129 final verification repair handoff and read-only debug inheritance hardening",
     "implemented V2.130 final source-boundary repair timeout split and final verification iteration floor",
     "implemented V2.131 exact-file final backend migration repair scope",
-    "implemented V2.132 final repair resume refresh, backend schema/domain split, and progress-aware worker timeout grace"
+    "implemented V2.132 final repair resume refresh, backend schema/domain split, and progress-aware worker timeout grace",
+    "implemented V2.133 final backend Go module companion scope for Ent/domain/service repair tasks"
   ],
   "next_actions": [
-    "Run long-run state validation and final diff/status checks for V2.132.",
-    "Commit and push V2.132 final repair resume and progress-grace changes.",
+    "Run long-run state validation and final diff/status checks for V2.133.",
+    "Commit and push V2.133 final backend Go module companion scope.",
     "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1.",
-    "Confirm final verification run_attempt_007 preserves T001/T002 and starts at T003 Repair final backend Ent schema contracts in the inherited worktree.",
-    "Monitor T003/T004/T005 product repair workers; Codex Desktop must not directly implement CRM product changes.",
-    "If the bounded progress grace still expires on a legitimately active worker, inspect lifecycle snapshots and split the task further before raising global timeout budgets.",
+    "Confirm final verification run_attempt_008 preserves T001/T002, starts at T003, and allows backend/go.sum without boundary rollback.",
+    "Monitor T003 through T004/T005 product repair workers; Codex Desktop must not directly implement CRM product changes.",
+    "If another boundary companion appears, fix Alchemy scope expansion first and relaunch rather than patching product code directly.",
     "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
   ],
   "tests_run": [
@@ -600,7 +601,9 @@
     "Before V2.132, final verification relaunches reused an older final_verification_repair_resume_001.md even after a newer failed attempt, so completed T002 evidence and T003 timeout context from run_attempt_006 were not handed to the next graph.",
     "Before V2.132, final backend schema/domain repair bundled Ent schema/generated code, domain, repository, service, handler, server, and command wiring into one worker, causing T003 to hit the 900 second timeout after T002 succeeded.",
     "Before V2.132, real worker timeouts were not progress-aware; a worker with active Go/link child processes could be terminated exactly at the hard timeout instead of receiving a bounded, recorded grace window.",
-    "V2.132 adds only one bounded progress-grace window for active verification/build child processes. If a task still exceeds the original timeout plus grace, Alchemy should split the task further rather than globally increasing worker budgets."
+    "V2.132 adds only one bounded progress-grace window for active verification/build child processes. If a task still exceeds the original timeout plus grace, Alchemy should split the task further rather than globally increasing worker budgets.",
+    "Before V2.133, final backend Ent schema repair did not include backend/go.sum, so a successful Ent repair worker could fail boundary audit when Go tooling refreshed module checksums.",
+    "Before V2.133, final backend domain/repository and service/handler/server repair tasks also lacked backend/go.mod and backend/go.sum companion scope, risking the same false boundary failure during narrow Go verification."
   ],
   "blockers": [],
   "done_criteria": [
@@ -608,7 +611,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T22:08:00+08:00",
+  "last_verified_at": "2026-06-28T22:49:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T22:08:00+08:00"
+  "updated_at": "2026-06-28T22:49:00+08:00"
 }
