@@ -664,7 +664,12 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
             text
         ) or should_preserve_final_frontend_api_i18n_split(text)
-        split_frontend_view_components = should_split_final_frontend_view_component_timeout(text)
+        split_admin_components = should_split_final_frontend_admin_component_timeout(text)
+        split_frontend_view_components = (
+            should_split_final_frontend_view_component_timeout(text)
+            or should_preserve_final_frontend_view_component_split(text)
+            or split_admin_components
+        )
         specs.extend(
             final_frontend_api_i18n_repair_task_specs(
                 split=split_api_i18n
@@ -674,6 +679,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             final_frontend_routes_views_repair_task_specs(
                 split=should_split_final_frontend_routes_views_timeout(text) or split_frontend_view_components,
                 split_view_components=split_frontend_view_components,
+                split_admin_components=split_admin_components,
             )
         )
     return specs
@@ -724,7 +730,18 @@ def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
             "t007",
             "t008",
         )
-    ) and any(marker in text for marker in ("primary failed task ids: t009", "primary failed task ids: t010"))
+    ) and any(
+        marker in text
+        for marker in (
+            "primary failed task ids: t009",
+            "primary failed task ids: t010",
+            "primary failed task ids: t011",
+            "primary failed task ids: t012",
+            "primary failed task ids: t013",
+            "primary failed task ids: t014",
+            "primary failed task ids: t015",
+        )
+    )
 
 
 def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, object]]:
@@ -859,10 +876,76 @@ def should_split_final_frontend_view_component_timeout(text: str) -> bool:
     )
 
 
+def should_preserve_final_frontend_view_component_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend account component contracts",
+            "repair final frontend admin operation component contracts",
+            "repair final frontend analytics and shared component contracts",
+            "repair final frontend view page contracts",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t009",
+            "t010",
+        )
+    ) and any(
+        marker in text
+        for marker in (
+            "primary failed task ids: t011",
+            "primary failed task ids: t012",
+            "primary failed task ids: t013",
+            "primary failed task ids: t014",
+            "primary failed task ids: t015",
+        )
+    )
+
+
+def should_split_final_frontend_admin_component_timeout(text: str) -> bool:
+    focused_admin_scope = "primary failed task ids: t011" in text and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin operation component contracts",
+            "frontend/src/components/admin",
+            "components/admin",
+        )
+    )
+    if focused_admin_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    if "repair final frontend admin operation component contracts" in text:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "primary failed task ids: t011",
+            "frontend",
+            "admin",
+            "component",
+        )
+    )
+
+
 def final_frontend_routes_views_repair_task_specs(
     *,
     split: bool,
     split_view_components: bool = False,
+    split_admin_components: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -952,92 +1035,177 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 90,
     }
+    account_component_task = {
+        "title": "Repair final frontend account component contracts",
+        "description": (
+            "Align account-facing frontend components with CRM identity, connector, capacity, wallet, and metering language."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/account/**",
+            "frontend/src/components/auth/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Account and auth components no longer present upstream account, provider channel, proxy, model-routing, or subscription-plan behavior.",
+            "Component contracts compile against CRM identity, connector, wallet, capacity, entitlement, and metering types.",
+        ],
+        "priority": 92,
+    }
+    admin_component_task = {
+        "title": "Repair final frontend admin operation component contracts",
+        "description": (
+            "Align admin operation components with CRM billing, connector, monitoring, payment, user, and usage administration."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/admin/**",
+            "frontend/src/components/channels/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Admin components no longer expose relay-era channel, upstream account, proxy, model-routing, or token-log product language.",
+            "Admin component consumers compile against CRM billing, connector, monitor, payment, user, usage, audit, and reconciliation contracts.",
+        ],
+        "priority": 91,
+    }
+    admin_split_tasks = [
+        {
+            "title": "Repair final frontend admin account identity components",
+            "description": (
+                "Align admin account, user, announcement, and compliance components with CRM identity, wallet, account, and audit workflows."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/account/**",
+                "frontend/src/components/admin/user/**",
+                "frontend/src/components/admin/announcements/**",
+                "frontend/src/components/admin/AdminComplianceDialog.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin account, user, announcement, and compliance components no longer expose upstream account, provider-channel, token-log, proxy, or model-routing behavior.",
+                "These components compile against CRM identity, wallet, account, audit, and notification contracts.",
+            ],
+            "priority": 91,
+        },
+        {
+            "title": "Repair final frontend admin connector channel components",
+            "description": (
+                "Align admin connector, channel, group, proxy-compatibility, and available-channel components with CRM connector and capacity semantics."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/channel/**",
+                "frontend/src/components/admin/group/**",
+                "frontend/src/components/admin/proxy/**",
+                "frontend/src/components/admin/ErrorPassthroughRulesModal.vue",
+                "frontend/src/components/admin/TLSFingerprintProfilesModal.vue",
+                "frontend/src/components/channels/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Connector and channel components no longer present relay provider channels, proxy resale, or model-routing as CRM product behavior.",
+                "Remaining connector/capacity UI is framed as CRM integration infrastructure and compiles against shared CRM types.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final frontend admin monitor components",
+            "description": (
+                "Align admin monitor components with CRM observability, health, and operational monitoring semantics."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/monitor/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Monitor components no longer surface upstream account, provider-channel, token-log, proxy, or model-routing product language.",
+                "Monitoring UI describes CRM connector health, usage health, billing operations, and observability checks.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final frontend admin usage payment components",
+            "description": (
+                "Align admin usage and payment components with CRM metering, wallet, charging, reconciliation, revenue, and refund workflows."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/usage/**",
+                "frontend/src/components/admin/payment/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Usage and payment components use CRM metering, wallet, charging, revenue, refund, and reconciliation language.",
+                "Usage/payment tests and component contracts no longer depend on token relay, provider-channel, or token-log concepts.",
+            ],
+            "priority": 88,
+        },
+    ]
+    analytics_component_task = {
+        "title": "Repair final frontend analytics and shared component contracts",
+        "description": (
+            "Align charts, guide, common, and shared display components with final CRM analytics and billing semantics."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/charts/**",
+            "frontend/src/components/common/**",
+            "frontend/src/components/Guide/**",
+            "frontend/src/components/ui/**",
+            "frontend/src/styles/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Shared display components use CRM analytics, usage, wallet, billing, and audit language.",
+            "Residual token, upstream, provider, proxy, and model-routing references are removed or quarantined as internal compatibility where required.",
+        ],
+        "priority": 87,
+    }
+    view_page_task = {
+        "title": "Repair final frontend view page contracts",
+        "description": (
+            "Align reachable view pages with the final CRM product boundary after component cleanup."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/views/**",
+            "frontend/src/components/**",
+            "frontend/src/styles/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Reachable view pages no longer present token relay, provider channel, upstream account, model-routing, proxy, or subscription-plan behavior.",
+            "View pages compile against CRM billing, identity, wallet, metering, payment, analytics, audit, and admin workflows.",
+        ],
+        "priority": 86,
+    }
     if split_view_components:
-        return [
-            route_task,
-            {
-                "title": "Repair final frontend account component contracts",
-                "description": (
-                    "Align account-facing frontend components with CRM identity, connector, capacity, wallet, and metering language."
-                ),
-                "assigned_agent": "frontend",
-                "relevant_files": [
-                    "frontend/src/components/account/**",
-                    "frontend/src/components/auth/**",
-                    "frontend/src/types/**",
-                    "frontend/package.json",
-                    "frontend/pnpm-lock.yaml",
-                ],
-                "completion_criteria": [
-                    "Account and auth components no longer present upstream account, provider channel, proxy, model-routing, or subscription-plan behavior.",
-                    "Component contracts compile against CRM identity, connector, wallet, capacity, entitlement, and metering types.",
-                ],
-                "priority": 92,
-            },
-            {
-                "title": "Repair final frontend admin operation component contracts",
-                "description": (
-                    "Align admin operation components with CRM billing, connector, monitoring, payment, user, and usage administration."
-                ),
-                "assigned_agent": "frontend",
-                "relevant_files": [
-                    "frontend/src/components/admin/**",
-                    "frontend/src/components/channels/**",
-                    "frontend/src/types/**",
-                    "frontend/package.json",
-                    "frontend/pnpm-lock.yaml",
-                ],
-                "completion_criteria": [
-                    "Admin components no longer expose relay-era channel, upstream account, proxy, model-routing, or token-log product language.",
-                    "Admin component consumers compile against CRM billing, connector, monitor, payment, user, usage, audit, and reconciliation contracts.",
-                ],
-                "priority": 91,
-            },
-            {
-                "title": "Repair final frontend analytics and shared component contracts",
-                "description": (
-                    "Align charts, guide, common, and shared display components with final CRM analytics and billing semantics."
-                ),
-                "assigned_agent": "frontend",
-                "relevant_files": [
-                    "frontend/src/components/charts/**",
-                    "frontend/src/components/common/**",
-                    "frontend/src/components/Guide/**",
-                    "frontend/src/components/ui/**",
-                    "frontend/src/styles/**",
-                    "frontend/src/types/**",
-                    "frontend/package.json",
-                    "frontend/pnpm-lock.yaml",
-                ],
-                "completion_criteria": [
-                    "Shared display components use CRM analytics, usage, wallet, billing, and audit language.",
-                    "Residual token, upstream, provider, proxy, and model-routing references are removed or quarantined as internal compatibility where required.",
-                ],
-                "priority": 90,
-            },
-            {
-                "title": "Repair final frontend view page contracts",
-                "description": (
-                    "Align reachable view pages with the final CRM product boundary after component cleanup."
-                ),
-                "assigned_agent": "frontend",
-                "relevant_files": [
-                    "frontend/src/views/**",
-                    "frontend/src/components/**",
-                    "frontend/src/styles/**",
-                    "frontend/src/types/**",
-                    "frontend/package.json",
-                    "frontend/pnpm-lock.yaml",
-                ],
-                "completion_criteria": [
-                    "Reachable view pages no longer present token relay, provider channel, upstream account, model-routing, proxy, or subscription-plan behavior.",
-                    "View pages compile against CRM billing, identity, wallet, metering, payment, analytics, audit, and admin workflows.",
-                ],
-                "priority": 89,
-            },
-            state_task,
-            test_task,
+        component_tasks = [
+            account_component_task,
+            *(admin_split_tasks if split_admin_components else [admin_component_task]),
+            analytics_component_task,
+            view_page_task,
         ]
+        return [route_task, *component_tasks, state_task, test_task]
     return [
         route_task,
         {

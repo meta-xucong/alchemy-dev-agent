@@ -1928,3 +1928,14 @@ PY"`
 - Added focused document-to-plan and full-roadmap resume regressions, plus `docs/147_v2_138_final_frontend_view_component_timeout_split.md`.
 - Generated real `final_verification_repair_resume_008.md`; lightweight graph probe shows T001-T009 preserved completed and split frontend T010-T015 pending before final gates.
 - Next step: run full document-to-plan/full-roadmap regressions, commit/push V2.138, relaunch the controlled Billing Core final verification, and monitor split T010 instead of replaying the broad view/component task.
+
+## 2026-06-29T06:09:44+08:00 V2.139 Final Frontend Admin Component Timeout Split
+
+- Relaunched after V2.138. `final_verification/run_attempt_013` preserved T001-T009, completed split T010 `Repair final frontend account component contracts`, and advanced to T011.
+- T011 `Repair final frontend admin operation component contracts` still bundled too many admin component families and timed out after 900 seconds.
+- Alchemy handled the timeout correctly: it recorded `B-T011-1`, stopped the run, did not launch same-scope debug work, and did not dispatch downstream T012.
+- Implemented V2.139 in `planner/task_graph_builder.py`: final T011 timeout resumes preserve T001-T010 and split the admin component worker into admin account/identity, connector/channel, monitor, and usage/payment tasks.
+- Implemented V2.139 in `autodev/full_roadmap_executor.py`: final verification repair docs now include a machine-readable focused-task title bullet, and the final verification minimum iteration budget is raised to 24 for the split serial tail.
+- Added focused document-to-plan and full-roadmap resume regressions, plus `docs/148_v2_139_final_frontend_admin_component_timeout_split.md`.
+- Generated real `final_verification_repair_resume_009.md`; graph probe shows T001-T010 preserved completed and T011 starting at `Repair final frontend admin account identity components`.
+- Next step: commit/push V2.139, relaunch the controlled Billing Core final verification, and monitor split T011 without direct Codex Desktop product-code edits.

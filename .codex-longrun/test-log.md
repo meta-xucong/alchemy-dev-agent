@@ -4680,3 +4680,32 @@
 - command: `python -B -m compileall planner autodev tests -q`
 - result: passed
 - next verification command: diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
+
+## 2026-06-29T06:09:44+08:00 V2.139 Final frontend admin component timeout split
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_component_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_frontend_view_component_timeout_is_split_again -q`
+- result: failed, then passed
+- relevant error summary: initial fixture did not expose the focused T011 admin title through ContextBundle key requirements, so the planner preserved the broad admin task.
+- fix attempted: final verification repair docs now emit `Must continue focused task <id>: <title>.`, and the fixture mirrors that machine-readable bullet.
+- next verification command: focused full-roadmap final resume regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_admin_component_timeout_focus tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_view_component_timeout_focus -q`
+- result: `2 passed`
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `41 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `87 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner autodev tests -q`
+- result: passed
+- next verification command: real Billing Core final-verification resume graph probe after run_attempt_013.
+
+- command: real Billing Core final-verification resume graph probe after `run_attempt_013`
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_009.md`; graph construction preserves T001-T010 completed and starts T011 as `Repair final frontend admin account identity components`.
+- next verification command: diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.

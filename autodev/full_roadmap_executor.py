@@ -553,7 +553,7 @@ class FullRoadmapExecutor:
                 effective_repository_path if effective_repository_path != repository_path else None
             ),
         )
-        final_run_payload["max_iterations"] = max(int(final_run_payload.get("max_iterations", 0) or 0), 12)
+        final_run_payload["max_iterations"] = max(int(final_run_payload.get("max_iterations", 0) or 0), 24)
         first_attempt_index = next_final_verification_attempt_index(output_dir)
         for attempt_offset in range(max_attempts):
             attempt_index = first_attempt_index + attempt_offset
@@ -1795,6 +1795,8 @@ def repair_task_focus_lines(task_id: str, task: dict[str, object]) -> list[str]:
     status = str(task.get("status", "") or "").strip()
     result = latest_worker_result_from_task(task)
     lines = ["", f"### Task {task_id}{f' - {title}' if title else ''}", ""]
+    if title:
+        lines.append(f"- Must continue focused task {task_id}: {title}.")
     if status:
         lines.append(f"- Last task status: {status}.")
     relevant_files = dedupe_strings(str(item) for item in _list(task.get("relevant_files")))
