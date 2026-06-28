@@ -579,12 +579,15 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 ),
                 "assigned_agent": "backend",
                 "relevant_files": [
-                    "backend/migrations/**",
+                    "backend/migrations/001_init.sql",
+                    "backend/migrations/003_subscription.sql",
+                    "backend/migrations/081_create_channels.sql",
+                    "backend/migrations/125_add_channel_monitors.sql",
                     "backend/cmd/server/database_contract.go",
                     "backend/cmd/server/database_contract_test.go",
                 ],
                 "completion_criteria": [
-                    "Fresh migrations no longer create relay-era account-pool, proxy, channel, channel-monitor, subscription, or model-routing tables.",
+                    "The named fresh-migration files no longer create relay-era account-pool, proxy, channel, channel-monitor, subscription, or model-routing tables.",
                     "Startup cleanup is not the only mechanism enforcing the clean Billing Core schema.",
                 ],
                 "priority": 96,

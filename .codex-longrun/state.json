@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_final_repair_timeout_split_v2_130",
+  "current_phase": "billing_core_final_migration_repair_scope_v2_131",
   "phase_status": "verifying",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -69,13 +69,14 @@
     "implemented V2.127 final audit stale-evidence filtering, final verification audit/test graph, and fresh final attempt directory selection",
     "implemented V2.128 final verification deterministic planning pre-completion so final audit starts at T002",
     "implemented V2.129 final verification repair handoff and read-only debug inheritance hardening",
-    "implemented V2.130 final source-boundary repair timeout split and final verification iteration floor"
+    "implemented V2.130 final source-boundary repair timeout split and final verification iteration floor",
+    "implemented V2.131 exact-file final backend migration repair scope"
   ],
   "next_actions": [
-    "Run diff check and long-run state validation for V2.130.",
-    "Commit and push V2.130 final repair timeout split.",
-    "Relaunch the controlled Billing Core full-roadmap run so final verification starts at split T002 backend migration repair.",
-    "Monitor the Alchemy product repair workers; do not edit CRM product code directly from Codex Desktop.",
+    "Run diff check and long-run state validation for V2.131.",
+    "Commit and push V2.131 final migration repair scope.",
+    "Relaunch the controlled Billing Core full-roadmap run so final verification starts at exact-file T002 migration repair.",
+    "Monitor the Alchemy product repair worker; do not edit CRM product code directly from Codex Desktop.",
     "Inspect final audit markers and final verification worker output; if product gaps remain, fix Alchemy repair handoff first and let Alchemy perform product repairs inside the inherited worktree.",
     "Produce the CRM deliverability assessment and supplemental development document after final audit evidence is available.",
     "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after final audit behavior is proven."
@@ -508,7 +509,13 @@
     "Real Billing Core final-verification split repair graph probe after V2.130 => T002 backend migration, T003 backend schema/domain, T004 frontend API/i18n, T005 frontend route/view/test, then T006 audit/T007 simulation/T008 real/T009 review.",
     "python -B -m pytest tests/test_document_to_plan.py -q => 37 passed after V2.130",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 80 passed after V2.130",
-    "python -B -m compileall planner autodev tests -q => passed after V2.130"
+    "python -B -m compileall planner autodev tests -q => passed after V2.130",
+    "Billing Core final verification resume after V2.130 => run_attempt_005 T002 backend migration repair still timed out at 900s with no commands/evidence/changes while scoped to backend/migrations/**.",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_repair_context_builds_editable_repair_task -q => 1 passed after V2.131",
+    "Real Billing Core final-verification graph probe after V2.131 => T002 exact migration/database-contract files only.",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 37 passed after V2.131",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 80 passed after V2.131",
+    "python -B -m compileall planner tests -q => passed after V2.131"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -587,7 +594,8 @@
     "Before V2.129, failed final verification reports did not seed relaunch-safe repair context, so Alchemy could repeat read-only audits instead of creating an editable final repair task.",
     "As of V2.129, Billing Core final audit has found real remaining product blockers: fresh migrations/schema/frontend API/i18n surfaces still expose relay-era source-boundary concepts and need Alchemy product repair in the inherited worktree.",
     "Before V2.130, final source-boundary repair still bundled backend migration/schema/domain and frontend API/i18n/route/view/test cleanup into one broad worker that timed out and rolled back changes.",
-    "Before V2.130, final verification could keep the caller max_iterations=4 even after final repair was split into more than four tasks."
+    "Before V2.130, final verification could keep the caller max_iterations=4 even after final repair was split into more than four tasks.",
+    "Before V2.131, final backend migration repair still used backend/migrations/** and timed out with no output or preserved changes on Billing Core."
   ],
   "blockers": [],
   "done_criteria": [
@@ -595,7 +603,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T20:22:00+08:00",
+  "last_verified_at": "2026-06-28T20:52:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T20:22:00+08:00"
+  "updated_at": "2026-06-28T20:52:00+08:00"
 }

@@ -1761,6 +1761,15 @@ handoff gates.
 
 See `docs/139_v2_130_final_repair_timeout_split.md`.
 
+## V2.131 Final Migration Repair Scope
+
+V2.131 narrows the first final source-boundary repair task from
+`backend/migrations/**` to the exact migration and database-contract files named
+by the final audit evidence. This prevents the backend migration repair worker
+from spending its full budget scanning the whole migration directory.
+
+See `docs/140_v2_131_final_migration_repair_scope.md`.
+
 Run a smoke execution:
 
 ```bash

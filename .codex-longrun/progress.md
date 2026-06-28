@@ -1845,3 +1845,11 @@ PY"`
 - Real Billing Core graph probe now shows T002-T005 split repairs followed by T006 audit, T007 simulation, T008 real checks, and T009 review.
 - Verification passed: focused tests, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, and compileall.
 - Next step: commit/push V2.130, relaunch final verification, and monitor T002 backend migration repair.
+
+## 2026-06-28T20:52:00+08:00 V2.131 Final Migration Repair Scope
+
+- Relaunched after V2.130. `run_attempt_005` started T002 `Repair final backend migration contracts`, but it still timed out after 900 seconds with no commands, no evidence, and no preserved file changes.
+- Implemented V2.131 in `planner/task_graph_builder.py`: the first final repair task now targets only the exact migration/database-contract files named by the audit evidence instead of `backend/migrations/**`.
+- Real Billing Core graph probe now shows T002 relevant files limited to `001_init.sql`, `003_subscription.sql`, `081_create_channels.sql`, `125_add_channel_monitors.sql`, and database contract files.
+- Verification passed: focused repair graph test, real graph probe, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, and compileall.
+- Next step: commit/push V2.131, relaunch final verification, and monitor exact-file T002 migration repair.

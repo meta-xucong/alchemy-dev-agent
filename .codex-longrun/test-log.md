@@ -4210,6 +4210,34 @@
 - result: passed
 - next verification command: diff check and state validation.
 
+## 2026-06-28T20:52:00+08:00 V2.131 Final migration repair scope
+
+- command: Billing Core final verification resume after V2.130
+- result: exact backend migration split still needed
+- relevant evidence: `run_attempt_005` T002 `Repair final backend migration contracts` timed out after 900 seconds with no commands, no evidence, and no preserved changes while scoped to `backend/migrations/**`.
+- next verification command: focused exact-file repair graph test.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_repair_context_builds_editable_repair_task -q`
+- result: `1 passed`
+- next verification command: real Billing Core final-verification graph probe.
+
+- command: real Billing Core final-verification graph probe after V2.131
+- result: passed
+- relevant evidence: T002 repair relevant files are exact migration/database-contract files, not `backend/migrations/**`.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `37 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `80 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
 ## 2026-06-28T19:37:00+08:00 V2.129 Final verification repair handoff
 
 - command: Billing Core final audit resume after V2.128
