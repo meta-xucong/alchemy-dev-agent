@@ -1427,6 +1427,98 @@ SCHEMA_ENT_CALLER_ALIGNMENT_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+SCHEMA_REPOSITORY_CALLER_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Align account repository Ent callers",
+        "description": (
+            "Patch account and identity repository callers that still reference removed Ent edges or generated "
+            "clients after schema pruning."
+        ),
+        "completion_criteria": (
+            "Account and identity repository callers no longer reference removed Proxy or retired generated Ent clients.",
+            "Repository package compile verification is attempted with a lightweight no-test run or the remaining blockers are recorded for the next repository split task.",
+        ),
+        "markers": (
+            "repository",
+            "account_repo",
+            "identity",
+            "api key",
+            "proxy",
+            "ent callers",
+        ),
+        "files": (
+            "backend/internal/repository/account_repo.go",
+            "backend/internal/repository/account_repo*_test.go",
+            "backend/internal/repository/auth_identity*.go",
+            "backend/internal/repository/identity*.go",
+            "backend/internal/repository/api_key*.go",
+            "backend/internal/repository/user_repo*.go",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/repository -run '^$'",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Remove retired generated-client repositories",
+        "description": (
+            "Remove or neutralize repository implementations, tests, and providers for Ent clients that no longer "
+            "exist after Billing Core schema pruning."
+        ),
+        "completion_criteria": (
+            "Proxy, channel monitor, error passthrough, TLS fingerprint, and user platform quota repositories no longer call removed generated Ent clients.",
+            "Repository provider wiring no longer registers retired repository constructors.",
+        ),
+        "markers": (
+            "repository",
+            "proxy",
+            "channel monitor",
+            "error passthrough",
+            "tls fingerprint",
+            "user platform quota",
+            "wire",
+        ),
+        "files": (
+            "backend/internal/repository/proxy*.go",
+            "backend/internal/repository/channel_monitor*.go",
+            "backend/internal/repository/error_passthrough*.go",
+            "backend/internal/repository/tls_fingerprint*.go",
+            "backend/internal/repository/user_platform_quota*.go",
+            "backend/internal/repository/wire.go",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/repository -run '^$'",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Align remaining repository compile contracts",
+        "description": (
+            "Close residual repository compile errors after account and retired-client repository patches without "
+            "taking over service or server cleanup."
+        ),
+        "completion_criteria": (
+            "Remaining repository package compile errors are fixed or narrowed to explicit service/server follow-ups.",
+            "Repository package lightweight compile verification passes or records focused residual blockers.",
+        ),
+        "markers": (
+            "repository",
+            "tests",
+            "compile",
+            "ent callers",
+        ),
+        "files": (
+            "backend/internal/repository/*.go",
+            "backend/internal/repository/*_test.go",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/repository -run '^$'",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -1678,7 +1770,18 @@ def schema_ent_regeneration_timeout_split_task_specs(requirements: list[Requirem
     split_caller_alignment = focused_schema_ent_caller_alignment_timeout_repair(requirements)
     for spec in SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS:
         if spec["title"] == "Align repository callers after Ent regeneration" and split_caller_alignment:
-            specs.extend(SCHEMA_ENT_CALLER_ALIGNMENT_TIMEOUT_SPLIT_TASK_SPECS)
+            specs.extend(schema_ent_caller_alignment_timeout_split_task_specs(requirements))
+        else:
+            specs.append(spec)
+    return tuple(specs)
+
+
+def schema_ent_caller_alignment_timeout_split_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
+    specs: list[dict[str, object]] = []
+    split_repository_alignment = focused_schema_repository_ent_caller_timeout_repair(requirements)
+    for spec in SCHEMA_ENT_CALLER_ALIGNMENT_TIMEOUT_SPLIT_TASK_SPECS:
+        if spec["title"] == "Align repository Ent callers" and split_repository_alignment:
+            specs.extend(SCHEMA_REPOSITORY_CALLER_TIMEOUT_SPLIT_TASK_SPECS)
         else:
             specs.append(spec)
     return tuple(specs)
@@ -1702,6 +1805,10 @@ def focused_schema_ent_regeneration_timeout_repair(requirements: list[Requiremen
 
 def focused_schema_ent_caller_alignment_timeout_repair(requirements: list[Requirement]) -> bool:
     return focused_timeout_repair_for_task(requirements, "T008")
+
+
+def focused_schema_repository_ent_caller_timeout_repair(requirements: list[Requirement]) -> bool:
+    return focused_timeout_repair_for_task(requirements, "T009")
 
 
 def schema_build_refactor_relevant_files(

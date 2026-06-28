@@ -3943,7 +3943,47 @@
 
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
+- next verification command: commit/push V2.119, then controlled Billing Core relaunch.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
 - next verification command: commit/push V2.118, then controlled Billing Core relaunch.
+
+## 2026-06-28T12:04:53+08:00 V2.119 Repository caller timeout split
+
+- command: Billing Core controlled resume after V2.118
+- result: T008 inventory completed; T009 repository caller alignment timed out at 900 seconds
+- relevant evidence: `run_attempt_019` completed T008 and wrote `phase_repair_008.md`; T008 evidence identifies account proxy edge callers, retired generated-client repositories, and repository wire providers as separate target groups.
+- next verification command: focused planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_repository_caller_timeout_repair_splits_repository_alignment_task -q`
+- result: `1 passed`
+- next verification command: focused full-roadmap repair-context regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget -q`
+- result: `1 passed`
+- next verification command: real phase_011 graph probe.
+
+- command: real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_008.md`
+- result: passed
+- relevant evidence: T008 is preserved completed; T009-T011 are `Align account repository Ent callers`, `Remove retired generated-client repositories`, and `Align remaining repository compile contracts`.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `32 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `72 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev planner tests -q`
+- result: passed
+- next verification command: diff check and long-run state validation.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation.
 
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed

@@ -1712,3 +1712,13 @@ PY"`
 - Implemented V2.118 in `autodev/full_roadmap_executor.py`: if the previous record stopped on a worker-timeout boundary and ordinary repair docs already exist, bootstrap returns that repair context for the next supervised document run.
 - Real phase_011 bootstrap probe using `run_attempt_017` now returns `phase_repair_001.md` through `phase_repair_007.md` even though `should_auto_repair_phase()` remains false for the timeout stop boundary.
 - Next step: commit/push V2.118, relaunch Billing Core through Alchemy, and confirm the next attempt no longer starts from T001.
+
+## 2026-06-28T12:04:53+08:00 V2.119 Repository Caller Timeout Split
+
+- Relaunched after V2.118. `run_attempt_019` used the correct graph: T006/T007 preserved completed, T008 `Inventory Ent caller alignment failures` active, and T009-T011 caller alignment split ready.
+- T008 completed successfully in about 6 minutes and produced concrete evidence: `account_repo.go` still references removed Proxy edges, retired proxy/channel-monitor/error-passthrough/TLS/user-platform-quota repositories still call removed Ent clients, and repository wire still registers retired constructors.
+- T009 `Align repository Ent callers` then timed out after 900 seconds. Timeout stop behavior was correct: no debug/retry was dispatched, task-local changes were rolled back, and `phase_repair_008.md` was written.
+- Implemented V2.119 in `planner/task_graph_builder.py`: focused T009 repairs now split repository alignment into account/identity callers, retired generated-client repositories, and remaining repository compile contracts with lightweight repository compile checks.
+- Raised schema/build cumulative repair context to ten ordinary repair briefs to preserve the longer T002/T003/T006/T008/T009 chain.
+- Real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_008.md` now preserves T008 completed and starts the next pending task at T009 `Align account repository Ent callers`.
+- Next step: commit/push V2.119, relaunch Billing Core through Alchemy, and monitor the T009-T011 repository split.

@@ -1762,6 +1762,137 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("backend/internal/handler/**", server_task["relevant_files"])
         self.assertNotIn("backend/ent/**", server_task["relevant_files"])
 
+    def test_schema_repository_caller_timeout_repair_splits_repository_alignment_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            for directory in (
+                "backend/ent/schema",
+                "backend/ent/migrate",
+                "backend/internal/domain",
+                "backend/internal/repository",
+                "backend/internal/service",
+                "backend/internal/server",
+                "backend/internal/handler",
+                "backend/cmd/server",
+            ):
+                (repo / directory).mkdir(parents=True)
+            for file in (
+                "backend/internal/repository/account_repo.go",
+                "backend/internal/repository/proxy_repo.go",
+                "backend/internal/repository/channel_monitor_repo.go",
+                "backend/internal/repository/error_passthrough_repo.go",
+                "backend/internal/repository/tls_fingerprint_profile_repo.go",
+                "backend/internal/repository/user_platform_quota_repo.go",
+                "backend/internal/repository/wire.go",
+            ):
+                (repo / file).write_text("package repository\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "backend" / "go.sum").write_text("", encoding="utf-8")
+            (repo / "backend" / "ent" / "generate.go").write_text("package ent\n", encoding="utf-8")
+            (repo / "backend" / "ent" / "schema" / "billing.go").write_text("package schema\n", encoding="utf-8")
+            (repo / "backend" / "ent" / "migrate" / "schema.go").write_text("package migrate\n", encoding="utf-8")
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase 8: Schema pruning and build",
+                        "- Must prune Ent schema for CRM billing only.",
+                        "- Must regenerate Ent clients.",
+                        "- Must update migrations.",
+                        "- Must clean unused service/repository/test code.",
+                        "- Must prove a fresh DB migration succeeds.",
+                        "- Fresh DB migration must not create token relay tables.",
+                        "- `go test ./backend/internal/...` must pass.",
+                        "- Frontend build/typecheck must pass.",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair_docs = {
+                "phase_repair_002.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T002.",
+                    "- Completed tasks to preserve: T001.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                ],
+                "phase_repair_004.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T003.",
+                    "- Completed tasks to preserve: T001, T002.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                ],
+                "phase_repair_005.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T006.",
+                    "- Completed tasks to preserve: T003, T004, T005, T001, T002.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                ],
+                "phase_repair_007.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T008.",
+                    "- Completed tasks to preserve: T006, T007, T001, T002, T003, T004, T005.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                    "### Task T008 - Align repository callers after Ent regeneration",
+                    "- Worker summary: Codex worker timed out after 900 seconds.",
+                ],
+                "phase_repair_008.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T009.",
+                    "- Completed tasks to preserve: T008, T001, T002, T003, T004, T005, T006, T007.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                    "### Task T009 - Align repository Ent callers",
+                    "- Previous relevant files: backend/internal/repository/**, backend/go.mod.",
+                    "- Worker summary: Codex worker timed out after 900 seconds.",
+                    "- Known issues: account_repo.go still references Proxy edges; proxy/channel_monitor/error_passthrough/tls_fingerprint/user_platform_quota repositories still call removed generated Ent clients; repository wire still registers retired providers.",
+                    "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                ],
+            }
+            for name, lines in repair_docs.items():
+                (root / name).write_text("\n".join(lines) + "\n", encoding="utf-8")
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core repository caller timeout.",
+                documents=[phase, *(root / name for name in repair_docs)],
+                repository_path=repo,
+                created_at="2026-06-28T12:05:00+08:00",
+            )
+
+            graph = TaskGraphBuilder().build(ContextBundleBuilder().build(brief)).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        titles = [node["title"] for node in implementation_nodes]
+        self.assertNotIn("Align repository Ent callers", titles)
+        self.assertIn("Align account repository Ent callers", titles)
+        self.assertIn("Remove retired generated-client repositories", titles)
+        self.assertIn("Align remaining repository compile contracts", titles)
+
+        nodes_by_id = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes_by_id["T008"]["title"], "Inventory Ent caller alignment failures")
+        self.assertEqual(nodes_by_id["T008"]["status"], "completed")
+        self.assertEqual(nodes_by_id["T009"]["title"], "Align account repository Ent callers")
+        account_task = nodes_by_id["T009"]
+        self.assertEqual(account_task["commands_to_run"], ["cd backend && go test ./internal/repository -run '^$'"])
+        self.assertIn("backend/internal/repository/account_repo.go", account_task["relevant_files"])
+        retired_task = next(
+            node for node in implementation_nodes if node["title"] == "Remove retired generated-client repositories"
+        )
+        self.assertIn("backend/internal/repository/proxy*.go", retired_task["relevant_files"])
+        self.assertIn("backend/internal/repository/wire.go", retired_task["relevant_files"])
+        remaining_task = next(
+            node for node in implementation_nodes if node["title"] == "Align remaining repository compile contracts"
+        )
+        self.assertIn("backend/internal/repository/*.go", remaining_task["relevant_files"])
+        self.assertNotIn("backend/internal/service/**", remaining_task["relevant_files"])
+
     def test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

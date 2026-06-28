@@ -1639,6 +1639,16 @@ narrowed graph from the focused repair context already on disk.
 
 See `docs/127_v2_118_timeout_repair_context_bootstrap.md`.
 
+## V2.119 Repository Caller Timeout Split
+
+V2.119 uses the completed T008 inventory evidence to split a focused T009
+repository caller timeout into account/identity repository callers, retired
+generated-client repositories, and remaining repository compile contracts. The
+schema/build repair-context floor is raised to ten ordinary repair briefs so the
+long phase_011 split chain stays stable across later resumes.
+
+See `docs/128_v2_119_repository_caller_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash
