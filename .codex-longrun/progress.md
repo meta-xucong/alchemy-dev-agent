@@ -1755,3 +1755,13 @@ PY"`
 - Real phase_011 graph probe now preserves T014/T015 completed, starts at T016 `Inventory handler and server cleanup leftovers`, and keeps T021/T022 verification commands limited to project backend/frontend commands.
 - Verification passed: focused T016 planner test, focused cache-index test, real graph probe, full `test_document_to_plan.py`, full `test_repository_context.py`, full `test_full_roadmap_execution.py`, and compileall.
 - Next step: commit/push V2.121, relaunch Billing Core through Alchemy, and monitor T016-T20.
+
+## 2026-06-28T16:18:00+08:00 V2.122 Final Verification Timeout Split
+
+- Relaunched after V2.121. `run_attempt_022` preserved the cleanup chain, completed T016 through T021, then timed out on T022 `Verify implementation against project checks`.
+- Timeout behavior stayed correct: active tasks were empty, T022 was failed, blocker `B-T022-1` was non-partial, and no T023 review task was dispatched.
+- Implemented V2.122 in `planner/task_graph_builder.py`: focused schema/build final verification timeouts now split into serial backend tests, frontend tests, backend build, and frontend build/lint tasks.
+- Raised schema/build repair context retention to fourteen ordinary repair briefs in `autodev/full_roadmap_executor.py` so final verification split attempts do not drop earlier schema/build split evidence.
+- Real phase_011 graph probe now preserves T016-T21 completed and starts from T022 `Verify backend tests`, followed by T023 frontend tests, T024 backend build, T025 frontend build/lint, and T026 review.
+- Verification passed: focused planner regression, focused full-roadmap repair-context regression, real graph probe, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, compileall, and diff check.
+- Next step: commit/push V2.122, relaunch Billing Core through the correct Alchemy resume entrypoint, and monitor the split verification chain.

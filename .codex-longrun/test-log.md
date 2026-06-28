@@ -4118,3 +4118,39 @@
 - command: `git diff --check`
 - result: passed
 - next verification command: long-run state validation.
+
+## 2026-06-28T16:18:00+08:00 V2.122 Final verification timeout split
+
+- command: Billing Core controlled resume after V2.121
+- result: T016-T021 completed; T022 final verification timed out after 900 seconds; parent stopped with non-partial blocker and no review/debug dispatch
+- relevant evidence: `phase_repair_011.md` was written and `run_attempt_022/state.json` shows `failed=['T022']`, `active=[]`, and blocker `B-T022-1`.
+- next verification command: focused planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_final_verification_split_resumes_from_failed_split_title tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_final_verification_timeout_repair_splits_verify_task -q`
+- result: `2 passed`
+- next verification command: focused full-roadmap repair-context regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget -q`
+- result: `1 passed`
+- next verification command: real phase_011 graph probe.
+
+- command: real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_011.md`
+- result: passed
+- relevant evidence: T016-T21 are preserved completed; T022-T25 split final verification into backend tests, frontend tests, backend build, and frontend build/lint; T026 review depends on T025.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `36 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `72 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation.

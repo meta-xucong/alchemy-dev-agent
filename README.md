@@ -1669,6 +1669,17 @@ pollute generated test/build commands.
 
 See `docs/130_v2_121_handler_server_cleanup_timeout_split.md`.
 
+## V2.122 Final Verification Timeout Split
+
+V2.122 splits focused schema/build final verification timeouts into serial
+backend-test, frontend-test, backend-build, and frontend-build/lint tasks. This
+keeps Billing Core phase_011 from replaying one over-wide T022 verification
+worker after the handler/server cleanup chain has already completed. The
+schema/build repair-context floor is raised to fourteen ordinary repair briefs
+so final verification retries keep the full split history.
+
+See `docs/131_v2_122_final_verification_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash

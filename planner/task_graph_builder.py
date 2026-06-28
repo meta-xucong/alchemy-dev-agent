@@ -87,20 +87,35 @@ class TaskGraphBuilder:
         )
 
         verify_id = next_graph_task_id(nodes, preserved_task_ids)
-        nodes.append(
-            TaskNode(
-                id=verify_id,
-                title="Verify implementation against project checks",
-                description="Run detected tests, builds, lints, and requirement-specific verification.",
-                type="test",
-                assigned_agent="test",
+        if should_split_schema_final_verification_timeout(requirements, verify_id):
+            verification_nodes = schema_final_verification_timeout_split_nodes(
+                next_task_id=verify_id,
                 dependencies=implementation_ids or ["T001"],
-                completion_criteria=verification_criteria,
-                commands_to_run=verification_commands,
-                relevant_files=verification_files,
-                priority=85,
+                verification_commands=verification_commands,
+                start_index=schema_final_verification_start_index(requirements),
+                scope_controls=scope_controls,
+                fallback_files=verification_files,
+                existing_nodes=nodes,
+                preserved_task_ids=preserved_task_ids,
             )
-        )
+            nodes.extend(verification_nodes)
+        else:
+            verification_nodes = [
+                TaskNode(
+                    id=verify_id,
+                    title="Verify implementation against project checks",
+                    description="Run detected tests, builds, lints, and requirement-specific verification.",
+                    type="test",
+                    assigned_agent="test",
+                    dependencies=implementation_ids or ["T001"],
+                    completion_criteria=verification_criteria,
+                    commands_to_run=verification_commands,
+                    relevant_files=verification_files,
+                    priority=85,
+                )
+            ]
+            nodes.extend(verification_nodes)
+        verification_ids = [node.id for node in verification_nodes]
 
         review_id = next_graph_task_id(nodes, preserved_task_ids)
         nodes.append(
@@ -110,7 +125,7 @@ class TaskGraphBuilder:
                 description="Check requirement traceability, risks, test evidence, and final gate readiness.",
                 type="review",
                 assigned_agent="reviewer",
-                dependencies=[verify_id],
+                dependencies=[verification_ids[-1]],
                 completion_criteria=[
                     "All must requirements are traced to completed tasks.",
                     "Reviewer approval is recorded.",
@@ -123,11 +138,22 @@ class TaskGraphBuilder:
 
         for requirement in requirements:
             if requirement.id in requirement_task_ids:
-                requirement.planned_task_ids = [requirement_task_ids[requirement.id], verify_id, review_id]
+                requirement.planned_task_ids = [
+                    requirement_task_ids[requirement.id],
+                    *verification_ids,
+                    review_id,
+                ]
 
         dependencies = [Dependency(source="T001", target=node.id, type="blocks") for node in implementation_nodes]
-        dependencies.extend(Dependency(source=node.id, target=verify_id, type="requires_test_pass") for node in implementation_nodes)
-        dependencies.append(Dependency(source=verify_id, target=review_id, type="requires_review"))
+        dependencies.extend(
+            Dependency(source=node.id, target=verification_ids[0], type="requires_test_pass")
+            for node in implementation_nodes
+        )
+        dependencies.extend(
+            Dependency(source=source, target=target, type="requires_test_pass")
+            for source, target in zip(verification_ids, verification_ids[1:])
+        )
+        dependencies.append(Dependency(source=verification_ids[-1], target=review_id, type="requires_review"))
         mark_preserved_completed_tasks(nodes, preserved_task_ids)
         return TaskGraph(graph_id=f"{context_bundle.project_id}-document-plan", version=1, nodes=nodes, dependencies=dependencies)
 
@@ -1797,6 +1823,81 @@ SCHEMA_HANDLER_SERVER_CLEANUP_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+SCHEMA_FINAL_VERIFICATION_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Verify backend tests",
+        "description": (
+            "Run only the backend Go test suite after schema/build stabilization, preserving the final "
+            "verification evidence without bundling frontend checks into the same worker."
+        ),
+        "completion_criteria": (
+            "Backend Go tests pass or produce a focused backend verification blocker.",
+        ),
+        "command_group": "backend_tests",
+        "default_commands": ("cd backend && go test ./...",),
+        "files": (
+            "backend/**",
+            "backend/go.mod",
+            "backend/go.sum",
+            ".github/workflows/**",
+        ),
+    },
+    {
+        "title": "Verify frontend tests",
+        "description": (
+            "Run only the frontend test suite after backend tests, keeping frontend test failures separate from "
+            "build and lint evidence."
+        ),
+        "completion_criteria": (
+            "Frontend tests pass or produce a focused frontend verification blocker.",
+        ),
+        "command_group": "frontend_tests",
+        "default_commands": ("pnpm --dir frontend test",),
+        "files": (
+            "frontend/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ),
+    },
+    {
+        "title": "Verify backend build",
+        "description": (
+            "Run only the backend Go build after test evidence is recorded, avoiding another wide final "
+            "verification worker."
+        ),
+        "completion_criteria": (
+            "Backend Go build passes or produces a focused backend build blocker.",
+        ),
+        "command_group": "backend_build",
+        "default_commands": ("cd backend && go build ./...",),
+        "files": (
+            "backend/**",
+            "backend/go.mod",
+            "backend/go.sum",
+            ".github/workflows/**",
+        ),
+    },
+    {
+        "title": "Verify frontend build and lint",
+        "description": (
+            "Run frontend build and lint as the final verification step, after backend and frontend test/build "
+            "evidence has been isolated."
+        ),
+        "completion_criteria": (
+            "Frontend build and lint pass or produce focused frontend delivery blockers.",
+        ),
+        "command_group": "frontend_build_lint",
+        "default_commands": ("pnpm --dir frontend run build", "pnpm --dir frontend run lint"),
+        "files": (
+            "frontend/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+            ".github/workflows/**",
+        ),
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -2141,6 +2242,104 @@ def focused_schema_handler_server_cleanup_timeout_repair(requirements: list[Requ
     if not handler_server_context:
         return False
     return any(focused_timeout_repair_for_task(requirements, task_id) for task_id in ("T017", "T018", "T019"))
+
+
+def should_split_schema_final_verification_timeout(requirements: list[Requirement], verify_id: str) -> bool:
+    text = "\n".join(requirement.text for requirement in requirements).lower()
+    if not is_large_refactor_schema_build_phase(requirements):
+        return False
+    if not focused_timeout_repair_for_task(requirements, verify_id):
+        return False
+    split_titles = tuple(str(spec["title"]).lower() for spec in SCHEMA_FINAL_VERIFICATION_TIMEOUT_SPLIT_TASK_SPECS)
+    return any(
+        marker in text
+        for marker in (
+            "verify implementation against project checks",
+            "verification issue",
+            "schema/build verification",
+            "frontend build/typecheck",
+            "required tests are failing",
+            *split_titles,
+        )
+    )
+
+
+def schema_final_verification_start_index(requirements: list[Requirement]) -> int:
+    text = "\n".join(requirement.text for requirement in requirements).lower()
+    if "verify implementation against project checks" in text:
+        return 0
+    for index, spec in enumerate(SCHEMA_FINAL_VERIFICATION_TIMEOUT_SPLIT_TASK_SPECS):
+        if str(spec["title"]).lower() in text:
+            return index
+    return 0
+
+
+def schema_final_verification_timeout_split_nodes(
+    *,
+    next_task_id: str,
+    dependencies: list[str],
+    verification_commands: list[str],
+    start_index: int,
+    scope_controls: dict[str, list[str]] | None,
+    fallback_files: list[str],
+    existing_nodes: list[TaskNode],
+    preserved_task_ids: list[str] | set[str],
+) -> list[TaskNode]:
+    nodes: list[TaskNode] = []
+    previous_dependencies = list(dependencies)
+    command_groups = schema_final_verification_command_groups(verification_commands)
+    start_index = min(max(start_index, 0), len(SCHEMA_FINAL_VERIFICATION_TIMEOUT_SPLIT_TASK_SPECS) - 1)
+    for offset, spec in enumerate(SCHEMA_FINAL_VERIFICATION_TIMEOUT_SPLIT_TASK_SPECS[start_index:]):
+        task_id = next_task_id if offset == 0 else next_graph_task_id([*existing_nodes, *nodes], preserved_task_ids)
+        command_group = str(spec["command_group"])
+        commands = command_groups.get(command_group) or list(spec["default_commands"])
+        nodes.append(
+            TaskNode(
+                id=task_id,
+                title=str(spec["title"]),
+                description=str(spec["description"]),
+                type="test",
+                assigned_agent="test",
+                dependencies=previous_dependencies,
+                completion_criteria=list(spec["completion_criteria"]),
+                commands_to_run=list(commands),
+                relevant_files=scoped_files(list(spec["files"]), scope_controls, fallback=fallback_files),
+                priority=85 - start_index - offset,
+            )
+        )
+        previous_dependencies = [task_id]
+    return nodes
+
+
+def schema_final_verification_command_groups(commands: list[str]) -> dict[str, list[str]]:
+    groups: dict[str, list[str]] = {
+        "backend_tests": [],
+        "frontend_tests": [],
+        "backend_build": [],
+        "frontend_build_lint": [],
+    }
+    for command in dedupe(commands):
+        normalized = command.replace("\\", "/").lower()
+        if "install" in normalized:
+            continue
+        if "go test" in normalized:
+            groups["backend_tests"].append(command)
+            continue
+        if "go build" in normalized:
+            groups["backend_build"].append(command)
+            continue
+        if is_frontend_verification_command(normalized) and ("test" in normalized or "vitest" in normalized):
+            groups["frontend_tests"].append(command)
+            continue
+        if is_frontend_verification_command(normalized) and ("build" in normalized or "lint" in normalized):
+            groups["frontend_build_lint"].append(command)
+    return {key: dedupe(value) for key, value in groups.items() if value}
+
+
+def is_frontend_verification_command(normalized_command: str) -> bool:
+    return "frontend" in normalized_command or any(
+        marker in normalized_command for marker in ("pnpm ", "npm ", "yarn ", "bun ", "vitest", "vite")
+    )
 
 
 def schema_build_refactor_relevant_files(

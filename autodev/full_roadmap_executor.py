@@ -880,7 +880,7 @@ def bootstrap_phase_repair_documents(
 def cumulative_repair_document_limit(phase: RoadmapPhase, max_repair_documents: int) -> int:
     text = " ".join([phase.title, *phase.requirements]).lower()
     if any(marker in text for marker in ("schema", "ent", "migration", "migrate", "fresh db")):
-        return max(max_repair_documents, 12)
+        return max(max_repair_documents, 14)
     return max_repair_documents
 
 

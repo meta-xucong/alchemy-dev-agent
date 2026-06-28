@@ -14,7 +14,7 @@ from context.requirement_extractor import explicit_paths_from_text, extract_scop
 from intake import ProjectBriefBuilder
 from intake.schema_validation import validate_context_bundle_contract
 from planner import TaskGraphBuilder
-from planner.task_graph_builder import focused_timeout_repair_for_task
+from planner.task_graph_builder import focused_timeout_repair_for_task, schema_final_verification_start_index
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
@@ -2192,6 +2192,196 @@ class DocumentToPlanTests(unittest.TestCase):
         )
         self.assertEqual(nodes_by_id["T020"]["title"], "Compile residual backend cleanup contracts")
         self.assertEqual(nodes_by_id["T021"]["title"], "Stabilize schema and build verification contracts")
+
+    def test_schema_final_verification_split_resumes_from_failed_split_title(self) -> None:
+        requirements = [
+            Requirement(
+                id="R1",
+                source_document_id="repair",
+                text=(
+                    "Primary failed task IDs: T023.\n"
+                    "Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task.\n"
+                    "### Task T023 - Verify frontend tests\n"
+                    "Worker summary: Codex worker timed out after 900 seconds."
+                ),
+            )
+        ]
+
+        self.assertTrue(focused_timeout_repair_for_task(requirements, "T023"))
+        self.assertEqual(schema_final_verification_start_index(requirements), 1)
+
+    def test_schema_final_verification_timeout_repair_splits_verify_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            for directory in (
+                "backend/ent/schema",
+                "backend/ent/migrate",
+                "backend/internal/config",
+                "backend/internal/domain",
+                "backend/internal/repository",
+                "backend/internal/service",
+                "backend/internal/server",
+                "backend/internal/handler",
+                "backend/internal/testutil",
+                "backend/cmd/server",
+                "frontend/src/api",
+                "frontend/src/components",
+            ):
+                (repo / directory).mkdir(parents=True)
+            for file in (
+                "backend/internal/service/admin_service.go",
+                "backend/internal/repository/account_repo.go",
+                "backend/internal/handler/gateway_handler.go",
+                "backend/internal/server/router.go",
+                "backend/cmd/server/main.go",
+            ):
+                (repo / file).write_text("package backend\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "backend" / "go.sum").write_text("", encoding="utf-8")
+            (repo / "backend" / "ent" / "generate.go").write_text("package ent\n", encoding="utf-8")
+            (repo / "backend" / "ent" / "schema" / "billing.go").write_text("package schema\n", encoding="utf-8")
+            (repo / "backend" / "ent" / "migrate" / "schema.go").write_text("package migrate\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps(
+                    {
+                        "scripts": {
+                            "test": "vitest run",
+                            "build": "vite build",
+                            "lint": "eslint src",
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (repo / "frontend" / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase 8: Schema pruning and build",
+                        "- Must prune Ent schema for CRM billing only.",
+                        "- Must regenerate Ent clients.",
+                        "- Must update migrations.",
+                        "- Must clean unused service/repository/test code.",
+                        "- Must prove a fresh DB migration succeeds.",
+                        "- Fresh DB migration must not create token relay tables.",
+                        "- `go test ./backend/internal/...` must pass.",
+                        "- Frontend build/typecheck must pass.",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            repair_docs = {
+                "phase_repair_002.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T002.",
+                    "- Completed tasks to preserve: T001.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                ],
+                "phase_repair_004.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T003.",
+                    "- Completed tasks to preserve: T001, T002.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                ],
+                "phase_repair_005.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T006.",
+                    "- Completed tasks to preserve: T003, T004, T005, T001, T002.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                ],
+                "phase_repair_007.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T008.",
+                    "- Completed tasks to preserve: T006, T007, T001, T002, T003, T004, T005.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                    "### Task T008 - Align repository callers after Ent regeneration",
+                    "- Worker summary: Codex worker timed out after 900 seconds.",
+                ],
+                "phase_repair_008.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T009.",
+                    "- Completed tasks to preserve: T008, T001, T002, T003, T004, T005, T006, T007.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                    "### Task T009 - Align repository Ent callers",
+                    "- Worker summary: Codex worker timed out after 900 seconds.",
+                    "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                ],
+                "phase_repair_009.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T014.",
+                    "- Completed tasks to preserve: T009, T010, T011, T012, T013, T001, T002, T003, T004, T005, T006, T007, T008.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                    "### Task T014 - Clean legacy backend services repositories and tests",
+                    "- Previous relevant files: backend/internal/service/**, backend/internal/repository/**, backend/internal/handler/**, backend/internal/server/**, backend/internal/config/**, backend/go.mod, backend/cmd/server/main.go.",
+                    "- Worker summary: Codex worker timed out after 900 seconds.",
+                    "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                ],
+                "phase_repair_010.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T016.",
+                    "- Completed tasks to preserve: T014, T015, T001, T002, T003, T004, T005, T006, T007, T008, T009, T010, T011, T012, T013.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                    "### Task T016 - Clean handler and server legacy routes",
+                    "- Previous relevant files: backend/internal/handler/**, backend/internal/server/**, backend/internal/service/**, backend/internal/config/**, backend/cmd/server/**, backend/go.mod.",
+                    "- Worker summary: Codex worker timed out after 900 seconds.",
+                    "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                ],
+                "phase_repair_011.md": [
+                    "# Auto Repair For Phase 8",
+                    "## Failing Verification Issues",
+                    "- Must repair T022 verification issue (Verify implementation against project checks): Codex worker timed out after 900 seconds.",
+                    "## Focused Repair Scope",
+                    "- Primary failed task IDs: T022.",
+                    "- Completed tasks to preserve: T016, T017, T018, T019, T020, T021, T001, T002, T003, T004, T005, T006, T007, T008, T009, T010, T011, T012, T013, T014, T015.",
+                    "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                    "### Task T022 - Verify implementation against project checks",
+                    "- Previous relevant files: backend/internal/handler/admin/account_data_handler_test.go, backend/internal/service/wallet_service_test.go, frontend/src/api/__tests__/payment.spec.ts, frontend/src/components/__tests__/Dashboard.spec.ts.",
+                    "- Worker summary: Codex worker timed out after 900 seconds.",
+                    "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                ],
+            }
+            for name, lines in repair_docs.items():
+                (root / name).write_text("\n".join(lines) + "\n", encoding="utf-8")
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core final verification timeout.",
+                documents=[phase, *(root / name for name in repair_docs)],
+                repository_path=repo,
+                created_at="2026-06-28T15:20:00+08:00",
+            )
+
+            graph = TaskGraphBuilder().build(ContextBundleBuilder().build(brief)).to_dict()
+
+        nodes_by_id = {node["id"]: node for node in graph["nodes"]}
+        titles = [node["title"] for node in graph["nodes"]]
+        self.assertNotIn("Verify implementation against project checks", titles)
+        self.assertEqual(nodes_by_id["T021"]["title"], "Stabilize schema and build verification contracts")
+        self.assertEqual(nodes_by_id["T021"]["status"], "completed")
+        self.assertEqual(nodes_by_id["T022"]["title"], "Verify backend tests")
+        self.assertEqual(nodes_by_id["T022"]["commands_to_run"], ["cd backend && go test ./..."])
+        self.assertIn("backend/**", nodes_by_id["T022"]["relevant_files"])
+        self.assertEqual(nodes_by_id["T023"]["title"], "Verify frontend tests")
+        self.assertEqual(nodes_by_id["T023"]["dependencies"], ["T022"])
+        self.assertEqual(nodes_by_id["T023"]["commands_to_run"], ["pnpm --dir frontend test"])
+        self.assertEqual(nodes_by_id["T024"]["title"], "Verify backend build")
+        self.assertEqual(nodes_by_id["T024"]["dependencies"], ["T023"])
+        self.assertEqual(nodes_by_id["T024"]["commands_to_run"], ["cd backend && go build ./..."])
+        self.assertEqual(nodes_by_id["T025"]["title"], "Verify frontend build and lint")
+        self.assertEqual(nodes_by_id["T025"]["dependencies"], ["T024"])
+        self.assertEqual(
+            nodes_by_id["T025"]["commands_to_run"],
+            ["pnpm --dir frontend run build", "pnpm --dir frontend run lint"],
+        )
+        self.assertEqual(nodes_by_id["T026"]["title"], "Review delivery readiness")
+        self.assertEqual(nodes_by_id["T026"]["dependencies"], ["T025"])
 
     def test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task(self) -> None:
         with temp_plan_dir() as root:
