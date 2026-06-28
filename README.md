@@ -1603,6 +1603,15 @@ ordinary repair briefs so the longer split chain remains intact.
 
 See `docs/123_v2_114_ent_regeneration_timeout_split.md`.
 
+## V2.115 Timeout Stop Boundary and Read-Only Inventory
+
+V2.115 stops full-roadmap parent loops after a non-partial Codex worker timeout
+instead of launching another same-parent attempt. It also makes schema/build
+inventory checkpoint tasks read-only and commandless so they gather narrow
+evidence before heavier generation or verification work runs.
+
+See `docs/124_v2_115_timeout_stop_boundary_inventory_readonly.md`.
+
 Run a smoke execution:
 
 ```bash

@@ -50,12 +50,13 @@
     "implemented V2.111 schema migration timeout split so focused T003 repairs do not replay the same migration/server contract task",
     "implemented V2.112 schema migration checkpoint split so repeated migration-only T003 timeouts start with inventory and patch checkpoint tasks",
     "implemented V2.113 cumulative schema repair context so long schema/build repair chains keep earlier split evidence",
-    "implemented V2.114 Ent regeneration timeout split so focused T006 repairs do not replay broad regeneration work"
+    "implemented V2.114 Ent regeneration timeout split so focused T006 repairs do not replay broad regeneration work",
+    "implemented V2.115 timeout stop boundary and read-only inventory packaging so full-roadmap parents stop after worker timeouts and inventory tasks do not run heavy verification"
   ],
   "next_actions": [
-    "Commit and push V2.114 Ent regeneration timeout split.",
+    "Commit and push V2.115 timeout stop boundary and read-only inventory packaging.",
     "Launch the next controlled Billing Core run through Alchemy only for phase_011 schema pruning/build.",
-    "Confirm the next phase_011 attempt retains phase_repair_001.md through phase_repair_005.md and starts from T006 Inventory Ent regeneration inputs.",
+    "Confirm the next phase_011 attempt retains phase_repair_001.md through phase_repair_006.md and starts T006 Inventory Ent regeneration inputs as read-only with no heavy commands.",
     "Monitor phase_011 for schema/build/product blocker evidence; if an Alchemy controller issue appears, stop and fix Alchemy before continuing.",
     "After phase_011 promotes, continue to phase_012 demo smoke, then reassess CRM deliverability and final handoff readiness.",
     "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after the current verification-repair handoff is proven."
@@ -361,7 +362,19 @@
     "python -B -m pytest tests/test_runtime_handoff.py -q => 4 passed after V2.114",
     "python -B -m compileall autodev planner tests -q => passed after V2.114",
     "git diff --check => passed with .codex-longrun CRLF warning only after V2.114",
-    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.114"
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.114",
+    "Billing Core run_attempt_013 after V2.114 => T006 Inventory Ent regeneration inputs timed out after 900 seconds",
+    "Billing Core run_attempt_014 after run_attempt_013 timeout => stopped before same-scope T006 inventory replay could spend another worker window",
+    "Minimal local Codex CLI smoke => passed in 15.9 seconds after V2.115 investigation",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_migration_timeout_repair_splits_timed_out_contract_task_again tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_migration_contract_timeout_repair_adds_checkpoint_tasks tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_ent_regeneration_timeout_repair_splits_regeneration_task tests/test_runtime.py::OrchestratorTests::test_inventory_tasks_are_read_only_even_with_relevant_files tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_worker_timeout_stop_boundary_writes_repair_doc_without_next_attempt -q => 5 passed after V2.115",
+    "Real phase_011 graph and worker-package probe after V2.115 => T006 has commands=[], allowed_files=[], and read-only inventory constraints",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 30 passed after V2.115",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 71 passed after V2.115",
+    "python -B -m pytest tests/test_runtime.py -q => 133 passed after V2.115",
+    "python -B -m pytest tests/test_runtime_handoff.py -q => 4 passed after V2.115",
+    "python -B -m compileall autodev planner runtime tests -q => passed after V2.115",
+    "git diff --check => passed with .codex-longrun CRLF warning only after V2.115",
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.115"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -414,7 +427,8 @@
     "Before V2.111, Billing Core phase_011 T003 timeout repair replayed the same combined migration/server contract task instead of splitting migration contracts from server/domain contracts.",
     "Before V2.112, Billing Core phase_011 repeated migration-only T003 timeouts still replayed the same migration task instead of switching to checkpoint/inventory repair.",
     "Before V2.113, schema/build repair chains longer than two ordinary repair docs could lose earlier split context and collapse back to stale task graphs.",
-    "Before V2.114, Billing Core phase_011 T006 timeout repair replayed the broad Ent regeneration task instead of splitting regeneration inventory, generated artifacts, and repository caller alignment."
+    "Before V2.114, Billing Core phase_011 T006 timeout repair replayed the broad Ent regeneration task instead of splitting regeneration inventory, generated artifacts, and repository caller alignment.",
+    "Before V2.115, full-roadmap parent loops could launch another phase attempt after a non-partial Codex worker timeout, and schema/build inventory tasks still carried heavy verification commands plus editable allowed_files."
   ],
   "blockers": [],
   "done_criteria": [
@@ -422,7 +436,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T08:35:00+08:00",
+  "last_verified_at": "2026-06-28T09:35:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T08:35:00+08:00"
+  "updated_at": "2026-06-28T09:35:00+08:00"
 }

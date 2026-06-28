@@ -3603,13 +3603,6 @@
 - result: passed
 - next verification command: diff check, state validation, commit/push, then controlled Billing Core relaunch.
 
-- command: `git diff --check`
-- result: passed with existing `.codex-longrun` CRLF warnings only
-- next verification command: long-run state validation.
-
-- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
-- result: passed
-- next verification command: commit/push V2.112, then controlled Billing Core relaunch.
 
 ## 2026-06-28T07:35:00+08:00 V2.113 cumulative schema repair context verification
 
@@ -3810,3 +3803,52 @@
 - command: `python -B -m compileall planner tests -q`
 - result: passed
 - next verification command: diff check, state validation, commit/push, then controlled Billing Core relaunch.
+
+## 2026-06-28T09:35:00+08:00 V2.115 timeout stop boundary and read-only inventory verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: T006 inventory timed out in `run_attempt_013`; same-scope `run_attempt_014` was stopped by Codex Desktop supervisor
+- relevant evidence: `run_attempt_013` recorded non-partial blocker `B-T006-1`; `run_attempt_014` replayed `T006 Inventory Ent regeneration inputs` and was stopped with `supervisor_stop.json`.
+- next verification command: local Codex CLI smoke.
+
+- command: minimal local Codex CLI smoke through `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe`
+- result: passed in 15.9 seconds
+- relevant evidence: the CLI returned structured JSON, so current model/login transport is not globally down.
+- next verification command: focused Alchemy regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_migration_timeout_repair_splits_timed_out_contract_task_again tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_migration_contract_timeout_repair_adds_checkpoint_tasks tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_ent_regeneration_timeout_repair_splits_regeneration_task tests/test_runtime.py::OrchestratorTests::test_inventory_tasks_are_read_only_even_with_relevant_files tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_worker_timeout_stop_boundary_writes_repair_doc_without_next_attempt -q`
+- result: `5 passed`
+- next verification command: real phase_011 graph and worker-package probe.
+
+- command: real phase_011 graph and worker-package probe using `phase_repair_001.md` through `phase_repair_006.md`
+- result: passed
+- relevant evidence: T006 `Inventory Ent regeneration inputs` has `commands=[]`, `allowed_files=[]`, and read-only inventory constraints while preserving relevant files.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `30 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `71 passed`
+- next verification command: runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `133 passed`
+- next verification command: compileall, diff check, state validation, commit/push, then controlled Billing Core relaunch.
+
+- command: `python -B -m pytest tests/test_runtime_handoff.py -q`
+- result: `4 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev planner runtime tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.115, then controlled Billing Core relaunch.

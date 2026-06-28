@@ -496,6 +496,8 @@ class Orchestrator:
     def _allowed_files_for_task(self, task: TaskNode) -> list[str]:
         if task.type in {"architecture", "review", "test"}:
             return []
+        if self._is_read_only_inventory_task(task):
+            return []
         return _expand_package_lockfile_boundaries(_clean_paths(task.relevant_files))
 
     def _constraints_for_task(self, task: TaskNode) -> list[str]:
@@ -503,13 +505,26 @@ class Orchestrator:
             "Do not edit files outside allowed_files.",
             "If allowed_files is empty, do not edit repository files.",
         ]
-        if task.boundary_mode == "large_refactor":
+        read_only_inventory = self._is_read_only_inventory_task(task)
+        if read_only_inventory:
+            constraints.append(
+                "This is a read-only inventory/checkpoint task: inspect relevant_files, do not edit repository files, "
+                "do not run heavy build or test commands unless commands_to_run explicitly lists them, and return "
+                "concise evidence plus follow-up implementation targets."
+            )
+        if task.boundary_mode == "large_refactor" and not read_only_inventory:
             constraints.append(
                 "This is a large_refactor integration task: implement cross-module changes within allowed_files as one coherent product migration."
             )
         if not self._allowed_files_for_task(task):
             constraints.append("Return partial or blocked if the task requires repository edits.")
         return constraints
+
+    def _is_read_only_inventory_task(self, task: TaskNode) -> bool:
+        if task.commands_to_run:
+            return False
+        text = f"{task.title} {task.description}".lower()
+        return "inventory" in text or "checkpoint" in text
 
     def _worker_evidence(self, task: TaskNode, result: CodexWorkerResult, iteration: int) -> dict:
         return {

@@ -1450,7 +1450,9 @@ class DocumentToPlanTests(unittest.TestCase):
         inventory_task = next(node for node in implementation_nodes if node["title"] == "Inventory Ent migration contract deltas")
         patch_task = next(node for node in implementation_nodes if node["title"] == "Patch Ent migration contract deltas")
         self.assertEqual(inventory_task["relevant_files"], ["backend/ent/migrate/schema.go", "backend/go.mod"])
+        self.assertEqual(inventory_task.get("commands_to_run", []), [])
         self.assertEqual(patch_task["relevant_files"], ["backend/ent/migrate/schema.go", "backend/go.mod"])
+        self.assertTrue(any("go test" in command for command in patch_task["commands_to_run"]))
 
         server_task = next(node for node in implementation_nodes if node["title"] == "Align server and domain table contracts")
         self.assertIn("backend/internal/server/**", server_task["relevant_files"])
@@ -1549,7 +1551,9 @@ class DocumentToPlanTests(unittest.TestCase):
         inventory = next(node for node in implementation_nodes if node["title"] == "Inventory Ent migration contract deltas")
         patch = next(node for node in implementation_nodes if node["title"] == "Patch Ent migration contract deltas")
         self.assertEqual(inventory["relevant_files"], ["backend/ent/migrate/schema.go", "backend/go.mod"])
+        self.assertEqual(inventory.get("commands_to_run", []), [])
         self.assertEqual(patch["relevant_files"], ["backend/ent/migrate/schema.go", "backend/go.mod"])
+        self.assertTrue(any("go test" in command for command in patch["commands_to_run"]))
 
     def test_schema_ent_regeneration_timeout_repair_splits_regeneration_task(self) -> None:
         with temp_plan_dir() as root:
@@ -1627,6 +1631,9 @@ class DocumentToPlanTests(unittest.TestCase):
         inventory = next(node for node in implementation_nodes if node["title"] == "Inventory Ent regeneration inputs")
         self.assertIn("backend/ent/generate.go", inventory["relevant_files"])
         self.assertIn("backend/ent/schema/**", inventory["relevant_files"])
+        self.assertEqual(inventory.get("commands_to_run", []), [])
+        regenerate = next(node for node in implementation_nodes if node["title"] == "Regenerate Ent generated clients")
+        self.assertTrue(any("go test" in command for command in regenerate["commands_to_run"]))
         callers = next(node for node in implementation_nodes if node["title"] == "Align repository callers after Ent regeneration")
         self.assertIn("backend/internal/repository/**", callers["relevant_files"])
         self.assertNotIn("backend/ent/**", callers["relevant_files"])

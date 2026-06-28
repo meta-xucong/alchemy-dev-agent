@@ -1186,6 +1186,7 @@ SCHEMA_MIGRATION_CONTRACT_CHECKPOINT_TASK_SPECS = (
             "backend/ent/migrate/schema.go",
             "backend/go.mod",
         ),
+        "commands_to_run": (),
         "include_frontend_commands": False,
         "restrict_relevant_files_to_spec": True,
     },
@@ -1254,6 +1255,7 @@ SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS = (
             "backend/ent/migrate/schema.go",
             "backend/go.mod",
         ),
+        "commands_to_run": (),
         "include_frontend_commands": False,
         "restrict_relevant_files_to_spec": True,
     },
@@ -1469,7 +1471,9 @@ def large_refactor_schema_build_nodes(
                     scope_controls=scope_controls,
                     fallback=base_relevant_files,
                 ),
-                commands_to_run=schema_build_refactor_commands(
+                commands_to_run=list(spec["commands_to_run"])
+                if "commands_to_run" in spec
+                else schema_build_refactor_commands(
                     test_commands,
                     package_files=package_files,
                     include_frontend=bool(spec["include_frontend_commands"]),

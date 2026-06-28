@@ -2121,6 +2121,31 @@ class OrchestratorTests(unittest.TestCase):
             self.assertEqual(persisted["evaluation"]["reason"], "DONE condition met.")
             self.assertIn("pull_request_url", persisted["github"])
 
+    def test_inventory_tasks_are_read_only_even_with_relevant_files(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            task = TaskNode(
+                id="T006",
+                title="Inventory Ent regeneration inputs",
+                description="Checkpoint Ent inputs before regeneration.",
+                type="backend",
+                assigned_agent="backend",
+                relevant_files=["backend/ent/generate.go", "backend/ent/schema/**", "backend/go.mod"],
+                commands_to_run=[],
+                boundary_mode="large_refactor",
+            )
+            state = RuntimeState(
+                objective="Repair Billing Core schema phase.",
+                task_graph=TaskGraph(graph_id="inventory-readonly", version=1, nodes=[task], dependencies=[]),
+            )
+            orchestrator = Orchestrator(StateManager(Path(tmp_dir) / ".alchemy" / "state.json"), repository_path=tmp_dir)
+
+            worker_input = orchestrator._build_worker_input(state, task)
+
+        self.assertEqual(worker_input.relevant_files, ["backend/ent/generate.go", "backend/ent/schema/**", "backend/go.mod"])
+        self.assertEqual(worker_input.allowed_files, [])
+        self.assertTrue(any("read-only inventory/checkpoint task" in item for item in worker_input.constraints))
+        self.assertFalse(any("implement cross-module changes" in item for item in worker_input.constraints))
+
     def test_failed_task_creates_debug_task_and_retries(self) -> None:
         class FlakyWorker:
             def __init__(self) -> None:

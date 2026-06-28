@@ -60,6 +60,12 @@ REPAIR_EVIDENCE_PATH_PATTERN = re.compile(
 )
 SUCCESSFUL_WORKER_STATUSES = {"completed", "done", "passed", "success", "successful", "ok"}
 REPAIR_WORKER_STATUSES = {"failed", "partial", "blocked", "timed_out"}
+WORKER_TIMEOUT_STOP_MARKERS = (
+    "exceeded the codex worker timeout",
+    "codex worker timeout",
+    "worker timeout",
+    "timed out after",
+)
 
 
 @dataclass(slots=True)
@@ -336,6 +342,24 @@ class FullRoadmapExecutor:
                 if promotion["can_promote"]:
                     phase.status = "completed"
                     record_status = "done"
+                    break
+                if phase_has_worker_timeout_stop_boundary(phase_payload):
+                    phase.status = "blocked"
+                    blockers.extend(str(item) for item in promotion.get("reasons", []) or [])
+                    blockers.append(
+                        f"Phase stopped at a non-partial worker-timeout blocker for {phase.phase_id}; "
+                        "a supervisor must inspect or split the scope before another attempt."
+                    )
+                    if new_repair_documents_written < max_phase_repair_attempts:
+                        repair_document = write_phase_repair_document(
+                            next_phase_repair_path(phase_dir),
+                            phase=phase,
+                            result=phase_payload,
+                            promotion=promotion,
+                            attempt_index=len(repair_documents) + 1,
+                        )
+                        repair_documents.append(repair_document)
+                        new_repair_documents_written += 1
                     break
                 if not should_auto_repair_phase(promotion, phase_payload):
                     phase.status = "blocked"
@@ -1547,9 +1571,10 @@ def should_auto_repair_phase(promotion: dict[str, object], result: dict[str, obj
     if bool(promotion.get("can_promote")):
         return False
     status = str(result.get("status", "") or "")
-    runtime_state = _dict(result.get("runtime_state"))
-    blockers = [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
+    blockers = phase_result_blockers(result)
     if blockers:
+        if phase_has_worker_timeout_stop_boundary(result):
+            return False
         return status == "blocked" and blockers_are_auto_repairable(blockers)
     delivery = _dict(result.get("delivery_report"))
     final_gate = _dict(delivery.get("final_gate"))
@@ -1568,6 +1593,23 @@ def should_auto_repair_phase(promotion: dict[str, object], result: dict[str, obj
         or bool(hard_failures)
         or has_low_dimension
     )
+
+
+def phase_has_worker_timeout_stop_boundary(result: dict[str, object]) -> bool:
+    for blocker in phase_result_blockers(result):
+        if not isinstance(blocker, dict):
+            continue
+        if blocker.get("can_continue_partially") is not False:
+            continue
+        description = str(blocker.get("description", blocker.get("summary", "")) or "").lower()
+        if any(marker in description for marker in WORKER_TIMEOUT_STOP_MARKERS):
+            return True
+    return False
+
+
+def phase_result_blockers(result: dict[str, object]) -> list[object]:
+    runtime_state = _dict(result.get("runtime_state"))
+    return [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
 
 
 def blockers_are_auto_repairable(blockers: Sequence[object]) -> bool:

@@ -1675,3 +1675,13 @@ PY"`
 - Updated schema/build cumulative repair context retention from four to six ordinary repair docs, so phase_011 keeps the full `_001` through `_005` repair chain.
 - Real phase_011 graph probe now retains `phase_repair_001.md` through `phase_repair_005.md` and replaces broad T006 with the three regeneration split tasks.
 - Next step: commit/push V2.114, relaunch Billing Core through Alchemy, and monitor the Ent regeneration inventory task.
+
+## 2026-06-28T09:35:00+08:00 V2.115 Timeout Stop Boundary and Read-Only Inventory
+
+- Relaunched Billing Core after V2.114. `run_attempt_013` used the correct split graph and started `T006 Inventory Ent regeneration inputs`, but the inventory worker still timed out at 900 seconds.
+- The parent immediately launched `run_attempt_014` with the same T006 inventory scope. Codex Desktop stopped that erroneous replay with `supervisor_stop.json` and terminated only the related Alchemy parent/worker processes.
+- Implemented V2.115 in `autodev/full_roadmap_executor.py`: non-partial Codex worker timeouts are now full-roadmap attempt-level stop boundaries. The parent may write a repair brief but must not launch another attempt in the same loop.
+- Implemented V2.115 in `planner/task_graph_builder.py` and `runtime/orchestrator.py`: schema/build inventory checkpoint tasks carry no heavy verification commands, and no-command inventory/checkpoint tasks become read-only worker packages with `allowed_files=[]`.
+- Local Codex CLI smoke returned in 15.9 seconds, so the live model chain is currently functional; the T006 timeout was task/package behavior, not a global CLI outage.
+- Real phase_011 graph/worker-package probe with `phase_repair_001.md` through `phase_repair_006.md` now produces T006 with `commands=[]`, `allowed_files=[]`, and explicit read-only inventory constraints.
+- Next step: commit/push V2.115, relaunch Billing Core through Alchemy, and confirm the next run stops safely if T006 still times out or completes T006 without running heavyweight Go verification.

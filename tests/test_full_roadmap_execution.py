@@ -18,6 +18,7 @@ from autodev.full_roadmap_executor import (
     latest_verification_issue_context_document,
     next_phase_repair_path,
     next_phase_run_dir,
+    phase_has_worker_timeout_stop_boundary,
     phase_repository_path,
     phase_run_payload,
     read_json,
@@ -2438,6 +2439,45 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertTrue((phase_dir / "phase_repair_008.md").exists())
         self.assertTrue(any("phase_repair_008.md" in item for item in calls[-1]))
         self.assertFalse(any("Phase auto-repair limit reached" in blocker for blocker in result.blockers))
+
+    def test_worker_timeout_stop_boundary_writes_repair_doc_without_next_attempt(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        output = root / "run"
+        phase_dir = output / "phases" / "phase_001"
+        timeout_blocker = {
+            "id": "B-T006-1",
+            "type": "technical_limit",
+            "description": "T006 exceeded the Codex worker timeout. Stop instead of launching a same-scope debug task.",
+            "task_ids": ["T006"],
+            "can_continue_partially": False,
+        }
+        calls: list[str] = []
+
+        def timeout_runner(**kwargs):
+            calls.append(str(kwargs["output_dir"]))
+            return FakePhaseResult("Schema pruning and build verification", score=0.13, blockers=[timeout_blocker])
+
+        result = FullRoadmapExecutor(document_runner=timeout_runner).run(
+            objective="Convert Billing Core into an independent CRM system.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=output,
+            max_phases=1,
+            run_payload={"max_phase_repair_attempts": 2},
+        )
+
+        record = read_json(phase_dir / "phase_record.json")
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(phase_has_worker_timeout_stop_boundary(record["result"]))
+        self.assertTrue((phase_dir / "phase_repair_001.md").exists())
+        self.assertFalse((phase_dir / "run_attempt_002").exists())
+        self.assertEqual(len(record["promotion"]["attempts"]), 1)
+        self.assertIn("non-partial worker-timeout blocker", "\n".join(result.blockers))
 
     def test_phase_repair_distinguishes_technical_and_environment_blockers(self) -> None:
         self.assertTrue(
