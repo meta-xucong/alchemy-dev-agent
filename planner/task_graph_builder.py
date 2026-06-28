@@ -1663,6 +1663,140 @@ SCHEMA_BACKEND_CLEANUP_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+SCHEMA_HANDLER_SERVER_CLEANUP_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Inventory handler and server cleanup leftovers",
+        "description": (
+            "Checkpoint remaining legacy handler, route, server, and command wiring references before another "
+            "editable route-cleanup worker."
+        ),
+        "completion_criteria": (
+            "Remaining handler/server cleanup targets are inventoried without editing repository files.",
+            "Handler-only, server/cmd, and residual compile follow-up targets are separated with concise evidence.",
+        ),
+        "markers": (
+            "handler",
+            "server",
+            "route",
+            "backend/internal/handler",
+            "backend/internal/server",
+            "backend/cmd/server",
+            "clean unused service/repository/test code",
+            "service/repository/test",
+            "clean legacy backend services",
+            "timeout",
+        ),
+        "files": (
+            "backend/internal/handler/**",
+            "backend/internal/server/**",
+            "backend/internal/config/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": (),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Clean handler legacy route contracts",
+        "description": (
+            "Remove or rewrite residual legacy handler routes, DTO mappings, and tests without taking over "
+            "server registration or command wiring."
+        ),
+        "completion_criteria": (
+            "Handler packages no longer expose retired token relay/provider/channel handler contracts.",
+            "Scoped handler compile verification passes or records server/cmd follow-ups.",
+        ),
+        "markers": (
+            "handler",
+            "route",
+            "gateway",
+            "admin routes",
+            "provider",
+            "channel",
+            "backend/internal/handler",
+            "clean unused service/repository/test code",
+            "service/repository/test",
+            "clean legacy backend services",
+        ),
+        "files": (
+            "backend/internal/handler/**",
+            "backend/internal/service/**",
+            "backend/internal/config/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/handler/... -run '^$'",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Clean server route and command wiring",
+        "description": (
+            "Remove or rewrite residual legacy server route registrations, setup wiring, and command-server "
+            "dependencies after handler cleanup."
+        ),
+        "completion_criteria": (
+            "Server and command packages no longer register retired token relay/provider/channel routes.",
+            "Scoped server/cmd compile verification passes or records residual handler/server follow-ups.",
+        ),
+        "markers": (
+            "server",
+            "route",
+            "cmd",
+            "command",
+            "backend/internal/server",
+            "backend/cmd/server",
+            "clean unused service/repository/test code",
+            "service/repository/test",
+            "clean legacy backend services",
+        ),
+        "files": (
+            "backend/internal/server/**",
+            "backend/internal/config/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/server/... ./cmd/server/... -run '^$'",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Compile handler and server cleanup contracts",
+        "description": (
+            "Close residual handler/server compile contract gaps after handler and server route cleanup, leaving "
+            "broader backend/internal verification to the residual cleanup task."
+        ),
+        "completion_criteria": (
+            "Residual handler/server compile errors are fixed or narrowed to explicit backend cleanup follow-ups.",
+            "Handler, server, and command packages pass lightweight compile verification.",
+        ),
+        "markers": (
+            "handler",
+            "server",
+            "route",
+            "compile",
+            "backend/internal/handler",
+            "backend/internal/server",
+            "backend/cmd/server",
+            "clean unused service/repository/test code",
+            "service/repository/test",
+            "clean legacy backend services",
+        ),
+        "files": (
+            "backend/internal/handler/**",
+            "backend/internal/server/**",
+            "backend/internal/service/**",
+            "backend/internal/config/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/handler/... ./internal/server/... ./cmd/server/... -run '^$'",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -1908,7 +2042,18 @@ def schema_build_large_refactor_task_specs(requirements: list[Requirement]) -> t
             spec["title"] == "Clean legacy backend services repositories and tests"
             and focused_schema_backend_cleanup_timeout_repair(requirements)
         ):
-            specs.extend(SCHEMA_BACKEND_CLEANUP_TIMEOUT_SPLIT_TASK_SPECS)
+            specs.extend(schema_backend_cleanup_timeout_split_task_specs(requirements))
+        else:
+            specs.append(spec)
+    return tuple(specs)
+
+
+def schema_backend_cleanup_timeout_split_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
+    specs: list[dict[str, object]] = []
+    split_handler_server_cleanup = focused_schema_handler_server_cleanup_timeout_repair(requirements)
+    for spec in SCHEMA_BACKEND_CLEANUP_TIMEOUT_SPLIT_TASK_SPECS:
+        if spec["title"] == "Clean handler and server legacy routes" and split_handler_server_cleanup:
+            specs.extend(SCHEMA_HANDLER_SERVER_CLEANUP_TIMEOUT_SPLIT_TASK_SPECS)
         else:
             specs.append(spec)
     return tuple(specs)
@@ -1977,6 +2122,25 @@ def focused_schema_backend_cleanup_timeout_repair(requirements: list[Requirement
     if not cleanup_context:
         return False
     return any(focused_timeout_repair_for_task(requirements, task_id) for task_id in ("T015", "T016", "T017"))
+
+
+def focused_schema_handler_server_cleanup_timeout_repair(requirements: list[Requirement]) -> bool:
+    text = "\n".join(requirement.text for requirement in requirements).lower()
+    if focused_timeout_repair_for_task(requirements, "T016"):
+        return True
+    handler_server_context = any(
+        marker in text
+        for marker in (
+            "clean handler and server",
+            "handler and server legacy",
+            "backend/internal/handler",
+            "backend/internal/server",
+            "backend/cmd/server",
+        )
+    )
+    if not handler_server_context:
+        return False
+    return any(focused_timeout_repair_for_task(requirements, task_id) for task_id in ("T017", "T018", "T019"))
 
 
 def schema_build_refactor_relevant_files(

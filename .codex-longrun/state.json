@@ -57,13 +57,14 @@
     "implemented V2.118 timeout repair context bootstrap so worker-timeout stop boundaries still allow the next supervised launch to reuse existing phase_repair_NNN.md context",
     "implemented V2.119 repository caller timeout split so Billing Core phase_011 T009 resumes as account, retired generated-client, and remaining repository compile tasks",
     "confirmed V2.119 Billing Core resume run_attempt_020 preserved T001-T008, completed T009-T013 repository/service/server alignment tasks, and advanced to T014 cleanup",
-    "implemented V2.120 backend cleanup timeout split so Billing Core phase_011 T014 resumes as inventory, service/repository cleanup, handler/server route cleanup, and residual backend compile tasks"
+    "implemented V2.120 backend cleanup timeout split so Billing Core phase_011 T014 resumes as inventory, service/repository cleanup, handler/server route cleanup, and residual backend compile tasks",
+    "implemented V2.121 handler/server cleanup timeout split and Go module cache index filtering after Billing Core phase_011 T016 timed out"
   ],
   "next_actions": [
-    "Commit and push V2.120 backend cleanup timeout split.",
+    "Commit and push V2.121 handler/server cleanup timeout split and cache index filtering.",
     "Relaunch the controlled Billing Core phase_011 resume through the correct Alchemy entrypoint.",
-    "Confirm the next phase_011 attempt preserves T009-T013 completed evidence and starts from T014 Inventory legacy backend cleanup leftovers.",
-    "Monitor the T014-T17 cleanup split and later T018/T019 stabilization gates; if another timeout exposes an Alchemy issue, stop and fix Alchemy before continuing.",
+    "Confirm the next phase_011 attempt preserves T014/T015 completed evidence and starts from T016 Inventory handler and server cleanup leftovers.",
+    "Monitor the T016-T20 handler/server cleanup split and later T021/T022 stabilization gates; if another timeout exposes an Alchemy issue, stop and fix Alchemy before continuing.",
     "After phase_011 promotes, continue to phase_012 demo smoke, then reassess CRM deliverability and final handoff readiness.",
     "Implement progress-aware worker heartbeat/checkpointing and bounded grace as an Alchemy optimization after the current verification-repair handoff is proven."
   ],
@@ -424,7 +425,16 @@
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 72 passed after V2.120",
     "python -B -m compileall autodev planner tests -q => passed after V2.120",
     "git diff --check => passed with .codex-longrun CRLF warning only after V2.120",
-    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.120"
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.120",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_handler_server_cleanup_timeout_repair_splits_route_task -q => 1 passed after V2.121",
+    "python -B -m pytest tests/test_repository_context.py::RepositoryIndexerTests::test_generated_runtime_caches_do_not_consume_repository_index -q => 1 passed after V2.121",
+    "Real phase_011 graph probe after V2.121 => T014/T015 preserved completed; T016-T20 split handler/server cleanup; T021/T022 commands exclude .gomodcache-local",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 34 passed after V2.121",
+    "python -B -m pytest tests/test_repository_context.py -q => 6 passed after V2.121",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 72 passed after V2.121",
+    "python -B -m compileall context planner autodev tests -q => passed after V2.121",
+    "git diff --check => passed with .codex-longrun CRLF warning only after V2.121",
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.121"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -484,7 +494,9 @@
     "Before V2.118, worker-timeout stop boundaries correctly prevented same-scope auto-retry but could also suppress existing ordinary phase_repair_NNN.md context on the next supervised launch, causing Billing Core phase_011 to collapse back to a stale T001/T002 graph.",
     "Before V2.119, T008 inventory could identify concrete repository caller groups, but the next editable T009 still used one broad backend/internal/repository task that timed out and rolled back after 900 seconds.",
     "run_attempt_020 T009 and T013 completed successfully but only just before the 900 second worker budget, proving the current hard timeout is safer than the old retry loop but still not progress-aware enough for large refactor workers.",
-    "Before V2.120, Billing Core phase_011 T014 cleanup still bundled service, repository, handler, server, tests, and backend verification into one broad worker and timed out after 900 seconds."
+    "Before V2.120, Billing Core phase_011 T014 cleanup still bundled service, repository, handler, server, tests, and backend verification into one broad worker and timed out after 900 seconds.",
+    "Before V2.121, Billing Core phase_011 T016 still bundled handler route cleanup, server route registration, command wiring, and scoped compile verification into one worker and timed out after 900 seconds.",
+    "Before V2.121, repository indexing did not ignore .gomodcache/.gomodcache-local, so Go module cache package files could pollute generated test/build commands with third-party dependency directories."
   ],
   "blockers": [],
   "done_criteria": [
@@ -492,7 +504,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T13:35:53+08:00",
+  "last_verified_at": "2026-06-28T14:32:11+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T13:35:53+08:00"
+  "updated_at": "2026-06-28T14:32:11+08:00"
 }

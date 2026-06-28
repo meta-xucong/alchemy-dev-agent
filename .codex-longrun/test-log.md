@@ -3995,6 +3995,50 @@
 - result: passed
 - next verification command: commit/push V2.120 and controlled Billing Core relaunch.
 
+## 2026-06-28T14:32:11+08:00 V2.121 Handler/server cleanup timeout split
+
+- command: Billing Core controlled resume after V2.120, `phase_011/run_attempt_021`
+- result: T014 and T015 completed; T016 timed out after 900 seconds; parent stopped with non-partial blocker and no T017 dispatch
+- relevant evidence: `phase_repair_010.md` was written and `run_attempt_021/state.json` shows `failed=['T016']`, `active=[]`, and blocker `B-T016-1`.
+- next verification command: focused planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_handler_server_cleanup_timeout_repair_splits_route_task -q`
+- result: `1 passed`
+- next verification command: focused repository-index cache regression.
+
+- command: `python -B -m pytest tests/test_repository_context.py::RepositoryIndexerTests::test_generated_runtime_caches_do_not_consume_repository_index -q`
+- result: `1 passed`
+- next verification command: real phase_011 graph probe.
+
+- command: real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_010.md`
+- result: passed
+- relevant evidence: T014/T015 are preserved completed; T016-T20 split handler/server cleanup; T021/T022 commands exclude `.gomodcache-local`.
+- next verification command: full related regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `34 passed`
+- next verification command: full repository-context regression.
+
+- command: `python -B -m pytest tests/test_repository_context.py -q`
+- result: `6 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `72 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall context planner autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed with `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.121 and controlled Billing Core relaunch.
+
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.119, then controlled Billing Core relaunch.

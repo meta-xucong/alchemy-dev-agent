@@ -1659,6 +1659,16 @@ split chain remains available across future resumes.
 
 See `docs/129_v2_120_backend_cleanup_timeout_split.md`.
 
+## V2.121 Handler/Server Cleanup Timeout Split
+
+V2.121 further splits the focused T016 handler/server cleanup timeout into
+handler/server inventory, handler route cleanup, server/cmd route wiring, and
+handler/server compile contracts. It also excludes `.gomodcache` and
+`.gomodcache-local` from repository indexing so dependency-cache packages cannot
+pollute generated test/build commands.
+
+See `docs/130_v2_121_handler_server_cleanup_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash

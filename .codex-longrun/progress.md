@@ -1745,3 +1745,13 @@ PY"`
 - Real phase_011 graph probe now preserves T009-T013 completed and starts at T014 `Inventory legacy backend cleanup leftovers`.
 - Verification passed: focused planner test, focused full-roadmap context test, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, compileall, diff check, and long-run state validation.
 - Next step: commit/push V2.120, relaunch Billing Core through the correct Alchemy resume entrypoint, and monitor the T014-T17 cleanup split.
+
+## 2026-06-28T14:32:11+08:00 V2.121 Handler/Server Cleanup Timeout Split
+
+- Relaunched after V2.120. `run_attempt_021` preserved the existing work, completed T014 cleanup inventory and T015 service/repository cleanup, then timed out on T016 `Clean handler and server legacy routes`.
+- Timeout behavior stayed correct: the parent stopped with a non-partial T016 blocker, wrote `phase_repair_010.md`, and did not dispatch T017 or a debug task.
+- Implemented V2.121 in `planner/task_graph_builder.py`: focused T016 repairs now split handler/server cleanup into read-only inventory, handler route cleanup, server/cmd route wiring, and handler/server compile contracts.
+- Fixed a newly discovered repository-index issue in `context/repository_indexer.py`: `.gomodcache` and `.gomodcache-local` are now ignored so third-party Go module caches cannot become package files or generated test/build commands.
+- Real phase_011 graph probe now preserves T014/T015 completed, starts at T016 `Inventory handler and server cleanup leftovers`, and keeps T021/T022 verification commands limited to project backend/frontend commands.
+- Verification passed: focused T016 planner test, focused cache-index test, real graph probe, full `test_document_to_plan.py`, full `test_repository_context.py`, full `test_full_roadmap_execution.py`, and compileall.
+- Next step: commit/push V2.121, relaunch Billing Core through Alchemy, and monitor T016-T20.

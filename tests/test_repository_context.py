@@ -129,6 +129,8 @@ class RepositoryIndexerTests(unittest.TestCase):
             (repo / "backend" / ".cache" / "go-build").mkdir(parents=True)
             (repo / "backend" / ".appdata" / "go" / "telemetry").mkdir(parents=True)
             (repo / "backend" / ".appdata-local" / "go" / "telemetry").mkdir(parents=True)
+            (repo / "backend" / ".gomodcache" / "github.com" / "example" / "dep").mkdir(parents=True)
+            (repo / "backend" / ".gomodcache-local" / "github.com" / "example" / "dep").mkdir(parents=True)
             (repo / "backend" / "ent" / "schema" / ".entc").mkdir(parents=True)
             (repo / "backend").mkdir(exist_ok=True)
             (repo / "frontend" / "src").mkdir(parents=True)
@@ -138,6 +140,16 @@ class RepositoryIndexerTests(unittest.TestCase):
                 (repo / "backend" / ".appdata" / "go" / "telemetry" / f"{index:02d}.count").write_text("cache\n", encoding="utf-8")
                 (repo / "backend" / ".appdata-local" / "go" / "telemetry" / f"{index:02d}.count").write_text("cache\n", encoding="utf-8")
                 (repo / "backend" / "ent" / "schema" / ".entc" / f"{index:02d}.go").write_text("package entc\n", encoding="utf-8")
+                (repo / "backend" / ".gomodcache" / "github.com" / "example" / "dep" / f"{index:02d}.go").write_text("package dep\n", encoding="utf-8")
+                (repo / "backend" / ".gomodcache-local" / "github.com" / "example" / "dep" / f"{index:02d}.go").write_text("package dep\n", encoding="utf-8")
+            (repo / "backend" / ".gomodcache" / "github.com" / "example" / "dep" / "go.mod").write_text(
+                "module github.com/example/dep\n",
+                encoding="utf-8",
+            )
+            (repo / "backend" / ".gomodcache-local" / "github.com" / "example" / "dep" / "package.json").write_text(
+                json.dumps({"scripts": {"test": "dep-test"}}),
+                encoding="utf-8",
+            )
             (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
             (repo / "frontend" / "package.json").write_text(
                 json.dumps({"scripts": {"test": "vitest run"}}),
@@ -148,9 +160,19 @@ class RepositoryIndexerTests(unittest.TestCase):
             index = RepositoryIndexer(max_files=10).index(repo)
 
         indexed_paths = {file.path for file in index.files}
-        self.assertFalse(any(".gocache" in path or "/.cache/" in path or "/.appdata" in path or "/.entc/" in path for path in indexed_paths))
+        self.assertFalse(
+            any(
+                marker in path
+                for path in indexed_paths
+                for marker in (".gocache", "/.cache/", "/.appdata", "/.entc/", "/.gomodcache", "/.gomodcache-local")
+            )
+        )
+        self.assertFalse(any(".gomodcache" in path or ".gomodcache-local" in path for path in index.package_files))
         self.assertIn("backend/go.mod", index.package_files)
         self.assertIn("frontend/package.json", index.package_files)
+        self.assertIn("npm --prefix frontend test", index.test_commands)
+        self.assertIn("cd backend && go test ./...", index.test_commands)
+        self.assertFalse(any("gomodcache" in command or "dep-test" in command for command in index.test_commands))
         self.assertTrue(any(path.startswith("frontend/") for path in indexed_paths))
 
     def test_missing_repository_path_records_blocker(self) -> None:

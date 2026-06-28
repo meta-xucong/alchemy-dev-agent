@@ -21,6 +21,8 @@ IGNORED_DIRS = {
     ".cache",
     ".entc",
     ".gocache",
+    ".gomodcache",
+    ".gomodcache-local",
     "__pycache__",
     ".pytest_cache",
     ".mypy_cache",
