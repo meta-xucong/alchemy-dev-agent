@@ -54,6 +54,13 @@ class TaskGraphBuilder:
                 priority=95,
             )
         ]
+        if is_final_verification_audit_context(context_bundle):
+            return self._build_final_verification_graph(
+                context_bundle,
+                nodes=nodes,
+                scope_controls=scope_controls,
+                preserved_task_ids=preserved_task_ids,
+            )
 
         implementation_nodes, requirement_task_ids = self._implementation_nodes(
             requirements,
@@ -153,6 +160,115 @@ class TaskGraphBuilder:
             for source, target in zip(verification_ids, verification_ids[1:])
         )
         dependencies.append(Dependency(source=verification_ids[-1], target=review_id, type="requires_review"))
+        mark_preserved_completed_tasks(nodes, preserved_task_ids)
+        return TaskGraph(graph_id=f"{context_bundle.project_id}-document-plan", version=1, nodes=nodes, dependencies=dependencies)
+
+    def _build_final_verification_graph(
+        self,
+        context_bundle: ContextBundle,
+        *,
+        nodes: list[TaskNode],
+        scope_controls: dict[str, list[str]],
+        preserved_task_ids: list[str],
+    ) -> TaskGraph:
+        """Build an audit/test graph for the last full-roadmap verification pass."""
+
+        test_commands = context_bundle.test_commands or ["static artifact inspection"]
+        verification_commands = scoped_verification_commands(
+            scope_controls,
+            test_commands + context_bundle.build_commands + context_bundle.lint_commands,
+        )
+        top_level_files = self._top_level_context_files(context_bundle, scope_controls)
+        verification_files = scoped_files(
+            self._test_relevant_files(context_bundle),
+            scope_controls,
+            fallback=top_level_files,
+        )
+        marker_criteria = [
+            "FINAL_AUDIT_STATUS is reported as PASS or FAIL with evidence.",
+            "REQUIRED_ACTIONS and BLOCKERS are explicitly reported.",
+        ]
+        nodes.extend(
+            [
+                TaskNode(
+                    id="T002",
+                    title="Audit final requirements and phase evidence",
+                    description=(
+                        "Challenge the completed roadmap against the source documents, phase records, "
+                        "known risks, scope boundaries, and delivery evidence. Apply only small concrete "
+                        "repairs when the audit identifies a specific defect."
+                    ),
+                    type="test",
+                    assigned_agent="test",
+                    dependencies=["T001"],
+                    completion_criteria=marker_criteria,
+                    relevant_files=top_level_files,
+                    commands_to_run=[],
+                    priority=92,
+                ),
+                TaskNode(
+                    id="T003",
+                    title="Run final simulation probes",
+                    description=(
+                        "Run or derive scenario, static, golden-case, browser, or API probes for the "
+                        "completed product behavior. Apply only small concrete repairs when a probe "
+                        "exposes a specific defect."
+                    ),
+                    type="test",
+                    assigned_agent="test",
+                    dependencies=["T002"],
+                    completion_criteria=[
+                        "SIMULATION_TEST_STATUS is reported as PASS or FAIL with evidence.",
+                        "Scenario/static/browser probe commands and results are recorded.",
+                    ],
+                    relevant_files=verification_files,
+                    commands_to_run=test_commands,
+                    priority=90,
+                ),
+                TaskNode(
+                    id="T004",
+                    title="Run final real repository checks",
+                    description=(
+                        "Run the broad real repository checks available in this worktree, including tests, "
+                        "builds, and lints when detected. Apply only small concrete repairs when a command "
+                        "exposes a specific defect."
+                    ),
+                    type="test",
+                    assigned_agent="test",
+                    dependencies=["T003"],
+                    completion_criteria=[
+                        "REAL_TEST_STATUS is reported as PASS or FAIL with evidence.",
+                        "Real repository command results are recorded with precise blockers if any command cannot run.",
+                    ],
+                    relevant_files=verification_files,
+                    commands_to_run=verification_commands,
+                    priority=88,
+                ),
+                TaskNode(
+                    id="T005",
+                    title="Review final handoff markers",
+                    description="Confirm final audit, simulation, real-test, blockers, and required-action markers are coherent.",
+                    type="review",
+                    assigned_agent="reviewer",
+                    dependencies=["T004"],
+                    completion_criteria=[
+                        "FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, and REAL_TEST_STATUS are present.",
+                        "Any FAIL marker has a concrete blocker or repair recommendation.",
+                        "Final handoff readiness is recorded.",
+                    ],
+                    relevant_files=top_level_files,
+                    priority=82,
+                ),
+            ]
+        )
+        for requirement in context_bundle.requirements:
+            requirement.planned_task_ids = ["T002", "T003", "T004", "T005"]
+        dependencies = [
+            Dependency(source="T001", target="T002", type="blocks"),
+            Dependency(source="T002", target="T003", type="requires_test_pass"),
+            Dependency(source="T003", target="T004", type="requires_test_pass"),
+            Dependency(source="T004", target="T005", type="requires_review"),
+        ]
         mark_preserved_completed_tasks(nodes, preserved_task_ids)
         return TaskGraph(graph_id=f"{context_bundle.project_id}-document-plan", version=1, nodes=nodes, dependencies=dependencies)
 
@@ -380,6 +496,17 @@ def normalize_scope_controls(scope_controls: dict[str, object] | None) -> dict[s
         "target_files": dedupe(str(item) for item in scope_controls.get("target_files", []) or []),
         "boundary_mode": [str(scope_controls.get("boundary_mode", "strict") or "strict")],
     }
+
+
+def is_final_verification_audit_context(context_bundle: ContextBundle) -> bool:
+    chunks = [context_bundle.objective]
+    for document in context_bundle.documents:
+        chunks.extend([document.path, document.summary, *document.key_requirements])
+    chunks.extend(requirement.text for requirement in context_bundle.requirements)
+    text = "\n".join(chunks).lower()
+    final_audit_signal = "final_verification" in text or "final full-system audit" in text
+    handoff_signal = "final handoff" in text or "required_actions" in text or "final_audit_status" in text
+    return final_audit_signal and handoff_signal
 
 
 def large_refactor_planning_scope_controls(

@@ -553,7 +553,9 @@ class FullRoadmapExecutor:
                 effective_repository_path if effective_repository_path != repository_path else None
             ),
         )
-        for attempt_index in range(1, max_attempts + 1):
+        first_attempt_index = next_final_verification_attempt_index(output_dir)
+        for attempt_offset in range(max_attempts):
+            attempt_index = first_attempt_index + attempt_offset
             attempt_dir = output_dir / f"run_attempt_{attempt_index:03d}"
             payload_result = self._run_phase(
                 objective=(
@@ -581,7 +583,7 @@ class FullRoadmapExecutor:
             write_json(output_dir / f"attempt_{attempt_index:03d}.json", attempt_record)
             if promotion["can_promote"]:
                 break
-            if attempt_index >= max_attempts or not should_auto_repair_phase(promotion, payload):
+            if attempt_offset + 1 >= max_attempts or not should_auto_repair_phase(promotion, payload):
                 break
             repair_documents.append(
                 write_phase_repair_document(
@@ -1829,6 +1831,18 @@ def next_phase_run_dir(phase_dir: Path) -> Path:
         if not candidate.exists():
             return candidate
     raise RuntimeError(f"Too many interrupted attempts for {phase_dir}")
+
+
+def next_final_verification_attempt_index(output_dir: Path) -> int:
+    existing: list[int] = []
+    for path in output_dir.glob("run_attempt_*"):
+        if not path.is_dir():
+            continue
+        try:
+            existing.append(int(path.name.rsplit("_", 1)[-1]))
+        except ValueError:
+            continue
+    return max(existing, default=0) + 1
 
 
 def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:

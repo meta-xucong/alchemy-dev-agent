@@ -1802,3 +1802,15 @@ PY"`
 - Implemented V2.126 in `autodev/full_roadmap_executor.py`: final verification now selects the last completed phase runtime/workspace path and disables fresh isolation when using that inherited worktree.
 - Verification passed: focused final-verification worktree regression, focused max-phase final-audit regression, full `test_full_roadmap_execution.py`, compileall, and diff check.
 - Next step: commit/push V2.126 and relaunch final audit in the inherited CRM worktree.
+
+## 2026-06-28T18:24:00+08:00 V2.127 Final Audit Stale Evidence And Audit Graph
+
+- Relaunched after V2.126. The final verification worker correctly inherited the Billing Core worktree, but T001 planned a generic T002 `Implement large refactor integration`.
+- Supervising Codex wrote `final_verification/run_attempt_001/supervisor_stop.json`; Alchemy cancelled T002, left `active_tasks=[]`, and did not dispatch T003/T004/T005.
+- Root cause: final audit treated old nested `delivery_report.final_gate.hard_failures` and `runtime_state.evaluation.hard_failures` inside already promoted phase records as current blockers.
+- Implemented V2.127 in `autodev/final_verification_loop.py`: cleanly promoted phase records no longer contribute stale nested gate/evaluation failures to final blocker cleanliness; current payload/runtime blockers still block.
+- Implemented V2.127 in `planner/task_graph_builder.py`: final verification documents now produce audit/test tasks instead of a generic large-refactor integration task.
+- Implemented V2.127 in `autodev/full_roadmap_executor.py`: final verification relaunches use the next unused `run_attempt_NNN` directory after a stopped attempt.
+- Real Billing Core final-verification graph probe now starts with T002 audit, T003 simulation probes, and T004 real checks; it has no integration task.
+- Verification passed: focused tests, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, and compileall.
+- Next step: commit/push V2.127, relaunch final audit, and confirm `run_attempt_002` produces final PASS/FAIL markers without replaying broad product implementation.

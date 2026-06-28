@@ -1,7 +1,7 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_final_audit_worktree_ready",
-  "phase_status": "advancing",
+  "current_phase": "billing_core_final_audit_controller_repair_v2_127",
+  "phase_status": "verifying",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
     "resumed Billing Core _012 from run_attempt_010 and verified T004 dispatch",
@@ -65,12 +65,14 @@
     "promoted Billing Core phase_011 after V2.124 preserved split-verification progress; score 0.9464",
     "promoted Billing Core phase_012 demo smoke after Alchemy T003 debug repair; score 0.94",
     "implemented V2.125 final phase max-count gate so completing the last phase at max_phases does not block final audit",
-    "implemented V2.126 final verification worktree inheritance after final audit worker failed with B-WORKTREE"
+    "implemented V2.126 final verification worktree inheritance after final audit worker failed with B-WORKTREE",
+    "implemented V2.127 final audit stale-evidence filtering, final verification audit/test graph, and fresh final attempt directory selection"
   ],
   "next_actions": [
-    "Commit and push V2.126 final verification worktree inheritance.",
-    "Relaunch the controlled Billing Core full-roadmap run so final verification worker runs in the inherited CRM worktree.",
-    "Inspect final audit and final verification worker output; if it exposes product gaps, fix Alchemy's repair handoff first and let Alchemy perform product repairs inside the inherited worktree.",
+    "Run diff check and long-run state validation for V2.127.",
+    "Commit and push V2.127 final audit stale-evidence and audit-graph fixes.",
+    "Relaunch the controlled Billing Core full-roadmap run so final verification starts in run_attempt_002 with audit/test tasks.",
+    "Inspect final audit markers and final verification worker output; if product gaps are found, fix Alchemy repair handoff first and let Alchemy perform product repairs inside the inherited worktree.",
     "Produce the CRM deliverability assessment and supplemental development document after final audit evidence is available.",
     "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after final audit behavior is proven."
   ],
@@ -471,7 +473,14 @@
     "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_uses_last_completed_phase_worktree tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_max_phase_count_does_not_block_final_audit_after_last_phase -q => 2 passed after V2.126",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 76 passed after V2.126",
     "python -B -m compileall autodev tests -q => passed after V2.126",
-    "git diff --check => passed after V2.126"
+    "git diff --check => passed after V2.126",
+    "Billing Core final audit resume after V2.126 => inherited worktree worked, but final_verification/run_attempt_001 entered over-broad T002 Implement large refactor integration; supervisor_stop cancelled T002 before more worker time was spent.",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_document_builds_audit_test_graph -q => 1 passed after V2.127",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_ignores_stale_gate_failures_on_promoted_phase tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_still_blocks_current_payload_blockers tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_uses_next_attempt_after_stopped_attempt tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_uses_last_completed_phase_worktree tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_max_phase_count_does_not_block_final_audit_after_last_phase -q => 5 passed after V2.127",
+    "Real Billing Core final-verification graph probe after V2.127 => T002 audit, T003 simulation, T004 real checks, no integration task.",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 36 passed after V2.127",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 79 passed after V2.127",
+    "python -B -m compileall planner autodev tests -q => passed after V2.127"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -541,7 +550,10 @@
     "Before V2.124, clean iteration-limit attempts with completed split verification tasks did not seed resume context, so a later Billing Core relaunch could collapse back to T001 and replay old work.",
     "Before V2.124, final verification split nodes could be skipped when T022-T025 appeared in Completed tasks to preserve, causing T026 to drift into a new generic verification node instead of Review delivery readiness.",
     "Before V2.125, FullRoadmapExecutor appended Maximum roadmap phase count reached even when the final required phase had just completed, preventing the final verification worker from running.",
-    "Before V2.126, the final verification worker used the original repository path instead of the last completed full-roadmap worktree, causing B-WORKTREE before final audit markers could be produced."
+    "Before V2.126, the final verification worker used the original repository path instead of the last completed full-roadmap worktree, causing B-WORKTREE before final audit markers could be produced.",
+    "Before V2.127, final audit blocker cleanliness treated stale nested final_gate/evaluation hard_failures inside cleanly promoted phase records as current blockers, causing false final handoff blocks.",
+    "Before V2.127, final verification documents under large_refactor mode could generate a generic Implement large refactor integration task at the handoff gate instead of focused audit/test marker tasks.",
+    "Before V2.127, a supervisor-stopped final_verification/run_attempt_001 could be reused on relaunch and immediately stop the next final verification attempt."
   ],
   "blockers": [],
   "done_criteria": [
@@ -549,7 +561,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T17:53:00+08:00",
+  "last_verified_at": "2026-06-28T18:24:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T17:53:00+08:00"
+  "updated_at": "2026-06-28T18:24:00+08:00"
 }

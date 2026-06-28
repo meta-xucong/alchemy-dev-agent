@@ -428,12 +428,29 @@ def hard_failure_summaries(phase_records: Sequence[PhaseExecutionRecord]) -> lis
         gate = _dict(delivery.get("final_gate"))
         runtime = _dict(payload.get("runtime_state"))
         evaluation = _dict(runtime.get("evaluation"))
+        promoted = phase_record_cleanly_promoted(record)
         for key in ("blockers", "hard_failures", "required_changes"):
-            for item in [*_list(payload.get(key)), *_list(runtime.get(key)), *_list(gate.get(key)), *_list(evaluation.get(key))]:
+            current_items = [*_list(payload.get(key)), *_list(runtime.get(key))]
+            stale_gate_items = [] if promoted else [*_list(gate.get(key)), *_list(evaluation.get(key))]
+            for item in [*current_items, *stale_gate_items]:
                 text = str(item).strip()
                 if text:
                     failures.append(f"{record.phase_id}: {text}")
     return dedupe(failures)
+
+
+def phase_record_cleanly_promoted(record: PhaseExecutionRecord) -> bool:
+    promotion = record.promotion
+    score = float_or_zero(promotion.get("score"))
+    required = float_or_zero(promotion.get("required_score", 0.85)) or 0.85
+    can_promote = bool(promotion.get("can_promote", False))
+    reasons = [str(item).strip() for item in _list(promotion.get("reasons")) if str(item).strip()]
+    return (
+        record.status in {"done", "completed"}
+        and can_promote
+        and not reasons
+        and (not score or score >= required)
+    )
 
 
 def traceability_gaps(plan: RoadmapExecutionPlan, phase_records: Sequence[PhaseExecutionRecord]) -> list[str]:
@@ -457,9 +474,24 @@ def boundary_evidence_gaps(phase_records: Sequence[PhaseExecutionRecord]) -> lis
         payload = json.dumps(record.result, ensure_ascii=False).lower()
         if "boundary" not in payload and "scope" not in payload and "protected" not in payload:
             gaps.append(f"{record.phase_id}: no explicit scope/boundary evidence found.")
-        if any(token in payload for token in ["out-of-scope", "scope violation", "protected path violation"]):
+        if scope_violation_mentioned(payload):
             gaps.append(f"{record.phase_id}: possible scope violation mentioned in evidence.")
     return gaps
+
+
+def scope_violation_mentioned(payload: str) -> bool:
+    if "scope violation" in payload or "protected path violation" in payload:
+        return True
+    for match in re.finditer(r"\bout[- ]of[- ]scope\b", payload):
+        snippet = payload[max(0, match.start() - 50) : match.end() + 80]
+        if re.search(r"\b(no|without|avoid|prevent|convert|converted|turn)\b.{0,45}\bout[- ]of[- ]scope\b", snippet):
+            continue
+        if re.search(
+            r"\bout[- ]of[- ]scope\b.{0,70}\b(change|changes|edit|edits|modification|write|writes|path|file|files|violation|touch|touched)\b",
+            snippet,
+        ):
+            return True
+    return False
 
 
 def deterministic_test_evidence_present(phase_records: Sequence[PhaseExecutionRecord]) -> bool:

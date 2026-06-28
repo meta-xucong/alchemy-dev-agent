@@ -733,6 +733,53 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("backend/**", implementation["relevant_files"])
         self.assertIn("frontend/**", implementation["relevant_files"])
 
+    def test_final_verification_document_builds_audit_test_graph(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend").mkdir(parents=True)
+            (repo / "frontend").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(
+                json.dumps({"scripts": {"test": "vitest run", "build": "vite build"}}),
+                encoding="utf-8",
+            )
+            spec = root / "final_verification.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Full-System Audit And Testing",
+                        "",
+                        "## Requirements",
+                        "- Must challenge the completed roadmap against all development documents and report FINAL_AUDIT_STATUS: PASS or FAIL.",
+                        "- Must run scenario, static, or browser simulation probes and report SIMULATION_TEST_STATUS: PASS or FAIL.",
+                        "- Must run real repository tests, builds, or lints and report REAL_TEST_STATUS: PASS or FAIL.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-28T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        titles = [node["title"] for node in graph["nodes"]]
+        self.assertIn("Audit final requirements and phase evidence", titles)
+        self.assertIn("Run final simulation probes", titles)
+        self.assertIn("Run final real repository checks", titles)
+        self.assertNotIn("Implement large refactor integration", titles)
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertEqual(implementation_nodes, [])
+
     def test_large_refactor_frontend_phase_survives_repository_index_cap(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

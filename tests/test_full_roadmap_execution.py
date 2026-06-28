@@ -975,6 +975,50 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertFalse(audit["ready_for_final_handoff"])
         self.assertEqual(audit["final_verification"]["status"], "iterate")
 
+    def test_final_verification_ignores_stale_gate_failures_on_promoted_phase(self) -> None:
+        plan = RoadmapExecutionPlan(
+            root_objective="Build everything",
+            phases=[RoadmapPhase(phase_id="phase_001", title="Foundation", status="completed")],
+        )
+        result = FakePhaseResult("Foundation").to_dict()
+        result["delivery_report"]["final_gate"]["hard_failures"] = ["Required tests are failing."]
+        result["runtime_state"]["evaluation"]["hard_failures"] = ["Required tests are failing."]
+        record = PhaseExecutionRecord(
+            phase_id="phase_001",
+            title="Foundation",
+            status="done",
+            output_dir="phase",
+            result=result,
+            promotion={"can_promote": True, "score": 0.94, "required_score": 0.85, "reasons": []},
+        )
+
+        report = FinalVerificationLoop().audit(plan, [record], run_payload={"real_codex": False}).to_dict()
+
+        self.assertEqual(report["status"], "passed")
+        blocker_cleanliness = next(item for item in report["dimensions"] if item["id"] == "blocker_cleanliness")
+        self.assertEqual(blocker_cleanliness["status"], "passed")
+
+    def test_final_verification_still_blocks_current_payload_blockers(self) -> None:
+        plan = RoadmapExecutionPlan(
+            root_objective="Build everything",
+            phases=[RoadmapPhase(phase_id="phase_001", title="Foundation", status="completed")],
+        )
+        result = FakePhaseResult("Foundation").to_dict()
+        result["blockers"] = ["Current manual blocker."]
+        record = PhaseExecutionRecord(
+            phase_id="phase_001",
+            title="Foundation",
+            status="done",
+            output_dir="phase",
+            result=result,
+            promotion={"can_promote": True, "score": 0.94, "required_score": 0.85, "reasons": []},
+        )
+
+        report = FinalVerificationLoop().audit(plan, [record], run_payload={"real_codex": False}).to_dict()
+
+        self.assertEqual(report["status"], "iterate")
+        self.assertIn("Resolve blockers", "\n".join(report["blockers"]))
+
     def test_final_verification_requires_supplied_known_findings_to_be_resolved(self) -> None:
         plan = RoadmapExecutionPlan(
             root_objective="Build everything",
@@ -2870,6 +2914,44 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(report["status"], "passed")
         self.assertEqual(captured[0]["repository_path"], inherited)
         self.assertFalse(captured[0]["isolate_real_run"])
+
+    def test_final_verification_worker_uses_next_attempt_after_stopped_attempt(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        output_dir = root / "final_verification"
+        stopped_attempt = output_dir / "run_attempt_001"
+        stopped_attempt.mkdir(parents=True)
+        write_json(stopped_attempt / "supervisor_stop.json", {"reason": "operator stopped stale attempt"})
+        captured: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            captured.append(dict(kwargs))
+            return FakePhaseResult(
+                "Final Full-System Audit And Testing",
+                evidence=[
+                    "FINAL_AUDIT_STATUS: PASS",
+                    "SIMULATION_TEST_STATUS: PASS",
+                    "REAL_TEST_STATUS: PASS",
+                ],
+            )
+
+        report = FullRoadmapExecutor(document_runner=fake_runner)._run_final_verification_worker(
+            objective="Finish CRM",
+            plan=RoadmapExecutionPlan(root_objective="Finish CRM", phases=[]),
+            phase_records=[],
+            documents=[doc],
+            attachments=[],
+            repository_url="",
+            repository_path=root / "repo",
+            repository_visibility="private",
+            output_dir=output_dir,
+            run_payload={"real_codex": True, "boundary_mode": "large_refactor", "max_final_verification_attempts": 1},
+        )
+
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(Path(captured[0]["output_dir"]).name, "run_attempt_002")
+        self.assertTrue((output_dir / "attempt_002.json").exists())
 
     def test_executor_generates_document_package_for_one_sentence_mode(self) -> None:
         root = temp_root()

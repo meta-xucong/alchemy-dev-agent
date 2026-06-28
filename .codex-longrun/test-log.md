@@ -4259,3 +4259,35 @@
 - command: `git diff --check`
 - result: passed
 - next verification command: long-run state validation.
+
+## 2026-06-28T18:24:00+08:00 V2.127 Final audit stale evidence and audit graph
+
+- command: Billing Core final audit resume after V2.126
+- result: stopped over-broad final verification task
+- relevant evidence: `final_verification/run_attempt_001` inherited the correct CRM worktree, completed T001, then entered generic T002 `Implement large refactor integration`; supervising Codex wrote `supervisor_stop.json`, T002 was cancelled, and no later tasks were dispatched.
+- next verification command: focused final verification graph and audit aggregation tests.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_document_builds_audit_test_graph -q`
+- result: `1 passed`
+- next verification command: focused final audit aggregation and final attempt-directory tests.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_ignores_stale_gate_failures_on_promoted_phase tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_still_blocks_current_payload_blockers tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_uses_next_attempt_after_stopped_attempt tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_uses_last_completed_phase_worktree tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_max_phase_count_does_not_block_final_audit_after_last_phase -q`
+- result: `5 passed`
+- next verification command: real Billing Core final-verification graph probe.
+
+- command: real Billing Core final-verification graph probe against `.alchemy\billing_core_v274_20260624_012\final_verification\final_verification_requirements.md`
+- result: passed
+- relevant evidence: graph contains T002 `Audit final requirements and phase evidence`, T003 `Run final simulation probes`, T004 `Run final real repository checks`, and no integration task.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `36 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `79 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.

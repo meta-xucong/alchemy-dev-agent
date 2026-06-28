@@ -1721,6 +1721,16 @@ after all promoted work already lives in the inherited Billing Core worktree.
 
 See `docs/135_v2_126_final_verification_worktree_inheritance.md`.
 
+## V2.127 Final Audit Stale Evidence And Audit Graph
+
+V2.127 prevents final handoff from being blocked by stale nested
+`final_gate/evaluation` hard failures when a phase record is already cleanly
+promoted. Final verification documents now build audit/test task graphs instead
+of generic large-refactor integration tasks, and final verification relaunches
+use the next unused attempt directory after a stopped attempt.
+
+See `docs/136_v2_127_final_audit_stale_evidence_and_audit_graph.md`.
+
 Run a smoke execution:
 
 ```bash
