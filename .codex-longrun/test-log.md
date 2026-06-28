@@ -4255,6 +4255,38 @@
 - relevant evidence: `rg` found no `T002 Final Audit Debug Record` or `FINAL_AUDIT_STATUS=FAIL` appendix in `D:\AI\SSH\sub2api-billing-core\docs\BILLING_CORE_DEV_PLAN.md`; diagnosis remains in `.alchemy\...\final_verification` artifacts.
 - next verification command: relaunch final verification after V2.129.
 
+## 2026-06-28T20:22:00+08:00 V2.130 Final repair timeout split
+
+- command: Billing Core final verification resume after V2.129
+- result: repair worker timed out with correct stop boundary
+- relevant evidence: `run_attempt_004` launched editable T002 `Repair final source-boundary defects`; T002 timed out after 900 seconds, task-local changes were rolled back, active tasks became empty, and no debug/T003 dispatch occurred.
+- next verification command: focused final-verification repair split tests.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_repair_context_builds_editable_repair_task -q`
+- result: `1 passed`
+- next verification command: focused final-verification worker tests.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_relaunch_carries_previous_failure_repair_context tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_uses_next_attempt_after_stopped_attempt tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_uses_last_completed_phase_worktree -q`
+- result: `3 passed`
+- next verification command: real Billing Core final-verification split graph probe.
+
+- command: real Billing Core final-verification split repair graph probe after V2.130
+- result: passed
+- relevant evidence: graph contains T002 backend migration repair, T003 backend schema/domain repair, T004 frontend API/i18n repair, T005 frontend route/view/test repair, then T006 audit, T007 simulation, T008 real checks, and T009 review.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `37 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `80 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
 ## 2026-06-28T19:02:00+08:00 V2.128 Final verification skip planning worker
 
 - command: Billing Core final audit resume after V2.127

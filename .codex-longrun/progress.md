@@ -1835,3 +1835,13 @@ PY"`
 - Real Billing Core graph probe confirms the next relaunch will start at editable T002 repair with backend migration/schema/domain/service/handler/server/cmd and frontend API/i18n/router/view/component/composable/constants/type/store/test scope.
 - Verification passed: focused tests, full `test_runtime.py`, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, compileall, and original-document debug-record cleanup check.
 - Next step: commit/push V2.129, relaunch final verification, and let Alchemy repair the CRM source-boundary defects inside the inherited worktree.
+
+## 2026-06-28T20:22:00+08:00 V2.130 Final Repair Timeout Split
+
+- Relaunched after V2.129. `run_attempt_004` correctly started editable T002 `Repair final source-boundary defects` in the inherited worktree, but the single repair worker timed out after 900 seconds and rolled back task-local changes.
+- Timeout handling was correct: active tasks became empty, T002 was failed, a non-partial timeout blocker was recorded, and no same-scope debug or T003 dispatch happened.
+- Implemented V2.130 in `planner/task_graph_builder.py`: final source-boundary repair is now split into backend migration contracts, backend schema/domain contracts, frontend API/i18n contracts, and frontend routes/views/tests.
+- Implemented V2.130 in `autodev/full_roadmap_executor.py`: final verification gets a minimum `max_iterations` of 12 so the split chain can reach audit, simulation, real checks, and review.
+- Real Billing Core graph probe now shows T002-T005 split repairs followed by T006 audit, T007 simulation, T008 real checks, and T009 review.
+- Verification passed: focused tests, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, and compileall.
+- Next step: commit/push V2.130, relaunch final verification, and monitor T002 backend migration repair.

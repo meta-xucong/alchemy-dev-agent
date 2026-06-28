@@ -2914,6 +2914,7 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(report["status"], "passed")
         self.assertEqual(captured[0]["repository_path"], inherited)
         self.assertFalse(captured[0]["isolate_real_run"])
+        self.assertGreaterEqual(captured[0]["max_iterations"], 12)
 
     def test_final_verification_worker_uses_next_attempt_after_stopped_attempt(self) -> None:
         root = temp_root()
@@ -2952,6 +2953,7 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(report["status"], "passed")
         self.assertEqual(Path(captured[0]["output_dir"]).name, "run_attempt_002")
         self.assertTrue((output_dir / "attempt_002.json").exists())
+        self.assertGreaterEqual(captured[0]["max_iterations"], 12)
 
     def test_final_verification_relaunch_carries_previous_failure_repair_context(self) -> None:
         root = temp_root()
@@ -3007,6 +3009,7 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         text = repair_docs[0].read_text(encoding="utf-8")
         self.assertIn("source-boundary", text)
         self.assertIn("backend migrations", text)
+        self.assertGreaterEqual(captured[0]["max_iterations"], 12)
 
     def test_executor_generates_document_package_for_one_sentence_mode(self) -> None:
         root = temp_root()

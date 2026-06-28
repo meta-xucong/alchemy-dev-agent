@@ -553,6 +553,7 @@ class FullRoadmapExecutor:
                 effective_repository_path if effective_repository_path != repository_path else None
             ),
         )
+        final_run_payload["max_iterations"] = max(int(final_run_payload.get("max_iterations", 0) or 0), 12)
         first_attempt_index = next_final_verification_attempt_index(output_dir)
         for attempt_offset in range(max_attempts):
             attempt_index = first_attempt_index + attempt_offset

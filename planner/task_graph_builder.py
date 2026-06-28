@@ -185,7 +185,7 @@ class TaskGraphBuilder:
                 "kind": "deterministic_final_verification_graph",
             }
         )
-        repair_files = final_verification_repair_relevant_files(context_bundle)
+        repair_specs = final_verification_repair_task_specs(context_bundle)
         test_commands = context_bundle.test_commands or ["static artifact inspection"]
         verification_commands = scoped_verification_commands(
             scope_controls,
@@ -202,35 +202,31 @@ class TaskGraphBuilder:
         real_id = "T004"
         review_id = "T005"
         dependencies: list[Dependency] = []
-        if repair_files:
-            nodes.append(
-                TaskNode(
-                    id="T002",
-                    title="Repair final source-boundary defects",
-                    description=(
-                        "Repair the concrete final-verification findings before rerunning audit markers. "
-                        "Focus on residual relay-era migrations, schema/domain contracts, frontend API/i18n/routes/views/tests, "
-                        "and any generated code required to make the CRM Billing Core source boundary clean."
-                    ),
-                    type="integration",
-                    assigned_agent="backend",
-                    dependencies=["T001"],
-                    completion_criteria=[
-                        "Fresh migrations and schema contracts no longer create or expose relay-era product tables.",
-                        "Frontend API/i18n/routes/views/tests no longer expose upstream account, proxy, channel, model-routing, or subscription-plan product behavior.",
-                        "Repair evidence lists the exact files changed and checks run.",
-                    ],
-                    relevant_files=repair_files,
-                    commands_to_run=[],
-                    priority=94,
-                    boundary_mode="large_refactor",
+        if repair_specs:
+            previous_id = "T001"
+            for offset, spec in enumerate(repair_specs, start=2):
+                task_id = f"T{offset:03d}"
+                nodes.append(
+                    TaskNode(
+                        id=task_id,
+                        title=str(spec["title"]),
+                        description=str(spec["description"]),
+                        type="integration",
+                        assigned_agent=str(spec.get("assigned_agent", "backend")),  # type: ignore[arg-type]
+                        dependencies=[previous_id],
+                        completion_criteria=[str(item) for item in spec.get("completion_criteria", [])],
+                        relevant_files=[str(item) for item in spec.get("relevant_files", [])],
+                        commands_to_run=[],
+                        priority=int(spec.get("priority", 94)),
+                        boundary_mode="large_refactor",
+                    )
                 )
-            )
-            audit_id = "T003"
-            simulation_id = "T004"
-            real_id = "T005"
-            review_id = "T006"
-            dependencies.append(Dependency(source="T001", target="T002", type="blocks"))
+                dependencies.append(Dependency(source=previous_id, target=task_id, type="blocks"))
+                previous_id = task_id
+            audit_id = f"T{len(repair_specs) + 2:03d}"
+            simulation_id = f"T{len(repair_specs) + 3:03d}"
+            real_id = f"T{len(repair_specs) + 4:03d}"
+            review_id = f"T{len(repair_specs) + 5:03d}"
         marker_criteria = [
             "FINAL_AUDIT_STATUS is reported as PASS or FAIL with evidence.",
             "REQUIRED_ACTIONS and BLOCKERS are explicitly reported.",
@@ -247,7 +243,7 @@ class TaskGraphBuilder:
                     ),
                     type="test",
                     assigned_agent="test",
-                    dependencies=["T002" if repair_files else "T001"],
+                    dependencies=[f"T{len(repair_specs) + 1:03d}" if repair_specs else "T001"],
                     completion_criteria=marker_criteria,
                     relevant_files=top_level_files,
                     commands_to_run=[],
@@ -310,11 +306,15 @@ class TaskGraphBuilder:
         )
         for requirement in context_bundle.requirements:
             requirement.planned_task_ids = [audit_id, simulation_id, real_id, review_id]
-            if repair_files:
-                requirement.planned_task_ids.insert(0, "T002")
+            if repair_specs:
+                requirement.planned_task_ids = [f"T{index:03d}" for index in range(2, len(repair_specs) + 2)] + requirement.planned_task_ids
         dependencies.extend(
             [
-                Dependency(source="T002" if repair_files else "T001", target=audit_id, type="requires_test_pass"),
+                Dependency(
+                    source=f"T{len(repair_specs) + 1:03d}" if repair_specs else "T001",
+                    target=audit_id,
+                    type="requires_test_pass",
+                ),
                 Dependency(source=audit_id, target=simulation_id, type="requires_test_pass"),
                 Dependency(source=simulation_id, target=real_id, type="requires_test_pass"),
                 Dependency(source=real_id, target=review_id, type="requires_review"),
@@ -560,7 +560,7 @@ def is_final_verification_audit_context(context_bundle: ContextBundle) -> bool:
     return final_audit_signal and handoff_signal
 
 
-def final_verification_repair_relevant_files(context_bundle: ContextBundle) -> list[str]:
+def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[dict[str, object]]:
     chunks = [context_bundle.objective]
     for document in context_bundle.documents:
         chunks.extend([document.path, document.summary, *document.key_requirements])
@@ -568,37 +568,98 @@ def final_verification_repair_relevant_files(context_bundle: ContextBundle) -> l
     text = "\n".join(chunks).lower()
     if not any(token in text for token in ["source-boundary", "allowed_files", "retry repair", "repair final"]):
         return []
-    files: list[str] = []
+    specs: list[dict[str, object]] = []
     if any(token in text for token in ["migration", "schema", "ent", "backend", "table", "domain"]):
-        files.extend(
-            [
-                "backend/migrations/**",
-                "backend/ent/**",
-                "backend/internal/domain/**",
-                "backend/internal/repository/**",
-                "backend/internal/service/**",
-                "backend/internal/handler/**",
-                "backend/internal/server/**",
-                "backend/cmd/**",
-            ]
+        specs.append(
+            {
+                "title": "Repair final backend migration contracts",
+                "description": (
+                    "Remove residual relay-era fresh-migration table creation and align startup database contracts "
+                    "with the CRM Billing Core source-boundary requirements."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
+                    "backend/migrations/**",
+                    "backend/cmd/server/database_contract.go",
+                    "backend/cmd/server/database_contract_test.go",
+                ],
+                "completion_criteria": [
+                    "Fresh migrations no longer create relay-era account-pool, proxy, channel, channel-monitor, subscription, or model-routing tables.",
+                    "Startup cleanup is not the only mechanism enforcing the clean Billing Core schema.",
+                ],
+                "priority": 96,
+            }
+        )
+        specs.append(
+            {
+                "title": "Repair final backend schema and domain contracts",
+                "description": (
+                    "Regenerate or reframe Ent schema/generated code and backend domain/repository/service/handler/server wiring "
+                    "so retired relay-era concepts are not exposed as delivered CRM product behavior."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
+                    "backend/ent/**",
+                    "backend/internal/domain/**",
+                    "backend/internal/repository/**",
+                    "backend/internal/service/**",
+                    "backend/internal/handler/**",
+                    "backend/internal/server/**",
+                    "backend/cmd/**",
+                ],
+                "completion_criteria": [
+                    "Backend schema/domain contracts align with identity, wallet, metering, charging, reconciliation, analytics, audit, and admin concepts.",
+                    "Generated and hand-written backend callers compile after retired relay-era entities are removed or reframed.",
+                ],
+                "priority": 95,
+            }
         )
     if any(token in text for token in ["frontend", "i18n", "router", "view", "api module", "reachable views"]):
-        files.extend(
-            [
-                "frontend/src/api/**",
-                "frontend/src/i18n/**",
-                "frontend/src/router/**",
-                "frontend/src/views/**",
-                "frontend/src/components/**",
-                "frontend/src/composables/**",
-                "frontend/src/constants/**",
-                "frontend/src/types/**",
-                "frontend/src/stores/**",
-                "frontend/src/tests/**",
-                "frontend/tests/**",
-            ]
+        specs.append(
+            {
+                "title": "Repair final frontend API and i18n contracts",
+                "description": (
+                    "Remove or reframe frontend API modules, constants, types, and i18n copy that still expose upstream account, "
+                    "proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/api/**",
+                    "frontend/src/i18n/**",
+                    "frontend/src/constants/**",
+                    "frontend/src/types/**",
+                ],
+                "completion_criteria": [
+                    "Frontend API contracts and user-facing copy describe CRM billing, identity, wallet, metering, charging, payment, analytics, audit, and admin behavior only.",
+                    "Residual relay-era terms are removed or clearly reframed as internal-compatible infrastructure where still necessary.",
+                ],
+                "priority": 94,
+            }
         )
-    return dedupe(files)
+        specs.append(
+            {
+                "title": "Repair final frontend routes views and tests",
+                "description": (
+                    "Close reachable frontend routes, views, components, stores, composables, and tests that still expose retired relay-era workflows."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/router/**",
+                    "frontend/src/views/**",
+                    "frontend/src/components/**",
+                    "frontend/src/composables/**",
+                    "frontend/src/stores/**",
+                    "frontend/src/tests/**",
+                    "frontend/tests/**",
+                ],
+                "completion_criteria": [
+                    "Reachable frontend workflows no longer present token relay, provider channel, upstream account, model-routing, proxy, or subscription-plan behavior.",
+                    "Frontend tests and fixtures align with the final CRM Billing Core product language.",
+                ],
+                "priority": 93,
+            }
+        )
+    return specs
 
 
 def large_refactor_planning_scope_controls(

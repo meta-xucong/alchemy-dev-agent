@@ -1751,6 +1751,16 @@ audit, simulation, and real checks.
 
 See `docs/138_v2_129_final_verification_repair_handoff.md`.
 
+## V2.130 Final Repair Timeout Split
+
+V2.130 splits final source-boundary repair into backend migration, backend
+schema/domain, frontend API/i18n, and frontend route/view/test tasks before
+rerunning final audit, simulation, real checks, and review. Final verification
+also gets a minimum iteration budget of 12 so the split repair chain can reach
+handoff gates.
+
+See `docs/139_v2_130_final_repair_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash

@@ -825,14 +825,18 @@ class DocumentToPlanTests(unittest.TestCase):
 
         nodes = {node["id"]: node for node in graph["nodes"]}
         self.assertEqual(nodes["T001"]["status"], "completed")
-        self.assertEqual(nodes["T002"]["title"], "Repair final source-boundary defects")
+        self.assertEqual(nodes["T002"]["title"], "Repair final backend migration contracts")
         self.assertEqual(nodes["T002"]["type"], "integration")
         self.assertIn("backend/migrations/**", nodes["T002"]["relevant_files"])
-        self.assertIn("backend/ent/**", nodes["T002"]["relevant_files"])
-        self.assertIn("frontend/src/api/**", nodes["T002"]["relevant_files"])
-        self.assertIn("frontend/src/i18n/**", nodes["T002"]["relevant_files"])
-        self.assertEqual(nodes["T003"]["title"], "Audit final requirements and phase evidence")
+        self.assertEqual(nodes["T003"]["title"], "Repair final backend schema and domain contracts")
         self.assertEqual(nodes["T003"]["dependencies"], ["T002"])
+        self.assertIn("backend/ent/**", nodes["T003"]["relevant_files"])
+        self.assertEqual(nodes["T004"]["title"], "Repair final frontend API and i18n contracts")
+        self.assertIn("frontend/src/api/**", nodes["T004"]["relevant_files"])
+        self.assertIn("frontend/src/i18n/**", nodes["T004"]["relevant_files"])
+        self.assertEqual(nodes["T005"]["title"], "Repair final frontend routes views and tests")
+        self.assertEqual(nodes["T006"]["title"], "Audit final requirements and phase evidence")
+        self.assertEqual(nodes["T006"]["dependencies"], ["T005"])
 
     def test_large_refactor_frontend_phase_survives_repository_index_cap(self) -> None:
         with temp_plan_dir() as root:
