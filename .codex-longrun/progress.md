@@ -1951,3 +1951,14 @@ PY"`
 - Added focused document-to-plan, full-roadmap, and runtime regressions, plus `docs/149_v2_140_final_frontend_admin_account_timeout_split.md`.
 - Generated real `final_verification_repair_resume_010.md`; graph probe shows T001-T010 preserved completed and T011 starting at `Repair final frontend admin account table components`.
 - Next step: commit/push V2.140, relaunch the controlled Billing Core final verification, and monitor the smaller admin account table task.
+
+## 2026-06-29T07:38:37+08:00 V2.141 Final Frontend Admin Account Modal Timeout Split
+
+- Relaunched after V2.140. `final_verification/run_attempt_015` preserved T001-T010, completed T011 `Repair final frontend admin account table components`, and advanced to T012.
+- T011 produced useful product progress and evidence: account action/table/filter/stats components now use CRM identity, wallet, capacity, usage, and audit language; scoped ESLint and filtered vue-tsc checks passed for edited paths.
+- T012 `Repair final frontend admin account modal components` still bundled four modal/panel files plus tests/types and timed out after 900 seconds.
+- Alchemy handled the timeout correctly: it preserved T011 completion, recorded `B-T012-1`, stopped the run, and did not dispatch downstream T013.
+- Implemented V2.141 in `planner/task_graph_builder.py`: repeated T012 account modal timeout resumes split into AccountTestModal, ImportDataModal, ReAuthAccountModal, and ScheduledTestsPanel single-file-oriented tasks.
+- Added focused document-to-plan and full-roadmap regressions, plus `docs/150_v2_141_final_frontend_admin_account_modal_timeout_split.md`.
+- Generated real `final_verification_repair_resume_011.md`; graph probe shows T001-T011 preserved completed and T012 starting at `Repair final frontend admin account test modal component`.
+- Next step: commit/push V2.141, relaunch the controlled Billing Core final verification, and monitor the single-file T012 task.

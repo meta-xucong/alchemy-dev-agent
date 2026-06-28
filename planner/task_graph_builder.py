@@ -664,7 +664,11 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
             text
         ) or should_preserve_final_frontend_api_i18n_split(text)
-        split_admin_account_identity = should_split_final_frontend_admin_account_identity_timeout(text)
+        split_admin_account_modal = should_split_final_frontend_admin_account_modal_timeout(text)
+        split_admin_account_identity = (
+            should_split_final_frontend_admin_account_identity_timeout(text)
+            or split_admin_account_modal
+        )
         split_admin_components = (
             should_split_final_frontend_admin_component_timeout(text)
             or split_admin_account_identity
@@ -685,6 +689,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_view_components=split_frontend_view_components,
                 split_admin_components=split_admin_components,
                 split_admin_account_identity=split_admin_account_identity,
+                split_admin_account_modal=split_admin_account_modal,
             )
         )
     return specs
@@ -978,12 +983,47 @@ def should_split_final_frontend_admin_account_identity_timeout(text: str) -> boo
     )
 
 
+def should_split_final_frontend_admin_account_modal_timeout(text: str) -> bool:
+    focused_account_modal_scope = "primary failed task ids: t012" in text and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin account modal components",
+            "accounttestmodal",
+            "importdatamodal",
+            "reauthaccountmodal",
+            "scheduledtestspanel",
+        )
+    )
+    if focused_account_modal_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return all(
+        marker in text
+        for marker in (
+            "primary failed task ids: t012",
+            "account",
+            "modal",
+            "component",
+        )
+    )
+
+
 def final_frontend_routes_views_repair_task_specs(
     *,
     split: bool,
     split_view_components: bool = False,
     split_admin_components: bool = False,
     split_admin_account_identity: bool = False,
+    split_admin_account_modal: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1132,51 +1172,120 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 91,
     }
-    admin_account_identity_split_tasks = [
+    admin_account_table_task = {
+        "title": "Repair final frontend admin account table components",
+        "description": (
+            "Align admin account table, action, filter, and stats components with CRM account, wallet, capacity, and audit semantics."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/admin/account/AccountActionMenu.vue",
+            "frontend/src/components/admin/account/AccountBulkActionsBar.vue",
+            "frontend/src/components/admin/account/AccountStatsModal.vue",
+            "frontend/src/components/admin/account/AccountTableActions.vue",
+            "frontend/src/components/admin/account/AccountTableFilters.vue",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Admin account table/action UI no longer exposes upstream account, provider-channel, proxy, token-log, or model-routing behavior.",
+            "Account table components compile against CRM identity, wallet, capacity, and audit contracts.",
+        ],
+        "priority": 91,
+    }
+    admin_account_modal_task = {
+        "title": "Repair final frontend admin account modal components",
+        "description": (
+            "Align admin account import, reauth, scheduled-test, and account-test modals with CRM account lifecycle and verification semantics."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/admin/account/AccountTestModal.vue",
+            "frontend/src/components/admin/account/ImportDataModal.vue",
+            "frontend/src/components/admin/account/ReAuthAccountModal.vue",
+            "frontend/src/components/admin/account/ScheduledTestsPanel.vue",
+            "frontend/src/components/admin/account/__tests__/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Admin account modal workflows use CRM account verification, import, and lifecycle language.",
+            "Account modal tests and contracts no longer depend on token relay, provider-channel, proxy, or model-routing concepts.",
+        ],
+        "priority": 90,
+    }
+    admin_account_modal_split_tasks = [
         {
-            "title": "Repair final frontend admin account table components",
-            "description": (
-                "Align admin account table, action, filter, and stats components with CRM account, wallet, capacity, and audit semantics."
-            ),
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/components/admin/account/AccountActionMenu.vue",
-                "frontend/src/components/admin/account/AccountBulkActionsBar.vue",
-                "frontend/src/components/admin/account/AccountStatsModal.vue",
-                "frontend/src/components/admin/account/AccountTableActions.vue",
-                "frontend/src/components/admin/account/AccountTableFilters.vue",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Admin account table/action UI no longer exposes upstream account, provider-channel, proxy, token-log, or model-routing behavior.",
-                "Account table components compile against CRM identity, wallet, capacity, and audit contracts.",
-            ],
-            "priority": 91,
-        },
-        {
-            "title": "Repair final frontend admin account modal components",
-            "description": (
-                "Align admin account import, reauth, scheduled-test, and account-test modals with CRM account lifecycle and verification semantics."
-            ),
+            "title": "Repair final frontend admin account test modal component",
+            "description": "Align the admin account test modal with CRM account verification semantics.",
             "assigned_agent": "frontend",
             "relevant_files": [
                 "frontend/src/components/admin/account/AccountTestModal.vue",
-                "frontend/src/components/admin/account/ImportDataModal.vue",
-                "frontend/src/components/admin/account/ReAuthAccountModal.vue",
-                "frontend/src/components/admin/account/ScheduledTestsPanel.vue",
                 "frontend/src/components/admin/account/__tests__/**",
                 "frontend/src/types/**",
                 "frontend/package.json",
                 "frontend/pnpm-lock.yaml",
             ],
             "completion_criteria": [
-                "Admin account modal workflows use CRM account verification, import, and lifecycle language.",
-                "Account modal tests and contracts no longer depend on token relay, provider-channel, proxy, or model-routing concepts.",
+                "AccountTestModal no longer exposes relay provider, upstream-account, proxy, token-log, or model-routing language.",
+                "Account test modal behavior is framed as CRM account verification and compiles against shared CRM types.",
             ],
             "priority": 90,
         },
+        {
+            "title": "Repair final frontend admin account import modal component",
+            "description": "Align the admin account import modal with CRM account onboarding and data import semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/account/ImportDataModal.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "ImportDataModal uses CRM account onboarding/import language.",
+                "Import modal contracts no longer depend on relay provider, proxy, token-log, or model-routing concepts.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final frontend admin account reauth modal component",
+            "description": "Align the admin account reauthorization modal with CRM account security and lifecycle semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/account/ReAuthAccountModal.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "ReAuthAccountModal uses CRM account security and lifecycle language.",
+                "Reauthorization modal contracts no longer expose upstream account, provider-channel, proxy, token-log, or model-routing product behavior.",
+            ],
+            "priority": 88,
+        },
+        {
+            "title": "Repair final frontend admin scheduled account tests panel",
+            "description": "Align the scheduled account tests panel with CRM account health and verification semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/account/ScheduledTestsPanel.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "ScheduledTestsPanel uses CRM account health, verification, and audit language.",
+                "Scheduled test contracts no longer present relay provider, proxy, token-log, or model-routing concepts as product behavior.",
+            ],
+            "priority": 87,
+        },
+    ]
+    admin_account_identity_split_tasks = [
+        admin_account_table_task,
+        *(admin_account_modal_split_tasks if split_admin_account_modal else [admin_account_modal_task]),
         {
             "title": "Repair final frontend admin user account components",
             "description": (
