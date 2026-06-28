@@ -3106,6 +3106,120 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("Completed tasks to preserve: T002", text)
         self.assertIn("split backend schema/domain repair", text)
 
+    def test_final_verification_resume_records_frontend_api_i18n_timeout_focus(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        for index in range(1, 6):
+            (output_dir / f"final_verification_repair_resume_{index:03d}.md").write_text(
+                f"Repair attempt: run_attempt_{index + 4:03d}\n",
+                encoding="utf-8",
+            )
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [
+                    {
+                        "attempt": 10,
+                        "output_dir": str(output_dir / "run_attempt_010"),
+                        "status": "blocked",
+                    }
+                ],
+                "result": {
+                    "status": "blocked",
+                    "evidence": ["FINAL_AUDIT_STATUS=FAIL: source-boundary repair attempt needs continuation."],
+                    "runtime_state": {
+                        "completed_tasks": ["T004", "T005"],
+                        "failed_tasks": ["T006"],
+                        "blockers": [
+                            {
+                                "id": "B-T006-1",
+                                "type": "technical_limit",
+                                "description": "T006 exceeded the Codex worker timeout. Stop instead of launching a same-scope debug task.",
+                                "task_ids": ["T006"],
+                            }
+                        ],
+                        "task_graph": {
+                            "nodes": [
+                                {"id": "T001", "title": "Use deterministic final verification graph", "status": "completed"},
+                                {"id": "T002", "title": "Repair final backend migration contracts", "status": "completed"},
+                                {"id": "T003", "title": "Repair final backend Ent schema contracts", "status": "completed"},
+                                {"id": "T004", "title": "Repair final backend domain and repository contracts", "status": "completed"},
+                                {"id": "T005", "title": "Repair final backend service handler server contracts", "status": "completed"},
+                                {
+                                    "id": "T006",
+                                    "title": "Repair final frontend API and i18n contracts",
+                                    "status": "failed",
+                                    "relevant_files": [
+                                        "frontend/src/api/**",
+                                        "frontend/src/i18n/**",
+                                        "frontend/src/constants/**",
+                                        "frontend/src/types/**",
+                                    ],
+                                    "evidence": [
+                                        {
+                                            "type": "worker_result",
+                                            "result": {
+                                                "status": "failed",
+                                                "summary": "Codex worker timed out after 900 seconds.",
+                                                "known_issues": ["Task-local repository changes were rolled back after timeout."],
+                                                "worker_lifecycle": {
+                                                    "status": "timed_out",
+                                                    "timeout_seconds": 900,
+                                                    "timed_out_at": "2026-06-28T17:32:52+00:00",
+                                                },
+                                            },
+                                        }
+                                    ],
+                                },
+                            ]
+                        },
+                    },
+                },
+            },
+        )
+        captured: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            captured.append(dict(kwargs))
+            return FakePhaseResult(
+                "Final Full-System Audit And Testing",
+                evidence=[
+                    "FINAL_AUDIT_STATUS: PASS",
+                    "SIMULATION_TEST_STATUS: PASS",
+                    "REAL_TEST_STATUS: PASS",
+                ],
+            )
+
+        report = FullRoadmapExecutor(document_runner=fake_runner)._run_final_verification_worker(
+            objective="Finish CRM",
+            plan=RoadmapExecutionPlan(root_objective="Finish CRM", phases=[]),
+            phase_records=[],
+            documents=[doc],
+            attachments=[],
+            repository_url="",
+            repository_path=root / "repo",
+            repository_visibility="private",
+            output_dir=output_dir,
+            run_payload={"real_codex": True, "boundary_mode": "large_refactor", "max_final_verification_attempts": 1},
+        )
+
+        repair_docs = [Path(item) for item in captured[0]["documents"] if "final_verification_repair_resume" in str(item)]
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(repair_docs[-1].name, "final_verification_repair_resume_006.md")
+        text = repair_docs[-1].read_text(encoding="utf-8")
+        self.assertIn("Repair attempt: run_attempt_010", text)
+        self.assertIn("Primary failed task IDs: T006", text)
+        completed_line = next(line for line in text.splitlines() if "Completed tasks to preserve:" in line)
+        for task_id in ("T001", "T002", "T003", "T004", "T005"):
+            self.assertIn(task_id, completed_line)
+        self.assertNotIn("T006", completed_line)
+        self.assertIn("Task T006 - Repair final frontend API and i18n contracts", text)
+        self.assertIn("Worker summary: Codex worker timed out after 900 seconds.", text)
+
     def test_final_verification_resume_preserves_partial_downstream_handoff(self) -> None:
         root = temp_root()
         doc = root / "roadmap.md"

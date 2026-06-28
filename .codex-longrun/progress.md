@@ -1897,3 +1897,13 @@ PY"`
 - Real Billing Core resume probe generated `final_verification_repair_resume_005.md`; graph construction shows T001-T003 completed and T004 ready, with T005 pending behind it.
 - Verification passed: focused runtime false-positive/timeout regressions, focused final-verification reopen regressions, full `OrchestratorTests`, full `test_full_roadmap_execution.py`, compileall, diff check, and real resume graph probe. A full `test_runtime.py` run was attempted but the outer shell timeout cut off result collection; the focused scheduler/orchestrator coverage passed cleanly.
 - Next step: commit/push V2.135, relaunch the controlled Billing Core final verification, and monitor T004 repository residual repair in the inherited worktree.
+
+## 2026-06-29T02:10:00+08:00 V2.136 Final Frontend API/I18n Timeout Split
+
+- Relaunched after V2.135. `final_verification/run_attempt_010` reopened T004 as intended, completed T004 domain/repository repair, completed T005 service/handler/server repair, and advanced to T006.
+- T006 `Repair final frontend API and i18n contracts` hit the 900 second worker timeout with no task-local evidence. This was a real timeout, not the V2.135 false-positive pattern.
+- Alchemy handled the stop boundary correctly: it recorded `B-T006-1`, did not launch `T006-DEBUG-1`, and did not dispatch downstream final-verification tasks.
+- Implemented V2.136 in `planner/task_graph_builder.py`: final-verification repair resumes now split a timed-out final frontend API/i18n task into API module, i18n locale, and constants/shared-types repair tasks.
+- Added focused document-to-plan and full-roadmap resume regressions, plus `docs/145_v2_136_final_frontend_api_i18n_timeout_split.md`.
+- Generated real `final_verification_repair_resume_006.md`; lightweight graph probe shows T001-T005 preserved completed, T006/T007/T008 split frontend repair tasks pending, followed by routes/views/tests and final audit/simulation/real-check/review gates.
+- Next step: validate/commit/push V2.136, relaunch the controlled Billing Core final verification, and monitor split T006 instead of replaying the broad frontend task.

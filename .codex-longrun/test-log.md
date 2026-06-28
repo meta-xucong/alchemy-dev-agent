@@ -4597,3 +4597,36 @@
 - result: passed
 - relevant evidence: generated `final_verification_repair_resume_005.md`; graph construction marks T001-T003 completed and T004 ready, with `account_repo.go` evidence present.
 - next verification command: long-run state validation, commit/push, and controlled Billing Core final verification relaunch.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_frontend_api_i18n_timeout_is_split -q`
+- result: `1 passed`
+- next verification command: final-verification resume focus regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_api_i18n_timeout_focus -q`
+- result: `1 passed`
+- next verification command: adjacent final repair regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_repair_context_builds_editable_repair_task tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_frontend_api_i18n_timeout_is_split tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_remaining_closure_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task -q`
+- result: `5 passed`
+- next verification command: adjacent full-roadmap final resume regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_relaunch_writes_fresh_resume_for_latest_failed_attempt tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_api_i18n_timeout_focus tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_preserves_partial_downstream_handoff tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_reopens_preserved_task_when_later_failure_targets_its_scope -q`
+- result: `4 passed`
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `38 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `84 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner autodev tests -q`
+- result: passed
+- next verification command: real Billing Core final-verification resume graph probe.
+
+- command: real Billing Core final-verification resume probe after run_attempt_010
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_006.md`; graph construction preserves T001-T005 completed and splits frontend T006 into API module, i18n locale, and constants/shared-types repair tasks before routes/views/tests and final gates.
+- next verification command: diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.

@@ -661,26 +661,10 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             }
         )
     if any(token in text for token in ["frontend", "i18n", "router", "view", "api module", "reachable views"]):
-        specs.append(
-            {
-                "title": "Repair final frontend API and i18n contracts",
-                "description": (
-                    "Remove or reframe frontend API modules, constants, types, and i18n copy that still expose upstream account, "
-                    "proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior."
-                ),
-                "assigned_agent": "frontend",
-                "relevant_files": [
-                    "frontend/src/api/**",
-                    "frontend/src/i18n/**",
-                    "frontend/src/constants/**",
-                    "frontend/src/types/**",
-                ],
-                "completion_criteria": [
-                    "Frontend API contracts and user-facing copy describe CRM billing, identity, wallet, metering, charging, payment, analytics, audit, and admin behavior only.",
-                    "Residual relay-era terms are removed or clearly reframed as internal-compatible infrastructure where still necessary.",
-                ],
-                "priority": 94,
-            }
+        specs.extend(
+            final_frontend_api_i18n_repair_task_specs(
+                split=should_split_final_frontend_api_i18n_timeout(text)
+            )
         )
         specs.append(
             {
@@ -706,6 +690,114 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             }
         )
     return specs
+
+
+def should_split_final_frontend_api_i18n_timeout(text: str) -> bool:
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    if "repair final frontend api and i18n contracts" in text:
+        return True
+    focused_api_i18n_scope = all(
+        marker in text
+        for marker in (
+            "primary failed task ids: t006",
+            "frontend api",
+            "i18n",
+            "constants",
+            "type",
+        )
+    )
+    return focused_api_i18n_scope
+
+
+def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, object]]:
+    if not split:
+        return [
+            {
+                "title": "Repair final frontend API and i18n contracts",
+                "description": (
+                    "Remove or reframe frontend API modules, constants, types, and i18n copy that still expose upstream account, "
+                    "proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/api/**",
+                    "frontend/src/i18n/**",
+                    "frontend/src/constants/**",
+                    "frontend/src/types/**",
+                ],
+                "completion_criteria": [
+                    "Frontend API contracts and user-facing copy describe CRM billing, identity, wallet, metering, charging, payment, analytics, audit, and admin behavior only.",
+                    "Residual relay-era terms are removed or clearly reframed as internal-compatible infrastructure where still necessary.",
+                ],
+                "priority": 94,
+            }
+        ]
+    return [
+        {
+            "title": "Repair final frontend API module contracts",
+            "description": (
+                "Remove or reframe frontend API modules and service contract types that still expose upstream account, "
+                "proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/api/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Frontend API modules describe CRM billing, identity, wallet, metering, charging, payment, analytics, audit, and admin behavior only.",
+                "Retired relay-era API exports are removed or clearly quarantined as internal compatibility infrastructure.",
+            ],
+            "priority": 94,
+        },
+        {
+            "title": "Repair final frontend i18n locale contracts",
+            "description": (
+                "Replace frontend locale copy that still presents upstream account, proxy, channel, channel-monitor, "
+                "model-routing, or subscription-plan behavior as delivered CRM product behavior."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/i18n/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Frontend locale copy uses CRM identity, wallet, metering, charging, reconciliation, analytics, audit, and admin language.",
+                "Residual relay-era wording is removed or clearly reframed as internal compatibility language.",
+            ],
+            "priority": 93,
+        },
+        {
+            "title": "Repair final frontend constants and shared types contracts",
+            "description": (
+                "Align frontend constants and shared types with the final CRM Billing Core product boundary after API and locale cleanup."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/constants/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Shared frontend constants and types no longer expose upstream account, proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior.",
+                "The remaining shared contract names are compatible with CRM billing, identity, wallet, metering, charging, payment, analytics, audit, and admin workflows.",
+            ],
+            "priority": 92,
+        },
+    ]
 
 
 def large_refactor_planning_scope_controls(

@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_timeout_false_positive_reopen_v2_135",
+  "current_phase": "billing_core_final_frontend_timeout_split_v2_136",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -74,15 +74,16 @@
     "implemented V2.132 final repair resume refresh, backend schema/domain split, and progress-aware worker timeout grace",
     "implemented V2.133 final backend Go module companion scope for Ent/domain/service repair tasks",
     "implemented V2.134 partial downstream handoff so final repair partials can continue into direct downstream scopes instead of creating same-scope debug loops",
-    "implemented V2.135 timeout false-positive guard and final repair reopen for later evidence targeting preserved task scopes"
+    "implemented V2.135 timeout false-positive guard and final repair reopen for later evidence targeting preserved task scopes",
+    "implemented V2.136 final frontend API/i18n timeout split so Billing Core final verification resumes T006 as smaller API, i18n, and constants/types repair tasks"
   ],
   "next_actions": [
-    "Run long-run state validation and final diff/status checks for V2.135.",
-    "Commit and push V2.135 timeout false-positive and reopen fix.",
+    "Run final diff/status checks and long-run state validation for V2.136.",
+    "Commit and push V2.136 final frontend API/i18n timeout split.",
     "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1.",
-    "Confirm final verification run_attempt_010 preserves T001-T003 and starts at T004 repository residual repair for account_repo.go.",
-    "Monitor T004 product repair worker in the inherited Billing Core worktree; Codex Desktop must not directly implement CRM product changes.",
-    "If T004 returns partial with downstream service files only, allow the V2.134 handoff to T005; if it finds more repository files, ensure Alchemy keeps them in repository scope.",
+    "Confirm final_verification_repair_resume_006 preserves T001-T005 and starts at split T006 `Repair final frontend API module contracts` in the inherited worktree.",
+    "Monitor split frontend repair tasks T006/T007/T008; Codex Desktop must not directly implement CRM product changes.",
+    "If a split frontend task still times out without evidence, optimize Alchemy worker heartbeat/checkpointing or split the task further before relaunch.",
     "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
   ],
   "tests_run": [
@@ -536,7 +537,15 @@
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 83 passed after V2.135",
     "python -B -m compileall runtime autodev tests -q => passed after V2.135",
     "git diff --check -- runtime/orchestrator.py autodev/full_roadmap_executor.py tests/test_runtime.py tests/test_full_roadmap_execution.py => passed after V2.135",
-    "Real Billing Core final-verification resume graph probe after V2.135 => final_verification_repair_resume_005.md preserves T001-T003 and starts at T004 for account_repo.go."
+    "Real Billing Core final-verification resume graph probe after V2.135 => final_verification_repair_resume_005.md preserves T001-T003 and starts at T004 for account_repo.go.",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_frontend_api_i18n_timeout_is_split -q => 1 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_api_i18n_timeout_focus -q => 1 passed",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_repair_context_builds_editable_repair_task tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_frontend_api_i18n_timeout_is_split tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_copy_sweep_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_remaining_closure_task tests/test_document_to_plan.py::DocumentToPlanTests::test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task -q => 5 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_relaunch_writes_fresh_resume_for_latest_failed_attempt tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_api_i18n_timeout_focus tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_preserves_partial_downstream_handoff tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_reopens_preserved_task_when_later_failure_targets_its_scope -q => 4 passed",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 38 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 84 passed",
+    "python -B -m compileall planner autodev tests -q => passed",
+    "real Billing Core final-verification resume probe after run_attempt_010 => passed; generated final_verification_repair_resume_006.md with T001-T005 preserved and split frontend T006/T007/T008 pending"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -626,7 +635,8 @@
     "Before V2.134, runtime treated every partial worker result as a current-task failure; Billing Core run_attempt_008 T004 had already made domain/repository progress and identified a direct downstream service file, but Alchemy still created T004-DEBUG-1 and reset T004.",
     "Before V2.134, final-verification repair resume generation did not preserve historical partial-handoff tasks, so restarting after run_attempt_008 could replay T004 instead of continuing to T005.",
     "Before V2.135, timeout detection scanned raw worker context and could misclassify prompt text about the timeout stop-boundary policy as an actual worker timeout even when lifecycle status was completed.",
-    "Before V2.135, final-verification resume preservation could keep T004 completed even after later T005 evidence named backend/internal/repository/account_repo.go, a file inside T004 repository scope that needed reopening."
+    "Before V2.135, final-verification resume preservation could keep T004 completed even after later T005 evidence named backend/internal/repository/account_repo.go, a file inside T004 repository scope that needed reopening.",
+    "Before V2.136, final verification T006 `Repair final frontend API and i18n contracts` could time out after 900 seconds and the next resume would rebuild the same broad frontend API/i18n/constants/types worker instead of splitting it."
   ],
   "blockers": [],
   "done_criteria": [
@@ -634,7 +644,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-29T00:46:00+08:00",
+  "last_verified_at": "2026-06-29T02:10:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-29T00:46:00+08:00"
+  "updated_at": "2026-06-29T02:10:00+08:00"
 }
