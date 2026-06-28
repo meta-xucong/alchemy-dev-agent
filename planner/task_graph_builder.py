@@ -173,6 +173,18 @@ class TaskGraphBuilder:
     ) -> TaskGraph:
         """Build an audit/test graph for the last full-roadmap verification pass."""
 
+        planning_node = nodes[0]
+        planning_node.title = "Use deterministic final verification graph"
+        planning_node.description = (
+            "Final verification uses a fixed audit/test graph, so no real planning worker is required before audit."
+        )
+        planning_node.status = "completed"
+        planning_node.evidence.append(
+            {
+                "summary": "Final verification planning was pre-completed by the deterministic graph builder.",
+                "kind": "deterministic_final_verification_graph",
+            }
+        )
         test_commands = context_bundle.test_commands or ["static artifact inspection"]
         verification_commands = scoped_verification_commands(
             scope_controls,

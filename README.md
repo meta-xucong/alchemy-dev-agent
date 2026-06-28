@@ -1731,6 +1731,15 @@ use the next unused attempt directory after a stopped attempt.
 
 See `docs/136_v2_127_final_audit_stale_evidence_and_audit_graph.md`.
 
+## V2.128 Final Verification Skip Planning Worker
+
+V2.128 pre-completes the deterministic T001 planning node only for final
+verification audit contexts. Final verification relaunches now start directly
+from T002 `Audit final requirements and phase evidence`, avoiding a real Codex
+planning worker before the fixed audit/test graph.
+
+See `docs/137_v2_128_final_verification_skip_planning_worker.md`.
+
 Run a smoke execution:
 
 ```bash

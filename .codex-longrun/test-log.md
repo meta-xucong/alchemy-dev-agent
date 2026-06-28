@@ -4210,6 +4210,39 @@
 - result: passed
 - next verification command: diff check and state validation.
 
+## 2026-06-28T19:02:00+08:00 V2.128 Final verification skip planning worker
+
+- command: Billing Core final audit resume after V2.127
+- result: stopped unnecessary deterministic planning worker
+- relevant evidence: `final_verification/run_attempt_002` had the correct audit/test graph, but T001 planning ran for more than eight minutes without state progress; supervising Codex wrote `supervisor_stop.json`, T001 was cancelled, and no residual process remained.
+- next verification command: focused final verification graph test.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_document_builds_audit_test_graph -q`
+- result: `1 passed`
+- next verification command: real Billing Core graph probe.
+
+- command: real Billing Core final-verification graph probe after V2.128
+- result: passed
+- relevant evidence: T001 is completed as `Use deterministic final verification graph`; T002/T003/T004 are pending audit/test tasks.
+- next verification command: runtime ready-task probe.
+
+- command: runtime handoff ready-task probe for real Billing Core final-verification graph
+- result: passed
+- relevant evidence: first ready task is T002 `Audit final requirements and phase evidence`.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `36 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `79 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
 - command: `git diff --check`
 - result: passed
 - next verification command: long-run state validation.

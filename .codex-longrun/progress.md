@@ -1814,3 +1814,12 @@ PY"`
 - Real Billing Core final-verification graph probe now starts with T002 audit, T003 simulation probes, and T004 real checks; it has no integration task.
 - Verification passed: focused tests, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, and compileall.
 - Next step: commit/push V2.127, relaunch final audit, and confirm `run_attempt_002` produces final PASS/FAIL markers without replaying broad product implementation.
+
+## 2026-06-28T19:02:00+08:00 V2.128 Final Verification Skip Planning Worker
+
+- Relaunched after V2.127. `final_verification/run_attempt_002` correctly used the audit/test graph, but T001 `Plan implementation from requirements` ran for more than eight minutes with no visible state progress before any final audit task could start.
+- Supervising Codex wrote `final_verification/run_attempt_002/supervisor_stop.json`; Alchemy cancelled T001, left no active tasks, and no residual process remained.
+- Implemented V2.128 in `planner/task_graph_builder.py`: final verification audit contexts now pre-complete deterministic T001 planning and start runtime dispatch at T002 `Audit final requirements and phase evidence`.
+- Real Billing Core graph probe shows T001 completed and T002/T003/T004 as pending audit/test tasks; runtime handoff probe selects T002 as the first ready task.
+- Verification passed: focused final verification graph test, real graph probe, runtime ready-task probe, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, and compileall.
+- Next step: commit/push V2.128, relaunch final audit, and confirm `run_attempt_003` starts directly at T002.

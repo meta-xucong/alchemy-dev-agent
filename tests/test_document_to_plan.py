@@ -773,6 +773,10 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("Run final simulation probes", titles)
         self.assertIn("Run final real repository checks", titles)
         self.assertNotIn("Implement large refactor integration", titles)
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes["T001"]["title"], "Use deterministic final verification graph")
+        self.assertEqual(nodes["T001"]["status"], "completed")
+        self.assertEqual(nodes["T002"]["dependencies"], ["T001"])
         implementation_nodes = [
             node
             for node in graph["nodes"]
