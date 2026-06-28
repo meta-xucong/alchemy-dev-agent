@@ -1594,6 +1594,15 @@ briefs exist.
 
 See `docs/122_v2_113_cumulative_schema_repair_context.md`.
 
+## V2.114 Ent Regeneration Timeout Split
+
+V2.114 splits focused schema/build T006 timeouts into Ent regeneration
+inventory, generated-client regeneration, and repository-caller alignment
+tasks. It also raises the schema/build repair-context retention floor to six
+ordinary repair briefs so the longer split chain remains intact.
+
+See `docs/123_v2_114_ent_regeneration_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash

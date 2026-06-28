@@ -3649,7 +3649,47 @@
 
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
+- next verification command: commit/push V2.114, then controlled Billing Core relaunch.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
 - next verification command: commit/push V2.113, then controlled Billing Core relaunch.
+
+## 2026-06-28T08:35:00+08:00 V2.114 Ent regeneration timeout split verification
+
+- command: Billing Core controlled resume via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: T003/T004/T005 completed, T006 timed out, same-scope T006 replay stopped
+- relevant evidence: `run_attempt_011` completed migration inventory, migration patch, and server/domain contract tasks; `run_attempt_012` replayed broad `Regenerate Ent clients and migration artifacts` and was stopped.
+- next verification command: focused planner/full-roadmap regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_ent_regeneration_timeout_repair_splits_regeneration_task tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget -q`
+- result: `2 passed`
+- next verification command: real phase_011 graph probe.
+
+- command: real phase_011 bootstrap and graph probe using `phase_repair_005.md`
+- result: passed
+- relevant evidence: retained `phase_repair_001.md` through `phase_repair_005.md`; graph replaced broad T006 with `Inventory Ent regeneration inputs`, `Regenerate Ent generated clients`, and `Align repository callers after Ent regeneration`.
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `30 passed`
+- next verification command: full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `70 passed`
+- next verification command: runtime handoff regression.
+
+- command: `python -B -m pytest tests/test_runtime_handoff.py -q`
+- result: `4 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev planner tests -q`
+- result: passed
+- next verification command: diff check, state validation, commit/push, then controlled Billing Core relaunch.
 
 - command: `git diff --check`
 - result: passed with existing `.codex-longrun` CRLF warnings only

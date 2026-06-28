@@ -2226,7 +2226,7 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         record_path = phase_dir / "phase_record.json"
         write_json(record_path, {"phase_id": "phase_011", "status": "blocked", "output_dir": str(stopped)})
         write_json(stopped / "supervisor_stop.json", {"reason": "stale split context stopped"})
-        for index, task_id in ((1, "T002"), (2, "T002"), (3, "T003"), (4, "T003")):
+        for index, task_id in ((1, "T002"), (2, "T002"), (3, "T003"), (4, "T003"), (5, "T006")):
             repair_doc = phase_dir / f"phase_repair_{index:03d}.md"
             repair_doc.write_text(
                 "\n".join(
@@ -2264,7 +2264,16 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         )
 
         names = [Path(item).name for item in docs]
-        self.assertEqual(names, ["phase_repair_001.md", "phase_repair_002.md", "phase_repair_003.md", "phase_repair_004.md"])
+        self.assertEqual(
+            names,
+            [
+                "phase_repair_001.md",
+                "phase_repair_002.md",
+                "phase_repair_003.md",
+                "phase_repair_004.md",
+                "phase_repair_005.md",
+            ],
+        )
 
     def test_supervisor_stopped_attempt_context_preserves_newer_completed_tasks(self) -> None:
         root = temp_root()

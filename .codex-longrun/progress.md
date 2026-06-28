@@ -1666,3 +1666,12 @@ PY"`
 - Implemented V2.113 in `autodev/full_roadmap_executor.py`: schema/build phases now retain at least four ordinary repair docs as cumulative context, without increasing the new repair-attempt budget.
 - Real phase_011 bootstrap and graph probe now retains `phase_repair_001.md` through `phase_repair_004.md` and rebuilds the correct T002 schema-prune plus T003 migration checkpoint graph.
 - Next step: commit/push V2.113, relaunch Billing Core through Alchemy, and confirm the next attempt starts from the migration inventory checkpoint.
+
+## 2026-06-28T08:35:00+08:00 V2.114 Ent Regeneration Timeout Split
+
+- Relaunched Billing Core after V2.113. `run_attempt_011` correctly preserved T001/T002 and completed T003 inventory, T004 migration patch, and T005 server/domain contracts with backend test evidence.
+- `run_attempt_011` then timed out at T006 `Regenerate Ent clients and migration artifacts`. The parent launched `run_attempt_012` with the same broad T006, and Codex Desktop stopped it before another worker window.
+- Implemented V2.114 in `planner/task_graph_builder.py`: focused T006 schema/build timeout repairs now split into Ent regeneration inventory, generated-client regeneration, and repository-caller alignment.
+- Updated schema/build cumulative repair context retention from four to six ordinary repair docs, so phase_011 keeps the full `_001` through `_005` repair chain.
+- Real phase_011 graph probe now retains `phase_repair_001.md` through `phase_repair_005.md` and replaces broad T006 with the three regeneration split tasks.
+- Next step: commit/push V2.114, relaunch Billing Core through Alchemy, and monitor the Ent regeneration inventory task.

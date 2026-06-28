@@ -1551,6 +1551,86 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(inventory["relevant_files"], ["backend/ent/migrate/schema.go", "backend/go.mod"])
         self.assertEqual(patch["relevant_files"], ["backend/ent/migrate/schema.go", "backend/go.mod"])
 
+    def test_schema_ent_regeneration_timeout_repair_splits_regeneration_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            for directory in (
+                "backend/ent/schema",
+                "backend/ent/migrate",
+                "backend/internal/repository",
+                "backend/internal/service",
+                "backend/internal/server",
+                "backend/cmd/server",
+            ):
+                (repo / directory).mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/backend\n", encoding="utf-8")
+            (repo / "backend" / "go.sum").write_text("", encoding="utf-8")
+            (repo / "backend" / "ent" / "generate.go").write_text("package ent\n", encoding="utf-8")
+            (repo / "backend" / "ent" / "schema" / "billing.go").write_text("package schema\n", encoding="utf-8")
+            (repo / "backend" / "ent" / "migrate" / "schema.go").write_text("package migrate\n", encoding="utf-8")
+            phase = root / "phase.md"
+            phase.write_text(
+                "\n".join(
+                    [
+                        "# Phase 8: Schema pruning and build",
+                        "- Must prune Ent schema for CRM billing only.",
+                        "- Must regenerate Ent clients.",
+                        "- Must update migrations.",
+                        "- Must prove a fresh DB migration succeeds.",
+                        "- Fresh DB migration must not create token relay tables.",
+                        "- `go test ./backend/internal/...` must pass.",
+                        "- Frontend build/typecheck must pass.",
+                        "Scope boundary mode: large_refactor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            t006_repair = root / "phase_repair_005.md"
+            t006_repair.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair For Phase 8",
+                        "## Repairable Blockers",
+                        "- B-T006-1: T006 exceeded the Codex worker timeout. Stop instead of launching a same-scope debug task. (tasks: T006)",
+                        "## Focused Repair Scope",
+                        "- Primary failed task IDs: T006.",
+                        "- Completed tasks to preserve: T003, T004, T005, T001, T002.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "### Task T006 - Regenerate Ent clients and migration artifacts",
+                        "- Previous relevant files: backend/ent/**, backend/migrations/**, backend/internal/repository/**, backend/go.mod, backend/go.sum.",
+                        "- Worker summary: Codex worker timed out after 900 seconds.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Repair Billing Core Ent regeneration timeout.",
+                documents=[phase, t006_repair],
+                repository_path=repo,
+                created_at="2026-06-28T08:30:00+08:00",
+            )
+
+            graph = TaskGraphBuilder().build(ContextBundleBuilder().build(brief)).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        titles = [node["title"] for node in implementation_nodes]
+        self.assertNotIn("Regenerate Ent clients and migration artifacts", titles)
+        self.assertIn("Inventory Ent regeneration inputs", titles)
+        self.assertIn("Regenerate Ent generated clients", titles)
+        self.assertIn("Align repository callers after Ent regeneration", titles)
+
+        inventory = next(node for node in implementation_nodes if node["title"] == "Inventory Ent regeneration inputs")
+        self.assertIn("backend/ent/generate.go", inventory["relevant_files"])
+        self.assertIn("backend/ent/schema/**", inventory["relevant_files"])
+        callers = next(node for node in implementation_nodes if node["title"] == "Align repository callers after Ent regeneration")
+        self.assertIn("backend/internal/repository/**", callers["relevant_files"])
+        self.assertNotIn("backend/ent/**", callers["relevant_files"])
+
     def test_large_refactor_frontend_timeout_repair_splits_state_api_closure_task(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

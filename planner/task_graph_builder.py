@@ -1234,6 +1234,75 @@ SCHEMA_MIGRATION_CONTRACT_CHECKPOINT_TASK_SPECS = (
 )
 
 
+SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Inventory Ent regeneration inputs",
+        "description": (
+            "Checkpoint the Ent regeneration inputs and current generated-artifact drift before running another "
+            "broad regeneration worker."
+        ),
+        "markers": (
+            "regenerate ent",
+            "ent clients",
+            "migration artifacts",
+            "schema",
+            "generate",
+        ),
+        "files": (
+            "backend/ent/generate.go",
+            "backend/ent/schema/**",
+            "backend/ent/migrate/schema.go",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Regenerate Ent generated clients",
+        "description": (
+            "Run the Ent generation/update workflow and keep this task limited to generated Ent artifacts and Go "
+            "module metadata."
+        ),
+        "markers": (
+            "regenerate ent",
+            "ent clients",
+            "migration artifacts",
+            "generate",
+        ),
+        "files": (
+            "backend/ent/**",
+            "backend/go.mod",
+            "backend/go.sum",
+        ),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Align repository callers after Ent regeneration",
+        "description": (
+            "Align repository/service/server callers with regenerated Ent types before the broader legacy cleanup "
+            "task runs."
+        ),
+        "markers": (
+            "repository",
+            "service",
+            "server",
+            "ent clients",
+            "generated",
+        ),
+        "files": (
+            "backend/internal/repository/**",
+            "backend/internal/service/**",
+            "backend/internal/server/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -1464,6 +1533,11 @@ def schema_build_large_refactor_task_specs(requirements: list[Requirement]) -> t
                     specs.extend(SCHEMA_MIGRATION_TIMEOUT_SPLIT_TASK_SPECS)
                 else:
                     specs.append(split_spec)
+        elif (
+            spec["title"] == "Regenerate Ent clients and migration artifacts"
+            and focused_schema_ent_regeneration_timeout_repair(requirements)
+        ):
+            specs.extend(SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS)
         else:
             specs.append(spec)
     return tuple(specs)
@@ -1479,6 +1553,10 @@ def focused_schema_migration_timeout_repair(requirements: list[Requirement]) -> 
 
 def focused_schema_migration_contract_timeout_repair(requirements: list[Requirement]) -> bool:
     return focused_timeout_repair_for_task(requirements, "T003")
+
+
+def focused_schema_ent_regeneration_timeout_repair(requirements: list[Requirement]) -> bool:
+    return focused_timeout_repair_for_task(requirements, "T006")
 
 
 def schema_build_refactor_relevant_files(
