@@ -3852,3 +3852,47 @@
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.115, then controlled Billing Core relaunch.
+
+## 2026-06-28T10:25:00+08:00 V2.116 Ent regeneration scoped verification
+
+- command: Billing Core controlled resume after V2.115
+- result: T006 inventory completed; T007 regenerated Ent artifacts but returned partial because full backend verification belongs to downstream caller tasks
+- relevant evidence: `run_attempt_016` T006 completed with read-only inventory evidence; T007 passed `go test ./ent/...` but full `go test ./...` failed in non-Ent packages, creating `T007-DEBUG-1`.
+- next verification command: focused planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_ent_regeneration_timeout_repair_splits_regeneration_task -q`
+- result: `1 passed`
+- next verification command: related regression group.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `30 passed`
+- next verification command: focused full-roadmap/runtime guard regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_worker_timeout_stop_boundary_writes_repair_doc_without_next_attempt tests/test_runtime.py::OrchestratorTests::test_inventory_tasks_are_read_only_even_with_relevant_files -q`
+- result: `2 passed`
+- next verification command: real phase_011 graph probe.
+
+- command: real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_006.md`
+- result: passed
+- relevant evidence: T007 `Regenerate Ent generated clients` commands are exactly `cd backend && go test ./ent/...`; T008/T010 retain full backend verification.
+- next verification command: full regression, compileall, diff check, state validation, commit/push, then controlled Billing Core relaunch.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `71 passed`
+- next verification command: runtime handoff regression.
+
+- command: `python -B -m pytest tests/test_runtime_handoff.py -q`
+- result: `4 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner tests autodev runtime -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed with existing `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.116, then controlled Billing Core relaunch.

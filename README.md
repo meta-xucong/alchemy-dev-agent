@@ -1612,6 +1612,14 @@ evidence before heavier generation or verification work runs.
 
 See `docs/124_v2_115_timeout_stop_boundary_inventory_readonly.md`.
 
+## V2.116 Ent Regeneration Scoped Verification
+
+V2.116 narrows the Ent generated-client task to scoped Ent verification
+(`cd backend && go test ./ent/...`) and leaves full backend caller failures for
+the downstream caller-alignment and stabilization tasks.
+
+See `docs/125_v2_116_ent_regeneration_scoped_verification.md`.
+
 Run a smoke execution:
 
 ```bash

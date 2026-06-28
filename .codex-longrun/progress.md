@@ -1685,3 +1685,12 @@ PY"`
 - Local Codex CLI smoke returned in 15.9 seconds, so the live model chain is currently functional; the T006 timeout was task/package behavior, not a global CLI outage.
 - Real phase_011 graph/worker-package probe with `phase_repair_001.md` through `phase_repair_006.md` now produces T006 with `commands=[]`, `allowed_files=[]`, and explicit read-only inventory constraints.
 - Next step: commit/push V2.115, relaunch Billing Core through Alchemy, and confirm the next run stops safely if T006 still times out or completes T006 without running heavyweight Go verification.
+
+## 2026-06-28T10:25:00+08:00 V2.116 Ent Regeneration Scoped Verification
+
+- Relaunched after V2.115. Because the earlier `run_attempt_014` stop marker had been written to the wrong parent directory by the supervising thread, `run_attempt_015` resumed that stale active state and replayed T006 with the old full backend command. Corrected the marker path, stopped `run_attempt_015`, and relaunched.
+- `run_attempt_016` used the intended V2.115 graph: T006 had `commands=[]`, completed read-only inventory, and produced useful generated-drift evidence without editing files.
+- T007 then regenerated Ent artifacts and passed scoped Ent verification, but the task still carried `cd backend && go test ./...`; full backend verification failed in downstream caller packages that belong to T008/T010, so Alchemy opened same-scope `T007-DEBUG-1`.
+- Stopped `T007-DEBUG-1` before another worker window and implemented V2.116 in `planner/task_graph_builder.py`: `Regenerate Ent generated clients` now has task-specific criteria and only runs `cd backend && go test ./ent/...`.
+- Real phase_011 graph probe now keeps T007 scoped to Ent verification while T008/T010 retain full backend verification.
+- Next step: commit/push V2.116, relaunch Billing Core through Alchemy, and confirm T007 can complete/promote without debug before moving to T008 caller alignment.

@@ -1242,6 +1242,10 @@ SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS = (
             "Checkpoint the Ent regeneration inputs and current generated-artifact drift before running another "
             "broad regeneration worker."
         ),
+        "completion_criteria": (
+            "Current Ent generator inputs and generated-artifact drift are inventoried without editing repository files.",
+            "Follow-up generation and caller-alignment targets are identified with concise evidence.",
+        ),
         "markers": (
             "regenerate ent",
             "ent clients",
@@ -1265,6 +1269,11 @@ SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS = (
             "Run the Ent generation/update workflow and keep this task limited to generated Ent artifacts and Go "
             "module metadata."
         ),
+        "completion_criteria": (
+            "Ent generated artifacts are regenerated from the current schema inputs.",
+            "Generated Ent packages pass scoped verification such as `cd backend && go test ./ent/...`.",
+            "Repository/service/server caller failures outside generated Ent files are documented for the caller-alignment task instead of repaired here.",
+        ),
         "markers": (
             "regenerate ent",
             "ent clients",
@@ -1276,6 +1285,7 @@ SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS = (
             "backend/go.mod",
             "backend/go.sum",
         ),
+        "commands_to_run": ("cd backend && go test ./ent/...",),
         "include_frontend_commands": False,
         "restrict_relevant_files_to_spec": True,
     },
@@ -1462,7 +1472,8 @@ def large_refactor_schema_build_nodes(
                 type="backend",
                 assigned_agent="backend",
                 dependencies=["T001"],
-                completion_criteria=dedupe([criterion for item in matched_requirements for criterion in item.acceptance_criteria])
+                completion_criteria=list(spec.get("completion_criteria", ()))
+                or dedupe([criterion for item in matched_requirements for criterion in item.acceptance_criteria])
                 or ["The targeted schema/build workflow is closed against the phase requirements."],
                 relevant_files=schema_build_refactor_relevant_files(
                     list(spec["files"]),
