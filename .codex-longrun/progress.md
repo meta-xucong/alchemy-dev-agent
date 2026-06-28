@@ -1918,3 +1918,13 @@ PY"`
 - Added focused document-to-plan and full-roadmap resume regressions, plus `docs/146_v2_137_final_frontend_routes_timeout_split.md`.
 - Generated real `final_verification_repair_resume_007.md`; lightweight graph probe shows T001-T008 preserved completed and split T009/T010/T011/T012 pending before final gates.
 - Next step: validate/commit/push V2.137, relaunch the controlled Billing Core final verification, and monitor split T009 instead of replaying the broad route/view/test task.
+
+## 2026-06-29T04:45:00+08:00 V2.138 Final Frontend View/Component Timeout Split
+
+- Relaunched after V2.137. `final_verification/run_attempt_012` correctly preserved T001-T008, completed split T009 `Repair final frontend route and app shell contracts`, and advanced to T010.
+- T010 `Repair final frontend view and component contracts` was still too broad and timed out after 900 seconds while editing a large component/view surface.
+- Alchemy handled the timeout correctly: it recorded `B-T010-1`, stopped the run, did not launch same-scope debug work, and did not dispatch downstream T011.
+- Implemented V2.138 in `planner/task_graph_builder.py`: final T010 timeout resumes preserve T001-T009 and split T010 into account components, admin operation components, analytics/shared components, view pages, state/composable/utility, and tests/fixtures.
+- Added focused document-to-plan and full-roadmap resume regressions, plus `docs/147_v2_138_final_frontend_view_component_timeout_split.md`.
+- Generated real `final_verification_repair_resume_008.md`; lightweight graph probe shows T001-T009 preserved completed and split frontend T010-T015 pending before final gates.
+- Next step: run full document-to-plan/full-roadmap regressions, commit/push V2.138, relaunch the controlled Billing Core final verification, and monitor split T010 instead of replaying the broad view/component task.

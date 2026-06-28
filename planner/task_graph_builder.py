@@ -664,6 +664,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
             text
         ) or should_preserve_final_frontend_api_i18n_split(text)
+        split_frontend_view_components = should_split_final_frontend_view_component_timeout(text)
         specs.extend(
             final_frontend_api_i18n_repair_task_specs(
                 split=split_api_i18n
@@ -671,7 +672,8 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         )
         specs.extend(
             final_frontend_routes_views_repair_task_specs(
-                split=should_split_final_frontend_routes_views_timeout(text)
+                split=should_split_final_frontend_routes_views_timeout(text) or split_frontend_view_components,
+                split_view_components=split_frontend_view_components,
             )
         )
     return specs
@@ -717,13 +719,12 @@ def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
     return all(
         marker in text
         for marker in (
-            "primary failed task ids: t009",
             "completed tasks to preserve:",
             "t006",
             "t007",
             "t008",
         )
-    )
+    ) and any(marker in text for marker in ("primary failed task ids: t009", "primary failed task ids: t010"))
 
 
 def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, object]]:
@@ -834,7 +835,35 @@ def should_split_final_frontend_routes_views_timeout(text: str) -> bool:
     )
 
 
-def final_frontend_routes_views_repair_task_specs(*, split: bool) -> list[dict[str, object]]:
+def should_split_final_frontend_view_component_timeout(text: str) -> bool:
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    if "repair final frontend view and component contracts" in text:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "primary failed task ids: t010",
+            "frontend",
+            "view",
+            "component",
+        )
+    )
+
+
+def final_frontend_routes_views_repair_task_specs(
+    *,
+    split: bool,
+    split_view_components: bool = False,
+) -> list[dict[str, object]]:
     if not split:
         return [
             {
@@ -860,28 +889,157 @@ def final_frontend_routes_views_repair_task_specs(*, split: bool) -> list[dict[s
                 "priority": 93,
             }
         ]
+    route_task = {
+        "title": "Repair final frontend route and app shell contracts",
+        "description": (
+            "Close residual route, app-shell, layout, and navigation references to retired relay-era workflows."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/router/**",
+            "frontend/src/components/layout/**",
+            "frontend/src/App.vue",
+            "frontend/src/main.ts",
+            "frontend/src/stores/app.ts",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Reachable navigation and route registration expose CRM billing, identity, wallet, metering, analytics, audit, and admin workflows only.",
+            "Retired relay-era pages are not reachable through router, app shell, or layout navigation.",
+        ],
+        "priority": 93,
+    }
+    state_task = {
+        "title": "Repair final frontend state composable utility contracts",
+        "description": (
+            "Align frontend stores, composables, and utilities with CRM billing contracts and the migrated shared types."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/stores/**",
+            "frontend/src/composables/**",
+            "frontend/src/utils/**",
+            "frontend/src/constants/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Stores, composables, and utilities no longer import retired relay-era shared contracts.",
+            "State and helper code uses CRM billing, wallet, connector, metering, entitlement, payment, analytics, and audit language.",
+        ],
+        "priority": 91,
+    }
+    test_task = {
+        "title": "Repair final frontend test and fixture contracts",
+        "description": (
+            "Update frontend tests and fixtures to assert the CRM Billing Core behavior after final frontend repair."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/**/__tests__/**",
+            "frontend/src/**/*.spec.ts",
+            "frontend/src/**/*.spec.tsx",
+            "frontend/tests/**",
+            "frontend/vitest.config.ts",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Frontend tests and fixtures no longer depend on retired relay-era route, view, API, type, or copy contracts.",
+            "Targeted frontend tests verify CRM billing, identity, wallet, metering, payment, analytics, audit, and admin workflows.",
+        ],
+        "priority": 90,
+    }
+    if split_view_components:
+        return [
+            route_task,
+            {
+                "title": "Repair final frontend account component contracts",
+                "description": (
+                    "Align account-facing frontend components with CRM identity, connector, capacity, wallet, and metering language."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/components/account/**",
+                    "frontend/src/components/auth/**",
+                    "frontend/src/types/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Account and auth components no longer present upstream account, provider channel, proxy, model-routing, or subscription-plan behavior.",
+                    "Component contracts compile against CRM identity, connector, wallet, capacity, entitlement, and metering types.",
+                ],
+                "priority": 92,
+            },
+            {
+                "title": "Repair final frontend admin operation component contracts",
+                "description": (
+                    "Align admin operation components with CRM billing, connector, monitoring, payment, user, and usage administration."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/components/admin/**",
+                    "frontend/src/components/channels/**",
+                    "frontend/src/types/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Admin components no longer expose relay-era channel, upstream account, proxy, model-routing, or token-log product language.",
+                    "Admin component consumers compile against CRM billing, connector, monitor, payment, user, usage, audit, and reconciliation contracts.",
+                ],
+                "priority": 91,
+            },
+            {
+                "title": "Repair final frontend analytics and shared component contracts",
+                "description": (
+                    "Align charts, guide, common, and shared display components with final CRM analytics and billing semantics."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/components/charts/**",
+                    "frontend/src/components/common/**",
+                    "frontend/src/components/Guide/**",
+                    "frontend/src/components/ui/**",
+                    "frontend/src/styles/**",
+                    "frontend/src/types/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Shared display components use CRM analytics, usage, wallet, billing, and audit language.",
+                    "Residual token, upstream, provider, proxy, and model-routing references are removed or quarantined as internal compatibility where required.",
+                ],
+                "priority": 90,
+            },
+            {
+                "title": "Repair final frontend view page contracts",
+                "description": (
+                    "Align reachable view pages with the final CRM product boundary after component cleanup."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/views/**",
+                    "frontend/src/components/**",
+                    "frontend/src/styles/**",
+                    "frontend/src/types/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Reachable view pages no longer present token relay, provider channel, upstream account, model-routing, proxy, or subscription-plan behavior.",
+                    "View pages compile against CRM billing, identity, wallet, metering, payment, analytics, audit, and admin workflows.",
+                ],
+                "priority": 89,
+            },
+            state_task,
+            test_task,
+        ]
     return [
-        {
-            "title": "Repair final frontend route and app shell contracts",
-            "description": (
-                "Close residual route, app-shell, layout, and navigation references to retired relay-era workflows."
-            ),
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/router/**",
-                "frontend/src/components/layout/**",
-                "frontend/src/App.vue",
-                "frontend/src/main.ts",
-                "frontend/src/stores/app.ts",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Reachable navigation and route registration expose CRM billing, identity, wallet, metering, analytics, audit, and admin workflows only.",
-                "Retired relay-era pages are not reachable through router, app shell, or layout navigation.",
-            ],
-            "priority": 93,
-        },
+        route_task,
         {
             "title": "Repair final frontend view and component contracts",
             "description": (
@@ -902,48 +1060,8 @@ def final_frontend_routes_views_repair_task_specs(*, split: bool) -> list[dict[s
             ],
             "priority": 92,
         },
-        {
-            "title": "Repair final frontend state composable utility contracts",
-            "description": (
-                "Align frontend stores, composables, and utilities with CRM billing contracts and the migrated shared types."
-            ),
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/stores/**",
-                "frontend/src/composables/**",
-                "frontend/src/utils/**",
-                "frontend/src/constants/**",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Stores, composables, and utilities no longer import retired relay-era shared contracts.",
-                "State and helper code uses CRM billing, wallet, connector, metering, entitlement, payment, analytics, and audit language.",
-            ],
-            "priority": 91,
-        },
-        {
-            "title": "Repair final frontend test and fixture contracts",
-            "description": (
-                "Update frontend tests and fixtures to assert the CRM Billing Core behavior after final frontend repair."
-            ),
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/**/__tests__/**",
-                "frontend/src/**/*.spec.ts",
-                "frontend/src/**/*.spec.tsx",
-                "frontend/tests/**",
-                "frontend/vitest.config.ts",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Frontend tests and fixtures no longer depend on retired relay-era route, view, API, type, or copy contracts.",
-                "Targeted frontend tests verify CRM billing, identity, wallet, metering, payment, analytics, audit, and admin workflows.",
-            ],
-            "priority": 90,
-        },
+        state_task,
+        test_task,
     ]
 
 

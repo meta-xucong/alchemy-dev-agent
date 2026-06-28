@@ -4655,3 +4655,28 @@
 - result: passed
 - relevant evidence: generated `final_verification_repair_resume_007.md`; graph construction preserves T001-T008 completed and splits frontend T009 into route/app-shell, view/component, state/composable/utility, and test/fixture repair tasks before final gates.
 - next verification command: diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_frontend_view_component_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_frontend_routes_timeout_preserves_prior_frontend_split -q`
+- result: `2 passed`
+- next verification command: final-verification T010 resume focus regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_view_component_timeout_focus tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_routes_timeout_focus -q`
+- result: `2 passed`
+- next verification command: full document-to-plan suite.
+
+- command: real Billing Core final-verification resume graph probe after run_attempt_012
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_008.md`; graph construction preserves T001-T009 completed and splits frontend T010 into account component, admin operation component, analytics/shared component, view page, state/composable/utility, and test/fixture repair tasks before final gates.
+- next verification command: full document-to-plan suite, full full-roadmap suite, compileall, diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `40 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `86 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner autodev tests -q`
+- result: passed
+- next verification command: diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
