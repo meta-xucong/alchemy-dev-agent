@@ -2824,6 +2824,53 @@ class FullRoadmapExecutionTests(unittest.TestCase):
 
         self.assertEqual(selected, "D:/tmp/phase-one-worktree")
 
+    def test_final_verification_worker_uses_last_completed_phase_worktree(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        inherited = "D:/tmp/final-phase-worktree"
+        captured: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            captured.append(dict(kwargs))
+            return FakePhaseResult(
+                "Final Full-System Audit And Testing",
+                evidence=[
+                    "FINAL_AUDIT_STATUS: PASS",
+                    "SIMULATION_TEST_STATUS: PASS",
+                    "REAL_TEST_STATUS: PASS",
+                ],
+            )
+
+        phase_record = PhaseExecutionRecord(
+            phase_id="phase_012",
+            title="Final phase",
+            status="done",
+            output_dir="run/phase_012",
+            result={
+                "runtime_state": {"repository": {"path": inherited}},
+                "workspace": {"execution_path": inherited},
+            },
+            promotion={"can_promote": True},
+        )
+
+        report = FullRoadmapExecutor(document_runner=fake_runner)._run_final_verification_worker(
+            objective="Finish CRM",
+            plan=RoadmapExecutionPlan(root_objective="Finish CRM", phases=[]),
+            phase_records=[phase_record],
+            documents=[doc],
+            attachments=[],
+            repository_url="",
+            repository_path="D:/tmp/original",
+            repository_visibility="private",
+            output_dir=root / "final_verification",
+            run_payload={"real_codex": True, "isolate_real_run": True, "boundary_mode": "large_refactor"},
+        )
+
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(captured[0]["repository_path"], inherited)
+        self.assertFalse(captured[0]["isolate_real_run"])
+
     def test_executor_generates_document_package_for_one_sentence_mode(self) -> None:
         root = temp_root()
         calls: list[str] = []

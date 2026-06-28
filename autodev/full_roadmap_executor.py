@@ -541,6 +541,18 @@ class FullRoadmapExecutor:
         max_attempts = max(1, int(run_payload.get("max_final_verification_attempts", 2) or 2))
         payload: dict[str, object] = {}
         promotion: dict[str, object] = {}
+        effective_repository_path = phase_repository_path(
+            repository_path,
+            phase_records,
+            run_payload=run_payload,
+        )
+        final_run_payload = phase_run_payload(
+            run_payload,
+            final_phase,
+            inherited_repository_path=(
+                effective_repository_path if effective_repository_path != repository_path else None
+            ),
+        )
         for attempt_index in range(1, max_attempts + 1):
             attempt_dir = output_dir / f"run_attempt_{attempt_index:03d}"
             payload_result = self._run_phase(
@@ -552,10 +564,10 @@ class FullRoadmapExecutor:
                 documents=[*documents, verification_doc, *repair_documents],
                 attachments=attachments,
                 repository_url=repository_url,
-                repository_path=repository_path,
+                repository_path=effective_repository_path,
                 repository_visibility=repository_visibility,
                 output_dir=attempt_dir,
-                run_payload=run_payload,
+                run_payload=final_run_payload,
             )
             payload = payload_result.to_dict() if hasattr(payload_result, "to_dict") else dict(payload_result)
             promotion = phase_promotion_decision(final_phase, payload)

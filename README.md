@@ -1712,6 +1712,15 @@ of blocking before final handoff.
 
 See `docs/134_v2_125_final_phase_max_count_gate.md`.
 
+## V2.126 Final Verification Worktree Inheritance
+
+V2.126 makes the final verification worker inherit the last completed
+full-roadmap worktree, matching normal later-phase execution. The final audit no
+longer tries to prepare a fresh real-run worktree from the original repository
+after all promoted work already lives in the inherited Billing Core worktree.
+
+See `docs/135_v2_126_final_verification_worktree_inheritance.md`.
+
 Run a smoke execution:
 
 ```bash

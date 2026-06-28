@@ -1794,3 +1794,11 @@ PY"`
 - Implemented V2.125 in `autodev/full_roadmap_executor.py`: max-phase-count only blocks when unfinished required phases remain.
 - Verification passed: focused max-phase final-audit regression, full `test_full_roadmap_execution.py`, compileall, and diff check.
 - Next step: commit/push V2.125 and relaunch so the final verification worker and final audit can run.
+
+## 2026-06-28T17:53:00+08:00 V2.126 Final Verification Worktree Inheritance
+
+- Relaunched after V2.125. The final verification worker started, but blocked at `B-WORKTREE` before producing final audit markers.
+- Root cause: final verification still used the original repository path/fresh worktree behavior instead of inheriting the last completed full-roadmap worktree where the Billing Core CRM changes live.
+- Implemented V2.126 in `autodev/full_roadmap_executor.py`: final verification now selects the last completed phase runtime/workspace path and disables fresh isolation when using that inherited worktree.
+- Verification passed: focused final-verification worktree regression, focused max-phase final-audit regression, full `test_full_roadmap_execution.py`, compileall, and diff check.
+- Next step: commit/push V2.126 and relaunch final audit in the inherited CRM worktree.

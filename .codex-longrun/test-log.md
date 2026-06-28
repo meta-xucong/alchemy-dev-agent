@@ -4236,3 +4236,26 @@
 - command: `git diff --check`
 - result: passed
 - next verification command: long-run state validation.
+
+## 2026-06-28T17:53:00+08:00 V2.126 Final verification worktree inheritance
+
+- command: Billing Core final audit resume after V2.125
+- result: final verification worker blocked before audit
+- relevant evidence: `final_verification/run_attempt_001/state.json` contained non-partial blocker `B-WORKTREE`; final audit markers were missing because the worker never reached the audit task.
+- next verification command: focused final-verification worktree regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_uses_last_completed_phase_worktree tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_max_phase_count_does_not_block_final_audit_after_last_phase -q`
+- result: `2 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `76 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation.
