@@ -144,8 +144,9 @@ class TaskGraphEngine:
                 "A retry attempt has new repair instructions.",
             ],
             priority=max(100, failed_task.priority + 10),
-            relevant_files=list(failed_task.relevant_files),
+            relevant_files=debug_task_relevant_files(failed_task),
             commands_to_run=list(failed_task.commands_to_run),
+            boundary_mode=failed_task.boundary_mode,
         )
         graph.nodes.append(debug_task)
         return debug_task
@@ -159,3 +160,9 @@ class TaskGraphEngine:
     def dependency_edges_for(self, graph: TaskGraph, task_ids: Iterable[str]) -> list[Dependency]:
         selected = set(task_ids)
         return [dep for dep in graph.dependencies if dep.source in selected or dep.target in selected]
+
+
+def debug_task_relevant_files(failed_task: TaskNode) -> list[str]:
+    if failed_task.type in {"architecture", "review", "test"}:
+        return []
+    return list(failed_task.relevant_files)

@@ -81,6 +81,45 @@ class TaskGraphEngineTests(unittest.TestCase):
         self.assertEqual(debug_task.type, "debug")
         self.assertGreater(debug_task.priority, task.priority)
 
+    def test_debug_task_for_read_only_test_task_does_not_inherit_files(self) -> None:
+        engine = TaskGraphEngine()
+        graph = TaskGraph(
+            graph_id="read-only-debug",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Audit",
+                    description="Audit source docs.",
+                    type="test",
+                    assigned_agent="test",
+                    status="failed",
+                    retry_count=1,
+                    relevant_files=["docs/requirements.md", "backend/**"],
+                    commands_to_run=["pytest"],
+                    boundary_mode="large_refactor",
+                )
+            ],
+        )
+        task = engine.get_node(graph, "T001")
+
+        debug_task = engine.create_debug_task(graph, task, "audit failed")
+
+        self.assertEqual(debug_task.relevant_files, [])
+        self.assertEqual(debug_task.commands_to_run, ["pytest"])
+        self.assertEqual(debug_task.boundary_mode, "large_refactor")
+
+    def test_debug_task_for_implementation_task_keeps_relevant_files(self) -> None:
+        engine = TaskGraphEngine()
+        graph = engine.create_default_graph("objective")
+        task = engine.get_node(graph, "T002")
+        task.retry_count = 1
+
+        debug_task = engine.create_debug_task(graph, task, "tests failed")
+
+        self.assertIn("runtime", debug_task.relevant_files)
+        self.assertIn("tests", debug_task.relevant_files)
+
 
 class AgentRouterTests(unittest.TestCase):
     def test_routes_task_to_assigned_agent(self) -> None:

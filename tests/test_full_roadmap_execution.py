@@ -2953,6 +2953,61 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(Path(captured[0]["output_dir"]).name, "run_attempt_002")
         self.assertTrue((output_dir / "attempt_002.json").exists())
 
+    def test_final_verification_relaunch_carries_previous_failure_repair_context(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "required_actions": ["Phase has blockers."],
+                "result": {
+                    "evidence": [
+                        "FINAL_AUDIT_STATUS=FAIL: source-boundary violations remain.",
+                        "The prior debug worker could not repair implementation defects because allowed_files was empty.",
+                    ],
+                    "known_issues": [
+                        "Fresh migrations and frontend API/i18n surfaces still expose relay-era product behavior."
+                    ],
+                },
+            },
+        )
+        captured: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            captured.append(dict(kwargs))
+            return FakePhaseResult(
+                "Final Full-System Audit And Testing",
+                evidence=[
+                    "FINAL_AUDIT_STATUS: PASS",
+                    "SIMULATION_TEST_STATUS: PASS",
+                    "REAL_TEST_STATUS: PASS",
+                ],
+            )
+
+        report = FullRoadmapExecutor(document_runner=fake_runner)._run_final_verification_worker(
+            objective="Finish CRM",
+            plan=RoadmapExecutionPlan(root_objective="Finish CRM", phases=[]),
+            phase_records=[],
+            documents=[doc],
+            attachments=[],
+            repository_url="",
+            repository_path=root / "repo",
+            repository_visibility="private",
+            output_dir=output_dir,
+            run_payload={"real_codex": True, "boundary_mode": "large_refactor", "max_final_verification_attempts": 1},
+        )
+
+        repair_docs = [Path(item) for item in captured[0]["documents"] if "final_verification_repair_resume" in str(item)]
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(len(repair_docs), 1)
+        text = repair_docs[0].read_text(encoding="utf-8")
+        self.assertIn("source-boundary", text)
+        self.assertIn("backend migrations", text)
+
     def test_executor_generates_document_package_for_one_sentence_mode(self) -> None:
         root = temp_root()
         calls: list[str] = []

@@ -4210,6 +4210,51 @@
 - result: passed
 - next verification command: diff check and state validation.
 
+## 2026-06-28T19:37:00+08:00 V2.129 Final verification repair handoff
+
+- command: Billing Core final audit resume after V2.128
+- result: stopped after final audit exposed repair handoff boundary issue
+- relevant evidence: `run_attempt_003` started directly at T002 audit and found source-boundary defects, but `T002-DEBUG-1` inherited writeable relevant files and wrote retry notes into source documents including the original Billing Core development document path.
+- next verification command: focused runtime debug inheritance tests.
+
+- command: `python -B -m pytest tests/test_runtime.py::TaskGraphEngineTests::test_debug_task_is_created_once_for_retryable_failure tests/test_runtime.py::TaskGraphEngineTests::test_debug_task_for_read_only_test_task_does_not_inherit_files tests/test_runtime.py::TaskGraphEngineTests::test_debug_task_for_implementation_task_keeps_relevant_files -q`
+- result: `3 passed`
+- next verification command: focused final-verification repair graph tests.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_repair_context_builds_editable_repair_task tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_document_builds_audit_test_graph -q`
+- result: `2 passed`
+- next verification command: focused final verification relaunch repair-document tests.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_relaunch_carries_previous_failure_repair_context tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_uses_next_attempt_after_stopped_attempt -q`
+- result: `2 passed`
+- next verification command: real Billing Core final-verification repair graph probe.
+
+- command: real Billing Core final-verification repair graph probe after V2.129
+- result: passed
+- relevant evidence: graph contains editable T002 `Repair final source-boundary defects`, then T003 audit, T004 simulation, T005 real checks, and T006 review.
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `135 passed`
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `37 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `80 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall runtime planner autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: original Billing Core document cleanup check
+- result: passed
+- relevant evidence: `rg` found no `T002 Final Audit Debug Record` or `FINAL_AUDIT_STATUS=FAIL` appendix in `D:\AI\SSH\sub2api-billing-core\docs\BILLING_CORE_DEV_PLAN.md`; diagnosis remains in `.alchemy\...\final_verification` artifacts.
+- next verification command: relaunch final verification after V2.129.
+
 ## 2026-06-28T19:02:00+08:00 V2.128 Final verification skip planning worker
 
 - command: Billing Core final audit resume after V2.127

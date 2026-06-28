@@ -784,6 +784,56 @@ class DocumentToPlanTests(unittest.TestCase):
         ]
         self.assertEqual(implementation_nodes, [])
 
+    def test_final_verification_repair_context_builds_editable_repair_task(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            (repo / "frontend" / "src" / "api").mkdir(parents=True)
+            (repo / "frontend" / "src" / "i18n").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "final_verification_repair.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Full-System Audit And Testing",
+                        "",
+                        "## T002 Debug Diagnosis And Retry Instructions",
+                        "",
+                        "## Requirements",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- Must grant edit access because the prior debug worker could not repair implementation defects because its allowed_files set was empty.",
+                        "- Fresh database migrations must stop creating relay-era tables such as account pool, proxy, channel, channel monitor, and subscription structures.",
+                        "- Backend Ent/schema/domain table contracts must be regenerated or reframed so forbidden relay-era tables are not part of the delivered Billing Core schema.",
+                        "- Frontend admin API modules, i18n copy, tests, and reachable views must remove upstream account, proxy, channel, model-routing, channel-monitor, and subscription-plan surfaces.",
+                        "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-28T00:00:00+00:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes["T001"]["status"], "completed")
+        self.assertEqual(nodes["T002"]["title"], "Repair final source-boundary defects")
+        self.assertEqual(nodes["T002"]["type"], "integration")
+        self.assertIn("backend/migrations/**", nodes["T002"]["relevant_files"])
+        self.assertIn("backend/ent/**", nodes["T002"]["relevant_files"])
+        self.assertIn("frontend/src/api/**", nodes["T002"]["relevant_files"])
+        self.assertIn("frontend/src/i18n/**", nodes["T002"]["relevant_files"])
+        self.assertEqual(nodes["T003"]["title"], "Audit final requirements and phase evidence")
+        self.assertEqual(nodes["T003"]["dependencies"], ["T002"])
+
     def test_large_refactor_frontend_phase_survives_repository_index_cap(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

@@ -185,6 +185,7 @@ class TaskGraphBuilder:
                 "kind": "deterministic_final_verification_graph",
             }
         )
+        repair_files = final_verification_repair_relevant_files(context_bundle)
         test_commands = context_bundle.test_commands or ["static artifact inspection"]
         verification_commands = scoped_verification_commands(
             scope_controls,
@@ -196,6 +197,40 @@ class TaskGraphBuilder:
             scope_controls,
             fallback=top_level_files,
         )
+        audit_id = "T002"
+        simulation_id = "T003"
+        real_id = "T004"
+        review_id = "T005"
+        dependencies: list[Dependency] = []
+        if repair_files:
+            nodes.append(
+                TaskNode(
+                    id="T002",
+                    title="Repair final source-boundary defects",
+                    description=(
+                        "Repair the concrete final-verification findings before rerunning audit markers. "
+                        "Focus on residual relay-era migrations, schema/domain contracts, frontend API/i18n/routes/views/tests, "
+                        "and any generated code required to make the CRM Billing Core source boundary clean."
+                    ),
+                    type="integration",
+                    assigned_agent="backend",
+                    dependencies=["T001"],
+                    completion_criteria=[
+                        "Fresh migrations and schema contracts no longer create or expose relay-era product tables.",
+                        "Frontend API/i18n/routes/views/tests no longer expose upstream account, proxy, channel, model-routing, or subscription-plan product behavior.",
+                        "Repair evidence lists the exact files changed and checks run.",
+                    ],
+                    relevant_files=repair_files,
+                    commands_to_run=[],
+                    priority=94,
+                    boundary_mode="large_refactor",
+                )
+            )
+            audit_id = "T003"
+            simulation_id = "T004"
+            real_id = "T005"
+            review_id = "T006"
+            dependencies.append(Dependency(source="T001", target="T002", type="blocks"))
         marker_criteria = [
             "FINAL_AUDIT_STATUS is reported as PASS or FAIL with evidence.",
             "REQUIRED_ACTIONS and BLOCKERS are explicitly reported.",
@@ -203,7 +238,7 @@ class TaskGraphBuilder:
         nodes.extend(
             [
                 TaskNode(
-                    id="T002",
+                    id=audit_id,
                     title="Audit final requirements and phase evidence",
                     description=(
                         "Challenge the completed roadmap against the source documents, phase records, "
@@ -212,14 +247,14 @@ class TaskGraphBuilder:
                     ),
                     type="test",
                     assigned_agent="test",
-                    dependencies=["T001"],
+                    dependencies=["T002" if repair_files else "T001"],
                     completion_criteria=marker_criteria,
                     relevant_files=top_level_files,
                     commands_to_run=[],
                     priority=92,
                 ),
                 TaskNode(
-                    id="T003",
+                    id=simulation_id,
                     title="Run final simulation probes",
                     description=(
                         "Run or derive scenario, static, golden-case, browser, or API probes for the "
@@ -228,7 +263,7 @@ class TaskGraphBuilder:
                     ),
                     type="test",
                     assigned_agent="test",
-                    dependencies=["T002"],
+                    dependencies=[audit_id],
                     completion_criteria=[
                         "SIMULATION_TEST_STATUS is reported as PASS or FAIL with evidence.",
                         "Scenario/static/browser probe commands and results are recorded.",
@@ -238,7 +273,7 @@ class TaskGraphBuilder:
                     priority=90,
                 ),
                 TaskNode(
-                    id="T004",
+                    id=real_id,
                     title="Run final real repository checks",
                     description=(
                         "Run the broad real repository checks available in this worktree, including tests, "
@@ -247,7 +282,7 @@ class TaskGraphBuilder:
                     ),
                     type="test",
                     assigned_agent="test",
-                    dependencies=["T003"],
+                    dependencies=[simulation_id],
                     completion_criteria=[
                         "REAL_TEST_STATUS is reported as PASS or FAIL with evidence.",
                         "Real repository command results are recorded with precise blockers if any command cannot run.",
@@ -257,12 +292,12 @@ class TaskGraphBuilder:
                     priority=88,
                 ),
                 TaskNode(
-                    id="T005",
+                    id=review_id,
                     title="Review final handoff markers",
                     description="Confirm final audit, simulation, real-test, blockers, and required-action markers are coherent.",
                     type="review",
                     assigned_agent="reviewer",
-                    dependencies=["T004"],
+                    dependencies=[real_id],
                     completion_criteria=[
                         "FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, and REAL_TEST_STATUS are present.",
                         "Any FAIL marker has a concrete blocker or repair recommendation.",
@@ -274,13 +309,17 @@ class TaskGraphBuilder:
             ]
         )
         for requirement in context_bundle.requirements:
-            requirement.planned_task_ids = ["T002", "T003", "T004", "T005"]
-        dependencies = [
-            Dependency(source="T001", target="T002", type="blocks"),
-            Dependency(source="T002", target="T003", type="requires_test_pass"),
-            Dependency(source="T003", target="T004", type="requires_test_pass"),
-            Dependency(source="T004", target="T005", type="requires_review"),
-        ]
+            requirement.planned_task_ids = [audit_id, simulation_id, real_id, review_id]
+            if repair_files:
+                requirement.planned_task_ids.insert(0, "T002")
+        dependencies.extend(
+            [
+                Dependency(source="T002" if repair_files else "T001", target=audit_id, type="requires_test_pass"),
+                Dependency(source=audit_id, target=simulation_id, type="requires_test_pass"),
+                Dependency(source=simulation_id, target=real_id, type="requires_test_pass"),
+                Dependency(source=real_id, target=review_id, type="requires_review"),
+            ]
+        )
         mark_preserved_completed_tasks(nodes, preserved_task_ids)
         return TaskGraph(graph_id=f"{context_bundle.project_id}-document-plan", version=1, nodes=nodes, dependencies=dependencies)
 
@@ -519,6 +558,47 @@ def is_final_verification_audit_context(context_bundle: ContextBundle) -> bool:
     final_audit_signal = "final_verification" in text or "final full-system audit" in text
     handoff_signal = "final handoff" in text or "required_actions" in text or "final_audit_status" in text
     return final_audit_signal and handoff_signal
+
+
+def final_verification_repair_relevant_files(context_bundle: ContextBundle) -> list[str]:
+    chunks = [context_bundle.objective]
+    for document in context_bundle.documents:
+        chunks.extend([document.path, document.summary, *document.key_requirements])
+    chunks.extend(requirement.text for requirement in context_bundle.requirements)
+    text = "\n".join(chunks).lower()
+    if not any(token in text for token in ["source-boundary", "allowed_files", "retry repair", "repair final"]):
+        return []
+    files: list[str] = []
+    if any(token in text for token in ["migration", "schema", "ent", "backend", "table", "domain"]):
+        files.extend(
+            [
+                "backend/migrations/**",
+                "backend/ent/**",
+                "backend/internal/domain/**",
+                "backend/internal/repository/**",
+                "backend/internal/service/**",
+                "backend/internal/handler/**",
+                "backend/internal/server/**",
+                "backend/cmd/**",
+            ]
+        )
+    if any(token in text for token in ["frontend", "i18n", "router", "view", "api module", "reachable views"]):
+        files.extend(
+            [
+                "frontend/src/api/**",
+                "frontend/src/i18n/**",
+                "frontend/src/router/**",
+                "frontend/src/views/**",
+                "frontend/src/components/**",
+                "frontend/src/composables/**",
+                "frontend/src/constants/**",
+                "frontend/src/types/**",
+                "frontend/src/stores/**",
+                "frontend/src/tests/**",
+                "frontend/tests/**",
+            ]
+        )
+    return dedupe(files)
 
 
 def large_refactor_planning_scope_controls(

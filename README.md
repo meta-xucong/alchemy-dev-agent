@@ -1740,6 +1740,17 @@ planning worker before the fixed audit/test graph.
 
 See `docs/137_v2_128_final_verification_skip_planning_worker.md`.
 
+## V2.129 Final Verification Repair Handoff
+
+V2.129 keeps debug tasks for read-only test/review/architecture tasks read-only,
+so a failed final audit cannot make its debug worker write source documents.
+Failed final verification reports are now carried into relaunches as
+`final_verification_repair_resume_NNN.md`, and the planner turns that context
+into an editable `Repair final source-boundary defects` task before rerunning
+audit, simulation, and real checks.
+
+See `docs/138_v2_129_final_verification_repair_handoff.md`.
+
 Run a smoke execution:
 
 ```bash

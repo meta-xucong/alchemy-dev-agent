@@ -1823,3 +1823,15 @@ PY"`
 - Real Billing Core graph probe shows T001 completed and T002/T003/T004 as pending audit/test tasks; runtime handoff probe selects T002 as the first ready task.
 - Verification passed: focused final verification graph test, real graph probe, runtime ready-task probe, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, and compileall.
 - Next step: commit/push V2.128, relaunch final audit, and confirm `run_attempt_003` starts directly at T002.
+
+## 2026-06-28T19:37:00+08:00 V2.129 Final Verification Repair Handoff
+
+- Relaunched after V2.128. `run_attempt_003` started directly at T002 audit and found real source-boundary defects: residual relay-era migrations/schema/frontend API/i18n surfaces still contradict the CRM Billing Core contract.
+- New Alchemy framework issue: T002 was read-only, but its generated `T002-DEBUG-1` inherited relevant files and wrote retry notes into source documents, including the original Billing Core development document path.
+- Supervising Codex stopped the T002 retry with `supervisor_stop.json`, removed only the out-of-bound debug appendix from the original Billing Core document, and left existing original-checkout changes untouched.
+- Implemented V2.129 in `runtime/task_graph_engine.py`: debug tasks for read-only architecture/test/review tasks no longer inherit `relevant_files`.
+- Implemented V2.129 in `autodev/full_roadmap_executor.py`: failed final verification reports now seed `final_verification_repair_resume_NNN.md` across relaunches.
+- Implemented V2.129 in `planner/task_graph_builder.py`: final verification repair context now creates editable T002 `Repair final source-boundary defects`, followed by T003 audit, T004 simulation, T005 real checks, and T006 review.
+- Real Billing Core graph probe confirms the next relaunch will start at editable T002 repair with backend migration/schema/domain/service/handler/server/cmd and frontend API/i18n/router/view/component/composable/constants/type/store/test scope.
+- Verification passed: focused tests, full `test_runtime.py`, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, compileall, and original-document debug-record cleanup check.
+- Next step: commit/push V2.129, relaunch final verification, and let Alchemy repair the CRM source-boundary defects inside the inherited worktree.

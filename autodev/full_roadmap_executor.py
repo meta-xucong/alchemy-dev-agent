@@ -537,7 +537,7 @@ class FullRoadmapExecutor:
             promotion_gate={"required_score": float(run_payload.get("final_verification_required_score", 0.85) or 0.85)},
         )
         attempts: list[dict[str, object]] = []
-        repair_documents: list[str] = []
+        repair_documents: list[str] = final_verification_resume_repair_documents(output_dir)
         max_attempts = max(1, int(run_payload.get("max_final_verification_attempts", 2) or 2))
         payload: dict[str, object] = {}
         promotion: dict[str, object] = {}
@@ -1843,6 +1843,40 @@ def next_final_verification_attempt_index(output_dir: Path) -> int:
         except ValueError:
             continue
     return max(existing, default=0) + 1
+
+
+def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
+    existing = sorted(output_dir.glob("final_verification_repair_resume_*.md"))
+    if existing:
+        return [str(existing[-1].resolve())]
+    report = read_optional_json(output_dir / "final_verification_worker_report.json")
+    if str(report.get("status", "")).lower() != "failed":
+        return []
+    report_text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
+    lowered = report_text.lower()
+    if not any(token in lowered for token in ["final_audit_status=fail", "source-boundary", "allowed_files"]):
+        return []
+    path = output_dir / "final_verification_repair_resume_001.md"
+    lines = [
+        "# Final Verification Repair Resume",
+        "",
+        "## Requirements",
+        "",
+        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+        "- Must grant the repair worker edit access to backend migrations, Ent schema/generated files, backend domain/repository/service/handler/server contracts, and backend command wiring when those surfaces contain residual relay-era product concepts.",
+        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain upstream account, proxy, channel, channel-monitor, model-routing, or subscription-plan behavior.",
+        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+        "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+        "",
+        "## Previous Final Verification Failure",
+        "",
+        "```json",
+        report_text[:12000],
+        "```",
+        "",
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return [str(path.resolve())]
 
 
 def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:
