@@ -1765,3 +1765,12 @@ PY"`
 - Real phase_011 graph probe now preserves T016-T21 completed and starts from T022 `Verify backend tests`, followed by T023 frontend tests, T024 backend build, T025 frontend build/lint, and T026 review.
 - Verification passed: focused planner regression, focused full-roadmap repair-context regression, real graph probe, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, compileall, and diff check.
 - Next step: commit/push V2.122, relaunch Billing Core through the correct Alchemy resume entrypoint, and monitor the split verification chain.
+
+## 2026-06-28T16:36:00+08:00 V2.123 Schema/Build Iteration Budget
+
+- Relaunched after V2.122. `run_attempt_023` proved the verification split works: T022 backend tests, T023 frontend tests, T024 backend build, and T025 frontend build/lint all passed.
+- A new Alchemy scheduling issue appeared: the old supervised resume script still passed `--max-iterations 4`, so the four split verification tasks consumed the entire document-run iteration budget before T026 review and T027 delivery evidence could run.
+- Implemented V2.123 in `autodev/full_roadmap_executor.py`: schema/build phases now get a minimum document-run iteration budget of 8, while non-schema phases still keep the caller-provided budget.
+- Added regression coverage proving schema/build `max_iterations=4` is raised to 8 and a frontend phase remains at 4.
+- Verification passed: focused full-roadmap regression, full `test_full_roadmap_execution.py`, compileall, and diff check.
+- Next step: commit/push V2.123, relaunch through the same resume entrypoint, and confirm T026/T027 run without manual product-code intervention.

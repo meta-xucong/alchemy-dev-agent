@@ -4154,3 +4154,26 @@
 - command: `git diff --check`
 - result: passed
 - next verification command: long-run state validation.
+
+## 2026-06-28T16:36:00+08:00 V2.123 Schema/build iteration budget
+
+- command: Billing Core controlled resume after V2.122
+- result: split verification passed, then stopped at iteration limit
+- relevant evidence: `run_attempt_023` completed T022 backend tests, T023 frontend tests, T024 backend build, and T025 frontend build/lint; evaluation then reported unfinished T026/T027 because `--max-iterations 4` was exhausted.
+- next verification command: focused full-roadmap iteration-budget regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_build_phase_gets_minimum_iteration_budget_for_split_tail tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget -q`
+- result: `2 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `73 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation.

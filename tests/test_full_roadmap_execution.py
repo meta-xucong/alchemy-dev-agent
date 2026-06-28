@@ -563,6 +563,26 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("Global Constraints Reference", text)
         self.assertNotIn("后端不能注册 token 中转/API 网关路由。", text)
 
+    def test_schema_build_phase_gets_minimum_iteration_budget_for_split_tail(self) -> None:
+        schema_phase = RoadmapPhase(
+            phase_id="phase_011",
+            title="Schema pruning and build",
+            requirements=["Prune Ent schema.", "Fresh DB migration succeeds.", "Frontend build/typecheck passes."],
+            scope_controls={"boundary_mode": "large_refactor"},
+        )
+        frontend_phase = RoadmapPhase(
+            phase_id="phase_010",
+            title="Frontend closure",
+            requirements=["Close remaining frontend navigation and copy."],
+            scope_controls={"boundary_mode": "large_refactor"},
+        )
+
+        schema_payload = phase_run_payload({"boundary_mode": "large_refactor", "max_iterations": 4}, schema_phase)
+        frontend_payload = phase_run_payload({"boundary_mode": "large_refactor", "max_iterations": 4}, frontend_phase)
+
+        self.assertEqual(schema_payload["max_iterations"], 8)
+        self.assertEqual(frontend_payload["max_iterations"], 4)
+
     def test_documentation_phase_promotion_accepts_done_with_document_evidence(self) -> None:
         phase = RoadmapPhase(
             phase_id="phase_001",

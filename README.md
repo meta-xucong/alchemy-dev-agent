@@ -1680,6 +1680,16 @@ so final verification retries keep the full split history.
 
 See `docs/131_v2_122_final_verification_timeout_split.md`.
 
+## V2.123 Schema/Build Iteration Budget
+
+V2.123 gives schema/build full-roadmap phases a minimum document-run iteration
+budget of 8. This prevents old supervised resume scripts with
+`--max-iterations 4` from blocking after four split verification tasks pass but
+before review and delivery-evidence tasks can run. Non-schema phases keep the
+caller-provided iteration budget.
+
+See `docs/132_v2_123_schema_build_iteration_budget.md`.
+
 Run a smoke execution:
 
 ```bash

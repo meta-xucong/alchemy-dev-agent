@@ -742,6 +742,8 @@ def phase_run_payload(
     payload = dict(run_payload)
     constraints = list(payload.get("constraints", []) or [])
     boundary_mode = str(payload.get("boundary_mode", "auto") or "auto")
+    if is_schema_build_phase(phase):
+        payload["max_iterations"] = max(int(payload.get("max_iterations", 50) or 0), 8)
     if inherited_repository_path:
         payload["isolate_real_run"] = False
         constraints.append(
@@ -768,6 +770,11 @@ def phase_run_payload(
         constraints.append(f"Scope boundary mode: {boundary_mode}")
     payload["constraints"] = dedupe_strings([str(item) for item in constraints if str(item).strip()])
     return payload
+
+
+def is_schema_build_phase(phase: RoadmapPhase) -> bool:
+    text = " ".join([phase.title, *phase.requirements]).lower()
+    return any(marker in text for marker in ("schema", "ent", "migration", "migrate", "fresh db"))
 
 
 def phase_repository_path(
@@ -878,8 +885,7 @@ def bootstrap_phase_repair_documents(
 
 
 def cumulative_repair_document_limit(phase: RoadmapPhase, max_repair_documents: int) -> int:
-    text = " ".join([phase.title, *phase.requirements]).lower()
-    if any(marker in text for marker in ("schema", "ent", "migration", "migrate", "fresh db")):
+    if is_schema_build_phase(phase):
         return max(max_repair_documents, 14)
     return max_repair_documents
 
