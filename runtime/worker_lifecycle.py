@@ -18,6 +18,52 @@ from .subprocess_utils import hidden_subprocess_startup_kwargs
 
 Terminator = Callable[[int], dict[str, Any]]
 CancellationCheck = Callable[[], bool]
+ProgressProbe = Callable[[int], dict[str, Any]]
+
+PROGRESS_PROCESS_NAMES = {
+    "go.exe",
+    "go",
+    "link.exe",
+    "link",
+    "node.exe",
+    "node",
+    "npm.exe",
+    "npm",
+    "pnpm.exe",
+    "pnpm",
+    "yarn.exe",
+    "yarn",
+    "bun.exe",
+    "bun",
+    "vite.exe",
+    "vite",
+    "vitest.exe",
+    "vitest",
+    "tsc.exe",
+    "tsc",
+    "esbuild.exe",
+    "esbuild",
+    "rollup.exe",
+    "rollup",
+    "webpack.exe",
+    "webpack",
+    "cargo.exe",
+    "cargo",
+    "rustc.exe",
+    "rustc",
+    "gcc.exe",
+    "gcc",
+    "g++.exe",
+    "g++",
+    "clang.exe",
+    "clang",
+    "clang++.exe",
+    "clang++",
+    "dotnet.exe",
+    "dotnet",
+    "msbuild.exe",
+    "msbuild",
+}
 
 
 @dataclass(slots=True)
@@ -35,6 +81,9 @@ class WorkerLifecycleRecord:
     cleanup_required: bool = False
     termination: dict[str, Any] = field(default_factory=dict)
     error: str = ""
+    timeout_grace_seconds: float = 0.0
+    timeout_grace_count: int = 0
+    timeout_grace_snapshots: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -51,6 +100,9 @@ class WorkerLifecycleRecord:
             "cleanup_required": self.cleanup_required,
             "termination": dict(self.termination),
             "error": self.error,
+            "timeout_grace_seconds": self.timeout_grace_seconds,
+            "timeout_grace_count": self.timeout_grace_count,
+            "timeout_grace_snapshots": list(self.timeout_grace_snapshots),
         }
 
 
@@ -87,6 +139,25 @@ class WorkerLifecycleRecorder:
         record.error = error
         self.persist(record)
 
+    def record_timeout_grace(
+        self,
+        record: WorkerLifecycleRecord,
+        *,
+        grace_seconds: float,
+        snapshot: dict[str, Any],
+    ) -> None:
+        record.timeout_grace_seconds += float(grace_seconds)
+        record.timeout_grace_count += 1
+        record.timeout_grace_snapshots.append(
+            {
+                "granted_at": utc_now_iso(),
+                "grace_seconds": float(grace_seconds),
+                "snapshot": snapshot,
+            }
+        )
+        record.error = f"Timeout boundary extended by {float(grace_seconds):g}s because worker progress was detected."
+        self.persist(record)
+
     def cancel(self, record: WorkerLifecycleRecord, reason: str) -> None:
         record.status = "cancelled"
         record.terminated_at = utc_now_iso()
@@ -114,6 +185,7 @@ class WorkerLifecycleRecorder:
     def persist(self, record: WorkerLifecycleRecord) -> None:
         if not self.output_dir:
             return
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         path = self.output_dir / f"{_safe_id(record.task_id)}.json"
         path.write_text(json.dumps(record.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -129,12 +201,18 @@ class ManagedSubprocessRunner:
         cancellation_check: CancellationCheck | None = None,
         poll_interval_seconds: float = 0.1,
         pipe_drain_grace_seconds: float = 2.0,
+        timeout_progress_grace_seconds: float = 0.0,
+        max_timeout_grace_extensions: int = 1,
+        progress_probe: ProgressProbe | None = None,
     ) -> None:
         self.recorder = recorder
         self.record = record
         self.cancellation_check = cancellation_check
         self.poll_interval_seconds = poll_interval_seconds
         self.pipe_drain_grace_seconds = pipe_drain_grace_seconds
+        self.timeout_progress_grace_seconds = max(0.0, float(timeout_progress_grace_seconds))
+        self.max_timeout_grace_extensions = max(0, int(max_timeout_grace_extensions))
+        self.progress_probe = progress_probe or detect_worker_progress
 
     def __call__(
         self,
@@ -202,11 +280,23 @@ class ManagedSubprocessRunner:
             return process.communicate(input=input, timeout=None)
         sent_input = False
         last_timeout: subprocess.TimeoutExpired | None = None
+        grace_extensions = 0
         while True:
             if self.cancellation_check and self.cancellation_check():
                 raise WorkerCancelled(f"Worker cancellation requested for {self.record.task_id}.")
             remaining = None if deadline is None else deadline - time.monotonic()
             if remaining is not None and remaining <= 0:
+                if self._can_extend_timeout_for_progress(process, grace_extensions):
+                    snapshot = self.progress_probe(process.pid)
+                    if bool(snapshot.get("active")):
+                        grace_extensions += 1
+                        deadline = time.monotonic() + self.timeout_progress_grace_seconds
+                        self.recorder.record_timeout_grace(
+                            self.record,
+                            grace_seconds=self.timeout_progress_grace_seconds,
+                            snapshot=snapshot,
+                        )
+                        continue
                 raise _timeout_with_partial_output(args, timeout, last_timeout)
             try:
                 return process.communicate(
@@ -218,6 +308,15 @@ class ManagedSubprocessRunner:
                 last_timeout = exc
                 if process.poll() is not None:
                     return self._finish_exited_process_with_open_pipes(process, args, exc)
+
+    def _can_extend_timeout_for_progress(self, process: subprocess.Popen[Any], grace_extensions: int) -> bool:
+        if process.poll() is not None:
+            return False
+        if self.timeout_progress_grace_seconds <= 0:
+            return False
+        if grace_extensions >= self.max_timeout_grace_extensions:
+            return False
+        return True
 
     def _finish_exited_process_with_open_pipes(
         self,
@@ -265,6 +364,94 @@ def _managed_process_startup_kwargs() -> dict[str, Any]:
     if os.name != "nt":
         return {"preexec_fn": os.setsid}
     return hidden_subprocess_startup_kwargs(new_process_group=True)
+
+
+def detect_worker_progress(pid: int) -> dict[str, Any]:
+    """Return a small process-tree snapshot when a timed-out worker is still doing verification work."""
+
+    if pid <= 0:
+        return {"active": False, "reason": "invalid worker pid"}
+    if os.name == "nt":
+        return _detect_windows_worker_progress(pid)
+    return {"active": False, "reason": "progress probe is only implemented for Windows workers"}
+
+
+def _detect_windows_worker_progress(pid: int) -> dict[str, Any]:
+    try:
+        result = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name | ConvertTo-Json -Compress -Depth 3",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+            **hidden_subprocess_startup_kwargs(),
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"active": False, "reason": f"process snapshot failed: {exc}"}
+    if result.returncode != 0:
+        return {"active": False, "reason": "process snapshot command failed", "stderr": result.stderr[:400]}
+    try:
+        payload = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError as exc:
+        return {"active": False, "reason": f"process snapshot parse failed: {exc}"}
+    rows = payload if isinstance(payload, list) else [payload]
+    descendants = _worker_descendants(pid, rows)
+    active = [
+        row
+        for row in descendants
+        if str(row.get("Name", "")).strip().lower() in PROGRESS_PROCESS_NAMES
+    ]
+    return {
+        "active": bool(active),
+        "reason": "verification child process detected" if active else "no verification child process detected",
+        "worker_pid": pid,
+        "descendant_count": len(descendants),
+        "active_descendants": [
+            {
+                "pid": int_or_zero(row.get("ProcessId")),
+                "parent_pid": int_or_zero(row.get("ParentProcessId")),
+                "name": str(row.get("Name", "")),
+            }
+            for row in active[:12]
+        ],
+    }
+
+
+def _worker_descendants(pid: int, rows: list[Any]) -> list[dict[str, Any]]:
+    children_by_parent: dict[int, list[dict[str, Any]]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        parent_id = int_or_zero(row.get("ParentProcessId"))
+        if parent_id <= 0:
+            continue
+        children_by_parent.setdefault(parent_id, []).append(row)
+    descendants: list[dict[str, Any]] = []
+    queue = [pid]
+    seen: set[int] = set()
+    while queue:
+        parent_id = queue.pop(0)
+        if parent_id in seen:
+            continue
+        seen.add(parent_id)
+        for child in children_by_parent.get(parent_id, []):
+            descendants.append(child)
+            child_pid = int_or_zero(child.get("ProcessId"))
+            if child_pid > 0:
+                queue.append(child_pid)
+    return descendants
+
+
+def int_or_zero(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def terminate_process_tree(pid: int) -> dict[str, Any]:

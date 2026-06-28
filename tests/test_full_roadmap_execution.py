@@ -3011,6 +3011,101 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("backend migrations", text)
         self.assertGreaterEqual(captured[0]["max_iterations"], 12)
 
+    def test_final_verification_relaunch_writes_fresh_resume_for_latest_failed_attempt(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        (output_dir / "final_verification_repair_resume_001.md").write_text(
+            "Repair attempt: run_attempt_003\n",
+            encoding="utf-8",
+        )
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [
+                    {
+                        "attempt": 6,
+                        "output_dir": str(output_dir / "run_attempt_006"),
+                        "status": "blocked",
+                    }
+                ],
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {
+                        "completed_tasks": ["T002"],
+                        "failed_tasks": ["T003"],
+                        "blockers": [
+                            {
+                                "id": "B-T003-1",
+                                "type": "technical_limit",
+                                "description": "T003 exceeded the Codex worker timeout.",
+                                "task_ids": ["T003"],
+                            }
+                        ],
+                        "task_graph": {
+                            "nodes": [
+                                {"id": "T002", "title": "Repair final backend migration contracts", "status": "completed"},
+                                {
+                                    "id": "T003",
+                                    "title": "Repair final backend schema and domain contracts",
+                                    "status": "failed",
+                                    "relevant_files": ["backend/ent/**", "backend/internal/domain/**"],
+                                    "evidence": [
+                                        {
+                                            "type": "worker_result",
+                                            "result": {
+                                                "status": "failed",
+                                                "summary": "Codex worker timed out after 900 seconds.",
+                                                "known_issues": ["Task-local repository changes were rolled back after timeout."],
+                                                "worker_lifecycle": {"timeout_seconds": 900, "timed_out_at": "2026-06-28T13:17:11+00:00"},
+                                            },
+                                        }
+                                    ],
+                                },
+                            ]
+                        },
+                    },
+                },
+            },
+        )
+        captured: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            captured.append(dict(kwargs))
+            return FakePhaseResult(
+                "Final Full-System Audit And Testing",
+                evidence=[
+                    "FINAL_AUDIT_STATUS: PASS",
+                    "SIMULATION_TEST_STATUS: PASS",
+                    "REAL_TEST_STATUS: PASS",
+                ],
+            )
+
+        report = FullRoadmapExecutor(document_runner=fake_runner)._run_final_verification_worker(
+            objective="Finish CRM",
+            plan=RoadmapExecutionPlan(root_objective="Finish CRM", phases=[]),
+            phase_records=[],
+            documents=[doc],
+            attachments=[],
+            repository_url="",
+            repository_path=root / "repo",
+            repository_visibility="private",
+            output_dir=output_dir,
+            run_payload={"real_codex": True, "boundary_mode": "large_refactor", "max_final_verification_attempts": 1},
+        )
+
+        repair_docs = [Path(item) for item in captured[0]["documents"] if "final_verification_repair_resume" in str(item)]
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(repair_docs[-1].name, "final_verification_repair_resume_002.md")
+        text = repair_docs[-1].read_text(encoding="utf-8")
+        self.assertIn("Repair attempt: run_attempt_006", text)
+        self.assertIn("Primary failed task IDs: T003", text)
+        self.assertIn("Completed tasks to preserve: T002", text)
+        self.assertIn("split backend schema/domain repair", text)
+
     def test_executor_generates_document_package_for_one_sentence_mode(self) -> None:
         root = temp_root()
         calls: list[str] = []

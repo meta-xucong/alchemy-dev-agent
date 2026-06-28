@@ -595,26 +595,63 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         )
         specs.append(
             {
-                "title": "Repair final backend schema and domain contracts",
+                "title": "Repair final backend Ent schema contracts",
                 "description": (
-                    "Regenerate or reframe Ent schema/generated code and backend domain/repository/service/handler/server wiring "
-                    "so retired relay-era concepts are not exposed as delivered CRM product behavior."
+                    "Regenerate or reframe Ent schema/generated code so retired relay-era concepts are not exposed "
+                    "as delivered CRM product behavior. Keep verification narrow in this implementation task; "
+                    "full backend test/build commands are reserved for the final real repository checks."
                 ),
                 "assigned_agent": "backend",
                 "relevant_files": [
                     "backend/ent/**",
+                    "backend/ent/schema/**",
+                    "backend/ent/migrate/**",
+                ],
+                "completion_criteria": [
+                    "Backend Ent schema and generated table contracts align with identity, wallet, metering, charging, reconciliation, analytics, audit, and admin concepts.",
+                    "Retired relay-era Ent entities are removed or reframed without running full repository Go tests in this repair task.",
+                ],
+                "priority": 95,
+            }
+        )
+        specs.append(
+            {
+                "title": "Repair final backend domain and repository contracts",
+                "description": (
+                    "Align backend domain and repository callers with the CRM Billing Core schema after Ent/source-boundary cleanup. "
+                    "Use targeted compile or static checks only; leave full-suite Go verification to the final real repository checks."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
                     "backend/internal/domain/**",
                     "backend/internal/repository/**",
+                ],
+                "completion_criteria": [
+                    "Domain and repository contracts no longer expose upstream account-pool, proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior.",
+                    "Repository callers compile against the cleaned CRM schema using narrow package-level or no-test compile checks.",
+                ],
+                "priority": 94,
+            }
+        )
+        specs.append(
+            {
+                "title": "Repair final backend service handler server contracts",
+                "description": (
+                    "Align backend service, handler, server, and command wiring with the cleaned CRM domain contracts. "
+                    "Avoid broad `go test ./...` here; final real repository checks own full backend verification."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
                     "backend/internal/service/**",
                     "backend/internal/handler/**",
                     "backend/internal/server/**",
                     "backend/cmd/**",
                 ],
                 "completion_criteria": [
-                    "Backend schema/domain contracts align with identity, wallet, metering, charging, reconciliation, analytics, audit, and admin concepts.",
-                    "Generated and hand-written backend callers compile after retired relay-era entities are removed or reframed.",
+                    "Service, handler, server, and command wiring expose CRM billing, identity, wallet, metering, charging, reconciliation, analytics, audit, and admin behavior only.",
+                    "Hand-written backend callers align with the cleaned schema without running full repository Go tests in this repair task.",
                 ],
-                "priority": 95,
+                "priority": 93,
             }
         )
     if any(token in text for token in ["frontend", "i18n", "router", "view", "api module", "reachable views"]):

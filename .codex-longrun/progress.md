@@ -1853,3 +1853,15 @@ PY"`
 - Real Billing Core graph probe now shows T002 relevant files limited to `001_init.sql`, `003_subscription.sql`, `081_create_channels.sql`, `125_add_channel_monitors.sql`, and database contract files.
 - Verification passed: focused repair graph test, real graph probe, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, and compileall.
 - Next step: commit/push V2.131, relaunch final verification, and monitor exact-file T002 migration repair.
+
+## 2026-06-28T22:08:00+08:00 V2.132 Final Repair Resume And Progress Grace
+
+- Relaunched after V2.131. `final_verification/run_attempt_006` preserved the inherited CRM worktree, completed T002 `Repair final backend migration contracts`, and then timed out T003 `Repair final backend schema and domain contracts` after 900 seconds.
+- T003 timeout was not a simple deadlock: process evidence showed the timeout killed an active worker tree with Go/link activity. The existing stop boundary safely prevented same-scope debug/retry and rolled back task-local changes, but the timeout mechanism was not progress-aware.
+- Found a second controller issue: `final_verification_repair_resume_001.md` still represented old attempt_003 evidence, so a relaunch would lack attempt_006 focused context and completed-task preservation.
+- Implemented V2.132 in `planner/task_graph_builder.py`: final backend schema/domain repair now splits into Ent schema, domain/repository, and service/handler/server tasks, with explicit guidance to avoid broad `go test ./...` during implementation repair workers.
+- Implemented V2.132 in `autodev/full_roadmap_executor.py`: final verification now writes a fresh repair resume for the latest failed attempt and records Primary failed task IDs plus Completed tasks to preserve.
+- Implemented V2.132 in `runtime/worker_lifecycle.py` and `runtime/codex_worker.py`: real workers get one bounded progress-grace window when timeout hits while verification/build child processes are still active; lifecycle evidence records the grace snapshot.
+- Real Billing Core graph probe generated `final_verification_repair_resume_002.md`, preserved T001/T002 completed, and made T003 `Repair final backend Ent schema contracts` the next pending task.
+- Verification passed: focused regressions, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, full `test_runtime.py`, compileall, and `git diff --check`.
+- Next step: commit/push V2.132, relaunch final verification through `resume_v2_88_supervised_probe.ps1`, and monitor that Alchemy starts at T003 in the inherited worktree rather than replaying T002 or the broad T003 bundle.

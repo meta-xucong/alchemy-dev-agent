@@ -821,7 +821,6 @@ class CodexWorkerTests(unittest.TestCase):
             subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
             (repo / "frontend" / "src" / "views" / "user").mkdir(parents=True)
-            subprocess.run(["git", "add", "."], cwd=repo, check=True)
             subprocess.run(["git", "commit", "--allow-empty", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True)
 
             real_run = subprocess.run
@@ -1157,6 +1156,63 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(record.status, "timed_out")
         self.assertFalse(record.cleanup_required)
         self.assertEqual(record.termination["method"], "fake")
+
+    def test_managed_subprocess_runner_extends_timeout_when_progress_is_detected(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            recorder = WorkerLifecycleRecorder(Path(tmp_dir) / "workers")
+            record = recorder.start("T901G", 1)
+            probed: list[int] = []
+
+            def progress_probe(pid: int) -> dict[str, object]:
+                probed.append(pid)
+                return {
+                    "active": True,
+                    "reason": "verification child process detected",
+                    "active_descendants": [{"pid": 456, "name": "go.exe"}],
+                }
+
+            runner = ManagedSubprocessRunner(
+                recorder,
+                record,
+                poll_interval_seconds=0.001,
+                timeout_progress_grace_seconds=0.1,
+                progress_probe=progress_probe,
+            )
+
+            class SlowThenDoneProcess:
+                pid = 123
+                returncode = 0
+                stdin = None
+                stdout = None
+                stderr = None
+
+                def __init__(self) -> None:
+                    self.calls = 0
+
+                def communicate(self, input=None, timeout=None):
+                    self.calls += 1
+                    if self.calls < 3:
+                        time.sleep(0.02)
+                        raise subprocess.TimeoutExpired(["codex"], timeout, output=b"", stderr=b"")
+                    return b'{"task_id":"T901G","status":"completed"}', b""
+
+                def poll(self):
+                    return None
+
+            process = SlowThenDoneProcess()
+
+            stdout, stderr = runner._communicate_with_control(
+                process,  # type: ignore[arg-type]
+                input=b"",
+                timeout=0.001,
+                args=["codex"],
+            )
+
+        self.assertEqual(stdout, b'{"task_id":"T901G","status":"completed"}')
+        self.assertEqual(stderr, b"")
+        self.assertEqual(record.timeout_grace_count, 1)
+        self.assertGreater(record.timeout_grace_seconds, 0)
+        self.assertEqual(probed, [123])
 
     def test_managed_subprocess_runner_recovers_when_exited_process_keeps_pipe_open(self) -> None:
         with temp_project_dir() as tmp_dir:

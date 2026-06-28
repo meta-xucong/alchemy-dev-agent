@@ -1846,28 +1846,55 @@ def next_final_verification_attempt_index(output_dir: Path) -> int:
     return max(existing, default=0) + 1
 
 
+def next_final_verification_repair_resume_path(output_dir: Path) -> Path:
+    for index in range(1, 1000):
+        candidate = output_dir / f"final_verification_repair_resume_{index:03d}.md"
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError(f"Too many final verification repair resume documents for {output_dir}")
+
+
 def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
     existing = sorted(output_dir.glob("final_verification_repair_resume_*.md"))
-    if existing:
-        return [str(existing[-1].resolve())]
     report = read_optional_json(output_dir / "final_verification_worker_report.json")
     if str(report.get("status", "")).lower() != "failed":
-        return []
+        return [str(existing[-1].resolve())] if existing else []
     report_text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
     lowered = report_text.lower()
-    if not any(token in lowered for token in ["final_audit_status=fail", "source-boundary", "allowed_files"]):
-        return []
-    path = output_dir / "final_verification_repair_resume_001.md"
+    repair_markers = [
+        "final_audit_status=fail",
+        "source-boundary",
+        "allowed_files",
+        "worker timeout",
+        "timed out",
+        "exceeded the codex worker timeout",
+    ]
+    if not any(token in lowered for token in repair_markers):
+        return [str(existing[-1].resolve())] if existing else []
+    attempt_marker = final_verification_report_attempt_marker(report)
+    if existing and (not attempt_marker or final_verification_repair_resume_mentions(existing[-1], attempt_marker)):
+        return [str(existing[-1].resolve())]
+    result = _dict(report.get("result"))
+    runtime_state = _dict(result.get("runtime_state"))
+    blockers = [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
+    focused_lines = phase_focused_repair_lines(result, blockers)
+    path = next_final_verification_repair_resume_path(output_dir)
     lines = [
         "# Final Verification Repair Resume",
+        "",
+        f"Repair attempt: {attempt_marker or 'latest failed final verification attempt'}",
         "",
         "## Requirements",
         "",
         "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+        "- Must preserve completed final-verification tasks from the failed attempt unless a focused failed-task dependency requires a scoped edit.",
         "- Must grant the repair worker edit access to backend migrations, Ent schema/generated files, backend domain/repository/service/handler/server contracts, and backend command wiring when those surfaces contain residual relay-era product concepts.",
+        "- Must split backend schema/domain repair by Ent schema, domain/repository, and service/handler/server wiring instead of replaying one broad worker.",
         "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain upstream account, proxy, channel, channel-monitor, model-routing, or subscription-plan behavior.",
+        "- Implementation repair tasks must use narrow static or package-level checks; broad Go/frontend verification is reserved for final real repository checks.",
         "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
         "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+        *focused_lines,
         "",
         "## Previous Final Verification Failure",
         "",
@@ -1878,6 +1905,30 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
     return [str(path.resolve())]
+
+
+def final_verification_report_attempt_marker(report: dict[str, object]) -> str:
+    attempts = [item for item in _list(report.get("attempts")) if isinstance(item, dict)]
+    if not attempts:
+        return ""
+    latest = attempts[-1]
+    attempt = latest.get("attempt")
+    output_dir = str(latest.get("output_dir", "") or "")
+    if attempt is None:
+        return Path(output_dir).name if output_dir else ""
+    try:
+        return f"run_attempt_{int(attempt):03d}"
+    except (TypeError, ValueError):
+        return str(attempt)
+
+
+def final_verification_repair_resume_mentions(path: Path, marker: str) -> bool:
+    if not marker:
+        return False
+    try:
+        return marker in path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
 
 
 def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:

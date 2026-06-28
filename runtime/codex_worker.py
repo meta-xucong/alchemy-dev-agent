@@ -313,6 +313,7 @@ class CodexWorkerAdapter:
                     if self.cancellation_check
                     else None
                 ),
+                timeout_progress_grace_seconds=_timeout_progress_grace_seconds(self.timeout_seconds),
             )
         try:
             kwargs: dict[str, Any] = {
@@ -337,6 +338,13 @@ class CodexWorkerAdapter:
         except subprocess.TimeoutExpired as exc:
             self._rollback_task_changes(worker_input.repository_path, before_snapshot)
             lifecycle_payload = lifecycle_record.to_dict() if lifecycle_record is not None else {}
+            timeout_summary = f"Codex worker timed out after {self.timeout_seconds} seconds."
+            grace_seconds = float(lifecycle_payload.get("timeout_grace_seconds") or 0.0)
+            if grace_seconds > 0:
+                timeout_summary = (
+                    f"Codex worker timed out after {self.timeout_seconds} seconds plus "
+                    f"{grace_seconds:g} seconds of progress grace."
+                )
             if lifecycle_payload.get("status") == "cancelled":
                 return CodexWorkerResult(
                     task_id=worker_input.task_id,
@@ -350,7 +358,7 @@ class CodexWorkerAdapter:
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
                 status="failed",
-                summary=f"Codex worker timed out after {self.timeout_seconds} seconds.",
+                summary=timeout_summary,
                 known_issues=[str(exc), "Task-local repository changes were rolled back after timeout."],
                 confidence=0.0,
                 raw_output=_truncate_raw_output(str(exc)),
@@ -961,6 +969,12 @@ def _should_bypass_codex_cli_sandbox(sandbox: str) -> bool:
 def _is_codex_cli_executable(executable: str) -> bool:
     name = Path(str(executable)).name.lower()
     return name in {"codex", "codex.exe", "codex.cmd", "codex.bat"}
+
+
+def _timeout_progress_grace_seconds(timeout_seconds: int | None) -> float:
+    if not timeout_seconds or timeout_seconds < 300:
+        return 0.0
+    return min(300.0, max(60.0, float(timeout_seconds) / 3.0))
 
 
 def _build_codex_subprocess_env(repository_path: str | Path) -> dict[str, str]:

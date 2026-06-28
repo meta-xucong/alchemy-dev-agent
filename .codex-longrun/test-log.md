@@ -4429,3 +4429,51 @@
 - command: `python -B -m compileall planner autodev tests -q`
 - result: passed
 - next verification command: diff check and state validation.
+
+## 2026-06-28T22:08:00+08:00 V2.132 Final repair resume and progress grace
+
+- command: Billing Core final verification resume after V2.131
+- result: T002 completed, T003 timed out
+- relevant evidence: `final_verification/run_attempt_006/state.json` has T002 completed and T003 failed with non-partial timeout blocker `B-T003-1`; worker lifecycle shows the timed-out process tree was killed after 900 seconds.
+- next verification command: focused final-repair graph/runtime tests.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_repair_context_builds_editable_repair_task -q`
+- result: `1 passed`
+- next verification command: focused worker progress-grace test.
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_extends_timeout_when_progress_is_detected -q`
+- result: `1 passed`
+- next verification command: focused final resume regeneration test.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_relaunch_writes_fresh_resume_for_latest_failed_attempt -q`
+- result: `1 passed`
+- next verification command: adjacent final-verification/runtime regressions.
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_terminates_on_timeout tests/test_runtime.py::CodexWorkerTests::test_real_worker_timeout_result_includes_lifecycle_cleanup tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_extends_timeout_when_progress_is_detected -q`
+- result: `3 passed`
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `37 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `81 passed`
+- next verification command: full runtime regression.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `136 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner runtime autodev tests -q`
+- result: passed
+- next verification command: diff check.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation and V2.132 relaunch.
+
+- command: real Billing Core final-verification graph probe against `.alchemy\billing_core_v274_20260624_012\final_verification`
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_002.md`; graph preserves T001/T002 completed and starts next at T003 `Repair final backend Ent schema contracts`.
+- next verification command: commit/push and controlled Billing Core final verification relaunch.
