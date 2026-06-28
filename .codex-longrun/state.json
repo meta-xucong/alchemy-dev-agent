@@ -53,10 +53,11 @@
     "implemented V2.114 Ent regeneration timeout split so focused T006 repairs do not replay broad regeneration work",
     "implemented V2.115 timeout stop boundary and read-only inventory packaging so full-roadmap parents stop after worker timeouts and inventory tasks do not run heavy verification",
     "implemented V2.116 Ent regeneration scoped verification so generated-client tasks do not fail on downstream caller-alignment tests",
-    "implemented V2.117 Ent caller alignment timeout split so Billing Core phase_011 T008 resumes as inventory, repository, service, and server/handler tasks instead of replaying one broad caller-alignment worker"
+    "implemented V2.117 Ent caller alignment timeout split so Billing Core phase_011 T008 resumes as inventory, repository, service, and server/handler tasks instead of replaying one broad caller-alignment worker",
+    "implemented V2.118 timeout repair context bootstrap so worker-timeout stop boundaries still allow the next supervised launch to reuse existing phase_repair_NNN.md context"
   ],
   "next_actions": [
-    "Commit and push V2.117 Ent caller alignment timeout split.",
+    "Commit and push V2.118 timeout repair context bootstrap.",
     "Launch the next controlled Billing Core run through Alchemy only for phase_011 schema pruning/build.",
     "Confirm the next phase_011 attempt preserves T006/T007 completed evidence and starts from T008 Inventory Ent caller alignment failures before editable repository/service/server tasks.",
     "Monitor the T008-T011 caller-alignment split for schema/build/product blocker evidence; if an Alchemy controller issue appears, stop and fix Alchemy before continuing.",
@@ -397,7 +398,14 @@
     "python -B -m pytest tests/test_runtime_handoff.py -q => 4 passed after V2.117",
     "python -B -m compileall autodev planner runtime tests -q => passed after V2.117",
     "git diff --check => passed after V2.117",
-    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.117"
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.117",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_worker_timeout_stop_boundary_bootstrap_reuses_existing_repair_context -q => 1 passed after V2.118",
+    "Real phase_011 bootstrap probe after V2.118 => run_attempt_017 worker-timeout stop boundary returns phase_repair_001.md through phase_repair_007.md",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 72 passed after V2.118",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_ent_caller_timeout_repair_splits_caller_alignment_task -q => 1 passed after V2.118",
+    "python -B -m compileall autodev tests -q => passed after V2.118",
+    "git diff --check => passed after V2.118",
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.118"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -453,7 +461,8 @@
     "Before V2.114, Billing Core phase_011 T006 timeout repair replayed the broad Ent regeneration task instead of splitting regeneration inventory, generated artifacts, and repository caller alignment.",
     "Before V2.115, full-roadmap parent loops could launch another phase attempt after a non-partial Codex worker timeout, and schema/build inventory tasks still carried heavy verification commands plus editable allowed_files.",
     "Before V2.116, the Ent generated-client task still ran full backend verification, so downstream caller-alignment failures could mark T007 partial and create same-scope debug instead of moving to T008.",
-    "Before V2.117, a focused T008 Ent caller-alignment timeout repair document could advise splitting/checkpointing, but the rebuilt graph still contained one broad repository/service/server caller-alignment worker and schema/build repair context only guaranteed six ordinary repair briefs."
+    "Before V2.117, a focused T008 Ent caller-alignment timeout repair document could advise splitting/checkpointing, but the rebuilt graph still contained one broad repository/service/server caller-alignment worker and schema/build repair context only guaranteed six ordinary repair briefs.",
+    "Before V2.118, worker-timeout stop boundaries correctly prevented same-scope auto-retry but could also suppress existing ordinary phase_repair_NNN.md context on the next supervised launch, causing Billing Core phase_011 to collapse back to a stale T001/T002 graph."
   ],
   "blockers": [],
   "done_criteria": [
@@ -461,7 +470,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T11:12:15+08:00",
+  "last_verified_at": "2026-06-28T11:25:18+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T11:12:15+08:00"
+  "updated_at": "2026-06-28T11:25:18+08:00"
 }

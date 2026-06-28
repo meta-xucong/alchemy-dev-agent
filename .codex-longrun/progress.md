@@ -1703,3 +1703,12 @@ PY"`
 - Implemented V2.117 in `autodev/full_roadmap_executor.py`: schema/build repair bootstrap now retains at least eight ordinary repair briefs, preserving the full T002/T003/T006/T008 split chain.
 - Real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_007.md` now marks T006/T007 completed and starts the next pending task at T008 `Inventory Ent caller alignment failures`, followed by T009-T011 caller-alignment tasks.
 - Next step: commit/push V2.117, relaunch Billing Core through Alchemy, and monitor the T008-T011 split before continuing to backend cleanup, schema/build verification, phase_012 demo smoke, and final handoff.
+
+## 2026-06-28T11:25:18+08:00 V2.118 Timeout Repair Context Bootstrap
+
+- Relaunched after V2.117. `run_attempt_018` incorrectly received only `phase_requirements.md`, rebuilt a stale graph from T001/T002, and started T001 planning instead of the T008 caller-alignment inventory.
+- Wrote `supervisor_stop.json` into `run_attempt_018`; live control cancelled T001 cleanly and no related Alchemy processes remained.
+- Root cause: worker-timeout stop boundaries correctly make `should_auto_repair_phase()` false, but `bootstrap_phase_repair_documents()` also used that false result to suppress existing ordinary `phase_repair_NNN.md` context on the next supervised launch.
+- Implemented V2.118 in `autodev/full_roadmap_executor.py`: if the previous record stopped on a worker-timeout boundary and ordinary repair docs already exist, bootstrap returns that repair context for the next supervised document run.
+- Real phase_011 bootstrap probe using `run_attempt_017` now returns `phase_repair_001.md` through `phase_repair_007.md` even though `should_auto_repair_phase()` remains false for the timeout stop boundary.
+- Next step: commit/push V2.118, relaunch Billing Core through Alchemy, and confirm the next attempt no longer starts from T001.

@@ -1630,6 +1630,15 @@ so the full T002/T003/T006/T008 split chain survives resume.
 
 See `docs/126_v2_117_ent_caller_alignment_timeout_split.md`.
 
+## V2.118 Timeout Repair Context Bootstrap
+
+V2.118 preserves the timeout stop boundary while allowing the next supervised
+launch to reuse existing ordinary `phase_repair_NNN.md` briefs. A worker timeout
+still does not auto-retry the same task, but a later resume can rebuild the
+narrowed graph from the focused repair context already on disk.
+
+See `docs/127_v2_118_timeout_repair_context_bootstrap.md`.
+
 Run a smoke execution:
 
 ```bash

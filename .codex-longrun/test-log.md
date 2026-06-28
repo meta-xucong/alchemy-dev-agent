@@ -3943,4 +3943,40 @@
 
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
+- next verification command: commit/push V2.118, then controlled Billing Core relaunch.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
 - next verification command: commit/push V2.117, then controlled Billing Core relaunch.
+
+## 2026-06-28T11:25:18+08:00 V2.118 Timeout repair context bootstrap
+
+- command: Billing Core controlled resume after V2.117
+- result: stopped
+- relevant evidence: `run_attempt_018` received only `phase_requirements.md`, rebuilt a stale T001/T002 schema/build graph, and started T001. Supervisor wrote `run_attempt_018/supervisor_stop.json`; T001 was cancelled cleanly.
+- next verification command: focused bootstrap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_worker_timeout_stop_boundary_bootstrap_reuses_existing_repair_context -q`
+- result: `1 passed`
+- next verification command: real phase_011 bootstrap probe.
+
+- command: real phase_011 bootstrap probe using `run_attempt_017` worker-timeout stop boundary
+- result: passed
+- relevant evidence: `should_auto_repair_phase()` remains false, but `bootstrap_phase_repair_documents()` returns `phase_repair_001.md` through `phase_repair_007.md`.
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `72 passed`
+- next verification command: focused planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_ent_caller_timeout_repair_splits_caller_alignment_task -q`
+- result: `1 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev tests -q`
+- result: passed
+- next verification command: diff check and long-run state validation.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation.

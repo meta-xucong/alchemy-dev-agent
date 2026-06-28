@@ -846,6 +846,8 @@ def bootstrap_phase_repair_documents(
             return context_documents
     if str(previous_record.status).lower() not in {"blocked", "failed"}:
         return []
+    if context_documents and phase_has_worker_timeout_stop_boundary(previous_record.result):
+        return context_documents
     if not should_auto_repair_phase(previous_record.promotion, previous_record.result):
         return []
     stopped_attempt_context = latest_supervisor_stopped_attempt_context_document(

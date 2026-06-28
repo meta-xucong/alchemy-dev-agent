@@ -2286,6 +2286,74 @@ class FullRoadmapExecutionTests(unittest.TestCase):
             ],
         )
 
+    def test_worker_timeout_stop_boundary_bootstrap_reuses_existing_repair_context(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phase_011"
+        run_dir = phase_dir / "run_attempt_017"
+        run_dir.mkdir(parents=True)
+        record_path = phase_dir / "phase_record.json"
+        write_json(record_path, {"phase_id": "phase_011", "status": "blocked", "output_dir": str(run_dir)})
+        for index, task_id in ((6, "T006"), (7, "T008")):
+            repair_doc = phase_dir / f"phase_repair_{index:03d}.md"
+            repair_doc.write_text(
+                "\n".join(
+                    [
+                        "# Auto Repair",
+                        f"- Primary failed task IDs: {task_id}.",
+                        "- Completed tasks to preserve: T006, T007, T001, T002, T003, T004, T005.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            old_time = time.time() - (60 - index)
+            os.utime(repair_doc, (old_time, old_time))
+        os.utime(record_path, (time.time(), time.time()))
+        phase = RoadmapPhase(
+            phase_id="phase_011",
+            title="Phase 8: Schema pruning and build",
+            requirements=["Prune Ent schema.", "Regenerate Ent.", "Fresh DB migration succeeds."],
+        )
+        result = {
+            "status": "blocked",
+            "runtime_state": {
+                "blockers": [
+                    {
+                        "id": "B-T008-1",
+                        "type": "technical_limit",
+                        "can_continue_partially": False,
+                        "description": "T008 exceeded the Codex worker timeout. Stop instead of launching a same-scope debug task.",
+                    }
+                ]
+            },
+        }
+        promotion = {
+            "can_promote": False,
+            "required_score": 0.85,
+            "score": 0.1528,
+            "reasons": ["Phase has blockers."],
+        }
+        previous_record = PhaseExecutionRecord(
+            phase_id="phase_011",
+            title=phase.title,
+            status="blocked",
+            output_dir=str(run_dir),
+            result=result,
+            promotion=promotion,
+        )
+
+        self.assertFalse(should_auto_repair_phase(promotion, result))
+        docs = bootstrap_phase_repair_documents(
+            phase_dir,
+            phase=phase,
+            previous_record=previous_record,
+            max_repair_documents=2,
+        )
+
+        self.assertEqual([Path(item).name for item in docs], ["phase_repair_006.md", "phase_repair_007.md"])
+
     def test_supervisor_stopped_attempt_context_preserves_newer_completed_tasks(self) -> None:
         root = temp_root()
         phase_dir = root / "phase_010"
