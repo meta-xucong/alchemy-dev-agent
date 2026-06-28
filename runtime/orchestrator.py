@@ -1418,27 +1418,20 @@ def _worker_result_timed_out(result: CodexWorkerResult | dict | None) -> bool:
 
     if isinstance(result, CodexWorkerResult):
         lifecycle = result.worker_lifecycle
-        text_values: list[object] = [
-            result.summary,
-            result.raw_output,
-            result.known_issues,
-            result.evidence,
-        ]
+        text_values: list[object] = [result.summary]
     elif isinstance(result, dict):
         raw_lifecycle = result.get("worker_lifecycle", {})
         lifecycle = raw_lifecycle if isinstance(raw_lifecycle, dict) else {}
-        text_values = [
-            result.get("summary", ""),
-            result.get("raw_output", ""),
-            result.get("known_issues", []),
-            result.get("evidence", []),
-        ]
+        text_values = [result.get("summary", "")]
     else:
         return False
 
     if str(lifecycle.get("status", "")).lower() == "timed_out":
         return True
     if lifecycle.get("timed_out_at"):
+        return True
+    status = getattr(result, "status", "") if isinstance(result, CodexWorkerResult) else result.get("status", "")
+    if str(status).lower() == "timed_out":
         return True
 
     text = "\n".join(fragment.lower() for value in text_values for fragment in _value_text_fragments(value))

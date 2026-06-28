@@ -1646,7 +1646,11 @@ def repair_completed_task_ids(runtime_state: dict[str, Any], nodes: Sequence[dic
         if str(node.get("status", "")).lower() in {"done", "completed"}
     )
     completed.extend(partial_downstream_handoff_completed_task_ids(nodes))
-    return dedupe_strings(completed)
+    completed_ids = dedupe_strings(completed)
+    reopen_ids = repair_completed_task_ids_to_reopen(nodes, completed_ids)
+    if reopen_ids:
+        completed_ids = [task_id for task_id in completed_ids if task_id not in reopen_ids]
+    return completed_ids
 
 
 def partial_downstream_handoff_completed_task_ids(nodes: Sequence[dict[str, object]]) -> list[str]:
@@ -1682,6 +1686,42 @@ def worker_result_has_scoped_progress(worker_result: dict[str, object]) -> bool:
         if isinstance(command, dict) and int_or_zero(command.get("exit_code")) == 0:
             return True
     return False
+
+
+def repair_completed_task_ids_to_reopen(
+    nodes: Sequence[dict[str, object]],
+    completed_task_ids: Sequence[str],
+) -> set[str]:
+    if not completed_task_ids:
+        return set()
+    task_nodes = [dict(node) for node in nodes]
+    nodes_by_id = {str(node.get("id", "") or ""): node for node in task_nodes}
+    target_paths = unresolved_repair_target_paths(task_nodes)
+    if not target_paths:
+        return set()
+    reopen_ids: set[str] = set()
+    for task_id in completed_task_ids:
+        task = nodes_by_id.get(str(task_id))
+        if not task:
+            continue
+        if task_scope_matches_paths(task, target_paths):
+            reopen_ids.add(str(task_id))
+    return reopen_ids
+
+
+def unresolved_repair_target_paths(nodes: Sequence[dict[str, object]]) -> list[str]:
+    target_paths: list[str] = []
+    unresolved_statuses = {"failed", "blocked", "timed_out", "cancelled"}
+    for node in nodes:
+        status = str(node.get("status", "") or "").lower()
+        worker_result = latest_worker_result_from_task(node)
+        if not worker_result:
+            continue
+        worker_status = str(worker_result.get("status", "") or "").lower()
+        if status not in unresolved_statuses and worker_status not in REPAIR_WORKER_STATUSES:
+            continue
+        target_paths.extend(repair_result_target_paths(worker_result))
+    return dedupe_strings(target_paths)
 
 
 def repair_result_target_paths(worker_result: dict[str, object]) -> list[str]:

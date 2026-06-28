@@ -2492,6 +2492,54 @@ class OrchestratorTests(unittest.TestCase):
         self.assertIn("T004-DEBUG-1", nodes)
         self.assertEqual(nodes["T004-DEBUG-1"].status, "pending")
 
+    def test_partial_result_raw_timeout_instruction_does_not_record_timeout_blocker(self) -> None:
+        class PartialWithTimeoutInstructionWorker:
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="partial",
+                    summary="Implementation still needs a focused retry.",
+                    files_changed=["backend/internal/service/payment_config_plans.go"],
+                    known_issues=["A repository caller still needs alignment."],
+                    raw_output=(
+                        "Prompt context: Worker timeout is a stop boundary; if a task exceeds the configured "
+                        "worker budget, record a blocker."
+                    ),
+                )
+
+        graph = TaskGraph(
+            graph_id="partial-raw-timeout-instruction",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T005",
+                    title="Repair service handler server",
+                    description="Repair service callers.",
+                    type="integration",
+                    assigned_agent="backend",
+                    relevant_files=["backend/internal/service/**"],
+                    boundary_mode="large_refactor",
+                )
+            ],
+        )
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=PartialWithTimeoutInstructionWorker(),  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "repair final backend contracts",
+                initial_state=RuntimeState(objective="repair final backend contracts", task_graph=graph),
+                max_iterations=1,
+            )
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertFalse(state.blockers)
+        self.assertIn("T005-DEBUG-1", nodes)
+        self.assertEqual(nodes["T005-DEBUG-1"].status, "pending")
+        self.assertFalse(any(event["type"] == "worker_timeout_blocker" for event in state.iteration_history))
+
     def test_worker_timeout_records_blocker_without_debug_task(self) -> None:
         class TimeoutWorker:
             def __init__(self) -> None:

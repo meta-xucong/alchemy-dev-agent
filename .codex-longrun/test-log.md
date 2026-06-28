@@ -4549,3 +4549,51 @@
 - result: passed
 - relevant evidence: generated `final_verification_repair_resume_004.md`; graph construction from the final requirements plus resume doc marks T001-T004 completed and leaves T005 ready.
 - next verification command: long-run state validation, commit/push, and controlled Billing Core final verification relaunch.
+
+## 2026-06-29T00:46:00+08:00 V2.135 Timeout false positive and reopen
+
+- command: Billing Core final verification resume after V2.134
+- result: T005 partial exposed timeout false-positive and upstream reopen need
+- relevant evidence: `run_attempt_009` started at T005, updated `backend/internal/service/payment_config_plans.go`, passed targeted service/handler/server no-test checks, and reported `backend/internal/repository/account_repo.go` as an out-of-scope repository blocker. Worker lifecycle status was `completed`, but Alchemy recorded a timeout blocker because raw context mentioned the timeout stop-boundary policy.
+- next verification command: focused runtime false-positive tests.
+
+- command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_partial_result_raw_timeout_instruction_does_not_record_timeout_blocker tests/test_runtime.py::OrchestratorTests::test_worker_timeout_records_blocker_without_debug_task tests/test_runtime.py::OrchestratorTests::test_debug_timeout_blocks_parent_without_replaying_original_task -q`
+- result: `3 passed`
+- next verification command: focused final-verification reopen tests.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_reopens_preserved_task_when_later_failure_targets_its_scope tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_preserves_partial_downstream_handoff -q`
+- result: `2 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall runtime autodev tests -q`
+- result: passed
+- next verification command: core orchestrator regression.
+
+- command: `python -B -m pytest tests/test_runtime.py tests/test_full_roadmap_execution.py -q`
+- result: inconclusive
+- relevant error summary: outer shell timeout interrupted result collection after about 424 seconds.
+- fix attempted: split into focused/runtime-orchestrator and full-roadmap commands.
+- next verification command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests -q`
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: inconclusive
+- relevant error summary: outer shell timeout interrupted result collection after about 364 seconds; leftover pytest exited naturally afterward.
+- fix attempted: used narrower scheduler/orchestrator suite covering the touched runtime paths.
+- next verification command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests -q`
+
+- command: `python -B -m pytest tests/test_runtime.py::OrchestratorTests -q`
+- result: `60 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `83 passed`
+- next verification command: diff check and real Billing Core resume probe.
+
+- command: `git diff --check -- runtime/orchestrator.py autodev/full_roadmap_executor.py tests/test_runtime.py tests/test_full_roadmap_execution.py`
+- result: passed
+- next verification command: real Billing Core resume probe.
+
+- command: real Billing Core final-verification resume probe after run_attempt_009
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_005.md`; graph construction marks T001-T003 completed and T004 ready, with `account_repo.go` evidence present.
+- next verification command: long-run state validation, commit/push, and controlled Billing Core final verification relaunch.

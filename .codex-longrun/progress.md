@@ -1886,3 +1886,14 @@ PY"`
 - Real Billing Core graph probe using `final_verification_repair_resume_004.md` shows T001-T004 completed and T005 `Repair final backend service handler server contracts` ready.
 - Verification passed: focused runtime handoff tests, adjacent blocker/timeout/debug regressions, full `test_runtime.py`, full `test_full_roadmap_execution.py`, compileall, diff check, and real resume graph probe.
 - Next step: commit/push V2.134, relaunch the correct Billing Core final verification entrypoint, and monitor T005 without direct Codex product-code edits.
+
+## 2026-06-29T00:46:00+08:00 V2.135 Timeout False Positive And Reopen
+
+- Relaunched after V2.134. `final_verification/run_attempt_009` correctly preserved T001-T004 and started at T005.
+- T005 made real service-layer progress and returned `partial`: `payment_config_plans.go` was updated, targeted service/handler/server no-test checks passed, and remaining command-package verification was blocked by `backend/internal/repository/account_repo.go` outside T005 scope.
+- Found a new Alchemy runtime issue: timeout detection treated prompt/context text about the timeout stop-boundary policy as a real worker timeout, even though T005 lifecycle status was `completed`.
+- Implemented V2.135 in `runtime/orchestrator.py`: timeout classification now trusts structured lifecycle fields, explicit `status=timed_out`, and result summary only; raw output/evidence/prompt context no longer cause timeout false positives.
+- Implemented V2.135 in `autodev/full_roadmap_executor.py`: final-verification resume preservation reopens completed tasks when later unresolved evidence names files in their scope, so T005 can send `account_repo.go` back to T004.
+- Real Billing Core resume probe generated `final_verification_repair_resume_005.md`; graph construction shows T001-T003 completed and T004 ready, with T005 pending behind it.
+- Verification passed: focused runtime false-positive/timeout regressions, focused final-verification reopen regressions, full `OrchestratorTests`, full `test_full_roadmap_execution.py`, compileall, diff check, and real resume graph probe. A full `test_runtime.py` run was attempted but the outer shell timeout cut off result collection; the focused scheduler/orchestrator coverage passed cleanly.
+- Next step: commit/push V2.135, relaunch the controlled Billing Core final verification, and monitor T004 repository residual repair in the inherited worktree.
