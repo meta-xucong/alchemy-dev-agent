@@ -3581,6 +3581,128 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("Task T011 - Repair final frontend admin operation component contracts", text)
         self.assertIn("Worker summary: Codex worker timed out after 900 seconds.", text)
 
+    def test_final_verification_resume_records_frontend_admin_account_timeout_focus(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        for index in range(1, 10):
+            (output_dir / f"final_verification_repair_resume_{index:03d}.md").write_text(
+                f"Repair attempt: run_attempt_{index + 4:03d}\n",
+                encoding="utf-8",
+            )
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [
+                    {
+                        "attempt": 14,
+                        "output_dir": str(output_dir / "run_attempt_014"),
+                        "status": "blocked",
+                    }
+                ],
+                "result": {
+                    "status": "blocked",
+                    "evidence": ["FINAL_AUDIT_STATUS=FAIL: source-boundary repair attempt needs continuation."],
+                    "runtime_state": {
+                        "completed_tasks": [],
+                        "failed_tasks": ["T011"],
+                        "blockers": [
+                            {
+                                "id": "B-T011-1",
+                                "type": "technical_limit",
+                                "description": "T011 exceeded the Codex worker timeout. Stop instead of launching a same-scope debug task.",
+                                "task_ids": ["T011"],
+                            }
+                        ],
+                        "task_graph": {
+                            "nodes": [
+                                {"id": "T001", "title": "Use deterministic final verification graph", "status": "completed"},
+                                {"id": "T002", "title": "Repair final backend migration contracts", "status": "completed"},
+                                {"id": "T003", "title": "Repair final backend Ent schema contracts", "status": "completed"},
+                                {"id": "T004", "title": "Repair final backend domain and repository contracts", "status": "completed"},
+                                {"id": "T005", "title": "Repair final backend service handler server contracts", "status": "completed"},
+                                {"id": "T006", "title": "Repair final frontend API module contracts", "status": "completed"},
+                                {"id": "T007", "title": "Repair final frontend i18n locale contracts", "status": "completed"},
+                                {"id": "T008", "title": "Repair final frontend constants and shared types contracts", "status": "completed"},
+                                {"id": "T009", "title": "Repair final frontend route and app shell contracts", "status": "completed"},
+                                {"id": "T010", "title": "Repair final frontend account component contracts", "status": "completed"},
+                                {
+                                    "id": "T011",
+                                    "title": "Repair final frontend admin account identity components",
+                                    "status": "failed",
+                                    "relevant_files": [
+                                        "frontend/src/components/admin/account/**",
+                                        "frontend/src/components/admin/user/**",
+                                        "frontend/src/components/admin/announcements/**",
+                                        "frontend/src/components/admin/AdminComplianceDialog.vue",
+                                        "frontend/src/types/**",
+                                        "frontend/package.json",
+                                        "frontend/pnpm-lock.yaml",
+                                    ],
+                                    "evidence": [
+                                        {
+                                            "type": "worker_result",
+                                            "result": {
+                                                "status": "failed",
+                                                "summary": "Codex worker timed out after 900 seconds.",
+                                                "known_issues": ["Task-local repository changes were rolled back to the pre-task snapshot; pre-existing dirty files may remain."],
+                                                "worker_lifecycle": {
+                                                    "status": "timed_out",
+                                                    "timeout_seconds": 900,
+                                                    "timed_out_at": "2026-06-28T22:31:14+00:00",
+                                                },
+                                            },
+                                        }
+                                    ],
+                                },
+                            ]
+                        },
+                    },
+                },
+            },
+        )
+        captured: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            captured.append(dict(kwargs))
+            return FakePhaseResult(
+                "Final Full-System Audit And Testing",
+                evidence=[
+                    "FINAL_AUDIT_STATUS: PASS",
+                    "SIMULATION_TEST_STATUS: PASS",
+                    "REAL_TEST_STATUS: PASS",
+                ],
+            )
+
+        report = FullRoadmapExecutor(document_runner=fake_runner)._run_final_verification_worker(
+            objective="Finish CRM",
+            plan=RoadmapExecutionPlan(root_objective="Finish CRM", phases=[]),
+            phase_records=[],
+            documents=[doc],
+            attachments=[],
+            repository_url="",
+            repository_path=root / "repo",
+            repository_visibility="private",
+            output_dir=output_dir,
+            run_payload={"real_codex": True, "boundary_mode": "large_refactor", "max_final_verification_attempts": 1},
+        )
+
+        repair_docs = [Path(item) for item in captured[0]["documents"] if "final_verification_repair_resume" in str(item)]
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(repair_docs[-1].name, "final_verification_repair_resume_010.md")
+        text = repair_docs[-1].read_text(encoding="utf-8")
+        self.assertIn("Repair attempt: run_attempt_014", text)
+        self.assertIn("Primary failed task IDs: T011", text)
+        self.assertIn("Must continue focused task T011: Repair final frontend admin account identity components.", text)
+        completed_line = next(line for line in text.splitlines() if "Completed tasks to preserve:" in line)
+        for task_id in ("T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009", "T010"):
+            self.assertIn(task_id, completed_line)
+        self.assertNotIn("T011", completed_line)
+        self.assertIn("Worker summary: Codex worker timed out after 900 seconds.", text)
+
     def test_final_verification_resume_preserves_partial_downstream_handoff(self) -> None:
         root = temp_root()
         doc = root / "roadmap.md"

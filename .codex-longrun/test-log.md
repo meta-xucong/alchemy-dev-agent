@@ -4709,3 +4709,43 @@
 - result: passed
 - relevant evidence: generated `final_verification_repair_resume_009.md`; graph construction preserves T001-T010 completed and starts T011 as `Repair final frontend admin account identity components`.
 - next verification command: diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
+
+## 2026-06-29T06:55:33+08:00 V2.140 Final frontend admin account timeout split
+
+- command: Billing Core final verification resume after V2.139
+- result: T011 timed out
+- relevant evidence: `final_verification/run_attempt_014/state.json` preserved T001-T010, started T011 `Repair final frontend admin account identity components`, then recorded `B-T011-1` after a 900 second worker timeout with no same-scope debug or downstream dispatch.
+- next verification command: focused second-level admin account split regressions.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_account_identity_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_component_timeout_is_split_again -q`
+- result: `2 passed`
+- next verification command: focused full-roadmap resume regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_admin_account_timeout_focus tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_admin_component_timeout_focus -q`
+- result: `2 passed`
+- next verification command: focused runtime timeout regressions.
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_terminates_on_timeout tests/test_runtime.py::CodexWorkerTests::test_real_worker_timeout_result_includes_lifecycle_cleanup -q`
+- result: `2 passed`
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `42 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `88 passed`
+- next verification command: full runtime suite.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `139 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner runtime autodev tests -q`
+- result: passed
+- next verification command: real Billing Core final-verification resume graph probe after run_attempt_014.
+
+- command: real Billing Core final-verification resume graph probe after `run_attempt_014`
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_010.md`; graph construction preserves T001-T010 completed and starts T011 as `Repair final frontend admin account table components`.
+- next verification command: diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.

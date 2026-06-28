@@ -359,7 +359,10 @@ class CodexWorkerAdapter:
                 task_id=worker_input.task_id,
                 status="failed",
                 summary=timeout_summary,
-                known_issues=[str(exc), "Task-local repository changes were rolled back after timeout."],
+                known_issues=[
+                    str(exc),
+                    "Task-local repository changes were rolled back to the pre-task snapshot; pre-existing dirty files may remain.",
+                ],
                 confidence=0.0,
                 raw_output=_truncate_raw_output(str(exc)),
                 worker_lifecycle=lifecycle_payload,

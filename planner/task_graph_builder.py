@@ -664,7 +664,11 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
             text
         ) or should_preserve_final_frontend_api_i18n_split(text)
-        split_admin_components = should_split_final_frontend_admin_component_timeout(text)
+        split_admin_account_identity = should_split_final_frontend_admin_account_identity_timeout(text)
+        split_admin_components = (
+            should_split_final_frontend_admin_component_timeout(text)
+            or split_admin_account_identity
+        )
         split_frontend_view_components = (
             should_split_final_frontend_view_component_timeout(text)
             or should_preserve_final_frontend_view_component_split(text)
@@ -680,6 +684,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split=should_split_final_frontend_routes_views_timeout(text) or split_frontend_view_components,
                 split_view_components=split_frontend_view_components,
                 split_admin_components=split_admin_components,
+                split_admin_account_identity=split_admin_account_identity,
             )
         )
     return specs
@@ -941,11 +946,44 @@ def should_split_final_frontend_admin_component_timeout(text: str) -> bool:
     )
 
 
+def should_split_final_frontend_admin_account_identity_timeout(text: str) -> bool:
+    focused_account_identity_scope = "primary failed task ids: t011" in text and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin account identity components",
+            "frontend/src/components/admin/account",
+            "frontend/src/components/admin/user",
+        )
+    )
+    if focused_account_identity_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return all(
+        marker in text
+        for marker in (
+            "primary failed task ids: t011",
+            "account",
+            "identity",
+            "component",
+        )
+    )
+
+
 def final_frontend_routes_views_repair_task_specs(
     *,
     split: bool,
     split_view_components: bool = False,
     split_admin_components: bool = False,
+    split_admin_account_identity: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1073,16 +1111,122 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 91,
     }
-    admin_split_tasks = [
+    admin_account_identity_task = {
+        "title": "Repair final frontend admin account identity components",
+        "description": (
+            "Align admin account, user, announcement, and compliance components with CRM identity, wallet, account, and audit workflows."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/admin/account/**",
+            "frontend/src/components/admin/user/**",
+            "frontend/src/components/admin/announcements/**",
+            "frontend/src/components/admin/AdminComplianceDialog.vue",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Admin account, user, announcement, and compliance components no longer expose upstream account, provider-channel, token-log, proxy, or model-routing behavior.",
+            "These components compile against CRM identity, wallet, account, audit, and notification contracts.",
+        ],
+        "priority": 91,
+    }
+    admin_account_identity_split_tasks = [
         {
-            "title": "Repair final frontend admin account identity components",
+            "title": "Repair final frontend admin account table components",
             "description": (
-                "Align admin account, user, announcement, and compliance components with CRM identity, wallet, account, and audit workflows."
+                "Align admin account table, action, filter, and stats components with CRM account, wallet, capacity, and audit semantics."
             ),
             "assigned_agent": "frontend",
             "relevant_files": [
-                "frontend/src/components/admin/account/**",
-                "frontend/src/components/admin/user/**",
+                "frontend/src/components/admin/account/AccountActionMenu.vue",
+                "frontend/src/components/admin/account/AccountBulkActionsBar.vue",
+                "frontend/src/components/admin/account/AccountStatsModal.vue",
+                "frontend/src/components/admin/account/AccountTableActions.vue",
+                "frontend/src/components/admin/account/AccountTableFilters.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin account table/action UI no longer exposes upstream account, provider-channel, proxy, token-log, or model-routing behavior.",
+                "Account table components compile against CRM identity, wallet, capacity, and audit contracts.",
+            ],
+            "priority": 91,
+        },
+        {
+            "title": "Repair final frontend admin account modal components",
+            "description": (
+                "Align admin account import, reauth, scheduled-test, and account-test modals with CRM account lifecycle and verification semantics."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/account/AccountTestModal.vue",
+                "frontend/src/components/admin/account/ImportDataModal.vue",
+                "frontend/src/components/admin/account/ReAuthAccountModal.vue",
+                "frontend/src/components/admin/account/ScheduledTestsPanel.vue",
+                "frontend/src/components/admin/account/__tests__/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin account modal workflows use CRM account verification, import, and lifecycle language.",
+                "Account modal tests and contracts no longer depend on token relay, provider-channel, proxy, or model-routing concepts.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final frontend admin user account components",
+            "description": (
+                "Align admin user account, group, API key, create, and edit modals with CRM identity and access-management semantics."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/user/GroupReplaceModal.vue",
+                "frontend/src/components/admin/user/UserAllowedGroupsModal.vue",
+                "frontend/src/components/admin/user/UserApiKeysModal.vue",
+                "frontend/src/components/admin/user/UserCreateModal.vue",
+                "frontend/src/components/admin/user/UserEditModal.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin user account modals use CRM identity, access control, account, and audit language.",
+                "User account component contracts no longer expose relay provider, proxy, token-log, or model-routing product concepts.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final frontend admin user balance quota components",
+            "description": (
+                "Align admin user balance, balance history, and platform quota components with CRM wallet, ledger, entitlement, and quota semantics."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/user/UserBalanceHistoryModal.vue",
+                "frontend/src/components/admin/user/UserBalanceModal.vue",
+                "frontend/src/components/admin/user/UserPlatformQuotaModal.vue",
+                "frontend/src/components/admin/user/__tests__/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin balance and quota components use CRM wallet, ledger, entitlement, and account-capacity language.",
+                "Balance/quota tests and contracts no longer depend on token relay, provider-channel, proxy, or model-routing concepts.",
+            ],
+            "priority": 88,
+        },
+        {
+            "title": "Repair final frontend admin announcement compliance components",
+            "description": (
+                "Align admin announcement targeting and compliance components with CRM notification, audit, and governance semantics."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
                 "frontend/src/components/admin/announcements/**",
                 "frontend/src/components/admin/AdminComplianceDialog.vue",
                 "frontend/src/types/**",
@@ -1090,11 +1234,14 @@ def final_frontend_routes_views_repair_task_specs(
                 "frontend/pnpm-lock.yaml",
             ],
             "completion_criteria": [
-                "Admin account, user, announcement, and compliance components no longer expose upstream account, provider-channel, token-log, proxy, or model-routing behavior.",
-                "These components compile against CRM identity, wallet, account, audit, and notification contracts.",
+                "Announcement and compliance components use CRM notification, audit, governance, and account-targeting language.",
+                "Compliance UI no longer presents relay-era token-log, upstream-account, provider-channel, proxy, or model-routing concepts as product behavior.",
             ],
-            "priority": 91,
+            "priority": 87,
         },
+    ]
+    admin_split_tasks = [
+        *(admin_account_identity_split_tasks if split_admin_account_identity else [admin_account_identity_task]),
         {
             "title": "Repair final frontend admin connector channel components",
             "description": (

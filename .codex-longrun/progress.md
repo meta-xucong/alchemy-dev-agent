@@ -1939,3 +1939,15 @@ PY"`
 - Added focused document-to-plan and full-roadmap resume regressions, plus `docs/148_v2_139_final_frontend_admin_component_timeout_split.md`.
 - Generated real `final_verification_repair_resume_009.md`; graph probe shows T001-T010 preserved completed and T011 starting at `Repair final frontend admin account identity components`.
 - Next step: commit/push V2.139, relaunch the controlled Billing Core final verification, and monitor split T011 without direct Codex Desktop product-code edits.
+
+## 2026-06-29T06:55:33+08:00 V2.140 Final Frontend Admin Account Timeout Split
+
+- Relaunched after V2.139. `final_verification/run_attempt_014` correctly preserved T001-T010 and started T011 `Repair final frontend admin account identity components`.
+- T011 was smaller than the prior broad admin task, but still combined account, user, announcement, compliance, shared types, and package metadata; it timed out after 900 seconds.
+- Alchemy again handled the timeout boundary correctly: it recorded `B-T011-1`, stopped the run, did not launch same-scope debug work, and did not dispatch downstream T012.
+- The timeout left pre-existing dirty worktree changes visible. This is consistent with rollback to the pre-task snapshot when the inherited worktree was already dirty, but the worker evidence text was too absolute.
+- Implemented V2.140 in `planner/task_graph_builder.py`: repeated T011 account-identity timeout resumes split into account table, account modal, user account, user balance/quota, and announcement/compliance tasks before continuing the V2.139 admin tail.
+- Implemented V2.140 in `runtime/codex_worker.py`: timeout known-issue text now says task-local changes were rolled back to the pre-task snapshot and pre-existing dirty files may remain.
+- Added focused document-to-plan, full-roadmap, and runtime regressions, plus `docs/149_v2_140_final_frontend_admin_account_timeout_split.md`.
+- Generated real `final_verification_repair_resume_010.md`; graph probe shows T001-T010 preserved completed and T011 starting at `Repair final frontend admin account table components`.
+- Next step: commit/push V2.140, relaunch the controlled Billing Core final verification, and monitor the smaller admin account table task.
