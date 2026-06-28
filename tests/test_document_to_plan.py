@@ -916,6 +916,84 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T010"]["title"], "Audit final requirements and phase evidence")
         self.assertEqual(nodes["T010"]["dependencies"], ["T009"])
 
+    def test_final_verification_frontend_routes_timeout_preserves_prior_frontend_split(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            for path in (
+                "frontend/src/api",
+                "frontend/src/constants",
+                "frontend/src/i18n",
+                "frontend/src/types",
+                "frontend/src/router",
+                "frontend/src/views",
+                "frontend/src/components",
+                "frontend/src/composables",
+                "frontend/src/stores",
+                "frontend/src/utils",
+                "frontend/tests",
+            ):
+                (repo / path).mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "final_verification_repair_resume_007.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_011",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- FINAL_AUDIT_STATUS=FAIL: final source-boundary repair needs continuation.",
+                        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, utility, and test files when those surfaces contain upstream account, proxy, channel-monitor, model-routing, or subscription-plan behavior.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T009.",
+                        "- Completed tasks to preserve: T001, T002, T003, T004, T005, T006, T007, T008.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T009 - Repair final frontend routes views and tests",
+                        "- Previous relevant files: frontend/src/router/**, frontend/src/views/**, frontend/src/components/**, frontend/src/composables/**, frontend/src/stores/**, frontend/src/tests/**, frontend/tests/**.",
+                        "- Worker summary: Codex worker timed out after 900 seconds.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-29T03:25:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        for task_id in ("T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008"):
+            self.assertEqual(nodes[task_id]["status"], "completed")
+        self.assertEqual(nodes["T006"]["title"], "Repair final frontend API module contracts")
+        self.assertEqual(nodes["T007"]["title"], "Repair final frontend i18n locale contracts")
+        self.assertEqual(nodes["T008"]["title"], "Repair final frontend constants and shared types contracts")
+        self.assertEqual(nodes["T009"]["title"], "Repair final frontend route and app shell contracts")
+        self.assertIn("frontend/src/router/**", nodes["T009"]["relevant_files"])
+        self.assertEqual(nodes["T010"]["title"], "Repair final frontend view and component contracts")
+        self.assertIn("frontend/src/views/**", nodes["T010"]["relevant_files"])
+        self.assertEqual(nodes["T011"]["title"], "Repair final frontend state composable utility contracts")
+        self.assertIn("frontend/src/utils/**", nodes["T011"]["relevant_files"])
+        self.assertEqual(nodes["T012"]["title"], "Repair final frontend test and fixture contracts")
+        self.assertIn("frontend/tests/**", nodes["T012"]["relevant_files"])
+        self.assertEqual(nodes["T013"]["title"], "Audit final requirements and phase evidence")
+        self.assertEqual(nodes["T013"]["dependencies"], ["T012"])
+
     def test_large_refactor_frontend_phase_survives_repository_index_cap(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

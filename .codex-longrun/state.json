@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_final_frontend_timeout_split_v2_136",
+  "current_phase": "billing_core_final_frontend_routes_timeout_split_v2_137",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -75,14 +75,15 @@
     "implemented V2.133 final backend Go module companion scope for Ent/domain/service repair tasks",
     "implemented V2.134 partial downstream handoff so final repair partials can continue into direct downstream scopes instead of creating same-scope debug loops",
     "implemented V2.135 timeout false-positive guard and final repair reopen for later evidence targeting preserved task scopes",
-    "implemented V2.136 final frontend API/i18n timeout split so Billing Core final verification resumes T006 as smaller API, i18n, and constants/types repair tasks"
+    "implemented V2.136 final frontend API/i18n timeout split so Billing Core final verification resumes T006 as smaller API, i18n, and constants/types repair tasks",
+    "implemented V2.137 final frontend routes/views timeout split so Billing Core final verification resumes T009 as route/app-shell, view/component, state/composable/utility, and test/fixture repair tasks"
   ],
   "next_actions": [
-    "Run final diff/status checks and long-run state validation for V2.136.",
-    "Commit and push V2.136 final frontend API/i18n timeout split.",
+    "Run final diff/status checks and long-run state validation for V2.137.",
+    "Commit and push V2.137 final frontend routes/views timeout split.",
     "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1.",
-    "Confirm final_verification_repair_resume_006 preserves T001-T005 and starts at split T006 `Repair final frontend API module contracts` in the inherited worktree.",
-    "Monitor split frontend repair tasks T006/T007/T008; Codex Desktop must not directly implement CRM product changes.",
+    "Confirm final_verification_repair_resume_007 preserves T001-T008 and starts at split T009 `Repair final frontend route and app shell contracts` in the inherited worktree.",
+    "Monitor split frontend repair tasks T009/T010/T011/T012; Codex Desktop must not directly implement CRM product changes.",
     "If a split frontend task still times out without evidence, optimize Alchemy worker heartbeat/checkpointing or split the task further before relaunch.",
     "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
   ],
@@ -545,7 +546,13 @@
     "python -B -m pytest tests/test_document_to_plan.py -q => 38 passed",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 84 passed",
     "python -B -m compileall planner autodev tests -q => passed",
-    "real Billing Core final-verification resume probe after run_attempt_010 => passed; generated final_verification_repair_resume_006.md with T001-T005 preserved and split frontend T006/T007/T008 pending"
+    "real Billing Core final-verification resume probe after run_attempt_010 => passed; generated final_verification_repair_resume_006.md with T001-T005 preserved and split frontend T006/T007/T008 pending",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_frontend_routes_timeout_preserves_prior_frontend_split tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_frontend_api_i18n_timeout_is_split -q => 2 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_routes_timeout_focus tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_records_frontend_api_i18n_timeout_focus -q => 2 passed",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 39 passed",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 85 passed",
+    "python -B -m compileall planner autodev tests -q => passed after V2.137",
+    "real Billing Core final-verification resume probe after run_attempt_011 => passed; generated final_verification_repair_resume_007.md with T001-T008 preserved and split frontend T009/T010/T011/T012 pending"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -636,7 +643,8 @@
     "Before V2.134, final-verification repair resume generation did not preserve historical partial-handoff tasks, so restarting after run_attempt_008 could replay T004 instead of continuing to T005.",
     "Before V2.135, timeout detection scanned raw worker context and could misclassify prompt text about the timeout stop-boundary policy as an actual worker timeout even when lifecycle status was completed.",
     "Before V2.135, final-verification resume preservation could keep T004 completed even after later T005 evidence named backend/internal/repository/account_repo.go, a file inside T004 repository scope that needed reopening.",
-    "Before V2.136, final verification T006 `Repair final frontend API and i18n contracts` could time out after 900 seconds and the next resume would rebuild the same broad frontend API/i18n/constants/types worker instead of splitting it."
+    "Before V2.136, final verification T006 `Repair final frontend API and i18n contracts` could time out after 900 seconds and the next resume would rebuild the same broad frontend API/i18n/constants/types worker instead of splitting it.",
+    "Before V2.137, final verification T009 `Repair final frontend routes views and tests` could time out after 900 seconds and the next resume risked replaying the same broad route/view/test worker or drifting preserved T006-T008 split task IDs."
   ],
   "blockers": [],
   "done_criteria": [
@@ -644,7 +652,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-29T02:10:00+08:00",
+  "last_verified_at": "2026-06-29T03:35:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-29T02:10:00+08:00"
+  "updated_at": "2026-06-29T03:35:00+08:00"
 }

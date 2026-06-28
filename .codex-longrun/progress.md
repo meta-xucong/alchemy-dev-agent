@@ -1907,3 +1907,14 @@ PY"`
 - Added focused document-to-plan and full-roadmap resume regressions, plus `docs/145_v2_136_final_frontend_api_i18n_timeout_split.md`.
 - Generated real `final_verification_repair_resume_006.md`; lightweight graph probe shows T001-T005 preserved completed, T006/T007/T008 split frontend repair tasks pending, followed by routes/views/tests and final audit/simulation/real-check/review gates.
 - Next step: validate/commit/push V2.136, relaunch the controlled Billing Core final verification, and monitor split T006 instead of replaying the broad frontend task.
+
+## 2026-06-29T03:35:00+08:00 V2.137 Final Frontend Routes/Views Timeout Split
+
+- Relaunched after V2.136. `final_verification/run_attempt_011` started from split T006, then completed T006 API module repair, T007 i18n locale repair, and T008 constants/shared-types repair.
+- T008 correctly used partial downstream handoff: scoped constants/types work passed, while downstream frontend consumers still needed routes/views/components/stores/composables/utils/tests repair in T009 scope.
+- T009 `Repair final frontend routes views and tests` timed out after 900 seconds with no task-local evidence. Alchemy again stopped correctly at `B-T009-1` without same-scope debug or downstream dispatch.
+- Implemented V2.137 in `planner/task_graph_builder.py`: final T009 timeout resumes preserve the V2.136 T006/T007/T008 split shape and split T009 into route/app-shell, view/component, state/composable/utility, and test/fixture tasks.
+- Added `frontend/src/utils/**` to the downstream state/composable/utility repair scope because T008 evidence showed shared-type migration failures in utility consumers.
+- Added focused document-to-plan and full-roadmap resume regressions, plus `docs/146_v2_137_final_frontend_routes_timeout_split.md`.
+- Generated real `final_verification_repair_resume_007.md`; lightweight graph probe shows T001-T008 preserved completed and split T009/T010/T011/T012 pending before final gates.
+- Next step: validate/commit/push V2.137, relaunch the controlled Billing Core final verification, and monitor split T009 instead of replaying the broad route/view/test task.
