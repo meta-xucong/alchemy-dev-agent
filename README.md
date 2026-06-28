@@ -1649,6 +1649,16 @@ long phase_011 split chain stays stable across later resumes.
 
 See `docs/128_v2_119_repository_caller_timeout_split.md`.
 
+## V2.120 Backend Cleanup Timeout Split
+
+V2.120 uses the T014 timeout from Billing Core phase_011 to split backend
+cleanup into read-only inventory, service/repository cleanup, handler/server
+route cleanup, and residual backend compile contracts. The schema/build repair
+context floor is raised to twelve ordinary repair briefs so the longer cleanup
+split chain remains available across future resumes.
+
+See `docs/129_v2_120_backend_cleanup_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash

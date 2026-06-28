@@ -2237,6 +2237,8 @@ class FullRoadmapExecutionTests(unittest.TestCase):
             (7, "T008"),
             (8, "T009"),
             (9, "T010"),
+            (10, "T014"),
+            (11, "T015"),
         ):
             repair_doc = phase_dir / f"phase_repair_{index:03d}.md"
             repair_doc.write_text(
@@ -2287,6 +2289,8 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                 "phase_repair_007.md",
                 "phase_repair_008.md",
                 "phase_repair_009.md",
+                "phase_repair_010.md",
+                "phase_repair_011.md",
             ],
         )
 

@@ -1038,6 +1038,12 @@ SCHEMA_BUILD_LARGE_REFACTOR_TASK_SPECS = (
             "gateway",
             "provider",
             "channel",
+            "clean unused service/repository/test code",
+            "clean legacy backend services",
+            "service/repository/test",
+            "backend/internal/handler",
+            "backend/internal/server",
+            "backend/cmd/server",
         ),
         "files": (
             "backend/internal/service/**",
@@ -1519,6 +1525,144 @@ SCHEMA_REPOSITORY_CALLER_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+SCHEMA_BACKEND_CLEANUP_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Inventory legacy backend cleanup leftovers",
+        "description": (
+            "Checkpoint remaining legacy service, repository, handler, server, and test references before "
+            "dispatching another editable cleanup worker."
+        ),
+        "completion_criteria": (
+            "Remaining legacy backend cleanup targets are inventoried without editing repository files.",
+            "Service/repository and handler/server follow-up targets are separated with concise evidence.",
+        ),
+        "markers": (
+            "service/repository/test",
+            "clean",
+            "legacy",
+            "service",
+            "repository",
+            "handler",
+            "server",
+            "test",
+            "timeout",
+        ),
+        "files": (
+            "backend/internal/service/**",
+            "backend/internal/repository/**",
+            "backend/internal/handler/**",
+            "backend/internal/server/**",
+            "backend/internal/config/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": (),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Clean service and repository legacy contracts",
+        "description": (
+            "Remove or rewrite residual legacy service and repository contracts without reopening handler or "
+            "server route wiring."
+        ),
+        "completion_criteria": (
+            "Service and repository packages no longer depend on retired token-relay/provider/channel contracts.",
+            "Scoped service/repository compile verification passes or records handler/server follow-ups.",
+        ),
+        "markers": (
+            "service",
+            "repository",
+            "service/repository/test",
+            "paymentservice",
+            "redeemservice",
+            "usage billing",
+            "walletservice",
+        ),
+        "files": (
+            "backend/internal/service/**",
+            "backend/internal/repository/**",
+            "backend/internal/domain/**",
+            "backend/internal/config/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/service/... ./internal/repository/... -run '^$'",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Clean handler and server legacy routes",
+        "description": (
+            "Remove or rewrite residual legacy handler, route, command, and server wiring after service and "
+            "repository cleanup."
+        ),
+        "completion_criteria": (
+            "Handler, server, and command packages no longer expose retired token relay/provider/channel routes.",
+            "Scoped handler/server compile verification passes or records residual backend cleanup follow-ups.",
+        ),
+        "markers": (
+            "handler",
+            "server",
+            "route",
+            "admin routes",
+            "gateway",
+            "provider",
+            "channel",
+            "clean unused service/repository/test code",
+            "clean legacy backend services",
+            "service/repository/test",
+            "backend/internal/handler",
+            "backend/internal/server",
+            "backend/cmd/server",
+        ),
+        "files": (
+            "backend/internal/handler/**",
+            "backend/internal/server/**",
+            "backend/internal/service/**",
+            "backend/internal/config/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/handler/... ./internal/server/... ./cmd/server/... -run '^$'",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Compile residual backend cleanup contracts",
+        "description": (
+            "Close residual backend/internal compile contract gaps after service/repository and handler/server "
+            "cleanup, leaving full build and frontend verification to the stabilization task."
+        ),
+        "completion_criteria": (
+            "Residual backend/internal compile errors are fixed or narrowed to explicit stabilization follow-ups.",
+            "Backend internal packages pass lightweight compile verification without running the full test suite.",
+        ),
+        "markers": (
+            "test",
+            "go test",
+            "backend/internal",
+            "service/repository/test",
+            "clean",
+            "legacy",
+        ),
+        "files": (
+            "backend/internal/service/**",
+            "backend/internal/repository/**",
+            "backend/internal/handler/**",
+            "backend/internal/server/**",
+            "backend/internal/config/**",
+            "backend/internal/testutil/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+            "backend/go.sum",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/... -run '^$'",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -1760,6 +1904,11 @@ def schema_build_large_refactor_task_specs(requirements: list[Requirement]) -> t
             )
         ):
             specs.extend(schema_ent_regeneration_timeout_split_task_specs(requirements))
+        elif (
+            spec["title"] == "Clean legacy backend services repositories and tests"
+            and focused_schema_backend_cleanup_timeout_repair(requirements)
+        ):
+            specs.extend(SCHEMA_BACKEND_CLEANUP_TIMEOUT_SPLIT_TASK_SPECS)
         else:
             specs.append(spec)
     return tuple(specs)
@@ -1809,6 +1958,25 @@ def focused_schema_ent_caller_alignment_timeout_repair(requirements: list[Requir
 
 def focused_schema_repository_ent_caller_timeout_repair(requirements: list[Requirement]) -> bool:
     return focused_timeout_repair_for_task(requirements, "T009")
+
+
+def focused_schema_backend_cleanup_timeout_repair(requirements: list[Requirement]) -> bool:
+    text = "\n".join(requirement.text for requirement in requirements).lower()
+    if focused_timeout_repair_for_task(requirements, "T014"):
+        return True
+    cleanup_context = any(
+        marker in text
+        for marker in (
+            "clean legacy backend",
+            "legacy backend",
+            "service/repository/test",
+            "cleanup",
+            "unused service/repository/test",
+        )
+    )
+    if not cleanup_context:
+        return False
+    return any(focused_timeout_repair_for_task(requirements, task_id) for task_id in ("T015", "T016", "T017"))
 
 
 def schema_build_refactor_relevant_files(

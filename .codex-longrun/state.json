@@ -55,15 +55,17 @@
     "implemented V2.116 Ent regeneration scoped verification so generated-client tasks do not fail on downstream caller-alignment tests",
     "implemented V2.117 Ent caller alignment timeout split so Billing Core phase_011 T008 resumes as inventory, repository, service, and server/handler tasks instead of replaying one broad caller-alignment worker",
     "implemented V2.118 timeout repair context bootstrap so worker-timeout stop boundaries still allow the next supervised launch to reuse existing phase_repair_NNN.md context",
-    "implemented V2.119 repository caller timeout split so Billing Core phase_011 T009 resumes as account, retired generated-client, and remaining repository compile tasks"
+    "implemented V2.119 repository caller timeout split so Billing Core phase_011 T009 resumes as account, retired generated-client, and remaining repository compile tasks",
+    "confirmed V2.119 Billing Core resume run_attempt_020 preserved T001-T008, completed T009-T013 repository/service/server alignment tasks, and advanced to T014 cleanup",
+    "implemented V2.120 backend cleanup timeout split so Billing Core phase_011 T014 resumes as inventory, service/repository cleanup, handler/server route cleanup, and residual backend compile tasks"
   ],
   "next_actions": [
-    "Commit and push V2.119 repository caller timeout split.",
-    "Launch the next controlled Billing Core run through Alchemy only for phase_011 schema pruning/build.",
-    "Confirm the next phase_011 attempt preserves T008 completed evidence and starts from T009 Align account repository Ent callers before retired generated-client and remaining repository compile tasks.",
-    "Monitor the T009-T011 repository split and later service/server alignment for schema/build/product blocker evidence; if an Alchemy controller issue appears, stop and fix Alchemy before continuing.",
+    "Commit and push V2.120 backend cleanup timeout split.",
+    "Relaunch the controlled Billing Core phase_011 resume through the correct Alchemy entrypoint.",
+    "Confirm the next phase_011 attempt preserves T009-T013 completed evidence and starts from T014 Inventory legacy backend cleanup leftovers.",
+    "Monitor the T014-T17 cleanup split and later T018/T019 stabilization gates; if another timeout exposes an Alchemy issue, stop and fix Alchemy before continuing.",
     "After phase_011 promotes, continue to phase_012 demo smoke, then reassess CRM deliverability and final handoff readiness.",
-    "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after the current verification-repair handoff is proven."
+    "Implement progress-aware worker heartbeat/checkpointing and bounded grace as an Alchemy optimization after the current verification-repair handoff is proven."
   ],
   "tests_run": [
     "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_last.md \"Reply with exactly OK and nothing else.\" => passed",
@@ -414,7 +416,15 @@
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 72 passed after V2.119",
     "python -B -m compileall autodev planner tests -q => passed after V2.119",
     "git diff --check => passed after V2.119",
-    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.119"
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.119",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_backend_cleanup_timeout_repair_splits_cleanup_task -q => 1 passed after V2.120",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget -q => 1 passed after V2.120",
+    "Real phase_011 graph probe after V2.120 => T009-T013 preserved completed; T014-T17 split into cleanup inventory, service/repository cleanup, handler/server cleanup, and residual backend compile contracts",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 33 passed after V2.120",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 72 passed after V2.120",
+    "python -B -m compileall autodev planner tests -q => passed after V2.120",
+    "git diff --check => passed with .codex-longrun CRLF warning only after V2.120",
+    "python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent => passed after V2.120"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -472,7 +482,9 @@
     "Before V2.116, the Ent generated-client task still ran full backend verification, so downstream caller-alignment failures could mark T007 partial and create same-scope debug instead of moving to T008.",
     "Before V2.117, a focused T008 Ent caller-alignment timeout repair document could advise splitting/checkpointing, but the rebuilt graph still contained one broad repository/service/server caller-alignment worker and schema/build repair context only guaranteed six ordinary repair briefs.",
     "Before V2.118, worker-timeout stop boundaries correctly prevented same-scope auto-retry but could also suppress existing ordinary phase_repair_NNN.md context on the next supervised launch, causing Billing Core phase_011 to collapse back to a stale T001/T002 graph.",
-    "Before V2.119, T008 inventory could identify concrete repository caller groups, but the next editable T009 still used one broad backend/internal/repository task that timed out and rolled back after 900 seconds."
+    "Before V2.119, T008 inventory could identify concrete repository caller groups, but the next editable T009 still used one broad backend/internal/repository task that timed out and rolled back after 900 seconds.",
+    "run_attempt_020 T009 and T013 completed successfully but only just before the 900 second worker budget, proving the current hard timeout is safer than the old retry loop but still not progress-aware enough for large refactor workers.",
+    "Before V2.120, Billing Core phase_011 T014 cleanup still bundled service, repository, handler, server, tests, and backend verification into one broad worker and timed out after 900 seconds."
   ],
   "blockers": [],
   "done_criteria": [
@@ -480,7 +492,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T12:04:53+08:00",
+  "last_verified_at": "2026-06-28T13:35:53+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T12:04:53+08:00"
+  "updated_at": "2026-06-28T13:35:53+08:00"
 }

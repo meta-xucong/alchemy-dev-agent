@@ -3941,6 +3941,60 @@
 - result: passed
 - next verification command: long-run state validation.
 
+## 2026-06-28T12:27:50+08:00 V2.119 Resume monitor
+
+- command: Billing Core controlled resume after V2.119 via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: T009 completed and T010 started
+- relevant evidence: `phase_011/run_attempt_020/state.json` shows T001-T008 completed/preserved, T009 completed, and T010 active. `workers/T009.json` has `returncode=0` and `completed_at=2026-06-28T04:27:09+00:00`.
+- next verification command: monitor T010/T011 and validate Alchemy stops or advances correctly.
+
+## 2026-06-28T13:03:05+08:00 Phase 011 alignment monitor
+
+- command: Billing Core controlled resume after V2.119, `phase_011/run_attempt_020`
+- result: T010, T011, T012, and T013 completed; T014 started
+- relevant evidence: `workers/T010.json`, `workers/T011.json`, `workers/T012.json`, and `workers/T013.json` all have `returncode=0`; `state.json` shows completed `['T009', 'T010', 'T011', 'T012', 'T013']` and active `['T014']`.
+- next verification command: monitor T014/T015 cleanup and schema/build stabilization.
+
+## 2026-06-28T13:35:53+08:00 V2.120 Backend cleanup timeout split
+
+- command: Billing Core controlled resume after V2.119, `phase_011/run_attempt_020`
+- result: T014 timed out after 900 seconds; parent stopped with non-partial blocker and no T015 dispatch
+- relevant evidence: `phase_repair_009.md` was written and `run_attempt_020/state.json` shows `failed=['T014']`, `active=[]`, and blocker `B-T014-1`.
+- next verification command: focused planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_backend_cleanup_timeout_repair_splits_cleanup_task -q`
+- result: `1 passed`
+- next verification command: focused full-roadmap repair-context regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget -q`
+- result: `1 passed`
+- next verification command: real phase_011 graph probe.
+
+- command: real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_009.md`
+- result: passed
+- relevant evidence: T009-T013 are preserved completed; T014-T17 split into cleanup inventory, service/repository cleanup, handler/server cleanup, and residual backend compile contracts.
+- next verification command: full planner and full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `33 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `72 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev planner tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed with `.codex-longrun` CRLF warnings only
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.120 and controlled Billing Core relaunch.
+
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.119, then controlled Billing Core relaunch.

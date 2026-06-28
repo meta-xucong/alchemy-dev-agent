@@ -1722,3 +1722,26 @@ PY"`
 - Raised schema/build cumulative repair context to ten ordinary repair briefs to preserve the longer T002/T003/T006/T008/T009 chain.
 - Real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_008.md` now preserves T008 completed and starts the next pending task at T009 `Align account repository Ent callers`.
 - Next step: commit/push V2.119, relaunch Billing Core through Alchemy, and monitor the T009-T011 repository split.
+
+## 2026-06-28T12:27:50+08:00 V2.119 Resume Monitor
+
+- Relaunched after V2.119 with the correct supervised entrypoint. `run_attempt_020` preserved T001-T008 and started at T009 `Align account repository Ent callers`; it did not collapse back to T001.
+- T009 completed successfully and Alchemy advanced to T010 `Remove retired generated-client repositories`.
+- T009 completed close to the 900 second worker budget. This proves the split was useful, but also records a concrete risk: the hard timeout can nearly kill a valid long-running worker because there is no progress-aware heartbeat/checkpoint yet.
+- Next step: monitor T010/T011 repository cleanup and remaining compile contracts; if another timeout occurs, fix Alchemy's split/timeout behavior before relaunching.
+
+## 2026-06-28T13:03:05+08:00 Phase 011 Alignment Progress
+
+- `run_attempt_020` completed T010 `Remove retired generated-client repositories`, T011 `Align remaining repository compile contracts`, T012 `Align service Ent caller contracts`, and T013 `Align server and handler Ent wiring`.
+- T013 also completed close to the 900 second worker budget, reinforcing the need for progress-aware worker heartbeat/checkpointing instead of relying only on hard wall-clock timeout.
+- Alchemy advanced to T014 `Clean legacy backend services repositories and tests`.
+- Next step: monitor T014 cleanup and T015 schema/build stabilization. Codex Desktop must still only supervise and repair Alchemy, not edit Billing Core product code directly.
+
+## 2026-06-28T13:35:53+08:00 V2.120 Backend Cleanup Timeout Split
+
+- `run_attempt_020` timed out on T014 `Clean legacy backend services repositories and tests` after T009-T013 had completed. The timeout stop boundary worked: no debug/retry or T015 dispatch occurred, and `phase_repair_009.md` preserved T001-T013.
+- Implemented V2.120 in `planner/task_graph_builder.py`: focused T014 cleanup timeout repairs now split into read-only cleanup inventory, service/repository cleanup, handler/server route cleanup, and residual backend compile contracts.
+- Raised the schema/build cumulative repair context floor to twelve ordinary repair briefs in `autodev/full_roadmap_executor.py`.
+- Real phase_011 graph probe now preserves T009-T013 completed and starts at T014 `Inventory legacy backend cleanup leftovers`.
+- Verification passed: focused planner test, focused full-roadmap context test, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, compileall, diff check, and long-run state validation.
+- Next step: commit/push V2.120, relaunch Billing Core through the correct Alchemy resume entrypoint, and monitor the T014-T17 cleanup split.
