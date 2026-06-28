@@ -1784,3 +1784,13 @@ PY"`
 - Real phase_011 graph probe with iteration-limit context now marks T022-T25 completed and leaves T026 pending review.
 - Verification passed: focused planner regression, focused full-roadmap bootstrap regression, real graph probe, full `test_document_to_plan.py`, full `test_full_roadmap_execution.py`, compileall, and diff check.
 - Next step: commit/push V2.124, relaunch through the same resume entrypoint, and confirm the next attempt starts at T026 rather than T001.
+
+## 2026-06-28T17:37:00+08:00 V2.125 Final Phase Max-Count Gate
+
+- Relaunched after V2.124. `run_attempt_025` preserved T022-T25, completed T026 review and T027 delivery evidence, and promoted phase_011 with score 0.9464.
+- Relaunched again into phase_012 Demo Smoke Test. Alchemy completed T001 planning and T002 demo-smoke work, then T003 verification failed once; T003-DEBUG-1 repaired the verification issue, T003 reran successfully, and T004/T005 completed.
+- Phase_012 promoted with score 0.94; all twelve roadmap phases are now done.
+- Found a final full-roadmap gate bug: `Maximum roadmap phase count reached.` was appended even when the last required phase had just completed, preventing final verification worker/final audit from running.
+- Implemented V2.125 in `autodev/full_roadmap_executor.py`: max-phase-count only blocks when unfinished required phases remain.
+- Verification passed: focused max-phase final-audit regression, full `test_full_roadmap_execution.py`, compileall, and diff check.
+- Next step: commit/push V2.125 and relaunch so the final verification worker and final audit can run.

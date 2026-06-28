@@ -2884,6 +2884,42 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(payload["final_audit"]["final_verification"]["worker_verification"]["status"], "passed")
         self.assertEqual(payload["final_audit"]["final_verification"]["test_status"], "passed")
 
+    def test_max_phase_count_does_not_block_final_audit_after_last_phase(self) -> None:
+        root = temp_root()
+        repo = root / "repo"
+        repo.mkdir()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        calls: list[str] = []
+
+        def fake_runner(**kwargs):
+            title = Path(kwargs["documents"][-1]).read_text(encoding="utf-8").splitlines()[0].lstrip("# ")
+            calls.append(title)
+            if title == "Final Full-System Audit And Testing":
+                return FakePhaseResult(
+                    title,
+                    evidence=[
+                        "FINAL_AUDIT_STATUS: PASS",
+                        "SIMULATION_TEST_STATUS: PASS",
+                        "REAL_TEST_STATUS: PASS",
+                    ],
+                )
+            return FakePhaseResult(title)
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement the full creative agent roadmap.",
+            documents=[doc],
+            repository_path=repo,
+            output_dir=root / "run",
+            max_phases=3,
+            run_payload={"real_codex": True, "full_roadmap": True},
+        )
+        payload = result.to_dict()
+
+        self.assertEqual(payload["status"], "done")
+        self.assertIn("Final Full-System Audit And Testing", calls)
+        self.assertNotIn("Maximum roadmap phase count reached.", payload["blockers"])
+
     def test_strict_real_final_verification_requires_explicit_worker_status_markers(self) -> None:
         root = temp_root()
         repo = root / "repo"

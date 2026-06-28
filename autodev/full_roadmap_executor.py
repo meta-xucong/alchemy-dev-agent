@@ -411,7 +411,7 @@ class FullRoadmapExecutor:
             if record_status != "done":
                 break
 
-        if phase_count >= max_phases:
+        if phase_count >= max_phases and next_ready_phase(plan) is not None:
             blockers.append("Maximum roadmap phase count reached.")
 
         final_verification_worker: dict[str, object] = {}

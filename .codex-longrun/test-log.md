@@ -4213,3 +4213,26 @@
 - command: `git diff --check`
 - result: passed
 - next verification command: long-run state validation.
+
+## 2026-06-28T17:37:00+08:00 V2.125 Final phase max-count gate
+
+- command: Billing Core controlled resumes after V2.124
+- result: phase_011 and phase_012 promoted
+- relevant evidence: `run_attempt_025` completed T026/T027 and phase_011 promoted with score 0.9464; phase_012 run completed T001-T005 after T003-DEBUG-1 repaired verification, and phase_012 promoted with score 0.94.
+- next verification command: focused final-audit max-phase regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_max_phase_count_does_not_block_final_audit_after_last_phase -q`
+- result: `1 passed`
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `75 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev tests -q`
+- result: passed
+- next verification command: diff check and state validation.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation.

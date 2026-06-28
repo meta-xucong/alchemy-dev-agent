@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_phase_011_iteration_limit_resume_ready",
+  "current_phase": "billing_core_final_audit_ready",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -61,15 +61,17 @@
     "implemented V2.121 handler/server cleanup timeout split and Go module cache index filtering after Billing Core phase_011 T016 timed out",
     "implemented V2.122 final verification timeout split so Billing Core phase_011 T022 resumes as serial backend/frontend verification tasks",
     "implemented V2.123 schema/build iteration budget floor after split verification exhausted the old four-iteration resume budget",
-    "implemented V2.124 iteration-limit resume context so clean split-verification progress is preserved instead of restarting at T001"
+    "implemented V2.124 iteration-limit resume context so clean split-verification progress is preserved instead of restarting at T001",
+    "promoted Billing Core phase_011 after V2.124 preserved split-verification progress; score 0.9464",
+    "promoted Billing Core phase_012 demo smoke after Alchemy T003 debug repair; score 0.94",
+    "implemented V2.125 final phase max-count gate so completing the last phase at max_phases does not block final audit"
   ],
   "next_actions": [
-    "Commit and push V2.124 iteration-limit resume context.",
-    "Relaunch the controlled Billing Core phase_011 resume through the correct Alchemy entrypoint.",
-    "Confirm bootstrap creates or reuses iteration-limit resume context from run_attempt_023, preserves T022-T025 completed evidence, and dispatches T026 Review delivery readiness rather than T001.",
-    "If review or delivery evidence surfaces product gaps, fix Alchemy's repair handoff first and let Alchemy perform product repairs inside the inherited worktree.",
-    "After phase_011 promotes, continue to phase_012 demo smoke, then reassess CRM deliverability and final handoff readiness.",
-    "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after the current review/evidence handoff is proven."
+    "Commit and push V2.125 final phase max-count gate.",
+    "Relaunch the controlled Billing Core full-roadmap run so final verification worker/final audit can run now that all 12 phases are done.",
+    "Inspect final audit and final verification worker output; if it exposes product gaps, fix Alchemy's repair handoff first and let Alchemy perform product repairs inside the inherited worktree.",
+    "Produce the CRM deliverability assessment and supplemental development document after final audit evidence is available.",
+    "Implement progress-aware worker heartbeat/checkpointing and bounded grace as a later Alchemy optimization after final audit behavior is proven."
   ],
   "tests_run": [
     "C:\\Users\\T14S\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun\\logs\\codex_network_smoke_last.md \"Reply with exactly OK and nothing else.\" => passed",
@@ -457,7 +459,13 @@
     "python -B -m pytest tests/test_document_to_plan.py -q => 35 passed after V2.124",
     "python -B -m pytest tests/test_full_roadmap_execution.py -q => 74 passed after V2.124",
     "python -B -m compileall planner autodev tests -q => passed after V2.124",
-    "git diff --check => passed after V2.124"
+    "git diff --check => passed after V2.124",
+    "run_attempt_025 after V2.124 => T026/T027 completed, phase_011 promoted with score 0.9464",
+    "phase_012 run => T001/T002 completed, T003 verification failed once, T003-DEBUG-1 completed, T003 rerun passed, T004/T005 completed, phase_012 promoted with score 0.94",
+    "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_max_phase_count_does_not_block_final_audit_after_last_phase -q => 1 passed after V2.125",
+    "python -B -m pytest tests/test_full_roadmap_execution.py -q => 75 passed after V2.125",
+    "python -B -m compileall autodev tests -q => passed after V2.125",
+    "git diff --check => passed after V2.125"
   ],
   "known_bugs": [
     "Billing Core phase_010/run_attempt_014 is stale evidence rather than a live run: worker lifecycle shows T005-DEBUG-1 completed at 2026-06-26 18:15:10 +08:00, but state.json remained stamped at 2026-06-26 17:56:30 +08:00 with active_tasks still containing T005-DEBUG-1.",
@@ -525,7 +533,8 @@
     "V2.122 also protects later split verification resumes: if a split task such as T023 `Verify frontend tests` times out, the next graph starts from that split title instead of replaying backend tests.",
     "Before V2.123, schema/build verification splitting could consume an old four-iteration supervised resume budget, leaving review and delivery-evidence tasks pending after all split verification commands passed.",
     "Before V2.124, clean iteration-limit attempts with completed split verification tasks did not seed resume context, so a later Billing Core relaunch could collapse back to T001 and replay old work.",
-    "Before V2.124, final verification split nodes could be skipped when T022-T025 appeared in Completed tasks to preserve, causing T026 to drift into a new generic verification node instead of Review delivery readiness."
+    "Before V2.124, final verification split nodes could be skipped when T022-T025 appeared in Completed tasks to preserve, causing T026 to drift into a new generic verification node instead of Review delivery readiness.",
+    "Before V2.125, FullRoadmapExecutor appended Maximum roadmap phase count reached even when the final required phase had just completed, preventing the final verification worker from running."
   ],
   "blockers": [],
   "done_criteria": [
@@ -533,7 +542,7 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-28T16:47:00+08:00",
+  "last_verified_at": "2026-06-28T17:37:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-28T16:47:00+08:00"
+  "updated_at": "2026-06-28T17:37:00+08:00"
 }

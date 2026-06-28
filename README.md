@@ -1702,6 +1702,16 @@ review task.
 
 See `docs/133_v2_124_iteration_limit_resume_context.md`.
 
+## V2.125 Final Phase Max-Count Gate
+
+V2.125 only emits the `Maximum roadmap phase count reached` blocker when the
+phase budget is exhausted and unfinished required phases still remain. If the
+last required phase completes exactly at the configured `max_phases` limit,
+Alchemy now proceeds to the final verification worker and final audit instead
+of blocking before final handoff.
+
+See `docs/134_v2_125_final_phase_max_count_gate.md`.
+
 Run a smoke execution:
 
 ```bash
