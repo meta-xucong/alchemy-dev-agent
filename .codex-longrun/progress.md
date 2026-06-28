@@ -1694,3 +1694,12 @@ PY"`
 - Stopped `T007-DEBUG-1` before another worker window and implemented V2.116 in `planner/task_graph_builder.py`: `Regenerate Ent generated clients` now has task-specific criteria and only runs `cd backend && go test ./ent/...`.
 - Real phase_011 graph probe now keeps T007 scoped to Ent verification while T008/T010 retain full backend verification.
 - Next step: commit/push V2.116, relaunch Billing Core through Alchemy, and confirm T007 can complete/promote without debug before moving to T008 caller alignment.
+
+## 2026-06-28T11:12:15+08:00 V2.117 Ent Caller Alignment Timeout Split
+
+- Relaunched after V2.116. `run_attempt_017` preserved/completed T006 inventory and T007 generated-client regeneration, then timed out on T008 `Align repository callers after Ent regeneration`.
+- V2.115 timeout stop behavior worked: the parent stopped at non-partial blocker `B-T008-1`, wrote `phase_repair_007.md`, and did not launch a same-scope debug task or another attempt.
+- Implemented V2.117 in `planner/task_graph_builder.py`: focused schema/build T008 timeout repairs now split caller alignment into a read-only inventory, repository caller alignment, service contract alignment, and server/handler wiring alignment.
+- Implemented V2.117 in `autodev/full_roadmap_executor.py`: schema/build repair bootstrap now retains at least eight ordinary repair briefs, preserving the full T002/T003/T006/T008 split chain.
+- Real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_007.md` now marks T006/T007 completed and starts the next pending task at T008 `Inventory Ent caller alignment failures`, followed by T009-T011 caller-alignment tasks.
+- Next step: commit/push V2.117, relaunch Billing Core through Alchemy, and monitor the T008-T011 split before continuing to backend cleanup, schema/build verification, phase_012 demo smoke, and final handoff.

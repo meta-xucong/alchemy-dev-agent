@@ -1315,6 +1315,118 @@ SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS = (
 )
 
 
+SCHEMA_ENT_CALLER_ALIGNMENT_TIMEOUT_SPLIT_TASK_SPECS = (
+    {
+        "title": "Inventory Ent caller alignment failures",
+        "description": (
+            "Checkpoint the repository, service, and server caller failures left after Ent regeneration before "
+            "dispatching another editable caller-alignment worker."
+        ),
+        "completion_criteria": (
+            "Current generated-Ent caller failures are inventoried without editing repository files.",
+            "Repository, service, and server/handler follow-up targets are separated with concise evidence.",
+        ),
+        "markers": (
+            "repository",
+            "service",
+            "server",
+            "ent clients",
+            "generated",
+            "timeout",
+        ),
+        "files": (
+            "backend/internal/repository/**",
+            "backend/internal/service/**",
+            "backend/internal/server/**",
+            "backend/internal/handler/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": (),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Align repository Ent callers",
+        "description": (
+            "Update repository-layer queries and adapters to compile against regenerated Ent types without "
+            "reopening service or route cleanup."
+        ),
+        "completion_criteria": (
+            "Repository-layer callers compile against regenerated Ent APIs.",
+            "Repository package verification passes or records only downstream service/server follow-ups.",
+        ),
+        "markers": (
+            "repository",
+            "ent clients",
+            "generated",
+        ),
+        "files": (
+            "backend/internal/repository/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/repository/...",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Align service Ent caller contracts",
+        "description": (
+            "Update service-layer repository calls and DTO mappings after the repository Ent caller patch, "
+            "leaving route wiring and full backend verification to later tasks."
+        ),
+        "completion_criteria": (
+            "Service-layer callers compile against the updated repository and Ent contracts.",
+            "Service package verification passes or records only downstream server/handler follow-ups.",
+        ),
+        "markers": (
+            "service",
+            "repository",
+            "ent clients",
+            "generated",
+        ),
+        "files": (
+            "backend/internal/service/**",
+            "backend/internal/repository/**",
+            "backend/internal/domain/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/service/...",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+    {
+        "title": "Align server and handler Ent wiring",
+        "description": (
+            "Update server, handler, and command wiring after repository/service Ent caller contracts are aligned, "
+            "without taking over the later full schema/build stabilization task."
+        ),
+        "completion_criteria": (
+            "Server, handler, and command wiring compile against the updated CRM billing backend contracts.",
+            "Route/server package verification passes or leaves only full-backend stabilization work for the final schema/build task.",
+        ),
+        "markers": (
+            "server",
+            "handler",
+            "route",
+            "service",
+            "ent clients",
+            "generated",
+        ),
+        "files": (
+            "backend/internal/server/**",
+            "backend/internal/handler/**",
+            "backend/internal/service/**",
+            "backend/cmd/server/**",
+            "backend/go.mod",
+        ),
+        "commands_to_run": ("cd backend && go test ./internal/server/... ./internal/handler/... ./cmd/server/...",),
+        "include_frontend_commands": False,
+        "restrict_relevant_files_to_spec": True,
+    },
+)
+
+
 def frontend_large_refactor_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
     if not focused_timeout_repair_for_task(requirements, "T007"):
         return FRONTEND_LARGE_REFACTOR_TASK_SPECS
@@ -1550,9 +1662,23 @@ def schema_build_large_refactor_task_specs(requirements: list[Requirement]) -> t
                     specs.append(split_spec)
         elif (
             spec["title"] == "Regenerate Ent clients and migration artifacts"
-            and focused_schema_ent_regeneration_timeout_repair(requirements)
+            and (
+                focused_schema_ent_regeneration_timeout_repair(requirements)
+                or focused_schema_ent_caller_alignment_timeout_repair(requirements)
+            )
         ):
-            specs.extend(SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS)
+            specs.extend(schema_ent_regeneration_timeout_split_task_specs(requirements))
+        else:
+            specs.append(spec)
+    return tuple(specs)
+
+
+def schema_ent_regeneration_timeout_split_task_specs(requirements: list[Requirement]) -> tuple[dict[str, object], ...]:
+    specs: list[dict[str, object]] = []
+    split_caller_alignment = focused_schema_ent_caller_alignment_timeout_repair(requirements)
+    for spec in SCHEMA_ENT_REGENERATION_TIMEOUT_SPLIT_TASK_SPECS:
+        if spec["title"] == "Align repository callers after Ent regeneration" and split_caller_alignment:
+            specs.extend(SCHEMA_ENT_CALLER_ALIGNMENT_TIMEOUT_SPLIT_TASK_SPECS)
         else:
             specs.append(spec)
     return tuple(specs)
@@ -1572,6 +1698,10 @@ def focused_schema_migration_contract_timeout_repair(requirements: list[Requirem
 
 def focused_schema_ent_regeneration_timeout_repair(requirements: list[Requirement]) -> bool:
     return focused_timeout_repair_for_task(requirements, "T006")
+
+
+def focused_schema_ent_caller_alignment_timeout_repair(requirements: list[Requirement]) -> bool:
+    return focused_timeout_repair_for_task(requirements, "T008")
 
 
 def schema_build_refactor_relevant_files(

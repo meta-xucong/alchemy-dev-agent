@@ -1620,6 +1620,16 @@ the downstream caller-alignment and stabilization tasks.
 
 See `docs/125_v2_116_ent_regeneration_scoped_verification.md`.
 
+## V2.117 Ent Caller Alignment Timeout Split
+
+V2.117 turns a focused schema/build T008 timeout into smaller Ent caller
+alignment tasks: a read-only caller-failure inventory, repository caller
+alignment, service contract alignment, and server/handler wiring alignment.
+Schema/build repair bootstrap now retains at least eight ordinary repair briefs
+so the full T002/T003/T006/T008 split chain survives resume.
+
+See `docs/126_v2_117_ent_caller_alignment_timeout_split.md`.
+
 Run a smoke execution:
 
 ```bash

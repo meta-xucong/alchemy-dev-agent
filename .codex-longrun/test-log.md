@@ -3896,3 +3896,51 @@
 - command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
 - result: passed
 - next verification command: commit/push V2.116, then controlled Billing Core relaunch.
+
+## 2026-06-28T11:12:15+08:00 V2.117 Ent caller alignment timeout split
+
+- command: Billing Core controlled resume after V2.116
+- result: T006 and T007 completed; T008 `Align repository callers after Ent regeneration` timed out at 900 seconds and stopped with non-partial blocker `B-T008-1`
+- relevant evidence: `run_attempt_017` has completed tasks `T006`, `T007`; worker `T008.json` status is `timed_out`; `phase_repair_007.md` requests a split/checkpoint repair.
+- next verification command: focused planner regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_schema_ent_caller_timeout_repair_splits_caller_alignment_task -q`
+- result: `1 passed`
+- next verification command: focused full-roadmap repair-context regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget -q`
+- result: `1 passed`
+- next verification command: full document-to-plan regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `31 passed`
+- next verification command: focused full-roadmap guard regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_schema_phase_repair_context_keeps_full_split_chain_beyond_repair_budget tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_existing_repair_context_does_not_exhaust_new_repair_budget tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_worker_timeout_stop_boundary_writes_repair_doc_without_next_attempt -q`
+- result: `3 passed`
+- next verification command: real phase_011 graph probe.
+
+- command: real phase_011 graph probe using `phase_repair_001.md` through `phase_repair_007.md`
+- result: passed
+- relevant evidence: T006/T007 are preserved completed; T008 is `Inventory Ent caller alignment failures`; T009-T011 split repository, service, and server/handler caller alignment.
+- next verification command: full full-roadmap regression.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `71 passed`
+- next verification command: runtime handoff regression.
+
+- command: `python -B -m pytest tests/test_runtime_handoff.py -q`
+- result: `4 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall autodev planner runtime tests -q`
+- result: passed
+- next verification command: diff check and long-run state validation.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: long-run state validation.
+
+- command: `python "C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py" --project "D:\AI\Alchemy Dev Agent System\alchemy-dev-agent"`
+- result: passed
+- next verification command: commit/push V2.117, then controlled Billing Core relaunch.
