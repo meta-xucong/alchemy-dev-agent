@@ -1875,3 +1875,14 @@ PY"`
 - Real Billing Core graph probe generated `final_verification_repair_resume_003.md`, preserved T001/T002, and shows T003/T004/T005 all include `backend/go.sum`.
 - Verification passed: focused final repair graph test, full `test_document_to_plan.py`, focused final resume regression, compileall, `git diff --check`, and real Billing Core graph probe.
 - Next step: commit/push V2.133, relaunch final verification, and confirm T003 can complete without boundary rollback before Alchemy proceeds to T004.
+
+## 2026-06-28T23:53:00+08:00 V2.134 Partial Downstream Handoff
+
+- Relaunched after V2.133. `final_verification/run_attempt_008` preserved prior final repair work, completed T003, and T004 made real domain/repository progress.
+- T004 returned `partial` because repository compile was blocked by `internal/service/payment_config_plans.go`, which is in direct downstream T005 service scope. The old runtime treated this as a T004 failure, created `T004-DEBUG-1`, and reset T004.
+- Supervising Codex stopped the attempt with `supervisor_stop.json` before another same-scope debug loop could consume work.
+- Implemented V2.134 in `runtime/orchestrator.py`: partial results with scoped progress and deferred paths matching direct downstream task scope are marked completed with explicit `partial_handoff_to` evidence instead of creating a debug task.
+- Implemented V2.134 in `autodev/full_roadmap_executor.py`: final-verification repair resume generation now preserves historical partial-handoff tasks, so run_attempt_008 yields `final_verification_repair_resume_004.md` with T004 preserved.
+- Real Billing Core graph probe using `final_verification_repair_resume_004.md` shows T001-T004 completed and T005 `Repair final backend service handler server contracts` ready.
+- Verification passed: focused runtime handoff tests, adjacent blocker/timeout/debug regressions, full `test_runtime.py`, full `test_full_roadmap_execution.py`, compileall, diff check, and real resume graph probe.
+- Next step: commit/push V2.134, relaunch the correct Billing Core final verification entrypoint, and monitor T005 without direct Codex product-code edits.

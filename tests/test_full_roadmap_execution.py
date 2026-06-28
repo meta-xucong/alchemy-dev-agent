@@ -3106,6 +3106,131 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("Completed tasks to preserve: T002", text)
         self.assertIn("split backend schema/domain repair", text)
 
+    def test_final_verification_resume_preserves_partial_downstream_handoff(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [
+                    {
+                        "attempt": 8,
+                        "output_dir": str(output_dir / "run_attempt_008"),
+                        "status": "blocked",
+                    }
+                ],
+                "result": {
+                    "status": "blocked",
+                    "evidence": ["FINAL_AUDIT_STATUS=FAIL: source-boundary repair attempt needs continuation."],
+                    "runtime_state": {
+                        "completed_tasks": ["T003"],
+                        "failed_tasks": ["T004", "T004-DEBUG-1"],
+                        "blockers": [
+                            {
+                                "id": "B-T004-DEBUG-1-0",
+                                "type": "technical_limit",
+                                "description": "Debug worker stopped by supervisor.",
+                                "task_ids": ["T004-DEBUG-1"],
+                            }
+                        ],
+                        "task_graph": {
+                            "nodes": [
+                                {"id": "T003", "title": "Repair final backend Ent schema contracts", "status": "completed"},
+                                {
+                                    "id": "T004",
+                                    "title": "Repair final backend domain and repository contracts",
+                                    "type": "integration",
+                                    "status": "ready",
+                                    "dependencies": ["T003"],
+                                    "relevant_files": [
+                                        "backend/internal/domain/**",
+                                        "backend/internal/repository/**",
+                                        "backend/go.mod",
+                                        "backend/go.sum",
+                                    ],
+                                    "evidence": [
+                                        {
+                                            "type": "worker_result",
+                                            "result": {
+                                                "status": "partial",
+                                                "summary": "Repository compile is blocked by service code outside allowed_files.",
+                                                "files_changed": ["backend/internal/repository/group_repo.go"],
+                                                "tests_passed": ["go test ./internal/domain -run '^$'"],
+                                                "tests_failed": ["go test ./internal/repository -run '^$'"],
+                                                "known_issues": [
+                                                    "internal/service/payment_config_plans.go still references removed Ent fields."
+                                                ],
+                                                "follow_up_tasks": [
+                                                    "Update internal/service/payment_config_plans.go in the service repair task."
+                                                ],
+                                            },
+                                        }
+                                    ],
+                                },
+                                {
+                                    "id": "T005",
+                                    "title": "Repair final backend service handler server contracts",
+                                    "type": "integration",
+                                    "status": "pending",
+                                    "dependencies": ["T004"],
+                                    "relevant_files": [
+                                        "backend/internal/service/**",
+                                        "backend/internal/handler/**",
+                                        "backend/internal/server/**",
+                                        "backend/cmd/**",
+                                        "backend/go.mod",
+                                        "backend/go.sum",
+                                    ],
+                                },
+                                {
+                                    "id": "T004-DEBUG-1",
+                                    "title": "Debug T004",
+                                    "type": "debug",
+                                    "status": "blocked",
+                                },
+                            ]
+                        },
+                    },
+                },
+            },
+        )
+        captured: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            captured.append(dict(kwargs))
+            return FakePhaseResult(
+                "Final Full-System Audit And Testing",
+                evidence=[
+                    "FINAL_AUDIT_STATUS: PASS",
+                    "SIMULATION_TEST_STATUS: PASS",
+                    "REAL_TEST_STATUS: PASS",
+                ],
+            )
+
+        report = FullRoadmapExecutor(document_runner=fake_runner)._run_final_verification_worker(
+            objective="Finish CRM",
+            plan=RoadmapExecutionPlan(root_objective="Finish CRM", phases=[]),
+            phase_records=[],
+            documents=[doc],
+            attachments=[],
+            repository_url="",
+            repository_path=root / "repo",
+            repository_visibility="private",
+            output_dir=output_dir,
+            run_payload={"real_codex": True, "boundary_mode": "large_refactor", "max_final_verification_attempts": 1},
+        )
+
+        repair_docs = [Path(item) for item in captured[0]["documents"] if "final_verification_repair_resume" in str(item)]
+        self.assertEqual(report["status"], "passed")
+        text = repair_docs[-1].read_text(encoding="utf-8")
+        self.assertIn("Repair attempt: run_attempt_008", text)
+        self.assertIn("Completed tasks to preserve: T003, T004", text)
+        self.assertIn("Primary failed task IDs: T004-DEBUG-1", text)
+
     def test_executor_generates_document_package_for_one_sentence_mode(self) -> None:
         root = temp_root()
         calls: list[str] = []

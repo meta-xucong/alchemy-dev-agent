@@ -6,7 +6,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Sequence
 
 from runtime.evaluator import Evaluator
@@ -1645,7 +1645,109 @@ def repair_completed_task_ids(runtime_state: dict[str, Any], nodes: Sequence[dic
         for node in nodes
         if str(node.get("status", "")).lower() in {"done", "completed"}
     )
+    completed.extend(partial_downstream_handoff_completed_task_ids(nodes))
     return dedupe_strings(completed)
+
+
+def partial_downstream_handoff_completed_task_ids(nodes: Sequence[dict[str, object]]) -> list[str]:
+    task_nodes = [dict(node) for node in nodes]
+    completed: list[str] = []
+    for node in task_nodes:
+        task_id = str(node.get("id", "") or "").strip()
+        if not task_id or str(node.get("type", "")).lower() == "debug":
+            continue
+        worker_result = latest_worker_result_from_task(node)
+        if str(worker_result.get("status", "")).lower() != "partial":
+            continue
+        if not worker_result_has_scoped_progress(worker_result):
+            continue
+        target_paths = repair_result_target_paths(worker_result)
+        if not target_paths:
+            continue
+        downstream = [
+            candidate
+            for candidate in task_nodes
+            if task_id in [str(item) for item in _list(candidate.get("dependencies"))]
+            and str(candidate.get("type", "")).lower() != "debug"
+        ]
+        if any(task_scope_matches_paths(candidate, target_paths) for candidate in downstream):
+            completed.append(task_id)
+    return dedupe_strings(completed)
+
+
+def worker_result_has_scoped_progress(worker_result: dict[str, object]) -> bool:
+    if _list(worker_result.get("files_changed")) or _list(worker_result.get("tests_passed")):
+        return True
+    for command in _list(worker_result.get("commands_run")):
+        if isinstance(command, dict) and int_or_zero(command.get("exit_code")) == 0:
+            return True
+    return False
+
+
+def repair_result_target_paths(worker_result: dict[str, object]) -> list[str]:
+    texts: list[str] = []
+    for key in ("summary", "tests_failed", "known_issues", "follow_up_tasks", "evidence", "raw_output"):
+        value = worker_result.get(key)
+        if isinstance(value, str):
+            texts.append(value)
+        else:
+            texts.extend(str(item) for item in _list(value))
+    for command in _list(worker_result.get("commands_run")):
+        if not isinstance(command, dict):
+            continue
+        texts.extend(
+            str(command.get(key, "") or "")
+            for key in ("command", "summary", "stderr", "stdout")
+            if str(command.get(key, "") or "")
+        )
+    return dedupe_strings(
+        normalize_repair_path(match.group("path"))
+        for text in texts
+        for match in REPAIR_EVIDENCE_PATH_PATTERN.finditer(text)
+    )[:12]
+
+
+def task_scope_matches_paths(task: dict[str, object], paths: Sequence[str]) -> bool:
+    scope_patterns = [normalize_repair_path(str(item)) for item in _list(task.get("relevant_files"))]
+    if not scope_patterns:
+        return False
+    for path in paths:
+        for variant in repair_path_variants(path):
+            if any(repair_path_matches_pattern(variant, pattern) for pattern in scope_patterns):
+                return True
+    return False
+
+
+def repair_path_variants(path: str) -> list[str]:
+    normalized = normalize_repair_path(path)
+    if not normalized:
+        return []
+    variants = {normalized}
+    if normalized.startswith("internal/") or normalized.startswith("cmd/") or normalized.startswith("ent/"):
+        variants.add(f"backend/{normalized}")
+    if normalized.startswith("src/"):
+        variants.add(f"frontend/{normalized}")
+    return sorted(variants)
+
+
+def repair_path_matches_pattern(path: str, pattern: str) -> bool:
+    normalized = normalize_repair_path(path).lower()
+    clean = normalize_repair_path(pattern).lower()
+    if not normalized or not clean:
+        return False
+    if clean.endswith("/**"):
+        prefix = clean[:-3].rstrip("/")
+        return normalized == prefix or normalized.startswith(prefix + "/")
+    if clean.endswith("/*"):
+        prefix = clean[:-2].rstrip("/")
+        if not normalized.startswith(prefix + "/"):
+            return False
+        return "/" not in normalized[len(prefix) + 1 :]
+    if clean.endswith("/"):
+        return normalized.startswith(clean)
+    if any(char in clean for char in "*?["):
+        return PurePosixPath(normalized).match(clean)
+    return normalized == clean
 
 
 def repair_task_focus_lines(task_id: str, task: dict[str, object]) -> list[str]:

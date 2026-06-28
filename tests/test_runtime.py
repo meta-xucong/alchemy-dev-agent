@@ -2323,6 +2323,175 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(nodes["T001-DEBUG-1"].status, "pending")
         self.assertEqual(nodes["T002"].status, "ready")
 
+    def test_partial_result_hands_off_downstream_scoped_blocker(self) -> None:
+        class RepositoryThenServiceWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                if worker_input.task_id == "T004":
+                    return CodexWorkerResult(
+                        task_id=worker_input.task_id,
+                        status="partial",
+                        summary="Repository compile is still blocked by service code outside allowed_files.",
+                        files_changed=[
+                            "backend/internal/repository/group_repo.go",
+                            "backend/internal/domain/table_contract.go",
+                        ],
+                        tests_passed=["go test ./internal/domain -run '^$'"],
+                        tests_failed=["go test ./internal/repository -run '^$'"],
+                        known_issues=[
+                            "internal/service/payment_config_plans.go still references removed ent.Group fields.",
+                        ],
+                        follow_up_tasks=[
+                            "Update internal/service/payment_config_plans.go in the service repair task.",
+                        ],
+                    )
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="completed",
+                    summary="service scope completed",
+                    tests_passed=["go test ./internal/service -run '^$'"],
+                )
+
+        graph = TaskGraph(
+            graph_id="partial-downstream-handoff",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T003",
+                    title="Repair Ent schema",
+                    description="Already completed.",
+                    type="integration",
+                    assigned_agent="backend",
+                    status="completed",
+                ),
+                TaskNode(
+                    id="T004",
+                    title="Repair domain and repository",
+                    description="Repair repository callers only.",
+                    type="integration",
+                    assigned_agent="backend",
+                    dependencies=["T003"],
+                    relevant_files=["backend/internal/domain/**", "backend/internal/repository/**"],
+                    boundary_mode="large_refactor",
+                ),
+                TaskNode(
+                    id="T005",
+                    title="Repair service handler server",
+                    description="Repair service callers after repository contracts change.",
+                    type="integration",
+                    assigned_agent="backend",
+                    dependencies=["T004"],
+                    relevant_files=[
+                        "backend/internal/service/**",
+                        "backend/internal/handler/**",
+                        "backend/internal/server/**",
+                    ],
+                    boundary_mode="large_refactor",
+                ),
+            ],
+        )
+        worker = RepositoryThenServiceWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "repair final backend contracts",
+                initial_state=RuntimeState(
+                    objective="repair final backend contracts",
+                    task_graph=graph,
+                    completed_tasks=["T003"],
+                ),
+                max_iterations=2,
+            )
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(worker.calls, ["T004", "T005"])
+        self.assertEqual(nodes["T004"].status, "completed")
+        self.assertEqual(nodes["T005"].status, "completed")
+        self.assertNotIn("T004-DEBUG-1", nodes)
+        self.assertFalse(state.failed_tasks)
+        handoff_result = nodes["T004"].evidence[-1]["result"]
+        self.assertEqual(handoff_result["status"], "completed")
+        self.assertEqual(handoff_result["original_status"], "partial")
+        self.assertEqual(handoff_result["tests_failed"], [])
+        self.assertEqual(handoff_result["partial_handoff_to"], ["T005"])
+        self.assertIn("tests_deferred_to_downstream", handoff_result)
+        self.assertEqual(handoff_result["handoff_original_result"]["status"], "partial")
+        self.assertTrue(any(event["type"] == "task_partial_handed_off" for event in state.iteration_history))
+
+    def test_partial_result_without_downstream_scope_still_creates_debug_task(self) -> None:
+        class RepositoryOnlyPartialWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="partial",
+                    summary="Repository compile still fails within repository files.",
+                    files_changed=["backend/internal/repository/group_repo.go"],
+                    tests_failed=["go test ./internal/repository -run '^$'"],
+                    known_issues=[
+                        "backend/internal/repository/group_repo.go still has a repository-scoped compile error.",
+                    ],
+                )
+
+        graph = TaskGraph(
+            graph_id="partial-stays-debuggable",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T004",
+                    title="Repair domain and repository",
+                    description="Repair repository callers.",
+                    type="integration",
+                    assigned_agent="backend",
+                    relevant_files=["backend/internal/domain/**", "backend/internal/repository/**"],
+                    boundary_mode="large_refactor",
+                ),
+                TaskNode(
+                    id="T005",
+                    title="Repair service handler server",
+                    description="Repair service callers later.",
+                    type="integration",
+                    assigned_agent="backend",
+                    dependencies=["T004"],
+                    relevant_files=[
+                        "backend/internal/service/**",
+                        "backend/internal/handler/**",
+                        "backend/internal/server/**",
+                    ],
+                    boundary_mode="large_refactor",
+                ),
+            ],
+        )
+        worker = RepositoryOnlyPartialWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "repair final backend contracts",
+                initial_state=RuntimeState(objective="repair final backend contracts", task_graph=graph),
+                max_iterations=1,
+            )
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(worker.calls, ["T004"])
+        self.assertEqual(nodes["T004"].status, "pending")
+        self.assertIn("T004", state.failed_tasks)
+        self.assertIn("T004-DEBUG-1", nodes)
+        self.assertEqual(nodes["T004-DEBUG-1"].status, "pending")
+
     def test_worker_timeout_records_blocker_without_debug_task(self) -> None:
         class TimeoutWorker:
             def __init__(self) -> None:

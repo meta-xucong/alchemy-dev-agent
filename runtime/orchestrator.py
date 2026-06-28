@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import re
+from pathlib import Path, PurePosixPath
 
 from .agent_router import AgentRouter
 from .artifact_verifier import StaticWebArtifactVerifier
@@ -48,6 +49,9 @@ PACKAGE_LOCKFILE_COMPANIONS = (
     "npm-shrinkwrap.json",
     "yarn.lock",
     "bun.lockb",
+)
+REPO_PATH_TOKEN_RE = re.compile(
+    r"(?<![A-Za-z0-9_.:/\\-])((?:[A-Za-z0-9_.-]+[\\/])+[A-Za-z0-9_.-]+\.[A-Za-z0-9_.-]+)"
 )
 
 
@@ -274,6 +278,26 @@ class Orchestrator:
             )
             self._record_history(state, "task_blocked", f"{task.id} blocked.", task.id)
             return
+
+        if result.status == "partial":
+            downstream_handoff_tasks = self._partial_downstream_handoff_tasks(state, task, result)
+            if downstream_handoff_tasks:
+                handoff_evidence = self._partial_downstream_handoff_evidence(
+                    evidence,
+                    result,
+                    downstream_handoff_tasks,
+                )
+                self.graph_engine.mark_completed(state.task_graph, task.id, handoff_evidence)
+                state.completed_tasks = self._add_unique(state.completed_tasks, task.id)
+                state.failed_tasks = [task_id for task_id in state.failed_tasks if task_id != task.id]
+                downstream_ids = ", ".join(node.id for node in downstream_handoff_tasks)
+                self._record_history(
+                    state,
+                    "task_partial_handed_off",
+                    f"{task.id} completed its scoped work; deferred out-of-scope partial evidence to downstream task(s): {downstream_ids}.",
+                    task.id,
+                )
+                return
 
         self.graph_engine.mark_failed(state.task_graph, task.id, evidence)
         state.failed_tasks = self._add_unique(state.failed_tasks, task.id)
@@ -535,6 +559,75 @@ class Orchestrator:
             "created_at": utc_now_iso(),
             "iteration": iteration,
         }
+
+    def _partial_downstream_handoff_tasks(
+        self,
+        state: RuntimeState,
+        task: TaskNode,
+        result: CodexWorkerResult,
+    ) -> list[TaskNode]:
+        if task.type == "debug" or result.status != "partial":
+            return []
+        if _worker_result_environment_blocker_summary(result) or _worker_result_timed_out(result):
+            return []
+        result_payload = result.to_dict()
+        made_scoped_progress = bool(
+            result.files_changed
+            or result.tests_passed
+            or self._worker_result_has_passing_checks(result_payload)
+        )
+        if not made_scoped_progress:
+            return []
+
+        deferred_paths = _deferred_repo_paths_from_result(result)
+        if not deferred_paths:
+            return []
+
+        downstream_tasks = [
+            node
+            for node in state.task_graph.nodes
+            if task.id in node.dependencies and node.status in {"pending", "ready"} and node.type != "debug"
+        ]
+        handoff_tasks: list[TaskNode] = []
+        for downstream in downstream_tasks:
+            downstream_scope = self._allowed_files_for_task(downstream)
+            if not downstream_scope:
+                downstream_scope = _clean_paths(downstream.relevant_files)
+            if downstream_scope and _any_path_matches_scope(deferred_paths, downstream_scope):
+                handoff_tasks.append(downstream)
+        return handoff_tasks
+
+    def _partial_downstream_handoff_evidence(
+        self,
+        evidence: dict,
+        result: CodexWorkerResult,
+        downstream_tasks: list[TaskNode],
+    ) -> dict:
+        downstream_ids = [node.id for node in downstream_tasks]
+        original_result = result.to_dict()
+        handoff_result = dict(original_result)
+        if original_result.get("tests_failed"):
+            handoff_result["tests_deferred_to_downstream"] = list(original_result.get("tests_failed", []))
+        if original_result.get("known_issues"):
+            handoff_result["known_issues_deferred_to_downstream"] = list(original_result.get("known_issues", []))
+        handoff_result["status"] = "completed"
+        handoff_result["original_status"] = original_result.get("status", result.status)
+        handoff_result["partial_handoff"] = True
+        handoff_result["partial_handoff_to"] = downstream_ids
+        handoff_result["handoff_original_result"] = original_result
+        handoff_result["tests_failed"] = []
+        handoff_result["known_issues"] = []
+        handoff_result["summary"] = (
+            f"{result.summary} Remaining out-of-scope partial evidence was handed off to downstream task(s): "
+            f"{', '.join(downstream_ids)}."
+        )
+
+        handoff_evidence = dict(evidence)
+        handoff_evidence["summary"] = handoff_result["summary"]
+        handoff_evidence["partial_handoff"] = True
+        handoff_evidence["partial_handoff_to"] = downstream_ids
+        handoff_evidence["result"] = handoff_result
+        return handoff_evidence
 
     def _handle_failed_task(self, state: RuntimeState, task: TaskNode, result: CodexWorkerResult) -> None:
         if task.type == "debug":
@@ -1261,6 +1354,62 @@ def _value_text_fragments(value: object) -> list[str]:
             fragments.extend(_value_text_fragments(item))
         return fragments
     return []
+
+
+def _deferred_repo_paths_from_result(result: CodexWorkerResult) -> list[str]:
+    fragments: list[str] = [
+        result.summary,
+        *result.known_issues,
+        *result.follow_up_tasks,
+        *result.tests_failed,
+        *result.evidence,
+        result.raw_output,
+    ]
+    for command in result.commands_run:
+        fragments.extend([command.command, command.summary, command.stdout, command.stderr])
+    text = "\n".join(fragment for fragment in fragments if fragment)
+    paths = [match.group(1) for match in REPO_PATH_TOKEN_RE.finditer(text)]
+    return _clean_paths(paths)
+
+
+def _any_path_matches_scope(paths: list[str], scope_patterns: list[str]) -> bool:
+    clean_scope = _clean_paths(scope_patterns)
+    for path in paths:
+        for variant in _repo_path_variants(path):
+            if any(_repo_path_matches_pattern(variant, pattern) for pattern in clean_scope):
+                return True
+    return False
+
+
+def _repo_path_variants(path: str) -> list[str]:
+    clean_paths = _clean_paths([path])
+    if not clean_paths:
+        return []
+    normalized = clean_paths[0]
+    variants = {normalized}
+    if normalized.startswith("internal/") or normalized.startswith("cmd/") or normalized.startswith("ent/"):
+        variants.add(f"backend/{normalized}")
+    if normalized.startswith("src/"):
+        variants.add(f"frontend/{normalized}")
+    return sorted(variants)
+
+
+def _repo_path_matches_pattern(path: str, pattern: str) -> bool:
+    normalized = path.lower()
+    clean = pattern.lower()
+    if clean.endswith("/**"):
+        prefix = clean[:-3].rstrip("/")
+        return normalized == prefix or normalized.startswith(prefix + "/")
+    if clean.endswith("/*"):
+        prefix = clean[:-2].rstrip("/")
+        if not normalized.startswith(prefix + "/"):
+            return False
+        return "/" not in normalized[len(prefix) + 1 :]
+    if clean.endswith("/"):
+        return normalized.startswith(clean)
+    if any(char in clean for char in "*?["):
+        return PurePosixPath(normalized).match(clean)
+    return normalized == clean
 
 
 def _worker_result_timed_out(result: CodexWorkerResult | dict | None) -> bool:
