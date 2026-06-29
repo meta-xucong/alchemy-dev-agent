@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_final_frontend_admin_usage_payment_timeout_split_v2_145",
+  "current_phase": "billing_core_final_frontend_admin_payment_timeout_split_v2_146",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -84,17 +84,24 @@
     "implemented V2.142 final frontend admin user account timeout split so Billing Core final verification resumes T016 as smaller access group, API key, and create/edit tasks",
     "implemented V2.143 usage-limit false-positive and repair-resume preservation hardening so Billing Core final verification can resume T017 without collapsing completed split tasks",
     "implemented V2.144 final frontend admin user create/edit timeout split so Billing Core final verification resumes T018 as separate create-modal and edit-modal tasks",
-    "implemented V2.145 final frontend admin usage/payment timeout split so Billing Core final verification resumes T024 as separate usage and payment component tasks"
+    "implemented V2.145 final frontend admin usage/payment timeout split so Billing Core final verification resumes T024 as separate usage and payment component tasks",
+    "implemented V2.146 final frontend admin payment timeout split so Billing Core final verification resumes T025 as payment order/detail, refund, and analytics subtasks"
   ],
   "next_actions": [
-    "Commit and push V2.145 final frontend admin usage/payment timeout split.",
+    "Commit and push V2.146 final frontend admin payment timeout split.",
     "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1 using a quoted script path.",
-    "Confirm final_verification_repair_resume_015 preserves T001-T023 and starts at T024 `Repair final frontend admin usage component` in the inherited worktree.",
-    "Monitor split frontend repair tasks T024/T025/T026/T027/T028/T029/T030/T031/T032/T033; Codex Desktop must not directly implement CRM product changes.",
+    "Confirm final_verification_repair_resume_016 preserves T001-T024 and starts at T025 `Repair final frontend admin payment order detail components` in the inherited worktree.",
+    "Monitor split frontend repair tasks T025/T026/T027/T028/T029/T030/T031/T032/T033/T034/T035; Codex Desktop must not directly implement CRM product changes.",
     "If a split frontend task still times out without evidence, optimize Alchemy worker heartbeat/checkpointing or split the task further before relaunch.",
     "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
   ],
   "tests_run": [
+    "temporary real Billing Core final-verification resume graph probe after run_attempt_020 => passed; generated final_verification_repair_resume_016.md in a temp copy, preserved T001-T024, and starts at T025 Repair final frontend admin payment order detail components followed by refund and payment analytics subtasks",
+    "V2.146: git diff --check => passed",
+    "V2.146: python -B -m compileall planner tests -q => passed",
+    "V2.146: python -B -m pytest tests/test_full_roadmap_execution.py -q => 91 passed",
+    "V2.146: python -B -m pytest tests/test_document_to_plan.py -q => 48 passed",
+    "V2.146: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_payment_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_usage_payment_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_user_create_edit_timeout_is_split_again -q => 3 passed",
     "temporary real Billing Core final-verification resume graph probe after run_attempt_019 => passed; generated final_verification_repair_resume_015.md in a temp copy, preserved T001-T023, and starts at T024 Repair final frontend admin usage component followed by T025 Repair final frontend admin payment component",
     "V2.145: git diff --check => passed",
     "V2.145: python -B -m compileall planner tests -q => passed",
@@ -710,10 +717,11 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-29T12:25:00+08:00",
+  "last_verified_at": "2026-06-29T13:18:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-29T12:25:00+08:00",
+  "updated_at": "2026-06-29T13:18:00+08:00",
   "known_issues": [
+    "Before V2.146, final verification T025 `Repair final frontend admin payment component` could time out after 900 seconds and the next resume would risk replaying the same payment directory worker instead of splitting order/detail, refund, and analytics scopes.",
     "Before V2.145, final verification T024 `Repair final frontend admin usage payment components` could time out after 900 seconds and the next resume would risk replaying the same two-family admin usage/payment worker instead of splitting usage and payment scopes.",
     "Before V2.144, final verification T018 `Repair final frontend admin user create edit components` could time out after 900 seconds and the next resume would risk replaying the same two-modal admin user worker instead of splitting create and edit modal scopes.",
     "Before V2.143, ordinary product/source text containing `usage limits` could be misclassified as a Codex CLI usage-limit blocker, and repair resume generation could reopen completed split tasks by extracting paths from broad raw worker output.",

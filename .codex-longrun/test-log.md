@@ -4917,3 +4917,35 @@
 - command: `git diff --check`
 - result: passed
 - next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
+
+## 2026-06-29T13:18:00+08:00 V2.146 Final frontend admin payment timeout split
+
+- command: Billing Core final verification resume after V2.145
+- result: T024 completed; T025 timed out
+- relevant evidence: `final_verification/run_attempt_020/state.json` preserved T001-T024, then recorded `B-T025-2` after T025 `Repair final frontend admin payment component` hit the 900 second worker timeout with no same-scope debug or downstream dispatch.
+- next verification command: focused admin payment split regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_payment_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_usage_payment_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_user_create_edit_timeout_is_split_again -q`
+- result: `3 passed`
+- next verification command: temporary real Billing Core final-verification resume graph probe after run_attempt_020.
+
+- command: temporary real Billing Core final-verification resume graph probe after `run_attempt_020`
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_016.md` in a temp copy; graph construction preserves T001-T024 completed and starts T025 as `Repair final frontend admin payment order detail components`, followed by refund and payment analytics subtasks.
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `48 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `91 passed`
+- next verification command: compileall and diff check.
+
+- command: `python -B -m compileall planner tests -q`
+- result: passed
+- next verification command: diff check.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.

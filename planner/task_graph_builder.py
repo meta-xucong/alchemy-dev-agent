@@ -667,9 +667,12 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_admin_user_create_edit = should_split_final_frontend_admin_user_create_edit_timeout(
             text
         ) or should_preserve_final_frontend_admin_user_create_edit_split(text)
+        split_admin_payment = should_split_final_frontend_admin_payment_timeout(
+            text
+        ) or should_preserve_final_frontend_admin_payment_split(text)
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
             text
-        ) or should_preserve_final_frontend_admin_usage_payment_split(text)
+        ) or should_preserve_final_frontend_admin_usage_payment_split(text) or split_admin_payment
         split_admin_user_account = (
             should_split_final_frontend_admin_user_account_timeout(text)
             or should_preserve_final_frontend_admin_user_account_split(text)
@@ -708,6 +711,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_user_account=split_admin_user_account,
                 split_admin_user_create_edit=split_admin_user_create_edit,
                 split_admin_usage_payment=split_admin_usage_payment,
+                split_admin_payment=split_admin_payment,
             )
         )
     return specs
@@ -1184,7 +1188,68 @@ def should_preserve_final_frontend_admin_usage_payment_split(text: str) -> bool:
             "t024",
             "t025",
         )
-    ) and _has_primary_failed_task_id_in_range(text, 26, 32)
+    ) and _has_primary_failed_task_id_in_range(text, 26, 35)
+
+
+def should_split_final_frontend_admin_payment_timeout(text: str) -> bool:
+    focused_payment_scope = _has_primary_failed_task_id_in_range(text, 25, 27) and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin payment component",
+            "repair final frontend admin payment order detail components",
+            "repair final frontend admin payment refund dialog component",
+            "repair final frontend admin payment analytics components",
+            "adminordertable",
+            "adminorderdetail",
+            "adminrefunddialog",
+            "dailyrevenuechart",
+            "paymentmethodchart",
+            "orderstatscards",
+            "topusersleaderboard",
+        )
+    )
+    if focused_payment_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return _has_primary_failed_task_id_in_range(text, 25, 27) and all(
+        marker in text
+        for marker in (
+            "admin",
+            "payment",
+            "component",
+        )
+    )
+
+
+def should_preserve_final_frontend_admin_payment_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend admin payment order detail components",
+            "repair final frontend admin payment refund dialog component",
+            "repair final frontend admin payment analytics components",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t025",
+            "t026",
+            "t027",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 28, 35)
 
 
 def _has_primary_failed_task_id_in_range(text: str, start: int, end: int) -> bool:
@@ -1201,6 +1266,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_user_account: bool = False,
     split_admin_user_create_edit: bool = False,
     split_admin_usage_payment: bool = False,
+    split_admin_payment: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1633,6 +1699,76 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 88,
     }
+    admin_payment_task = {
+        "title": "Repair final frontend admin payment component",
+        "description": "Align admin payment components with CRM wallet, charging, reconciliation, revenue, and refund workflows.",
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/admin/payment/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Admin payment components use CRM wallet, charging, reconciliation, revenue, and refund language.",
+            "Payment component contracts no longer expose relay provider, channel, token-log, or model-routing behavior.",
+        ],
+        "priority": 87,
+    }
+    admin_payment_split_tasks = [
+        {
+            "title": "Repair final frontend admin payment order detail components",
+            "description": "Align admin payment order table and detail components with CRM charging and reconciliation semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/payment/AdminOrderTable.vue",
+                "frontend/src/components/admin/payment/AdminOrderDetail.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin payment order table/detail components use CRM order, charging, wallet, reconciliation, and audit language.",
+                "Order component contracts no longer expose relay provider, channel, token-log, or model-routing behavior.",
+            ],
+            "priority": 87,
+        },
+        {
+            "title": "Repair final frontend admin payment refund dialog component",
+            "description": "Align the admin payment refund dialog with CRM wallet reversal, refund, and audit semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/payment/AdminRefundDialog.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "AdminRefundDialog uses CRM refund, wallet reversal, reconciliation, and audit language.",
+                "Refund dialog contracts no longer expose relay provider, channel, token-log, or model-routing behavior.",
+            ],
+            "priority": 86,
+        },
+        {
+            "title": "Repair final frontend admin payment analytics components",
+            "description": "Align admin payment charts and stat cards with CRM revenue, charging, reconciliation, and customer value analytics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/payment/DailyRevenueChart.vue",
+                "frontend/src/components/admin/payment/PaymentMethodChart.vue",
+                "frontend/src/components/admin/payment/OrderStatsCards.vue",
+                "frontend/src/components/admin/payment/TopUsersLeaderboard.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin payment analytics components use CRM revenue, charging, reconciliation, and customer value language.",
+                "Payment analytics contracts no longer expose relay provider, channel, token-log, or model-routing behavior.",
+            ],
+            "priority": 85,
+        },
+    ]
     admin_usage_payment_split_tasks = [
         {
             "title": "Repair final frontend admin usage component",
@@ -1650,22 +1786,7 @@ def final_frontend_routes_views_repair_task_specs(
             ],
             "priority": 88,
         },
-        {
-            "title": "Repair final frontend admin payment component",
-            "description": "Align admin payment components with CRM wallet, charging, reconciliation, revenue, and refund workflows.",
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/components/admin/payment/**",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Admin payment components use CRM wallet, charging, reconciliation, revenue, and refund language.",
-                "Payment component contracts no longer expose relay provider, channel, token-log, or model-routing behavior.",
-            ],
-            "priority": 87,
-        },
+        *(admin_payment_split_tasks if split_admin_payment else [admin_payment_task]),
     ]
     admin_split_tasks = [
         *(admin_account_identity_split_tasks if split_admin_account_identity else [admin_account_identity_task]),

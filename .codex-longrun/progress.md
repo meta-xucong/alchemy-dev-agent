@@ -2007,3 +2007,15 @@ PY"`
 - Temporary graph probe against copied `run_attempt_019` artifacts shows `final_verification_repair_resume_015.md` preserves T001-T023 and starts at `Repair final frontend admin usage component`, followed by `Repair final frontend admin payment component`.
 - Current total-project estimate is about 98.7%; the blocked subtask is now narrowed to usage/payment admin frontend cleanup.
 - Next step: commit/push V2.145, relaunch the controlled Billing Core final verification, and monitor split T024 without direct Codex Desktop product-code edits.
+
+## 2026-06-29T13:18:00+08:00 V2.146 Final Frontend Admin Payment Timeout Split
+
+- Relaunched after V2.145. `final_verification/run_attempt_020` preserved T001-T023, completed T024 `Repair final frontend admin usage component`, and advanced to T025.
+- T025 `Repair final frontend admin payment component` still timed out after 900 seconds even after usage was split away.
+- Alchemy handled the timeout boundary correctly: it recorded `B-T025-2`, stopped the run, did not launch same-scope debug work, and did not dispatch downstream T026.
+- Inspected the inherited worktree payment component surface for task sizing only. It contains separate order/detail, refund, and analytics/chart components, so V2.146 splits payment along those file boundaries.
+- Implemented V2.146 in `planner/task_graph_builder.py`: focused T025 payment timeout resumes preserve T001-T024 and split the work into payment order/detail, refund dialog, and payment analytics tasks before continuing the frontend/final audit tail.
+- Added focused document-to-plan coverage plus `docs/155_v2_146_final_frontend_admin_payment_timeout_split.md`.
+- Temporary graph probe against copied `run_attempt_020` artifacts shows `final_verification_repair_resume_016.md` preserves T001-T024 and starts at `Repair final frontend admin payment order detail components`.
+- Current total-project estimate remains about 98.8%; the blocked subtask is now narrowed to admin payment frontend cleanup.
+- Next step: commit/push V2.146, relaunch the controlled Billing Core final verification, and monitor split T025 without direct Codex Desktop product-code edits.
