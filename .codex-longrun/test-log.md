@@ -4918,6 +4918,29 @@
 - result: passed
 - next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
 
+## 2026-06-29T22:09:00+08:00 V2.156 Final frontend drifted promo recovery
+
+- command: Billing Core final verification resume after V2.155
+- result: stopped by Codex Desktop after old bundled T034 was rebuilt
+- relevant evidence: `final_verification/run_attempt_030/state.json` preserved API/i18n/constants split tasks but rebuilt active T034 as `Repair final frontend admin announcement backup promo files`; Codex Desktop wrote `run_attempt_030/supervisor_stop.json`, and Alchemy blocked T034 before the old bundle ran again.
+- next verification command: focused drifted promo-code recovery regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_drifted_promo_task_reopens_announcement_split -q`
+- result: `1 passed`
+- next verification command: seven-layer focused split regression.
+
+- command: seven-layer focused final frontend split regression
+- result: `7 passed`
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `56 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `91 passed`
+- next verification command: compileall, diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
+
 ## 2026-06-29T22:03:00+08:00 V2.155 Final frontend deep split API preservation
 
 - command: Billing Core final verification resume after V2.154

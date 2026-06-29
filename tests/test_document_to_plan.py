@@ -2805,6 +2805,99 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("Repair final frontend admin dashboard settings support files", titles)
         self.assertIn("Repair final frontend admin user usage redeem view contracts", titles)
 
+    def test_final_verification_drifted_promo_task_reopens_announcement_split(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            for path in (
+                "frontend/src/api",
+                "frontend/src/constants",
+                "frontend/src/i18n",
+                "frontend/src/types",
+                "frontend/src/router",
+                "frontend/src/views/admin/__tests__",
+                "frontend/src/views/admin/affiliates",
+                "frontend/src/views/admin/ops/components",
+                "frontend/src/views/admin/orders",
+                "frontend/src/views/admin/settings",
+                "frontend/src/views/auth",
+                "frontend/src/views/public",
+                "frontend/src/views/setup",
+                "frontend/src/views/user",
+                "frontend/src/components/account",
+                "frontend/src/components/admin/announcements",
+                "frontend/src/components/admin/channel",
+                "frontend/src/components/admin/group",
+                "frontend/src/components/admin/monitor",
+                "frontend/src/components/admin/payment",
+                "frontend/src/components/admin/proxy",
+                "frontend/src/components/admin/usage",
+                "frontend/src/components/admin/user",
+                "frontend/src/components/charts",
+                "frontend/src/styles",
+                "frontend/src/composables",
+                "frontend/src/stores",
+                "frontend/src/utils",
+                "frontend/tests",
+            ):
+                (repo / path).mkdir(parents=True)
+            (repo / "frontend" / "src" / "views" / "NotFoundView.vue").write_text("<template />\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "final_verification_repair_resume_025.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_029",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- FINAL_AUDIT_STATUS=FAIL: final source-boundary repair needs continuation.",
+                        "- Must grant the repair worker edit access to backend migrations, Ent schema/generated files, backend domain/repository/service/handler/server contracts, and backend command wiring when those surfaces contain residual relay-era product concepts.",
+                        "- Must split backend schema/domain repair by Ent schema, domain/repository, and service/handler/server wiring instead of replaying one broad worker.",
+                        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain upstream account, proxy, channel-monitor, model-routing, or subscription-plan behavior.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T034.",
+                        "- Completed tasks to preserve: T001, T002, T003, T004, T005, T006, T007, T008, T009, T010, T011, T012, T013, T014, T015, T016, T017, T018, T019, T020, T021, T022, T023, T024, T025, T026, T027, T028, T029, T030, T031, T032, T033.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T034 - Repair final frontend admin promo codes view file",
+                        "- Must continue focused task T034: Repair final frontend admin promo codes view file.",
+                        "- Last task status: blocked.",
+                        "- Previous relevant files: frontend/src/views/admin/PromoCodesView.vue.",
+                        "- Worker summary: Codex worker was cancelled by operator stop request.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-29T22:10:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes["T006"]["title"], "Repair final frontend API module contracts")
+        self.assertEqual(nodes["T007"]["title"], "Repair final frontend i18n locale contracts")
+        self.assertEqual(nodes["T008"]["title"], "Repair final frontend constants and shared types contracts")
+        self.assertEqual(nodes["T034"]["title"], "Repair final frontend admin announcements view file")
+        self.assertEqual(nodes["T034"]["status"], "pending")
+        self.assertEqual(nodes["T035"]["title"], "Repair final frontend admin backup view file")
+        self.assertEqual(nodes["T036"]["title"], "Repair final frontend admin promo codes view file")
+        self.assertEqual(nodes["T037"]["title"], "Repair final frontend admin announcement components support files")
+
     def test_large_refactor_frontend_phase_survives_repository_index_cap(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

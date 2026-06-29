@@ -1260,6 +1260,9 @@ def should_split_final_frontend_admin_announcement_backup_promo_timeout(text: st
         marker in text
         for marker in (
             "repair final frontend admin announcement backup promo files",
+            "repair final frontend admin announcements view file",
+            "repair final frontend admin backup view file",
+            "repair final frontend admin promo codes view file",
             "frontend/src/views/admin/announcementsview.vue",
             "frontend/src/views/admin/backupview.vue",
             "frontend/src/views/admin/promocodesview.vue",
@@ -1283,7 +1286,12 @@ def should_split_final_frontend_admin_announcement_backup_promo_timeout(text: st
         marker in text
         for marker in (
             "repair final frontend admin announcement backup promo files",
+            "repair final frontend admin announcements view file",
+            "repair final frontend admin backup view file",
+            "repair final frontend admin promo codes view file",
             "frontend/src/views/admin/announcementsview.vue",
+            "frontend/src/views/admin/backupview.vue",
+            "frontend/src/views/admin/promocodesview.vue",
             "announcement backup promo",
         )
     )

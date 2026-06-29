@@ -2119,3 +2119,12 @@ PY"`
 - Strengthened the V2.154 regression to assert that API module, i18n locale, and constants/types split tasks are present and the old API/i18n bundle is absent.
 - Current total-project estimate remains about 99.3%; the immediate blocker is Alchemy resume graph correctness, not CRM product code.
 - Next step: commit/push V2.155, relaunch, and confirm the stopped drifted `run_attempt_029` is not used to skip announcements/backup work.
+
+## 2026-06-29T22:09:00+08:00 V2.156 Final Frontend Drifted Promo Recovery
+
+- Relaunched after V2.155. `final_verification/run_attempt_030` preserved API/i18n/constants correctly, but still rebuilt T034 as the old bundled `Repair final frontend admin announcement backup promo files` task because the latest repair doc came from the stopped drifted promo-code T034.
+- Wrote `supervisor_stop.json` into `run_attempt_030`; Alchemy honored it and blocked T034 before the old bundle could run again.
+- Implemented V2.156 in `planner/task_graph_builder.py`: T034 drifted split titles such as `Repair final frontend admin promo codes view file` now trigger the full announcement/backup/promo recovery family.
+- Added a focused regression matching `final_verification_repair_resume_025.md`; it now reopens T034 as announcements view, then backup view, promo-code view, and announcement component/support files.
+- Current total-project estimate remains about 99.3%; the blocker is still Alchemy resume graph correctness until the next relaunch proves T034 starts at announcements view.
+- Next step: commit/push V2.156, relaunch, and verify T034 is `Repair final frontend admin announcements view file`.
