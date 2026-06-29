@@ -4918,6 +4918,38 @@
 - result: passed
 - next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
 
+## 2026-06-29T19:34:00+08:00 V2.150 Final frontend admin view-page timeout split
+
+- command: Billing Core final verification resume after V2.149
+- result: T029 timed out
+- relevant evidence: `final_verification/run_attempt_024/state.json` preserved T001-T028 in the graph, then recorded `B-T029-1` after T029 `Repair final frontend admin view page contracts` hit the 900 second worker timeout with no same-scope debug or downstream dispatch.
+- next verification command: focused admin view-page split regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_view_page_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_view_page_timeout_is_split_again -q`
+- result: `2 passed`
+- next verification command: temporary real Billing Core final-verification resume graph probe after run_attempt_024.
+
+- command: temporary real Billing Core final-verification resume graph probe after `run_attempt_024`
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_020.md` in a temp copy; graph construction preserves T001-T028 completed and starts T029-T033 as five smaller admin view tasks, followed by user/payment, auth/public/setup, state, tests, audit, simulation, real checks, and handoff markers through T041.
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `51 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `91 passed`
+- next verification command: compileall and diff check.
+
+- command: `python -B -m compileall planner tests -q`
+- result: passed
+- next verification command: diff check.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
+
 ## 2026-06-29T14:52:00+08:00 V2.148 Codex connectivity blocker classification
 
 - command: Billing Core final verification resume after V2.147

@@ -674,9 +674,14 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             text
         ) or should_preserve_final_frontend_admin_payment_refund_leaf(text)
         split_admin_payment = split_admin_payment or split_admin_payment_refund
-        split_view_pages = should_split_final_frontend_view_page_timeout(
+        split_admin_view_pages = should_split_final_frontend_admin_view_page_timeout(
             text
-        ) or should_preserve_final_frontend_view_page_split(text)
+        ) or should_preserve_final_frontend_admin_view_page_split(text)
+        split_view_pages = (
+            should_split_final_frontend_view_page_timeout(text)
+            or should_preserve_final_frontend_view_page_split(text)
+            or split_admin_view_pages
+        )
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
             text
         ) or should_preserve_final_frontend_admin_usage_payment_split(text) or split_admin_payment
@@ -722,6 +727,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_payment=split_admin_payment,
                 split_admin_payment_refund=split_admin_payment_refund,
                 split_view_pages=split_view_pages,
+                split_admin_view_pages=split_admin_view_pages,
             )
         )
     return specs
@@ -986,6 +992,65 @@ def should_preserve_final_frontend_view_page_split(text: str) -> bool:
             "t031",
         )
     ) and _has_primary_failed_task_id_in_range(text, 32, 40)
+
+
+def should_split_final_frontend_admin_view_page_timeout(text: str) -> bool:
+    focused_admin_view_scope = _has_primary_failed_task_id_in_range(text, 29, 32) and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin view page contracts",
+            "frontend/src/views/admin",
+            "views/admin",
+            "admin view page",
+        )
+    )
+    if focused_admin_view_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return "primary failed task ids: t029" in text and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin view page contracts",
+            "frontend/src/views/admin",
+            "views/admin",
+            "admin view page",
+        )
+    )
+
+
+def should_preserve_final_frontend_admin_view_page_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend admin dashboard settings view contracts",
+            "repair final frontend admin user usage redeem view contracts",
+            "repair final frontend admin payment order plan view contracts",
+            "repair final frontend admin operations view contracts",
+            "repair final frontend legacy admin view cleanup",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t029",
+            "t030",
+            "t031",
+            "t032",
+            "t033",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 34, 45)
 
 
 def should_split_final_frontend_admin_component_timeout(text: str) -> bool:
@@ -1384,6 +1449,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_payment: bool = False,
     split_admin_payment_refund: bool = False,
     split_view_pages: bool = False,
+    split_admin_view_pages: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -2010,24 +2076,142 @@ def final_frontend_routes_views_repair_task_specs(
         "priority": 86,
     }
     view_page_split_tasks = [
-        {
-            "title": "Repair final frontend admin view page contracts",
-            "description": "Align admin view pages with CRM identity, billing, wallet, metering, audit, operations, and admin semantics.",
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/views/admin/**",
-                "frontend/src/components/admin/**",
-                "frontend/src/styles/**",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Admin view pages no longer present token relay, provider channel, upstream account, model-routing, proxy, or subscription-plan behavior.",
-                "Admin pages compile against CRM billing, identity, wallet, metering, payment, analytics, audit, and operations workflows.",
-            ],
-            "priority": 86,
-        },
+        *(
+            [
+                {
+                    "title": "Repair final frontend admin dashboard settings view contracts",
+                    "description": "Align admin dashboard, settings, announcement, backup, and promo-code pages with CRM administration semantics.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/admin/DashboardView.vue",
+                        "frontend/src/views/admin/SettingsView.vue",
+                        "frontend/src/views/admin/AnnouncementsView.vue",
+                        "frontend/src/views/admin/BackupView.vue",
+                        "frontend/src/views/admin/PromoCodesView.vue",
+                        "frontend/src/views/admin/settings/**",
+                        "frontend/src/components/admin/announcements/**",
+                        "frontend/src/components/admin/AdminComplianceDialog.vue",
+                        "frontend/src/styles/**",
+                        "frontend/src/types/**",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Dashboard, settings, announcement, backup, and promo-code pages use CRM administration, compliance, billing, and account language.",
+                        "These pages no longer expose relay provider, channel, proxy, model-routing, token-log, or upstream account behavior.",
+                    ],
+                    "priority": 86,
+                },
+                {
+                    "title": "Repair final frontend admin user usage redeem view contracts",
+                    "description": "Align admin user, usage, and redeem pages with CRM account, wallet, metering, and credit workflows.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/admin/UsersView.vue",
+                        "frontend/src/views/admin/UsageView.vue",
+                        "frontend/src/views/admin/RedeemView.vue",
+                        "frontend/src/views/admin/apiKeyGroupFilterOptions.ts",
+                        "frontend/src/components/admin/user/**",
+                        "frontend/src/components/admin/usage/**",
+                        "frontend/src/styles/**",
+                        "frontend/src/types/**",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Admin user, usage, and redeem pages describe CRM customers, identity, wallet ledger, credits, usage metering, and audit workflows.",
+                        "Residual relay token, model, provider, upstream, proxy, and channel language is removed from these admin pages.",
+                    ],
+                    "priority": 85,
+                },
+                {
+                    "title": "Repair final frontend admin payment order plan view contracts",
+                    "description": "Align admin order, payment dashboard, plan, and plan-edit pages with CRM billing and reconciliation semantics.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/admin/orders/**",
+                        "frontend/src/components/admin/payment/**",
+                        "frontend/src/styles/**",
+                        "frontend/src/types/**",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Admin order, payment, and plan pages present CRM catalog, order, invoice/payment, wallet, refund, and reconciliation workflows.",
+                        "Payment and plan pages no longer describe subscription resale, relay channels, upstream accounts, token logs, or model-routing behavior.",
+                    ],
+                    "priority": 84,
+                },
+                {
+                    "title": "Repair final frontend admin operations view contracts",
+                    "description": "Align admin ops dashboard, runtime, error, alert, and observability pages with CRM operations semantics.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/admin/ops/**",
+                        "frontend/src/components/admin/monitor/**",
+                        "frontend/src/styles/**",
+                        "frontend/src/types/**",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Ops pages describe CRM platform observability, billing operations health, connector health, runtime settings, and audit diagnostics.",
+                        "Ops pages no longer expose OpenAI token, relay provider, proxy, model-routing, upstream account, or token-log product semantics.",
+                    ],
+                    "priority": 83,
+                },
+                {
+                    "title": "Repair final frontend legacy admin view cleanup",
+                    "description": "Remove or quarantine legacy admin relay view pages and helpers that are no longer reachable in the CRM product.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/admin/AccountsView.vue",
+                        "frontend/src/views/admin/ChannelsView.vue",
+                        "frontend/src/views/admin/ChannelMonitorView.vue",
+                        "frontend/src/views/admin/GroupsView.vue",
+                        "frontend/src/views/admin/ProxiesView.vue",
+                        "frontend/src/views/admin/RiskControlView.vue",
+                        "frontend/src/views/admin/SubscriptionsView.vue",
+                        "frontend/src/views/admin/affiliates/**",
+                        "frontend/src/views/admin/groups*.ts",
+                        "frontend/src/views/admin/__tests__/**",
+                        "frontend/src/components/admin/channel/**",
+                        "frontend/src/components/admin/group/**",
+                        "frontend/src/components/admin/proxy/**",
+                        "frontend/src/styles/**",
+                        "frontend/src/types/**",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Legacy relay, provider-channel, proxy, subscription-resale, model-scope, and affiliate admin view pages are removed or quarantined from reachable CRM behavior.",
+                        "Remaining legacy helpers/tests compile only as internal compatibility or are deleted with corresponding route/test cleanup.",
+                    ],
+                    "priority": 82,
+                },
+            ]
+            if split_admin_view_pages
+            else [
+                {
+                    "title": "Repair final frontend admin view page contracts",
+                    "description": "Align admin view pages with CRM identity, billing, wallet, metering, audit, operations, and admin semantics.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/admin/**",
+                        "frontend/src/components/admin/**",
+                        "frontend/src/styles/**",
+                        "frontend/src/types/**",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Admin view pages no longer present token relay, provider channel, upstream account, model-routing, proxy, or subscription-plan behavior.",
+                        "Admin pages compile against CRM billing, identity, wallet, metering, payment, analytics, audit, and operations workflows.",
+                    ],
+                    "priority": 86,
+                }
+            ]
+        ),
         {
             "title": "Repair final frontend user payment view page contracts",
             "description": "Align user dashboard, usage, API key, order, payment, redeem, and profile view pages with CRM account and billing semantics.",

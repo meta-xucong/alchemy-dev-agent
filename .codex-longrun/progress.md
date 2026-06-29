@@ -2056,3 +2056,14 @@ PY"`
 - Temporary graph probe against copied `run_attempt_023` artifacts shows `final_verification_repair_resume_019.md` preserves T001-T028 and starts at `Repair final frontend admin view page contracts`.
 - Current total-project estimate is about 99.2%; the blocked subtask is now narrowed to final frontend view-page cleanup.
 - Next step: commit/push V2.149, relaunch the controlled Billing Core final verification, and monitor split T029 without direct Codex Desktop product-code edits.
+
+## 2026-06-29T19:34:00+08:00 V2.150 Final Frontend Admin View Page Timeout Split
+
+- Relaunched after V2.149. `final_verification/run_attempt_024` preserved T001-T028 and correctly started T029 `Repair final frontend admin view page contracts` in the inherited worktree.
+- T029 still timed out after 900 seconds. Alchemy handled the boundary correctly: it recorded `B-T029-1`, stopped the run, did not launch same-scope debug work, and did not dispatch T030.
+- The issue is now task granularity, not scheduler correctness. The admin view task still bundled dashboard/settings, user/usage/redeem, payment/order, ops, and legacy relay admin cleanup surfaces.
+- Implemented V2.150 in `planner/task_graph_builder.py`: focused admin view-page timeout resumes preserve T001-T028 and split the old T029 into five smaller admin view tasks before continuing user/payment views, auth/public/setup views, state, tests, and final audit tasks.
+- Added focused document-to-plan coverage plus `docs/159_v2_150_final_frontend_admin_view_page_timeout_split.md`.
+- Temporary graph probe against copied `run_attempt_024` artifacts shows `final_verification_repair_resume_020.md` preserves T001-T028 and starts at `Repair final frontend admin dashboard settings view contracts`, followed by admin user/usage/redeem, payment/order/plan, ops, and legacy admin cleanup tasks.
+- Current total-project estimate remains about 99.2%; the blocked surface is narrowed to admin view-page leaf repair and final verification tail.
+- Next step: commit/push V2.150, relaunch the controlled Billing Core final verification, and monitor split admin view tasks without direct Codex Desktop product-code edits.
