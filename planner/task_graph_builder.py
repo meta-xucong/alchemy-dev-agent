@@ -684,6 +684,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             text
         ) or should_preserve_final_frontend_admin_announcement_backup_promo_split(text)
         if split_admin_announcement_backup_promo:
+            split_api_i18n = True
             split_admin_user_create_edit = True
             split_admin_payment_refund = True
             split_admin_payment = True
@@ -807,7 +808,7 @@ def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
             "t007",
             "t008",
         )
-    ) and _has_primary_failed_task_id_in_range(text, 9, 32)
+    ) and _has_primary_failed_task_id_in_range(text, 9, 55)
 
 
 def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, object]]:

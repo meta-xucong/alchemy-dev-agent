@@ -2784,6 +2784,10 @@ class DocumentToPlanTests(unittest.TestCase):
             graph = TaskGraphBuilder().build(bundle).to_dict()
 
         titles = [node["title"] for node in graph["nodes"]]
+        self.assertIn("Repair final frontend API module contracts", titles)
+        self.assertIn("Repair final frontend i18n locale contracts", titles)
+        self.assertIn("Repair final frontend constants and shared types contracts", titles)
+        self.assertNotIn("Repair final frontend API and i18n contracts", titles)
         self.assertIn("Repair final frontend admin email template editor leaf file", titles)
         self.assertNotIn("Repair final frontend admin announcement backup promo files", titles)
         split_titles = [

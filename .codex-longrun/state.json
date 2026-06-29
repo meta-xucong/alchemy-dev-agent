@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_final_frontend_admin_announcement_backup_promo_split_v2_154",
+  "current_phase": "billing_core_final_frontend_deep_split_api_preservation_v2_155",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -93,17 +93,24 @@
     "implemented V2.151 final frontend admin dashboard/settings timeout split so Billing Core final verification resumes T029 as exact-file and small-file dashboard/settings tasks",
     "implemented V2.152 final frontend admin settings/email/compliance timeout split so Billing Core final verification resumes T030 as exact-file settings, email template, compliance, and settings support tasks",
     "implemented V2.153 final frontend admin email-template leaf split so Billing Core final verification resumes T031 as EmailTemplateEditor.vue-only work",
-    "implemented V2.154 final frontend admin announcement/backup/promo timeout split and deep final-frontend split preservation hardening"
+    "implemented V2.154 final frontend admin announcement/backup/promo timeout split and deep final-frontend split preservation hardening",
+    "implemented V2.155 final frontend deep split API/i18n preservation so T034+ resumes do not compress early split tasks and drift completed IDs"
   ],
   "next_actions": [
-    "Commit and push V2.154 final frontend admin announcement/backup/promo split.",
+    "Commit and push V2.155 final frontend deep split API/i18n preservation.",
     "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1 using a quoted script path.",
-    "Confirm the next final-verification repair resume preserves T001-T033 and starts at the split announcement/backup/promo task sequence in the inherited worktree.",
+    "Confirm the next final-verification repair resume does not continue from stopped drifted run_attempt_029 and does not skip announcements/backup work.",
+    "Confirm API/i18n/constants split tasks remain present before T034+ announcement/backup/promo split tasks.",
     "Monitor split frontend repair tasks after T034; Codex Desktop must not directly implement CRM product changes.",
     "If a single announcement/backup/promo leaf still times out, prioritize Alchemy worker checkpoint/partial-result support or scoped verification prompt limits instead of more file-count splitting.",
     "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
   ],
   "tests_run": [
+    "V2.155: python -B -m pytest tests/test_full_roadmap_execution.py -q => 91 passed",
+    "V2.155: python -B -m pytest tests/test_document_to_plan.py -q => 55 passed",
+    "V2.155: six-layer focused final frontend split regression => 6 passed",
+    "V2.155: focused deep split API/i18n preservation regression => 1 passed",
+    "V2.155: stopped drifted Billing Core final verification run_attempt_029 after it skipped announcements/backup split tasks due API/i18n split compression; Alchemy honored supervisor_stop.json and left no residual worker",
     "V2.154: python -B -m pytest tests/test_full_roadmap_execution.py -q => 91 passed",
     "V2.154: python -B -m pytest tests/test_document_to_plan.py -q => 55 passed",
     "V2.154: six-layer focused final frontend split regression => 6 passed",
@@ -778,10 +785,11 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-29T21:56:00+08:00",
+  "last_verified_at": "2026-06-29T22:03:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-29T21:56:00+08:00",
+  "updated_at": "2026-06-29T22:03:00+08:00",
   "known_issues": [
+    "Before V2.155, deep final-frontend T034+ resumes could collapse V2.136's API/i18n/constants split back into one task, shifting later completed-task IDs left and incorrectly marking newly inserted split tasks completed.",
     "Before V2.154, final verification T034 `Repair final frontend admin announcement backup promo files` could time out after 900 seconds because announcement, backup, promo-code, announcement components, styles, and types were bundled into one worker.",
     "Before V2.154, late final-frontend failures such as T034 could preserve completed task IDs against a compressed task graph because some earlier split-preservation ranges ended too early, risking task-ID drift on resume.",
     "Before V2.153, final verification T031 `Repair final frontend admin email template editor file` could still time out after 900 seconds because shared styles/types were bundled with EmailTemplateEditor.vue; the next resume could replay that wider single-task scope instead of a Vue-file-only leaf.",

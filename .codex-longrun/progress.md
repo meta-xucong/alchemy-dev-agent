@@ -2109,3 +2109,13 @@ PY"`
 - Added focused document-to-plan coverage plus `docs/163_v2_154_final_frontend_admin_announcement_backup_promo_split.md`.
 - Current total-project estimate remains about 99.3%; the blocked surface is now narrowed to announcement/backup/promo admin view cleanup.
 - Next step: commit/push V2.154, relaunch the controlled Billing Core final verification, and confirm the real graph resumes from the split announcement task sequence.
+
+## 2026-06-29T22:03:00+08:00 V2.155 Final Frontend Deep Split API Preservation
+
+- Relaunched after V2.154. `final_verification/run_attempt_029` revealed that the graph still drifted: T032 announcements view and T033 backup view were incorrectly marked completed, and the active task jumped to T034 promo-code view.
+- The drift came from an earlier split collapsing: V2.136's API/i18n/constants split rebuilt as the single `Repair final frontend API and i18n contracts` task, shifting later IDs left by two.
+- Wrote `supervisor_stop.json` into `run_attempt_029`; Alchemy honored it, blocked the active drifted T034, and left no residual Codex worker process.
+- Implemented V2.155 in `planner/task_graph_builder.py`: deep T034+ final-frontend failures now preserve the API/i18n/constants split through the final-verification tail and force `split_api_i18n=True` when announcement/backup/promo split is active.
+- Strengthened the V2.154 regression to assert that API module, i18n locale, and constants/types split tasks are present and the old API/i18n bundle is absent.
+- Current total-project estimate remains about 99.3%; the immediate blocker is Alchemy resume graph correctness, not CRM product code.
+- Next step: commit/push V2.155, relaunch, and confirm the stopped drifted `run_attempt_029` is not used to skip announcements/backup work.
