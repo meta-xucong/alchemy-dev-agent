@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_final_frontend_admin_view_page_timeout_split_v2_150",
+  "current_phase": "billing_core_final_frontend_admin_dashboard_settings_timeout_split_v2_151",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -89,17 +89,25 @@
     "implemented V2.147 final frontend admin payment refund leaf task so Billing Core final verification resumes T026 with only AdminRefundDialog.vue in scope",
     "implemented V2.148 Codex connectivity blocker classification so unparseable stream failures stop as environment blockers instead of product debug/retry loops",
     "implemented V2.149 final frontend view-page timeout split so Billing Core final verification resumes T029 as admin, user/payment, and auth/public/setup view tasks",
-    "implemented V2.150 final frontend admin view-page timeout split so Billing Core final verification resumes T029 as five smaller admin view tasks"
+    "implemented V2.150 final frontend admin view-page timeout split so Billing Core final verification resumes T029 as five smaller admin view tasks",
+    "implemented V2.151 final frontend admin dashboard/settings timeout split so Billing Core final verification resumes T029 as exact-file and small-file dashboard/settings tasks"
   ],
   "next_actions": [
-    "Commit and push V2.150 final frontend admin view-page timeout split.",
+    "Commit and push V2.151 final frontend admin dashboard/settings timeout split.",
     "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1 using a quoted script path.",
-    "Confirm final_verification_repair_resume_020 preserves T001-T028 and starts at T029 `Repair final frontend admin dashboard settings view contracts` in the inherited worktree.",
-    "Monitor split frontend repair tasks T029/T030/T031/T032/T033/T034/T035/T036/T037/T038/T039/T040/T041; Codex Desktop must not directly implement CRM product changes.",
-    "If a split admin view-page task still times out, split that view family further or optimize Alchemy worker checkpoint prompts before relaunch.",
+    "Confirm final_verification_repair_resume_021 preserves T001-T028 and starts at T029 `Repair final frontend admin dashboard view file` in the inherited worktree.",
+    "Monitor split frontend repair tasks T029/T030/T031/T032/T033/T034/T035/T036/T037/T038/T039/T040/T041/T042/T043/T044; Codex Desktop must not directly implement CRM product changes.",
+    "If an exact-file/small-file dashboard settings task still times out, prioritize Alchemy worker checkpoint/partial-result support before more file-count splitting.",
     "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
   ],
   "tests_run": [
+    "V2.151: git diff --check => passed",
+    "V2.151: python -B -m compileall planner tests -q => passed",
+    "V2.151: python -B -m pytest tests/test_full_roadmap_execution.py -q => 91 passed",
+    "V2.151: python -B -m pytest tests/test_document_to_plan.py -q => 52 passed",
+    "V2.151: temporary real Billing Core final-verification resume graph probe after run_attempt_025 => passed; generated final_verification_repair_resume_021.md in a temp copy, preserved T001-T028, and starts T029-T032 as four smaller dashboard/settings tasks followed by final verification tail tasks through T044",
+    "V2.151: focused split regression initially failed because the new test fixture omitted backend final-repair context; after fixing the fixture, python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_view_page_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_view_page_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_dashboard_settings_timeout_is_split_again -q => 3 passed",
+    "V2.151: Billing Core final verification run_attempt_025 => T029 dashboard/settings task timed out at 900 seconds; Alchemy recorded B-T029-1, stopped without debug/retry, and did not dispatch downstream tasks",
     "V2.150: git diff --check => passed",
     "V2.150: python -B -m compileall planner tests -q => passed",
     "V2.150: python -B -m pytest tests/test_full_roadmap_execution.py -q => 91 passed",
@@ -750,10 +758,11 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-29T19:34:00+08:00",
+  "last_verified_at": "2026-06-29T19:58:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-29T19:34:00+08:00",
+  "updated_at": "2026-06-29T19:58:00+08:00",
   "known_issues": [
+    "Before V2.151, final verification T029 `Repair final frontend admin dashboard settings view contracts` could time out after 900 seconds and the next resume would risk replaying dashboard, settings, announcements, backup, promo, compliance, style, type, and package metadata cleanup as one worker.",
     "Before V2.150, final verification T029 `Repair final frontend admin view page contracts` could time out after 900 seconds and the next resume would risk replaying all admin views and admin components instead of splitting dashboard/settings, user/usage/redeem, payment/order/plan, ops, and legacy admin cleanup surfaces.",
     "The 900 second worker timeout is now safe as a stop boundary, but it is still not progress-aware enough: run_attempt_024 T029 wrote real worktree changes before timeout without returning structured partial evidence.",
     "Before V2.149, final verification T029 `Repair final frontend view page contracts` could time out after 900 seconds and the next resume would risk replaying all frontend/src/views/** instead of splitting admin, user/payment, and auth/public/setup view scopes.",

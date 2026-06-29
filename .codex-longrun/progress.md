@@ -2067,3 +2067,14 @@ PY"`
 - Temporary graph probe against copied `run_attempt_024` artifacts shows `final_verification_repair_resume_020.md` preserves T001-T028 and starts at `Repair final frontend admin dashboard settings view contracts`, followed by admin user/usage/redeem, payment/order/plan, ops, and legacy admin cleanup tasks.
 - Current total-project estimate remains about 99.2%; the blocked surface is narrowed to admin view-page leaf repair and final verification tail.
 - Next step: commit/push V2.150, relaunch the controlled Billing Core final verification, and monitor split admin view tasks without direct Codex Desktop product-code edits.
+
+## 2026-06-29T19:58:00+08:00 V2.151 Final Frontend Admin Dashboard Settings Timeout Split
+
+- Relaunched after V2.150. `final_verification/run_attempt_025` preserved T001-T028 and correctly started T029 `Repair final frontend admin dashboard settings view contracts` in the inherited worktree.
+- T029 still timed out after 900 seconds. Alchemy again handled the boundary correctly: it recorded `B-T029-1`, stopped the run, did not launch same-scope debug work, and did not dispatch T030.
+- The task was still too wide because it bundled dashboard, settings, announcements, backup, promo codes, email template, compliance, shared styles/types, and package metadata.
+- Implemented V2.151 in `planner/task_graph_builder.py`: focused dashboard/settings timeout resumes preserve T001-T028 and split the old T029 into dashboard file, settings/email/compliance files, announcement/backup/promo files, and dashboard/settings support-file tasks.
+- Added focused document-to-plan coverage plus `docs/160_v2_151_final_frontend_admin_dashboard_settings_timeout_split.md`.
+- Temporary graph probe against copied `run_attempt_025` artifacts shows `final_verification_repair_resume_021.md` preserves T001-T028 and starts at `Repair final frontend admin dashboard view file`, followed by settings/email/compliance, announcement/backup/promo, support files, and the remaining final-verification tail through T044.
+- Current total-project estimate remains about 99.2%; the blocked surface is now narrowed to exact-file/small-file admin dashboard/settings cleanup.
+- Next step: commit/push V2.151, relaunch the controlled Billing Core final verification, and monitor the exact-file dashboard task without direct Codex Desktop product-code edits.

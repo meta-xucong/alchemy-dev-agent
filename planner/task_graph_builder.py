@@ -674,9 +674,14 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             text
         ) or should_preserve_final_frontend_admin_payment_refund_leaf(text)
         split_admin_payment = split_admin_payment or split_admin_payment_refund
-        split_admin_view_pages = should_split_final_frontend_admin_view_page_timeout(
+        split_admin_dashboard_settings = should_split_final_frontend_admin_dashboard_settings_timeout(
             text
-        ) or should_preserve_final_frontend_admin_view_page_split(text)
+        ) or should_preserve_final_frontend_admin_dashboard_settings_split(text)
+        split_admin_view_pages = (
+            should_split_final_frontend_admin_view_page_timeout(text)
+            or should_preserve_final_frontend_admin_view_page_split(text)
+            or split_admin_dashboard_settings
+        )
         split_view_pages = (
             should_split_final_frontend_view_page_timeout(text)
             or should_preserve_final_frontend_view_page_split(text)
@@ -728,6 +733,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_payment_refund=split_admin_payment_refund,
                 split_view_pages=split_view_pages,
                 split_admin_view_pages=split_admin_view_pages,
+                split_admin_dashboard_settings=split_admin_dashboard_settings,
             )
         )
     return specs
@@ -1051,6 +1057,66 @@ def should_preserve_final_frontend_admin_view_page_split(text: str) -> bool:
             "t033",
         )
     ) and _has_primary_failed_task_id_in_range(text, 34, 45)
+
+
+def should_split_final_frontend_admin_dashboard_settings_timeout(text: str) -> bool:
+    focused_dashboard_settings_scope = _has_primary_failed_task_id_in_range(text, 29, 33) and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin dashboard settings view contracts",
+            "frontend/src/views/admin/dashboardview.vue",
+            "frontend/src/views/admin/settingsview.vue",
+            "frontend/src/views/admin/announcementsview.vue",
+            "frontend/src/views/admin/backupview.vue",
+            "frontend/src/views/admin/promocodesview.vue",
+            "dashboard settings view",
+        )
+    )
+    if focused_dashboard_settings_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return "primary failed task ids: t029" in text and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin dashboard settings view contracts",
+            "frontend/src/views/admin/dashboardview.vue",
+            "frontend/src/views/admin/settingsview.vue",
+            "dashboard settings view",
+        )
+    )
+
+
+def should_preserve_final_frontend_admin_dashboard_settings_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend admin dashboard view file",
+            "repair final frontend admin settings email compliance files",
+            "repair final frontend admin announcement backup promo files",
+            "repair final frontend admin dashboard settings support files",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t029",
+            "t030",
+            "t031",
+            "t032",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 33, 48)
 
 
 def should_split_final_frontend_admin_component_timeout(text: str) -> bool:
@@ -1450,6 +1516,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_payment_refund: bool = False,
     split_view_pages: bool = False,
     split_admin_view_pages: bool = False,
+    split_admin_dashboard_settings: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -2078,30 +2145,104 @@ def final_frontend_routes_views_repair_task_specs(
     view_page_split_tasks = [
         *(
             [
-                {
-                    "title": "Repair final frontend admin dashboard settings view contracts",
-                    "description": "Align admin dashboard, settings, announcement, backup, and promo-code pages with CRM administration semantics.",
-                    "assigned_agent": "frontend",
-                    "relevant_files": [
-                        "frontend/src/views/admin/DashboardView.vue",
-                        "frontend/src/views/admin/SettingsView.vue",
-                        "frontend/src/views/admin/AnnouncementsView.vue",
-                        "frontend/src/views/admin/BackupView.vue",
-                        "frontend/src/views/admin/PromoCodesView.vue",
-                        "frontend/src/views/admin/settings/**",
-                        "frontend/src/components/admin/announcements/**",
-                        "frontend/src/components/admin/AdminComplianceDialog.vue",
-                        "frontend/src/styles/**",
-                        "frontend/src/types/**",
-                        "frontend/package.json",
-                        "frontend/pnpm-lock.yaml",
-                    ],
-                    "completion_criteria": [
-                        "Dashboard, settings, announcement, backup, and promo-code pages use CRM administration, compliance, billing, and account language.",
-                        "These pages no longer expose relay provider, channel, proxy, model-routing, token-log, or upstream account behavior.",
-                    ],
-                    "priority": 86,
-                },
+                *(
+                    [
+                        {
+                            "title": "Repair final frontend admin dashboard view file",
+                            "description": "Align the admin dashboard page with CRM billing, wallet, metering, customer, and audit semantics.",
+                            "assigned_agent": "frontend",
+                            "relevant_files": [
+                                "frontend/src/views/admin/DashboardView.vue",
+                                "frontend/src/styles/onboarding.css",
+                                "frontend/src/types/index.ts",
+                            ],
+                            "completion_criteria": [
+                                "Dashboard copy and data labels describe CRM billing, wallet, usage metering, customers, and audit operations.",
+                                "The dashboard no longer exposes relay provider, channel, proxy, model-routing, upstream account, or token-log behavior.",
+                            ],
+                            "priority": 86,
+                        },
+                        {
+                            "title": "Repair final frontend admin settings email compliance files",
+                            "description": "Align admin settings, email template, and compliance UI files with CRM administration semantics.",
+                            "assigned_agent": "frontend",
+                            "relevant_files": [
+                                "frontend/src/views/admin/SettingsView.vue",
+                                "frontend/src/views/admin/settings/EmailTemplateEditor.vue",
+                                "frontend/src/components/admin/AdminComplianceDialog.vue",
+                                "frontend/src/styles/onboarding.css",
+                                "frontend/src/types/index.ts",
+                            ],
+                            "completion_criteria": [
+                                "Settings and email/compliance UI use CRM account, billing, notification, compliance, and audit language.",
+                                "Settings surfaces no longer expose relay provider, channel, model-routing, proxy, upstream account, or token-log behavior.",
+                            ],
+                            "priority": 85,
+                        },
+                        {
+                            "title": "Repair final frontend admin announcement backup promo files",
+                            "description": "Align admin announcement, backup, promo-code, and announcement component files with CRM operations semantics.",
+                            "assigned_agent": "frontend",
+                            "relevant_files": [
+                                "frontend/src/views/admin/AnnouncementsView.vue",
+                                "frontend/src/views/admin/BackupView.vue",
+                                "frontend/src/views/admin/PromoCodesView.vue",
+                                "frontend/src/components/admin/announcements/**",
+                                "frontend/src/styles/onboarding.css",
+                                "frontend/src/types/index.ts",
+                            ],
+                            "completion_criteria": [
+                                "Announcement, backup, and promo-code pages describe CRM customer communication, credit, wallet, and operations workflows.",
+                                "These files no longer surface relay provider, channel, proxy, token-log, model-routing, or upstream account language.",
+                            ],
+                            "priority": 84,
+                        },
+                        {
+                            "title": "Repair final frontend admin dashboard settings support files",
+                            "description": "Align support files touched by admin dashboard/settings cleanup without reopening broad admin views.",
+                            "assigned_agent": "frontend",
+                            "relevant_files": [
+                                "frontend/package.json",
+                                "frontend/pnpm-lock.yaml",
+                                "frontend/src/types/index.ts",
+                                "frontend/src/types/payment.ts",
+                                "frontend/src/styles/onboarding.css",
+                            ],
+                            "completion_criteria": [
+                                "Shared support files required by dashboard/settings cleanup compile with CRM billing, wallet, metering, and admin semantics.",
+                                "Package, type, and style support changes do not reintroduce relay/provider/channel/proxy/model-routing product concepts.",
+                            ],
+                            "priority": 83,
+                        },
+                    ]
+                    if split_admin_dashboard_settings
+                    else [
+                        {
+                            "title": "Repair final frontend admin dashboard settings view contracts",
+                            "description": "Align admin dashboard, settings, announcement, backup, and promo-code pages with CRM administration semantics.",
+                            "assigned_agent": "frontend",
+                            "relevant_files": [
+                                "frontend/src/views/admin/DashboardView.vue",
+                                "frontend/src/views/admin/SettingsView.vue",
+                                "frontend/src/views/admin/AnnouncementsView.vue",
+                                "frontend/src/views/admin/BackupView.vue",
+                                "frontend/src/views/admin/PromoCodesView.vue",
+                                "frontend/src/views/admin/settings/**",
+                                "frontend/src/components/admin/announcements/**",
+                                "frontend/src/components/admin/AdminComplianceDialog.vue",
+                                "frontend/src/styles/**",
+                                "frontend/src/types/**",
+                                "frontend/package.json",
+                                "frontend/pnpm-lock.yaml",
+                            ],
+                            "completion_criteria": [
+                                "Dashboard, settings, announcement, backup, and promo-code pages use CRM administration, compliance, billing, and account language.",
+                                "These pages no longer expose relay provider, channel, proxy, model-routing, token-log, or upstream account behavior.",
+                            ],
+                            "priority": 86,
+                        }
+                    ]
+                ),
                 {
                     "title": "Repair final frontend admin user usage redeem view contracts",
                     "description": "Align admin user, usage, and redeem pages with CRM account, wallet, metering, and credit workflows.",
