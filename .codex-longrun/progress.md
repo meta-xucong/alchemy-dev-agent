@@ -2259,3 +2259,12 @@ PY"`
 - Added `test_final_verification_test_fixture_focus_preserves_deep_tail_graph` and strengthened the final-verification state fallback test.
 - Real helper probe generated `final_verification_repair_resume_038.md`, focused `run_attempt_039` / T056, preserved T001-T055, and a graph probe kept T050-T055 completed with T056 pending.
 - Current total-project estimate remains about 99.6%; the next relaunch should finally resume the real T056 tail task without replaying T051 or T006.
+
+## 2026-06-30T06:31:00+08:00 V2.170 Final Test Fixture Timeout Split
+
+- Relaunched after V2.169. `run_attempt_043` correctly preserved T001-T055 and resumed the real T056 `Repair final frontend test and fixture contracts` task in the inherited worktree.
+- T056 timed out after the 900 second worker budget. This time Alchemy behaved correctly: it recorded non-partial blocker `B-T056-1`, did not launch debug or downstream tasks, did not create `run_attempt_044`, and left no residual worker process.
+- Implemented V2.170 in `planner/task_graph_builder.py`: T056 frontend test/fixture timeouts now split into API/integration specs, component/composable specs, view/router/i18n/utility specs, and frontend test config/fixture contracts.
+- Real helper probe generated `final_verification_repair_resume_039.md` from `run_attempt_043`, preserving T001-T055.
+- Real graph probe using `_039` produced a 63-node graph with T056-T059 as the four test/fixture leaf tasks and final audit/simulation/real-check/review pending.
+- Current total-project estimate remains about 99.6%; the next relaunch should start at split T056 API/integration test contracts.

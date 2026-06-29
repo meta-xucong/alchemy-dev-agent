@@ -731,6 +731,9 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             should_split_final_frontend_metering_entitlement_composables_timeout(text)
             or should_preserve_final_frontend_metering_entitlement_composables_split(text)
         )
+        split_frontend_test_fixtures = should_split_final_frontend_test_fixture_timeout(
+            text
+        ) or should_preserve_final_frontend_test_fixture_split(text)
         split_composable_contracts = split_composable_contracts or split_metering_entitlement_composables
         split_state_composable_utility = split_state_composable_utility or split_composable_contracts
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
@@ -814,6 +817,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_state_composable_utility=split_state_composable_utility,
                 split_composable_contracts=split_composable_contracts,
                 split_metering_entitlement_composables=split_metering_entitlement_composables,
+                split_frontend_test_fixtures=split_frontend_test_fixtures,
             )
         )
     return specs
@@ -880,6 +884,49 @@ def should_preserve_final_frontend_deep_tail_split(text: str) -> bool:
             "repair final frontend onboarding quota composables",
         )
     )
+
+
+def should_split_final_frontend_test_fixture_timeout(text: str) -> bool:
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return _has_primary_failed_task_id_in_range(text, 56, 90) and any(
+        marker in text
+        for marker in (
+            "repair final frontend test and fixture contracts",
+            "frontend/src/**/__tests__/**",
+            "frontend/src/**/*.spec.ts",
+            "frontend/tests/**",
+        )
+    )
+
+
+def should_preserve_final_frontend_test_fixture_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend api and integration test contracts",
+            "repair final frontend component and composable test contracts",
+            "repair final frontend view router i18n utility test contracts",
+            "repair final frontend test config and fixture contracts",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "repair final frontend test and fixture contracts",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 56, 90)
 
 
 def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, object]]:
@@ -2039,6 +2086,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_state_composable_utility: bool = False,
     split_composable_contracts: bool = False,
     split_metering_entitlement_composables: bool = False,
+    split_frontend_test_fixtures: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -2300,6 +2348,83 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 90,
     }
+    test_split_tasks = [
+        {
+            "title": "Repair final frontend API and integration test contracts",
+            "description": "Update frontend API and integration specs to assert CRM Billing Core behavior.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/api/__tests__/**",
+                "frontend/src/__tests__/integration/**",
+                "frontend/src/**/*.spec.ts",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "API and integration specs no longer assert retired relay-era API, route, or payload contracts.",
+                "API/integration tests cover CRM identity, wallet, metering, billing, payment, and admin workflows.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final frontend component and composable test contracts",
+            "description": "Update component and composable specs to match the final CRM frontend contracts.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/**/__tests__/**",
+                "frontend/src/components/**/*.spec.ts",
+                "frontend/src/components/**/*.spec.tsx",
+                "frontend/src/composables/__tests__/**",
+                "frontend/src/composables/**/*.spec.ts",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Component and composable specs use CRM account, wallet, metering, connector, entitlement, and audit language.",
+                "Component/composable tests no longer depend on retired provider-channel, proxy, relay, model-routing, or token-log product contracts.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final frontend view router i18n utility test contracts",
+            "description": "Update view, router, i18n, and utility specs after the final CRM frontend contract repair.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/views/**/__tests__/**",
+                "frontend/src/views/**/*.spec.ts",
+                "frontend/src/router/__tests__/**",
+                "frontend/src/i18n/__tests__/**",
+                "frontend/src/utils/__tests__/**",
+                "frontend/src/**/*.spec.tsx",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "View, router, i18n, and utility specs assert CRM Billing Core workflows and copy.",
+                "Tests no longer expose retired relay, channel, proxy, model-routing, or subscription-plan language as product behavior.",
+            ],
+            "priority": 88,
+        },
+        {
+            "title": "Repair final frontend test config and fixture contracts",
+            "description": "Update frontend test fixtures, setup files, and Vitest configuration for the final CRM test suite.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/tests/**",
+                "frontend/src/__tests__/**",
+                "frontend/src/__tests__/setup.ts",
+                "frontend/vitest.config.ts",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Frontend test fixtures and setup helpers use CRM Billing Core domain language.",
+                "Vitest configuration and shared fixtures support the final frontend test contracts without broad product-code edits.",
+            ],
+            "priority": 87,
+        },
+    ]
+    final_test_tasks = test_split_tasks if split_frontend_test_fixtures else [test_task]
     account_component_task = {
         "title": "Repair final frontend account component contracts",
         "description": (
@@ -3338,7 +3463,7 @@ def final_frontend_routes_views_repair_task_specs(
             route_task,
             *component_tasks,
             *(state_split_tasks if split_state_composable_utility else [state_task]),
-            test_task,
+            *final_test_tasks,
         ]
     return [
         route_task,
@@ -3363,7 +3488,7 @@ def final_frontend_routes_views_repair_task_specs(
             "priority": 92,
         },
         *(state_split_tasks if split_state_composable_utility else [state_task]),
-        test_task,
+        *final_test_tasks,
     ]
 
 

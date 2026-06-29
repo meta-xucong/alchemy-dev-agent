@@ -5634,3 +5634,45 @@
 - command: git diff --check
 - result: passed with CRLF normalization warning for `.codex-longrun/state.json`
 - next verification command: commit/push V2.169 and controlled Billing Core final-verification relaunch.
+
+## 2026-06-30T06:31:00+08:00 V2.170 final test fixture timeout split
+
+- command: Billing Core final verification `run_attempt_043` monitoring
+- result: V2.169 worked; the graph preserved T001-T055 and ran real T056. T056 timed out at 900 seconds and Alchemy recorded non-partial blocker `B-T056-1` without debug, downstream dispatch, a new attempt, or residual worker process.
+- next verification command: split T056 into smaller frontend test/fixture leaf tasks.
+
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_test_fixture_focus_preserves_deep_tail_graph -q
+- result: 1 passed
+- next verification command: metering split regression.
+
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_metering_entitlement_composables_timeout_is_split_again -q
+- result: 1 passed
+- next verification command: real Billing Core resume and graph probes.
+
+- command: real `final_verification_resume_repair_documents` probe
+- result: generated `final_verification_repair_resume_039.md` with `Repair attempt: run_attempt_043`, `Primary failed task IDs: T056`, and completed tasks T001 through T055.
+- next verification command: real graph probe.
+
+- command: real graph probe using `final_verification_repair_resume_039.md`
+- result: generated a 63-node graph with T056-T059 split into API/integration tests, component/composable tests, view/router/i18n/utility tests, and test config/fixtures.
+- next verification command: full planner/full-roadmap regressions.
+
+- command: python -B -m pytest tests/test_document_to_plan.py -q
+- result: 62 passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 94 passed
+- next verification command: compileall and diff hygiene.
+
+- command: python -B -m compileall planner autodev tests -q
+- result: passed
+- next verification command: git diff --check, commit/push V2.170, and controlled relaunch.
+
+- command: python -c "import json, pathlib; json.loads(pathlib.Path('.codex-longrun/state.json').read_text(encoding='utf-8-sig')); print('state json ok')"
+- result: state json ok
+- next verification command: git diff --check.
+
+- command: git diff --check
+- result: passed with CRLF normalization warning for `.codex-longrun/state.json`
+- next verification command: commit/push V2.170 and controlled relaunch.

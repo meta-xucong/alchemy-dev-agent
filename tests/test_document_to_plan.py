@@ -3071,7 +3071,11 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T053"]["title"], "Repair final frontend onboarding quota composables")
         self.assertEqual(nodes["T054"]["title"], "Repair final frontend table navigation composables")
         self.assertEqual(nodes["T055"]["title"], "Repair final frontend utility constant type contracts")
-        self.assertEqual(nodes["T056"]["title"], "Repair final frontend test and fixture contracts")
+        self.assertEqual(nodes["T056"]["title"], "Repair final frontend API and integration test contracts")
+        self.assertEqual(nodes["T057"]["title"], "Repair final frontend component and composable test contracts")
+        self.assertEqual(nodes["T058"]["title"], "Repair final frontend view router i18n utility test contracts")
+        self.assertEqual(nodes["T059"]["title"], "Repair final frontend test config and fixture contracts")
+        self.assertEqual(nodes["T060"]["title"], "Audit final requirements and phase evidence")
         self.assertEqual(nodes["T055"]["status"], "completed")
         self.assertNotEqual(nodes["T056"]["status"], "completed")
 
