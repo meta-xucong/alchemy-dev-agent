@@ -2089,3 +2089,13 @@ PY"`
 - Temporary graph probe against copied `run_attempt_026` artifacts shows `final_verification_repair_resume_022.md` preserves T001-T029 and starts at `Repair final frontend admin settings view file`, followed by email template, compliance dialog, settings support, and the remaining final-verification tail through T047.
 - Current total-project estimate is about 99.2%-99.3%; the blocked surface is narrowed to exact-file admin settings/email/compliance cleanup.
 - Next step: commit/push V2.152, relaunch the controlled Billing Core final verification, and monitor T030/T031/T032/T033 without direct Codex Desktop product-code edits.
+
+## 2026-06-29T21:03:00+08:00 V2.153 Final Frontend Admin Email Template Leaf
+
+- Relaunched after V2.152. `final_verification/run_attempt_027` preserved T001-T029, completed T030 `Repair final frontend admin settings view file`, and advanced to T031 `Repair final frontend admin email template editor file`.
+- T031 still timed out after 900 seconds. Alchemy handled the stop boundary correctly: it recorded the timeout, did not launch same-scope debug work, did not dispatch T032, and left no residual Codex worker process.
+- This is a new granularity problem rather than a scheduler regression: the T031 task still allowed `EmailTemplateEditor.vue` plus shared styles/types, which can invite wider search and verification.
+- Implemented V2.153 in `planner/task_graph_builder.py`: focused T031 email-template timeouts preserve T001-T030 and narrow T031 to the single `EmailTemplateEditor.vue` leaf file while leaving shared style/type support to the later support-file task.
+- Added focused document-to-plan coverage plus `docs/162_v2_153_final_frontend_admin_email_template_leaf.md`.
+- Current total-project estimate remains about 99.2%-99.3%; the blocked surface is now a single email-template editor Vue file.
+- Next step: commit/push V2.153, relaunch the controlled Billing Core final verification, and monitor the file-only T031 leaf without direct Codex Desktop product-code edits.

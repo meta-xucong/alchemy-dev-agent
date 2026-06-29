@@ -4918,6 +4918,29 @@
 - result: passed
 - next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
 
+## 2026-06-29T21:03:00+08:00 V2.153 Final frontend admin email-template leaf
+
+- command: Billing Core final verification resume after V2.152
+- result: T030 completed; T031 timed out
+- relevant evidence: `final_verification/run_attempt_027/state.json` preserved T001-T029, completed T030 `Repair final frontend admin settings view file`, then recorded a timeout after T031 `Repair final frontend admin email template editor file` hit the 900 second worker limit with no same-scope debug, no downstream dispatch, and no residual Codex worker process.
+- next verification command: focused email-template leaf regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_settings_email_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_email_template_timeout_uses_file_leaf -q`
+- result: `2 passed`
+- next verification command: five-layer focused split regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_view_page_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_view_page_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_dashboard_settings_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_settings_email_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_email_template_timeout_uses_file_leaf -q`
+- result: `5 passed`
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `54 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `91 passed`
+- next verification command: compileall, diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
+
 ## 2026-06-29T20:34:00+08:00 V2.152 Final frontend admin settings/email/compliance timeout split
 
 - command: Billing Core final verification resume after V2.151

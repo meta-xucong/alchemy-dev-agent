@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_final_frontend_admin_settings_email_timeout_split_v2_152",
+  "current_phase": "billing_core_final_frontend_admin_email_template_leaf_v2_153",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -91,17 +91,23 @@
     "implemented V2.149 final frontend view-page timeout split so Billing Core final verification resumes T029 as admin, user/payment, and auth/public/setup view tasks",
     "implemented V2.150 final frontend admin view-page timeout split so Billing Core final verification resumes T029 as five smaller admin view tasks",
     "implemented V2.151 final frontend admin dashboard/settings timeout split so Billing Core final verification resumes T029 as exact-file and small-file dashboard/settings tasks",
-    "implemented V2.152 final frontend admin settings/email/compliance timeout split so Billing Core final verification resumes T030 as exact-file settings, email template, compliance, and settings support tasks"
+    "implemented V2.152 final frontend admin settings/email/compliance timeout split so Billing Core final verification resumes T030 as exact-file settings, email template, compliance, and settings support tasks",
+    "implemented V2.153 final frontend admin email-template leaf split so Billing Core final verification resumes T031 as EmailTemplateEditor.vue-only work"
   ],
   "next_actions": [
-    "Commit and push V2.152 final frontend admin settings/email/compliance timeout split.",
+    "Commit and push V2.153 final frontend admin email-template leaf split.",
     "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1 using a quoted script path.",
-    "Confirm final_verification_repair_resume_022 preserves T001-T029 and starts at T030 `Repair final frontend admin settings view file` in the inherited worktree.",
-    "Monitor split frontend repair tasks T030/T031/T032/T033/T034/T035/T036/T037/T038/T039/T040/T041/T042/T043/T044/T045/T046/T047; Codex Desktop must not directly implement CRM product changes.",
-    "If an exact-file settings/email/compliance task still times out, prioritize Alchemy worker checkpoint/partial-result support or scoped verification prompt limits before more splitting.",
+    "Confirm the next final-verification repair resume preserves T001-T030 and starts at T031 `Repair final frontend admin email template editor leaf file` in the inherited worktree.",
+    "Monitor split frontend repair tasks T031/T032/T033/T034/T035/T036/T037/T038/T039/T040/T041/T042/T043/T044/T045/T046/T047; Codex Desktop must not directly implement CRM product changes.",
+    "If the EmailTemplateEditor.vue-only task still times out, prioritize Alchemy worker checkpoint/partial-result support or scoped verification prompt limits instead of more file-count splitting.",
     "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
   ],
   "tests_run": [
+    "V2.153: python -B -m pytest tests/test_full_roadmap_execution.py -q => 91 passed",
+    "V2.153: python -B -m pytest tests/test_document_to_plan.py -q => 54 passed",
+    "V2.153: five-layer focused final frontend split regression => 5 passed",
+    "V2.153: focused email-template leaf regression => 2 passed",
+    "V2.153: Billing Core final verification run_attempt_027 => T030 settings view file completed; T031 email template editor file timed out at 900 seconds; Alchemy stopped without debug/retry or downstream dispatch and left no residual worker process",
     "V2.152: git diff --check => passed",
     "V2.152: python -B -m compileall planner tests -q => passed",
     "V2.152: python -B -m pytest tests/test_full_roadmap_execution.py -q => 91 passed",
@@ -766,10 +772,11 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-29T20:34:00+08:00",
+  "last_verified_at": "2026-06-29T21:03:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-29T20:34:00+08:00",
+  "updated_at": "2026-06-29T21:03:00+08:00",
   "known_issues": [
+    "Before V2.153, final verification T031 `Repair final frontend admin email template editor file` could still time out after 900 seconds because shared styles/types were bundled with EmailTemplateEditor.vue; the next resume could replay that wider single-task scope instead of a Vue-file-only leaf.",
     "Before V2.152, final verification T030 `Repair final frontend admin settings email compliance files` could time out after 900 seconds and the next resume would risk replaying SettingsView, EmailTemplateEditor, AdminComplianceDialog, style, and type support together instead of exact-file settings/email/compliance tasks.",
     "Before V2.151, final verification T029 `Repair final frontend admin dashboard settings view contracts` could time out after 900 seconds and the next resume would risk replaying dashboard, settings, announcements, backup, promo, compliance, style, type, and package metadata cleanup as one worker.",
     "Before V2.150, final verification T029 `Repair final frontend admin view page contracts` could time out after 900 seconds and the next resume would risk replaying all admin views and admin components instead of splitting dashboard/settings, user/usage/redeem, payment/order/plan, ops, and legacy admin cleanup surfaces.",
