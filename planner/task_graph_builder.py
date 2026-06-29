@@ -703,10 +703,15 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             or should_preserve_final_frontend_admin_view_page_split(text)
             or split_admin_dashboard_settings
         )
+        split_auth_public_setup_views = (
+            should_split_final_frontend_auth_public_setup_timeout(text)
+            or should_preserve_final_frontend_auth_public_setup_split(text)
+        )
         split_view_pages = (
             should_split_final_frontend_view_page_timeout(text)
             or should_preserve_final_frontend_view_page_split(text)
             or split_admin_view_pages
+            or split_auth_public_setup_views
         )
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
             text
@@ -758,6 +763,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_settings_email_compliance=split_admin_settings_email_compliance,
                 split_admin_email_template_leaf=split_admin_email_template_leaf,
                 split_admin_announcement_backup_promo=split_admin_announcement_backup_promo,
+                split_auth_public_setup_views=split_auth_public_setup_views,
             )
         )
     return specs
@@ -1081,6 +1087,62 @@ def should_preserve_final_frontend_admin_view_page_split(text: str) -> bool:
             "t033",
         )
     ) and _has_primary_failed_task_id_in_range(text, 34, 55)
+
+
+def should_split_final_frontend_auth_public_setup_timeout(text: str) -> bool:
+    focused_auth_public_scope = _has_primary_failed_task_id_in_range(text, 31, 55) and any(
+        marker in text
+        for marker in (
+            "repair final frontend auth public setup view contracts",
+            "frontend/src/views/auth",
+            "frontend/src/views/public",
+            "frontend/src/views/setup",
+            "frontend/src/views/notfoundview.vue",
+            "auth public setup",
+        )
+    )
+    if focused_auth_public_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return "repair final frontend auth public setup view contracts" in text and any(
+        marker in text
+        for marker in (
+            "frontend/src/views/auth",
+            "frontend/src/views/public",
+            "frontend/src/views/setup",
+            "notfoundview",
+        )
+    )
+
+
+def should_preserve_final_frontend_auth_public_setup_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend auth view contracts",
+            "repair final frontend public legal view contracts",
+            "repair final frontend setup and not-found view contracts",
+            "repair final frontend auth public setup support files",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "repair final frontend state composable utility contracts",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 45, 60)
 
 
 def should_split_final_frontend_admin_dashboard_settings_timeout(text: str) -> bool:
@@ -1722,6 +1784,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_settings_email_compliance: bool = False,
     split_admin_email_template_leaf: bool = False,
     split_admin_announcement_backup_promo: bool = False,
+    split_auth_public_setup_views: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -2721,26 +2784,89 @@ def final_frontend_routes_views_repair_task_specs(
             ],
             "priority": 85,
         },
-        {
-            "title": "Repair final frontend auth public setup view contracts",
-            "description": "Align auth, public legal, setup, and not-found view pages with the final CRM product boundary.",
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/views/auth/**",
-                "frontend/src/views/public/**",
-                "frontend/src/views/setup/**",
-                "frontend/src/views/NotFoundView.vue",
-                "frontend/src/styles/**",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Auth, public, setup, and not-found views use CRM product, account, compliance, and onboarding language.",
-                "Residual relay/API gateway/provider/channel/token-log copy is removed or quarantined from public product behavior.",
-            ],
-            "priority": 84,
-        },
+        *(
+            [
+                {
+                    "title": "Repair final frontend auth view contracts",
+                    "description": "Align login, registration, session, and account access views with the final CRM identity boundary.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/auth/**",
+                    ],
+                    "completion_criteria": [
+                        "Auth views describe CRM account identity, onboarding, access, and compliance flows.",
+                        "Auth views no longer surface relay/API gateway/provider/channel/token-log product behavior.",
+                    ],
+                    "priority": 84,
+                },
+                {
+                    "title": "Repair final frontend public legal view contracts",
+                    "description": "Align public legal, marketing, and policy views with CRM billing and compliance semantics.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/public/**",
+                    ],
+                    "completion_criteria": [
+                        "Public pages describe a CRM identity, billing, wallet, metering, payment, and compliance platform.",
+                        "Public pages no longer present relay, provider-channel, proxy, model-routing, or token-log behavior.",
+                    ],
+                    "priority": 83,
+                },
+                {
+                    "title": "Repair final frontend setup and not-found view contracts",
+                    "description": "Align setup and not-found pages with CRM onboarding, recovery, and product boundary semantics.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/setup/**",
+                        "frontend/src/views/NotFoundView.vue",
+                    ],
+                    "completion_criteria": [
+                        "Setup and not-found pages use CRM onboarding, account, billing, and support language.",
+                        "Setup and not-found pages no longer expose relay/API gateway/provider/channel/token-log copy.",
+                    ],
+                    "priority": 82,
+                },
+                {
+                    "title": "Repair final frontend auth public setup support files",
+                    "description": "Align shared support files touched by auth, public, setup, and not-found view cleanup.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/styles/**",
+                        "frontend/src/types/**",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Support files compile with CRM auth, onboarding, billing, and compliance view semantics.",
+                        "Support files do not reintroduce relay/API gateway/provider/channel/token-log product concepts.",
+                    ],
+                    "priority": 81,
+                },
+            ]
+            if split_auth_public_setup_views
+            else [
+                {
+                    "title": "Repair final frontend auth public setup view contracts",
+                    "description": "Align auth, public legal, setup, and not-found view pages with the final CRM product boundary.",
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/views/auth/**",
+                        "frontend/src/views/public/**",
+                        "frontend/src/views/setup/**",
+                        "frontend/src/views/NotFoundView.vue",
+                        "frontend/src/styles/**",
+                        "frontend/src/types/**",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Auth, public, setup, and not-found views use CRM product, account, compliance, and onboarding language.",
+                        "Residual relay/API gateway/provider/channel/token-log copy is removed or quarantined from public product behavior.",
+                    ],
+                    "priority": 84,
+                }
+            ]
+        ),
     ]
     if split_view_components:
         component_tasks = [

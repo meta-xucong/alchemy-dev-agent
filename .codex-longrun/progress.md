@@ -2170,3 +2170,20 @@ PY"`
 - Implemented V2.161 in utodev/full_roadmap_executor.py: when a failed debug task is mapped back to a parent task, completed dependency-chain tasks for that parent are protected from reopen pruning. Ordinary non-debug later-failure reopen behavior remains covered by regression.
 - Real report probe now computes Primary failed task IDs: T042 and preserves T001-T041.
 - Current total-project estimate remains about 99.4%; next relaunch should reject stale _029, write a newer T042-focused resume, and create the next final-verification attempt.
+
+## 2026-06-30T01:25:00+08:00 V2.161 Relaunch Path Verification
+
+- A hidden Start-Process relaunch initially exited before Alchemy could run because Windows PowerShell split the spaced `D:\AI\Alchemy Dev Agent System\...resume_v2_88_supervised_probe.ps1` path at `D:\AI\Alchemy`.
+- Relaunched the same script through PowerShell `-EncodedCommand`; this correctly started `python -B -m autodev.run` from the Alchemy project and preserved the inherited Billing Core worktree.
+- Alchemy generated `final_verification_repair_resume_030.md` with Primary failed task IDs: T042 and Completed tasks to preserve: T001 through T041, then created `final_verification/run_attempt_034`.
+- `run_attempt_034` resumed with 41/51 nodes completed and active T042. T042 completed successfully without another boundary violation and the graph advanced to active T043.
+- Current total-project estimate is still about 99.4%, but the final-verification tail has advanced from 41/51 to 42/51 completed.
+
+## 2026-06-30T02:03:00+08:00 V2.162 Final Auth Public Setup Split
+
+- `run_attempt_034` completed T043 inside the V2.158 bounded grace window and advanced final verification to 43/51 completed.
+- T044 `Repair final frontend auth public setup view contracts` timed out at the base 900 second budget without grace. Alchemy behaved correctly: it recorded non-partial blocker `B-T044-1`, did not launch `T044-DEBUG-1`, did not dispatch T045, and left no residual real worker process.
+- Implemented V2.162 in `planner/task_graph_builder.py`: focused T044 auth/public/setup view timeouts now split into auth views, public legal views, setup/not-found views, and support-file tasks.
+- Added `test_final_verification_auth_public_setup_timeout_is_split_again` and documented the change in `docs/171_v2_162_auth_public_setup_split.md`.
+- Generated `final_verification_repair_resume_031.md` from the real final-verification report. A graph probe now preserves T040-T043 and starts the next editable work at split T044 `Repair final frontend auth view contracts`.
+- Current total-project estimate remains about 99.4%-99.5%; final-verification tail is 43/51 completed before the split, and the next graph expands to a smaller 54-node tail with T044-T047 replacing the old broad T044.

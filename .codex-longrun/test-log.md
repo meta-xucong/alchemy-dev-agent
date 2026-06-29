@@ -5353,6 +5353,44 @@
 - result: 56 passed
 - next verification command: diff check, state validation, commit/push, and controlled Billing Core final-verification relaunch.
 
+## 2026-06-30T01:25:00+08:00 V2.161 Relaunch verification
+
+- command: hidden PowerShell relaunch through `Start-Process ... -File <resume_v2_88_supervised_probe.ps1>`
+- result: failed before Alchemy execution because PowerShell split the spaced script path at `D:\AI\Alchemy`; no new resume or attempt was created.
+- fix attempted: relaunched with PowerShell `-EncodedCommand` invoking the same script path.
+- result: passed; `final_verification_repair_resume_030.md` and `run_attempt_034` were created, the graph resumed at T042 with T001-T041 preserved, and T042 completed successfully.
+- next verification command: monitor T043-T051 through `run_attempt_034` and intervene only if Alchemy scheduling, boundary, timeout, or environment behavior regresses.
+
+## 2026-06-30T02:03:00+08:00 V2.162 auth/public/setup timeout split
+
+- command: Billing Core final verification `run_attempt_034` monitoring
+- result: T043 completed inside bounded timeout grace; T044 timed out at 900 seconds, recorded non-partial blocker `B-T044-1`, and did not create a same-scope debug task.
+- next verification command: focused T044 auth/public/setup split regression.
+
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_auth_public_setup_timeout_is_split_again -q
+- result: 1 passed
+- next verification command: compileall and adjacent final-frontend split regressions.
+
+- command: python -B -m compileall planner tests -q
+- result: passed
+- next verification command: adjacent final-frontend split regressions.
+
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_view_page_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_dashboard_settings_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_settings_email_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_announcement_backup_promo_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_auth_public_setup_timeout_is_split_again -q
+- result: 5 passed
+- next verification command: full document-to-plan and full-roadmap suites.
+
+- command: python -B -m pytest tests/test_document_to_plan.py -q
+- result: 57 passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 92 passed
+- next verification command: commit/push V2.162, relaunch controlled final verification, and monitor split T044.
+
+- command: Alchemy helper probe generated `final_verification_repair_resume_031.md` and built a graph from it
+- result: T040-T043 remained completed; T044-T047 became auth, public legal, setup/not-found, and support-file tasks; T048+ continued the final verification tail.
+- next verification command: controlled relaunch through PowerShell `-EncodedCommand`.
+
 ## 2026-06-30T01:08:29+08:00 V2.161 Debug parent dependency preservation
 
 - command: Real Billing Core final-verification report probe using phase_focused_repair_lines
