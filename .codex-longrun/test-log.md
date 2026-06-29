@@ -4918,6 +4918,29 @@
 - result: passed
 - next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
 
+## 2026-06-29T22:53:00+08:00 V2.157 Single-file final frontend leaf prompt budget
+
+- command: Billing Core final verification resume after V2.156
+- result: T034-T035 completed; T036 timed out
+- relevant evidence: `final_verification/run_attempt_031/state.json` completed announcements view and backup view, then T036 `Repair final frontend admin promo codes view file` timed out at 900 seconds as a single-file task.
+- next verification command: focused worker prompt regression.
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_worker_prompt_limits_single_file_final_frontend_leaf_verification tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_drifted_promo_task_reopens_announcement_split -q`
+- result: `2 passed`
+- next verification command: full runtime suite.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `143 passed`
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `56 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `91 passed`
+- next verification command: compileall, diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
+
 ## 2026-06-29T22:09:00+08:00 V2.156 Final frontend drifted promo recovery
 
 - command: Billing Core final verification resume after V2.155

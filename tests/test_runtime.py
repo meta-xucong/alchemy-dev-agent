@@ -264,6 +264,20 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertIn("already populated `GOMODCACHE`", prompt)
         self.assertIn("Do not launch multiple parallel `go test` processes", prompt)
 
+    def test_worker_prompt_limits_single_file_final_frontend_leaf_verification(self) -> None:
+        prompt = CodexWorkerAdapter().build_prompt(
+            CodexWorkerInput(
+                task_id="T036",
+                goal="Repair final frontend admin promo codes view file",
+                allowed_files=["frontend/src/views/admin/PromoCodesView.vue"],
+            )
+        )
+
+        self.assertIn("single-file final frontend repair tasks", prompt)
+        self.assertIn("keep verification file-local", prompt)
+        self.assertIn("Do not run broad frontend", prompt)
+        self.assertIn("later final real repository checks", prompt)
+
     def test_worker_prompt_includes_output_budget_hygiene(self) -> None:
         prompt = CodexWorkerAdapter().build_prompt(
             CodexWorkerInput(

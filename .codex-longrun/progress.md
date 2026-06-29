@@ -2128,3 +2128,12 @@ PY"`
 - Added a focused regression matching `final_verification_repair_resume_025.md`; it now reopens T034 as announcements view, then backup view, promo-code view, and announcement component/support files.
 - Current total-project estimate remains about 99.3%; the blocker is still Alchemy resume graph correctness until the next relaunch proves T034 starts at announcements view.
 - Next step: commit/push V2.156, relaunch, and verify T034 is `Repair final frontend admin announcements view file`.
+
+## 2026-06-29T22:53:00+08:00 V2.157 Single-File Final Frontend Leaf Prompt Budget
+
+- Relaunched after V2.156. `final_verification/run_attempt_031` confirmed the corrected graph: T034 announcements view completed, T035 backup view completed, and T036 promo-code view ran as a single-file task.
+- T036 still timed out after 900 seconds. Alchemy handled the stop boundary correctly, but this is no longer a file-count split problem.
+- Implemented V2.157 in `runtime/codex_worker.py`: worker prompts now explicitly keep single-file final frontend repair tasks file-local and prohibit broad frontend typecheck/build/test commands unless explicitly requested by the task package.
+- Added a focused prompt regression in `tests/test_runtime.py`.
+- Current total-project estimate remains about 99.3%; the next relaunch should test whether tighter single-file worker instructions let T036 finish.
+- Next step: commit/push V2.157, relaunch, and monitor T036 under the tighter prompt.
