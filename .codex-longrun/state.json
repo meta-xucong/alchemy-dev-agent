@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_usage_limit_false_positive_repair_resume_preservation_v2_143",
+  "current_phase": "billing_core_final_frontend_admin_user_create_edit_timeout_split_v2_144",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -82,17 +82,24 @@
     "implemented V2.140 final frontend admin account timeout split so Billing Core final verification resumes T011 as account table, account modal, user account, user balance quota, and announcement compliance tasks",
     "implemented V2.141 final frontend admin account modal timeout split so Billing Core final verification resumes T012 as single-file account test, import, reauth, and scheduled tests panel tasks",
     "implemented V2.142 final frontend admin user account timeout split so Billing Core final verification resumes T016 as smaller access group, API key, and create/edit tasks",
-    "implemented V2.143 usage-limit false-positive and repair-resume preservation hardening so Billing Core final verification can resume T017 without collapsing completed split tasks"
+    "implemented V2.143 usage-limit false-positive and repair-resume preservation hardening so Billing Core final verification can resume T017 without collapsing completed split tasks",
+    "implemented V2.144 final frontend admin user create/edit timeout split so Billing Core final verification resumes T018 as separate create-modal and edit-modal tasks"
   ],
   "next_actions": [
-    "Commit and push V2.143 usage-limit false-positive and repair-resume preservation hardening.",
+    "Commit and push V2.144 final frontend admin user create/edit timeout split.",
     "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1 using a quoted script path.",
-    "Confirm final_verification_repair_resume_013 preserves T001-T016 and starts at T017 `Repair final frontend admin user API key component` in the inherited worktree.",
-    "Monitor split frontend repair tasks T017/T018/T019/T020/T021/T022/T023/T024/T025/T026/T027/T028; Codex Desktop must not directly implement CRM product changes.",
+    "Confirm final_verification_repair_resume_014 preserves T001-T017 and starts at T018 `Repair final frontend admin user create modal component` in the inherited worktree.",
+    "Monitor split frontend repair tasks T018/T019/T020/T021/T022/T023/T024/T025/T026/T027/T028/T029/T030/T031/T032; Codex Desktop must not directly implement CRM product changes.",
     "If a split frontend task still times out without evidence, optimize Alchemy worker heartbeat/checkpointing or split the task further before relaunch.",
     "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
   ],
   "tests_run": [
+    "temporary real Billing Core final-verification resume graph probe after run_attempt_018 => passed; generated final_verification_repair_resume_014.md in a temp copy, preserved T001-T017, and starts at T018 Repair final frontend admin user create modal component followed by T019 Repair final frontend admin user edit modal component",
+    "git diff --check => passed",
+    "python -B -m compileall planner tests -q => passed",
+    "python -B -m pytest tests/test_document_to_plan.py -q => 46 passed",
+    "V2.144: python -B -m pytest tests/test_full_roadmap_execution.py -q => 91 passed",
+    "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_user_create_edit_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_user_api_key_blocker_preserves_split_tail -q => 2 passed",
     "python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_usage_limit_jsonl_blocks_without_parse_retry tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_usage_limit_text_inside_successful_jsonl_output tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_product_usage_limits_text_before_worker_json tests/test_runtime.py::OrchestratorTests::test_worker_usage_limit_blocks_without_debug_retry tests/test_runtime.py::OrchestratorTests::test_worker_raw_usage_limit_context_does_not_become_environment_blocker -q => 5 passed",
     "python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_distinguishes_technical_and_environment_blockers tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_repair_completed_task_preservation_ignores_blocked_worker_raw_output_paths -q => 2 passed",
     "python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_user_api_key_blocker_preserves_split_tail tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_user_account_timeout_is_split_again -q => 2 passed",
@@ -696,10 +703,11 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-29T09:32:00+08:00",
+  "last_verified_at": "2026-06-29T10:58:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-29T09:32:00+08:00",
+  "updated_at": "2026-06-29T10:58:00+08:00",
   "known_issues": [
+    "Before V2.144, final verification T018 `Repair final frontend admin user create edit components` could time out after 900 seconds and the next resume would risk replaying the same two-modal admin user worker instead of splitting create and edit modal scopes.",
     "Before V2.143, ordinary product/source text containing `usage limits` could be misclassified as a Codex CLI usage-limit blocker, and repair resume generation could reopen completed split tasks by extracting paths from broad raw worker output.",
     "Before V2.142, final verification T016 `Repair final frontend admin user account components` could time out after 900 seconds and the next resume would risk replaying the same multi-modal admin user account worker instead of splitting group/access, API key, and create/edit scopes.",
     "Before V2.141, final verification T012 `Repair final frontend admin account modal components` could time out after 900 seconds and the next resume would risk replaying the same four-file modal worker instead of splitting AccountTestModal, ImportDataModal, ReAuthAccountModal, and ScheduledTestsPanel scopes.",

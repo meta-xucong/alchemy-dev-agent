@@ -1985,3 +1985,14 @@ PY"`
 - Added focused runtime, full-roadmap, and document-to-plan regressions, plus `docs/152_v2_143_usage_limit_false_positive_repair_resume_preservation.md`.
 - Temporary graph probe against a copied real final-verification output shows `final_verification_repair_resume_013.md` preserves T001-T016 and starts at `Repair final frontend admin user API key component`.
 - Next step: commit/push V2.143, relaunch the controlled Billing Core final verification, and monitor T017 without direct Codex Desktop product-code edits.
+
+## 2026-06-29T10:58:00+08:00 V2.144 Final Frontend Admin User Create/Edit Timeout Split
+
+- Relaunched after V2.143. `final_verification/run_attempt_018` preserved T001-T016, completed T017 `Repair final frontend admin user API key component`, and advanced to T018.
+- T018 `Repair final frontend admin user create edit components` still bundled both user create and edit modal surfaces and timed out after 900 seconds.
+- Alchemy handled the timeout boundary correctly: it recorded `B-T018-1`, stopped the run, did not launch same-scope debug work, and did not dispatch downstream T019.
+- Implemented V2.144 in `planner/task_graph_builder.py`: focused T018 create/edit timeout resumes preserve T001-T017 and split the work into separate create-modal and edit-modal tasks before continuing the admin user/front-end tail.
+- Added focused document-to-plan coverage plus `docs/153_v2_144_final_frontend_admin_user_create_edit_timeout_split.md`.
+- Temporary graph probe against copied `run_attempt_018` artifacts shows `final_verification_repair_resume_014.md` preserves T001-T017 and starts at `Repair final frontend admin user create modal component`, followed by `Repair final frontend admin user edit modal component`.
+- Current total-project estimate remains about 97.5%; the final-verification subgraph is mechanically 17/32 completed, but this subgraph represents the final delivery/verification tail rather than the whole CRM extraction project.
+- Next step: commit/push V2.144, relaunch the controlled Billing Core final verification, and monitor split T018 without direct Codex Desktop product-code edits.

@@ -664,9 +664,13 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
             text
         ) or should_preserve_final_frontend_api_i18n_split(text)
+        split_admin_user_create_edit = should_split_final_frontend_admin_user_create_edit_timeout(
+            text
+        ) or should_preserve_final_frontend_admin_user_create_edit_split(text)
         split_admin_user_account = (
             should_split_final_frontend_admin_user_account_timeout(text)
             or should_preserve_final_frontend_admin_user_account_split(text)
+            or split_admin_user_create_edit
         )
         split_admin_account_modal = (
             should_split_final_frontend_admin_account_modal_timeout(text)
@@ -698,6 +702,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_account_identity=split_admin_account_identity,
                 split_admin_account_modal=split_admin_account_modal,
                 split_admin_user_account=split_admin_user_account,
+                split_admin_user_create_edit=split_admin_user_create_edit,
             )
         )
     return specs
@@ -1066,6 +1071,62 @@ def should_preserve_final_frontend_admin_user_account_split(text: str) -> bool:
     ) and _has_primary_failed_task_id_in_range(text, 19, 32)
 
 
+def should_split_final_frontend_admin_user_create_edit_timeout(text: str) -> bool:
+    focused_create_edit_scope = _has_primary_failed_task_id_in_range(text, 18, 19) and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin user create edit components",
+            "repair final frontend admin user create modal component",
+            "repair final frontend admin user edit modal component",
+            "usercreatemodal",
+            "usereditmodal",
+        )
+    )
+    if focused_create_edit_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return all(
+        marker in text
+        for marker in (
+            "primary failed task ids: t018",
+            "admin",
+            "user",
+            "create",
+            "edit",
+            "component",
+        )
+    )
+
+
+def should_preserve_final_frontend_admin_user_create_edit_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend admin user create modal component",
+            "repair final frontend admin user edit modal component",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t018",
+            "t019",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 20, 32)
+
+
 def _has_primary_failed_task_id_in_range(text: str, start: int, end: int) -> bool:
     return any(f"primary failed task ids: t{index:03d}" in text for index in range(start, end + 1))
 
@@ -1078,6 +1139,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_account_identity: bool = False,
     split_admin_account_modal: bool = False,
     split_admin_user_account: bool = False,
+    split_admin_user_create_edit: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1359,6 +1421,57 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 89,
     }
+    admin_user_create_edit_task = {
+        "title": "Repair final frontend admin user create edit components",
+        "description": "Align admin user create and edit modals with CRM identity lifecycle and account administration semantics.",
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/admin/user/UserCreateModal.vue",
+            "frontend/src/components/admin/user/UserEditModal.vue",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Admin user create/edit modals use CRM identity lifecycle, account administration, and audit language.",
+            "Create/edit component contracts no longer expose relay provider, proxy, token-log, or model-routing behavior.",
+        ],
+        "priority": 87,
+    }
+    admin_user_create_edit_split_tasks = [
+        {
+            "title": "Repair final frontend admin user create modal component",
+            "description": "Align the admin user creation modal with CRM identity lifecycle and account onboarding semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/user/UserCreateModal.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "UserCreateModal uses CRM identity lifecycle, account onboarding, and audit language.",
+                "Create modal contracts no longer expose relay provider, proxy, token-log, or model-routing behavior.",
+            ],
+            "priority": 87,
+        },
+        {
+            "title": "Repair final frontend admin user edit modal component",
+            "description": "Align the admin user edit modal with CRM identity lifecycle and account administration semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/user/UserEditModal.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "UserEditModal uses CRM identity lifecycle, account administration, and audit language.",
+                "Edit modal contracts no longer expose relay provider, proxy, token-log, or model-routing behavior.",
+            ],
+            "priority": 86,
+        },
+    ]
     admin_user_account_split_tasks = [
         {
             "title": "Repair final frontend admin user access group components",
@@ -1393,23 +1506,7 @@ def final_frontend_routes_views_repair_task_specs(
             ],
             "priority": 88,
         },
-        {
-            "title": "Repair final frontend admin user create edit components",
-            "description": "Align admin user create and edit modals with CRM identity lifecycle and account administration semantics.",
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/components/admin/user/UserCreateModal.vue",
-                "frontend/src/components/admin/user/UserEditModal.vue",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Admin user create/edit modals use CRM identity lifecycle, account administration, and audit language.",
-                "Create/edit component contracts no longer expose relay provider, proxy, token-log, or model-routing behavior.",
-            ],
-            "priority": 87,
-        },
+        *(admin_user_create_edit_split_tasks if split_admin_user_create_edit else [admin_user_create_edit_task]),
     ]
     admin_account_identity_split_tasks = [
         admin_account_table_task,
