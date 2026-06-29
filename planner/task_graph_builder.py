@@ -664,7 +664,11 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
             text
         ) or should_preserve_final_frontend_api_i18n_split(text)
-        split_admin_account_modal = should_split_final_frontend_admin_account_modal_timeout(text)
+        split_admin_user_account = should_split_final_frontend_admin_user_account_timeout(text)
+        split_admin_account_modal = (
+            should_split_final_frontend_admin_account_modal_timeout(text)
+            or split_admin_user_account
+        )
         split_admin_account_identity = (
             should_split_final_frontend_admin_account_identity_timeout(text)
             or split_admin_account_modal
@@ -690,6 +694,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_components=split_admin_components,
                 split_admin_account_identity=split_admin_account_identity,
                 split_admin_account_modal=split_admin_account_modal,
+                split_admin_user_account=split_admin_user_account,
             )
         )
     return specs
@@ -750,6 +755,7 @@ def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
             "primary failed task ids: t013",
             "primary failed task ids: t014",
             "primary failed task ids: t015",
+            "primary failed task ids: t016",
         )
     )
 
@@ -913,6 +919,7 @@ def should_preserve_final_frontend_view_component_split(text: str) -> bool:
             "primary failed task ids: t013",
             "primary failed task ids: t014",
             "primary failed task ids: t015",
+            "primary failed task ids: t016",
         )
     )
 
@@ -1017,6 +1024,42 @@ def should_split_final_frontend_admin_account_modal_timeout(text: str) -> bool:
     )
 
 
+def should_split_final_frontend_admin_user_account_timeout(text: str) -> bool:
+    focused_user_account_scope = "primary failed task ids: t016" in text and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin user account components",
+            "groupreplacemodal",
+            "userallowedgroupsmodal",
+            "userapikeysmodal",
+            "usercreatemodal",
+            "usereditmodal",
+        )
+    )
+    if focused_user_account_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return all(
+        marker in text
+        for marker in (
+            "primary failed task ids: t016",
+            "admin",
+            "user",
+            "account",
+            "component",
+        )
+    )
+
+
 def final_frontend_routes_views_repair_task_specs(
     *,
     split: bool,
@@ -1024,6 +1067,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_components: bool = False,
     split_admin_account_identity: bool = False,
     split_admin_account_modal: bool = False,
+    split_admin_user_account: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1283,19 +1327,67 @@ def final_frontend_routes_views_repair_task_specs(
             "priority": 87,
         },
     ]
-    admin_account_identity_split_tasks = [
-        admin_account_table_task,
-        *(admin_account_modal_split_tasks if split_admin_account_modal else [admin_account_modal_task]),
+    admin_user_account_task = {
+        "title": "Repair final frontend admin user account components",
+        "description": (
+            "Align admin user account, group, API key, create, and edit modals with CRM identity and access-management semantics."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/admin/user/GroupReplaceModal.vue",
+            "frontend/src/components/admin/user/UserAllowedGroupsModal.vue",
+            "frontend/src/components/admin/user/UserApiKeysModal.vue",
+            "frontend/src/components/admin/user/UserCreateModal.vue",
+            "frontend/src/components/admin/user/UserEditModal.vue",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Admin user account modals use CRM identity, access control, account, and audit language.",
+            "User account component contracts no longer expose relay provider, proxy, token-log, or model-routing product concepts.",
+        ],
+        "priority": 89,
+    }
+    admin_user_account_split_tasks = [
         {
-            "title": "Repair final frontend admin user account components",
-            "description": (
-                "Align admin user account, group, API key, create, and edit modals with CRM identity and access-management semantics."
-            ),
+            "title": "Repair final frontend admin user access group components",
+            "description": "Align admin user group replacement and allowed-group modals with CRM account access control semantics.",
             "assigned_agent": "frontend",
             "relevant_files": [
                 "frontend/src/components/admin/user/GroupReplaceModal.vue",
                 "frontend/src/components/admin/user/UserAllowedGroupsModal.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin user group modals use CRM access-control, account, and audit language.",
+                "Group access component contracts no longer expose relay provider, proxy, token-log, or model-routing behavior.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final frontend admin user API key component",
+            "description": "Align the admin user API key modal with CRM integration credential and audit semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
                 "frontend/src/components/admin/user/UserApiKeysModal.vue",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "UserApiKeysModal uses CRM integration credential, account, and audit language.",
+                "API key component contracts no longer present relay provider, proxy, token-log, or model-routing concepts as product behavior.",
+            ],
+            "priority": 88,
+        },
+        {
+            "title": "Repair final frontend admin user create edit components",
+            "description": "Align admin user create and edit modals with CRM identity lifecycle and account administration semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
                 "frontend/src/components/admin/user/UserCreateModal.vue",
                 "frontend/src/components/admin/user/UserEditModal.vue",
                 "frontend/src/types/**",
@@ -1303,11 +1395,16 @@ def final_frontend_routes_views_repair_task_specs(
                 "frontend/pnpm-lock.yaml",
             ],
             "completion_criteria": [
-                "Admin user account modals use CRM identity, access control, account, and audit language.",
-                "User account component contracts no longer expose relay provider, proxy, token-log, or model-routing product concepts.",
+                "Admin user create/edit modals use CRM identity lifecycle, account administration, and audit language.",
+                "Create/edit component contracts no longer expose relay provider, proxy, token-log, or model-routing behavior.",
             ],
-            "priority": 89,
+            "priority": 87,
         },
+    ]
+    admin_account_identity_split_tasks = [
+        admin_account_table_task,
+        *(admin_account_modal_split_tasks if split_admin_account_modal else [admin_account_modal_task]),
+        *(admin_user_account_split_tasks if split_admin_user_account else [admin_user_account_task]),
         {
             "title": "Repair final frontend admin user balance quota components",
             "description": (

@@ -1962,3 +1962,14 @@ PY"`
 - Added focused document-to-plan and full-roadmap regressions, plus `docs/150_v2_141_final_frontend_admin_account_modal_timeout_split.md`.
 - Generated real `final_verification_repair_resume_011.md`; graph probe shows T001-T011 preserved completed and T012 starting at `Repair final frontend admin account test modal component`.
 - Next step: commit/push V2.141, relaunch the controlled Billing Core final verification, and monitor the single-file T012 task.
+
+## 2026-06-29T08:44:00+08:00 V2.142 Final Frontend Admin User Account Timeout Split
+
+- Relaunched after V2.141. `final_verification/run_attempt_016` preserved T001-T011, completed T012 through T015 from the new account-modal split, and advanced to T016.
+- T012, T013, T014, and T015 produced useful product progress in the inherited worktree and completed without timeout, confirming the V2.141 split was effective.
+- T016 `Repair final frontend admin user account components` was still too broad: it bundled group replacement, allowed groups, API keys, create, and edit modals, then timed out after 900 seconds.
+- Alchemy handled the timeout correctly: it preserved T001-T015, recorded `B-T016-1`, stopped the run, and did not dispatch downstream T017 or same-scope debug work.
+- Implemented V2.142 in `planner/task_graph_builder.py`: repeated T016 admin user account timeout resumes now split into access group, API key, and create/edit component tasks.
+- Added focused document-to-plan and full-roadmap regressions, plus `docs/151_v2_142_final_frontend_admin_user_account_timeout_split.md`.
+- Temporary graph probe against a copied real final-verification output shows `final_verification_repair_resume_012.md` preserves T001-T015 and starts at `Repair final frontend admin user access group components`.
+- Next step: commit/push V2.142, relaunch the controlled Billing Core final verification, and monitor the split T016 task.
