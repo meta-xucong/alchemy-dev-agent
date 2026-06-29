@@ -5299,3 +5299,34 @@
 - command: python -B -m pytest tests/test_full_roadmap_execution.py -q
 - result: 91 passed
 - next verification command: diff check, state validation, commit/push, and controlled Billing Core final-verification relaunch.
+
+## 2026-06-30T00:52:54+08:00 V2.159 Boundary violation stop
+
+- command: Billing Core final verification un_attempt_033 monitoring after V2.158
+- result: T041 completed inside progress grace; T042 failed by allowed-files boundary audit; T042-DEBUG-1 was operator-stopped before further same-scope token spend.
+- relevant evidence: T042 changed out-of-scope rontend/src/views/admin/UsersView.vue and rontend/src/views/admin/apiKeyGroupFilterOptions.ts; Alchemy rolled back offending changes.
+- next verification command: focused orchestrator boundary-violation regression.
+
+- command: python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_boundary_violation_records_blocker_without_debug_task tests/test_runtime.py::OrchestratorTests::test_worker_timeout_records_blocker_without_debug_task tests/test_runtime.py::OrchestratorTests::test_partial_result_raw_timeout_instruction_does_not_record_timeout_blocker -q
+- result: 3 passed
+- next verification command: compileall, full-roadmap, and runtime regression.
+
+- command: python -B -m compileall runtime tests -q
+- result: passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 91 passed
+- next verification command: full runtime regression.
+
+- command: python -B -m pytest tests/test_runtime.py -q while another suite was running in parallel
+- result: failed once in 	est_real_worker_allows_filename_glob_scope; the same test passed in isolation, indicating test-environment interference rather than the V2.159 change.
+- next verification command: rerun full runtime suite alone.
+
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_allows_filename_glob_scope -q
+- result: 1 passed
+- next verification command: python -B -m pytest tests/test_runtime.py -q
+
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 144 passed
+- next verification command: diff check, state validation, commit/push, and controlled Billing Core final-verification relaunch.

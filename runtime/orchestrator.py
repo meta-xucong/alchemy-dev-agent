@@ -662,6 +662,24 @@ class Orchestrator:
             )
             return
 
+        if _worker_result_boundary_violation(result):
+            self._record_blocker(
+                state,
+                task,
+                (
+                    f"{task.id} modified files outside allowed_files. Stop instead of launching a same-scope "
+                    "debug task; split the task or expand the task boundary before retrying."
+                ),
+                blocker_type="technical_limit",
+            )
+            self._record_history(
+                state,
+                "worker_boundary_blocker",
+                f"{task.id} blocked after an out-of-scope file boundary violation.",
+                task.id,
+            )
+            return
+
         if not self.graph_engine.can_retry(task):
             self._record_blocker(
                 state,
@@ -1445,6 +1463,25 @@ def _worker_result_timed_out(result: CodexWorkerResult | dict | None) -> bool:
         "timed out after",
     )
     return any(marker in text for marker in timeout_markers)
+
+
+def _worker_result_boundary_violation(result: CodexWorkerResult | dict | None) -> bool:
+    if result is None:
+        return False
+
+    if isinstance(result, CodexWorkerResult):
+        text_values: list[object] = [result.summary, *result.known_issues]
+    elif isinstance(result, dict):
+        text_values = [result.get("summary", ""), result.get("known_issues", [])]
+    else:
+        return False
+
+    text = "\n".join(fragment.lower() for value in text_values for fragment in _value_text_fragments(value))
+    return (
+        "outside the task boundary" in text
+        or "out-of-scope files changed" in text
+        or "outside allowed_files" in text
+    )
 
 
 def _worker_result_environment_blocker_summary(result: CodexWorkerResult | dict | None) -> str:

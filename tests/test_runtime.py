@@ -2667,6 +2667,62 @@ class OrchestratorTests(unittest.TestCase):
         self.assertFalse(state.blockers[0]["can_continue_partially"])
         self.assertTrue(any(event["type"] == "worker_timeout_blocker" for event in state.iteration_history))
 
+    def test_boundary_violation_records_blocker_without_debug_task(self) -> None:
+        class BoundaryViolationWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="failed",
+                    summary="Codex worker modified files outside the task boundary; offending changes were rolled back.",
+                    files_changed=["src/allowed.py", "src/out_of_scope.py"],
+                    known_issues=[
+                        "Out-of-scope files changed: src/out_of_scope.py",
+                        "Allowed files: src/allowed.py",
+                    ],
+                )
+
+        graph = TaskGraph(
+            graph_id="boundary-violation-stop",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T010",
+                    title="Repair scoped file",
+                    description="Only repair the allowed file.",
+                    type="integration",
+                    assigned_agent="frontend",
+                    relevant_files=["src/allowed.py"],
+                    boundary_mode="strict",
+                )
+            ],
+        )
+
+        worker = BoundaryViolationWorker()
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "repair scoped file",
+                initial_state=RuntimeState(objective="repair scoped file", task_graph=graph),
+                max_iterations=1,
+            )
+
+        nodes = {node.id: node for node in state.task_graph.nodes}
+        self.assertEqual(worker.calls, ["T010"])
+        self.assertNotIn("T010-DEBUG-1", nodes)
+        self.assertEqual(nodes["T010"].status, "failed")
+        self.assertEqual(state.failed_tasks, ["T010"])
+        self.assertEqual(state.blockers[0]["id"], "B-T010-1")
+        self.assertIn("outside allowed_files", state.blockers[0]["description"])
+        self.assertTrue(any(event["type"] == "worker_boundary_blocker" for event in state.iteration_history))
+        self.assertFalse(any(event["type"] == "debug_task_created" for event in state.iteration_history))
+
     def test_debug_timeout_blocks_parent_without_replaying_original_task(self) -> None:
         class DebugTimeoutWorker:
             def __init__(self) -> None:

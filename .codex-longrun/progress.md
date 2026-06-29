@@ -2146,3 +2146,12 @@ PY"`
 - Implemented V2.158 in untime/worker_lifecycle.py: worker lifecycle records now persist 	imeout_grace_deadline_at, and each grace snapshot carries deadline_at so supervisors can tell base-timeout overrun from active bounded grace.
 - Current total-project estimate remains about 99.4%; final verification graph is 40/51 completed after T040, with T041-T051 remaining.
 - Next step: commit/push V2.158, relaunch through the controlled resume script, and verify the next attempt preserves T036-T040 and resumes from T041.
+
+## 2026-06-30T00:52:54+08:00 V2.159 Boundary Violation Stop
+
+- Relaunched after V2.158. inal_verification/run_attempt_033 preserved T036-T040, resumed T041, entered progress grace with a visible 	imeout_grace_deadline_at, and completed T041 inside the grace window. Final-verification graph progressed to 41/51.
+- T042 Repair final frontend legacy admin view cleanup completed the worker process but failed boundary audit because it modified out-of-scope T039 files (UsersView.vue and piKeyGroupFilterOptions.ts). Alchemy rolled those changes back.
+- The orchestrator then created T042-DEBUG-1, which is redundant after a deterministic allowed-files boundary violation. Wrote supervisor_stop.json; Alchemy cancelled only the debug worker and left no residual process.
+- Implemented V2.159 in untime/orchestrator.py: out-of-scope boundary-violation worker results now record a non-partial worker_boundary_blocker and do not create same-scope debug tasks.
+- Current total-project estimate remains about 99.4%; the remaining work is T042 boundary-aware repair and T043-T051 final verification tail.
+- Next step: commit/push V2.159, relaunch, and confirm the next graph preserves T036-T041 and handles T042 by split/expanded boundary instead of same-scope debug.
