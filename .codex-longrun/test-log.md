@@ -5276,3 +5276,26 @@
 - command: `git diff --check`
 - result: passed
 - next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
+
+## 2026-06-30T00:07:06+08:00 V2.158 Timeout grace observability
+
+- command: Billing Core final verification un_attempt_032 monitoring after V2.157
+- result: T036, T037, T038, T039, and T040 completed; T041 entered progress-grace after base 900 second timeout and was then operator-stopped by Codex Desktop for investigation.
+- relevant evidence: T041 lifecycle recorded 	imeout_grace_count=1, 	imeout_grace_seconds=300, and verification child processes; after supervisor_stop.json, Alchemy cancelled only the T041 worker tree and recorded blocker B-T041-0.
+- next verification command: focused runtime timeout-grace regressions.
+
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_extends_timeout_when_progress_is_detected tests/test_runtime.py::CodexWorkerTests::test_managed_subprocess_runner_terminates_on_timeout -q
+- result: 2 passed
+- next verification command: compileall and full runtime suite.
+
+- command: python -B -m compileall runtime tests -q
+- result: passed
+- next verification command: python -B -m pytest tests/test_runtime.py -q
+
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 143 passed
+- next verification command: full-roadmap regression.
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 91 passed
+- next verification command: diff check, state validation, commit/push, and controlled Billing Core final-verification relaunch.

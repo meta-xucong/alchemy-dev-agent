@@ -2137,3 +2137,12 @@ PY"`
 - Added a focused prompt regression in `tests/test_runtime.py`.
 - Current total-project estimate remains about 99.3%; the next relaunch should test whether tighter single-file worker instructions let T036 finish.
 - Next step: commit/push V2.157, relaunch, and monitor T036 under the tighter prompt.
+
+## 2026-06-30T00:07:06+08:00 V2.158 Timeout Grace Observability
+
+- inal_verification/run_attempt_032 advanced successfully through T036, T037, T038, T039, and T040 after V2.157; the corrected final-frontend chain is no longer replaying from the beginning.
+- T041 Repair final frontend admin operations view contracts crossed the base 900 second worker timeout while verification child processes were still active. Alchemy granted progress grace, but the live lifecycle JSON did not expose a first-class grace deadline, making the task easy to misread as uncontrolled overrun.
+- Wrote supervisor_stop.json to stop un_attempt_032; Alchemy honored the stop marker, cancelled only T041's worker process tree, and left no residual Codex worker. This attempt should be treated as operator-stopped at T041, not as a CRM product failure.
+- Implemented V2.158 in untime/worker_lifecycle.py: worker lifecycle records now persist 	imeout_grace_deadline_at, and each grace snapshot carries deadline_at so supervisors can tell base-timeout overrun from active bounded grace.
+- Current total-project estimate remains about 99.4%; final verification graph is 40/51 completed after T040, with T041-T051 remaining.
+- Next step: commit/push V2.158, relaunch through the controlled resume script, and verify the next attempt preserves T036-T040 and resumes from T041.

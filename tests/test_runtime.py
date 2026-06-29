@@ -1284,11 +1284,18 @@ class CodexWorkerTests(unittest.TestCase):
                 timeout=0.001,
                 args=["codex"],
             )
+            persisted = json.loads((Path(tmp_dir) / "workers" / "T901G.json").read_text(encoding="utf-8"))
 
         self.assertEqual(stdout, b'{"task_id":"T901G","status":"completed"}')
         self.assertEqual(stderr, b"")
         self.assertEqual(record.timeout_grace_count, 1)
         self.assertGreater(record.timeout_grace_seconds, 0)
+        self.assertTrue(record.timeout_grace_deadline_at)
+        self.assertTrue(persisted["timeout_grace_deadline_at"])
+        self.assertEqual(
+            persisted["timeout_grace_snapshots"][0]["deadline_at"],
+            persisted["timeout_grace_deadline_at"],
+        )
         self.assertEqual(probed, [123])
 
     def test_managed_subprocess_runner_recovers_when_exited_process_keeps_pipe_open(self) -> None:

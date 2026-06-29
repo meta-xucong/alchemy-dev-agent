@@ -9,6 +9,7 @@ import signal
 import subprocess
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
@@ -83,6 +84,7 @@ class WorkerLifecycleRecord:
     error: str = ""
     timeout_grace_seconds: float = 0.0
     timeout_grace_count: int = 0
+    timeout_grace_deadline_at: str = ""
     timeout_grace_snapshots: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -102,6 +104,7 @@ class WorkerLifecycleRecord:
             "error": self.error,
             "timeout_grace_seconds": self.timeout_grace_seconds,
             "timeout_grace_count": self.timeout_grace_count,
+            "timeout_grace_deadline_at": self.timeout_grace_deadline_at,
             "timeout_grace_snapshots": list(self.timeout_grace_snapshots),
         }
 
@@ -146,16 +149,22 @@ class WorkerLifecycleRecorder:
         grace_seconds: float,
         snapshot: dict[str, Any],
     ) -> None:
+        deadline_at = (datetime.now(UTC).replace(microsecond=0) + timedelta(seconds=float(grace_seconds))).isoformat()
         record.timeout_grace_seconds += float(grace_seconds)
         record.timeout_grace_count += 1
+        record.timeout_grace_deadline_at = deadline_at
         record.timeout_grace_snapshots.append(
             {
                 "granted_at": utc_now_iso(),
                 "grace_seconds": float(grace_seconds),
+                "deadline_at": deadline_at,
                 "snapshot": snapshot,
             }
         )
-        record.error = f"Timeout boundary extended by {float(grace_seconds):g}s because worker progress was detected."
+        record.error = (
+            f"Timeout boundary extended by {float(grace_seconds):g}s until {deadline_at} "
+            "because worker progress was detected."
+        )
         self.persist(record)
 
     def cancel(self, record: WorkerLifecycleRecord, reason: str) -> None:
