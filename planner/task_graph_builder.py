@@ -718,6 +718,10 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             or split_admin_view_pages
             or split_auth_public_setup_views
         )
+        split_state_composable_utility = (
+            should_split_final_frontend_state_composable_utility_timeout(text)
+            or should_preserve_final_frontend_state_composable_utility_split(text)
+        )
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
             text
         ) or should_preserve_final_frontend_admin_usage_payment_split(text) or split_admin_payment
@@ -752,7 +756,11 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         )
         specs.extend(
             final_frontend_routes_views_repair_task_specs(
-                split=should_split_final_frontend_routes_views_timeout(text) or split_frontend_view_components,
+                split=(
+                    should_split_final_frontend_routes_views_timeout(text)
+                    or split_frontend_view_components
+                    or split_state_composable_utility
+                ),
                 split_view_components=split_frontend_view_components,
                 split_admin_components=split_admin_components,
                 split_admin_account_identity=split_admin_account_identity,
@@ -770,6 +778,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_announcement_backup_promo=split_admin_announcement_backup_promo,
                 split_auth_public_setup_views=split_auth_public_setup_views,
                 split_setup_not_found_views=split_setup_not_found_views,
+                split_state_composable_utility=split_state_composable_utility,
             )
         )
     return specs
@@ -1197,9 +1206,55 @@ def should_preserve_final_frontend_setup_not_found_split(text: str) -> bool:
         marker in text
         for marker in (
             "completed tasks to preserve:",
-            "repair final frontend auth public setup support files",
+            "t046",
+            "t047",
         )
-    ) and _has_primary_failed_task_id_in_range(text, 47, 60)
+    ) and _has_primary_failed_task_id_in_range(text, 48, 65)
+
+
+def should_split_final_frontend_state_composable_utility_timeout(text: str) -> bool:
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return _has_primary_failed_task_id_in_range(text, 32, 65) and any(
+        marker in text
+        for marker in (
+            "repair final frontend state composable utility contracts",
+            "frontend/src/stores",
+            "frontend/src/composables",
+            "frontend/src/utils",
+            "state composable utility",
+        )
+    )
+
+
+def should_preserve_final_frontend_state_composable_utility_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend store contracts",
+            "repair final frontend composable contracts",
+            "repair final frontend utility constant type contracts",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t049",
+            "t050",
+            "t051",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 52, 65)
 
 
 def should_split_final_frontend_admin_dashboard_settings_timeout(text: str) -> bool:
@@ -1843,6 +1898,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_announcement_backup_promo: bool = False,
     split_auth_public_setup_views: bool = False,
     split_setup_not_found_views: bool = False,
+    split_state_composable_utility: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1911,6 +1967,57 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 91,
     }
+    state_split_tasks = [
+        {
+            "title": "Repair final frontend store contracts",
+            "description": "Align frontend stores with CRM billing, wallet, metering, payment, and account state semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/stores/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Stores no longer import or expose retired relay-era shared contracts.",
+                "Store state uses CRM billing, wallet, metering, entitlement, payment, analytics, and audit language.",
+            ],
+            "priority": 91,
+        },
+        {
+            "title": "Repair final frontend composable contracts",
+            "description": "Align frontend composables with CRM billing, wallet, metering, payment, and account workflows.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/composables/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Composables no longer expose relay, provider-channel, proxy, model-routing, upstream account, or token-log product concepts.",
+                "Composable APIs use CRM billing, wallet, metering, entitlement, payment, analytics, and audit language.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final frontend utility constant type contracts",
+            "description": "Align frontend utilities, constants, and shared types with the final CRM product boundary.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/utils/**",
+                "frontend/src/constants/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Utilities, constants, and shared types no longer expose retired relay-era contracts as product behavior.",
+                "Shared helpers and types compile with CRM billing, wallet, metering, connector, entitlement, payment, analytics, and audit semantics.",
+            ],
+            "priority": 89,
+        },
+    ]
     test_task = {
         "title": "Repair final frontend test and fixture contracts",
         "description": (
@@ -2966,7 +3073,12 @@ def final_frontend_routes_views_repair_task_specs(
             analytics_component_task,
             *(view_page_split_tasks if split_view_pages else [view_page_task]),
         ]
-        return [route_task, *component_tasks, state_task, test_task]
+        return [
+            route_task,
+            *component_tasks,
+            *(state_split_tasks if split_state_composable_utility else [state_task]),
+            test_task,
+        ]
     return [
         route_task,
         {
@@ -2989,7 +3101,7 @@ def final_frontend_routes_views_repair_task_specs(
             ],
             "priority": 92,
         },
-        state_task,
+        *(state_split_tasks if split_state_composable_utility else [state_task]),
         test_task,
     ]
 

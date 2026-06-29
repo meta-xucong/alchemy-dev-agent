@@ -2197,3 +2197,13 @@ PY"`
 - Added `test_final_verification_setup_not_found_timeout_is_split_again` and documented the change in `docs/172_v2_163_setup_not_found_split.md`.
 - Generated `final_verification_repair_resume_032.md` from the real final-verification report. A graph probe now preserves T043-T045 and starts the next editable work at split T046 `Repair final frontend setup view contracts`.
 - Current final-verification tail is 45 completed tasks before the split; the next graph expands to 55 nodes with T046 setup-only and T047 NotFound-only before support files and final audit.
+
+## 2026-06-30T03:45:00+08:00 V2.164 Final State Composable Utility Split
+
+- Relaunched after V2.163. `final_verification/run_attempt_036` preserved T001-T045 and started split T046.
+- T046 setup-view-only completed, T047 NotFoundView-only completed, and T048 auth/public/setup support files completed.
+- T049 `Repair final frontend state composable utility contracts` timed out after 900 seconds. Alchemy again handled the stop boundary correctly: non-partial blocker `B-T049-1`, no same-scope debug task, and no downstream dispatch.
+- Implemented V2.164 in `planner/task_graph_builder.py`: focused T049 state/composable/utility timeouts now split into store contracts, composable contracts, and utility/constant/type contracts.
+- V2.164 also hardens preservation of the V2.163 setup/not-found split by completed task IDs; the first real `_033` graph probe showed that without this, T046/T047 could collapse and make the new store task inherit completed ID T048.
+- Added `test_final_verification_state_composable_utility_timeout_is_split_again` and documented the change in `docs/173_v2_164_state_composable_utility_split.md`.
+- Real `final_verification_repair_resume_033.md` now builds a graph with T043-T048 completed and split T049/T050/T051 pending.
