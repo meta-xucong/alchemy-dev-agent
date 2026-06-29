@@ -576,15 +576,20 @@ class FullRoadmapExecutor:
             )
             payload = payload_result.to_dict() if hasattr(payload_result, "to_dict") else dict(payload_result)
             promotion = phase_promotion_decision(final_phase, payload)
+            non_partial_stop = phase_has_non_partial_stop_boundary(payload)
             attempt_record = {
                 "attempt": attempt_index,
                 "output_dir": str(attempt_dir),
                 "promotion": promotion,
                 "status": "done" if promotion["can_promote"] else "blocked",
             }
+            if non_partial_stop:
+                attempt_record["stop_boundary"] = "non_partial_blocker"
             attempts.append(attempt_record)
             write_json(output_dir / f"attempt_{attempt_index:03d}.json", attempt_record)
             if promotion["can_promote"]:
+                break
+            if non_partial_stop:
                 break
             if attempt_offset + 1 >= max_attempts or not should_auto_repair_phase(promotion, payload):
                 break
@@ -1981,6 +1986,13 @@ def phase_has_worker_timeout_stop_boundary(result: dict[str, object]) -> bool:
             continue
         description = str(blocker.get("description", blocker.get("summary", "")) or "").lower()
         if any(marker in description for marker in WORKER_TIMEOUT_STOP_MARKERS):
+            return True
+    return False
+
+
+def phase_has_non_partial_stop_boundary(result: dict[str, object]) -> bool:
+    for blocker in phase_result_blockers(result):
+        if isinstance(blocker, dict) and blocker.get("can_continue_partially") is False:
             return True
     return False
 

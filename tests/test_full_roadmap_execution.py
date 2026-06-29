@@ -3032,6 +3032,67 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertTrue((output_dir / "attempt_002.json").exists())
         self.assertGreaterEqual(captured[0]["max_iterations"], 24)
 
+    def test_final_verification_worker_stops_after_non_partial_blocker(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        output_dir = root / "final_verification"
+        blocker = {
+            "id": "B-T056-1",
+            "type": "technical_limit",
+            "description": "T056 modified files outside allowed_files. Stop instead of launching a same-scope debug task.",
+            "task_ids": ["T056"],
+            "can_continue_partially": False,
+        }
+        calls: list[str] = []
+
+        class BoundaryBlockedResult:
+            def to_dict(self) -> dict[str, object]:
+                return {
+                    "status": "blocked",
+                    "delivery_report": {
+                        "final_gate": {
+                            "score": 0.4,
+                            "dimension_scores": {"test_health": 0.0, "spec_alignment": 0.4},
+                            "hard_failures": ["One or more final verification tasks failed."],
+                            "required_changes": ["T056: resolve boundary blocker."],
+                        },
+                        "ready_for_review": False,
+                    },
+                    "runtime_state": {
+                        "done": False,
+                        "blockers": [blocker],
+                    },
+                    "requirement_coverage": {"status": "failed", "covered": False},
+                    "scope_boundary": {"status": "failed", "protected_paths": []},
+                    "tests_passed": [],
+                    "evidence": [],
+                }
+
+        def fake_runner(**kwargs):
+            calls.append(str(kwargs["output_dir"]))
+            return BoundaryBlockedResult()
+
+        report = FullRoadmapExecutor(document_runner=fake_runner)._run_final_verification_worker(
+            objective="Finish CRM",
+            plan=RoadmapExecutionPlan(root_objective="Finish CRM", phases=[]),
+            phase_records=[],
+            documents=[doc],
+            attachments=[],
+            repository_url="",
+            repository_path=root / "repo",
+            repository_visibility="private",
+            output_dir=output_dir,
+            run_payload={"real_codex": True, "boundary_mode": "large_refactor", "max_final_verification_attempts": 3},
+        )
+
+        self.assertEqual(report["status"], "failed")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(Path(calls[0]).name, "run_attempt_001")
+        self.assertFalse((output_dir / "run_attempt_002").exists())
+        self.assertFalse((output_dir / "attempt_002.json").exists())
+        self.assertEqual(report["attempts"][0]["stop_boundary"], "non_partial_blocker")
+
     def test_final_verification_relaunch_carries_previous_failure_repair_context(self) -> None:
         root = temp_root()
         doc = root / "roadmap.md"

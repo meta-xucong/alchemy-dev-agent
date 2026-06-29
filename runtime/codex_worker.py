@@ -10,6 +10,7 @@ The runtime supports two execution modes:
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import shutil
@@ -17,7 +18,7 @@ import subprocess
 import tempfile
 from hashlib import sha1
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, Callable, Literal, Protocol
 
 from .models import WorkerStatus
@@ -959,19 +960,44 @@ def _allowed_pattern_matches(path: str, allowed: str) -> bool:
     clean = _normalize_repo_path(allowed)
     if not clean:
         return False
-    if clean.endswith("/**"):
+    if clean.endswith("/**") and not _has_glob_meta(clean[:-3]):
         prefix = clean[:-3].rstrip("/")
         return path == prefix or path.startswith(prefix + "/")
-    if clean.endswith("/*"):
+    if clean.endswith("/*") and not _has_glob_meta(clean[:-2]):
         prefix = clean[:-2].rstrip("/")
         if not (path.startswith(prefix + "/")):
             return False
         return "/" not in path[len(prefix) + 1 :]
-    if clean.endswith("/"):
+    if clean.endswith("/") and not _has_glob_meta(clean):
         return path.startswith(clean)
     if any(char in clean for char in "*?["):
-        return PurePosixPath(path).match(clean)
+        return _segment_glob_matches(path, clean)
     return path == clean
+
+
+def _has_glob_meta(pattern: str) -> bool:
+    return any(char in pattern for char in "*?[")
+
+
+def _segment_glob_matches(path: str, pattern: str) -> bool:
+    path_parts = [part for part in _normalize_repo_path(path).split("/") if part]
+    pattern_parts = [part for part in _normalize_repo_path(pattern).split("/") if part]
+    return _match_path_segments(path_parts, pattern_parts)
+
+
+def _match_path_segments(path_parts: list[str], pattern_parts: list[str]) -> bool:
+    if not pattern_parts:
+        return not path_parts
+    head, *tail = pattern_parts
+    if head == "**":
+        if _match_path_segments(path_parts, tail):
+            return True
+        return bool(path_parts) and _match_path_segments(path_parts[1:], pattern_parts)
+    if not path_parts:
+        return False
+    if not fnmatch.fnmatchcase(path_parts[0], head):
+        return False
+    return _match_path_segments(path_parts[1:], tail)
 
 
 def _is_ignorable_generated_file(path: str) -> bool:

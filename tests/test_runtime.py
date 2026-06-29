@@ -24,6 +24,7 @@ from runtime.codex_worker import (
     CodexWorkerResult,
     CommandResult,
     _build_codex_subprocess_env,
+    _is_allowed_changed_path,
 )
 from runtime.evaluator import Evaluator
 from runtime.github_flow import GitHubExecutionResult, GitHubFlow
@@ -179,6 +180,24 @@ class CodexWorkerTests(unittest.TestCase):
         result = worker.execute(CodexWorkerInput(task_id="T001", goal="do work", constraints=["fail"]))
 
         self.assertEqual(result.status, "failed")
+
+    def test_allowed_file_globs_match_nested_frontend_tests(self) -> None:
+        allowed = [
+            "frontend/src/**/__tests__/**",
+            "frontend/src/**/*.spec.ts",
+            "frontend/src/**/*.spec.tsx",
+            "frontend/tests/**",
+        ]
+
+        self.assertTrue(_is_allowed_changed_path("frontend/src/api/__tests__/admin.payment.spec.ts", allowed))
+        self.assertTrue(_is_allowed_changed_path("frontend/src/api/__tests__/helpers.fixture.ts", allowed))
+        self.assertTrue(_is_allowed_changed_path("frontend/src/components/Guide/__tests__/steps.spec.ts", allowed))
+        self.assertTrue(_is_allowed_changed_path("frontend/src/components/Guide/__tests__/fixtures/setup.ts", allowed))
+        self.assertTrue(_is_allowed_changed_path("frontend/src/views/user/__tests__/PaymentView.spec.ts", allowed))
+        self.assertTrue(_is_allowed_changed_path("frontend/src/views/user/PaymentView.spec.ts", allowed))
+        self.assertTrue(_is_allowed_changed_path("frontend/src/components/Foo/Foo.spec.tsx", allowed))
+        self.assertTrue(_is_allowed_changed_path("frontend/tests/e2e/payment.spec.ts", allowed))
+        self.assertFalse(_is_allowed_changed_path("frontend/src/views/user/PaymentView.vue", allowed))
 
     def test_worker_does_not_block_from_natural_language_goal(self) -> None:
         worker = CodexWorkerAdapter()

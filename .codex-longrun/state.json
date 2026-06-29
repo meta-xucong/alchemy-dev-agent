@@ -1,8 +1,9 @@
 {
     "objective":  "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase":  "billing_core_final_metering_entitlement_split_v2_166",
+    "current_phase":  "billing_core_final_test_boundary_glob_v2_167",
     "phase_status":  "advancing",
     "completed_phases":  [
+                             "implemented V2.167 final frontend test allowlist glob matching and final-verification non-partial stop hardening after T056 false boundary failure",
                              "implemented V2.166 final metering-entitlement composable timeout split after T051 timed out cleanly without debug replay",
                              "implemented V2.165 final composable-contract timeout split after T050 timed out cleanly without debug replay",
                              "implemented V2.164 final state/composable/utility timeout split and preserved setup/not-found split IDs",
@@ -109,14 +110,21 @@
                              "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
                          ],
     "next_actions":  [
-                         "Commit and push V2.166 final metering-entitlement composable timeout split.",
+                         "Run wider V2.167 runtime/full-roadmap regressions and state validation.",
+                         "Commit and push V2.167 final frontend test boundary glob and final-verification stop-boundary hardening.",
                          "Relaunch the controlled Billing Core final verification through PowerShell -EncodedCommand so spaced paths are not split.",
-                         "Confirm final_verification/run_attempt_039 reuses final_verification_repair_resume_035 and starts split T051 channel monitor format composable with T045-T050 preserved.",
-                         "If split T051-T053 timeout, boundary-block, or replay broad work, fix Alchemy split/boundary logic before relaunching.",
-                         "After composable leaves finish, monitor table/navigation composables, utility/type repair, test fixture repair, final audit, simulation probes, real repository checks, review, and delivery evidence.",
-                         "Record final verification results and remaining blockers before any handoff."
+                         "Confirm the next final-verification attempt resumes T056 without false out-of-scope failures for nested frontend test/spec files.",
+                         "If T056 still fails, treat it as real product/test evidence for Alchemy to repair inside the inherited worktree, not as Codex product-code work.",
+                         "After T056 passes, monitor final audit, simulation probes, real repository checks, review, and delivery evidence."
                      ],
     "tests_run":  [
+                      "V2.167: git diff --check => passed with CRLF normalization warning for .codex-longrun/state.json",
+                      "V2.167: state JSON parse check => passed",
+                      "V2.167: python -B -m pytest tests/test_full_roadmap_execution.py -q => 93 passed",
+                      "V2.167: python -B -m pytest tests/test_runtime.py -q => 145 passed",
+                      "V2.167: python -B -m compileall runtime autodev tests -q => passed",
+                      "V2.167: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_stops_after_non_partial_blocker -q => 1 passed",
+                      "V2.167: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_allowed_file_globs_match_nested_frontend_tests -q => 1 passed",
                       "V2.166: real Billing Core final_verification_repair_resume_035 graph probe preserved T050 and split T051 into channel-monitor-format, model-entitlement, and onboarding/quota composable leaves",
                       "V2.166: python -B -m pytest tests/test_full_roadmap_execution.py -q =\u003e 92 passed",
                       "V2.166: python -B -m pytest tests/test_document_to_plan.py -q =\u003e 61 passed",
@@ -858,10 +866,11 @@
                           "Relevant tests or checks pass",
                           "Progress and verification are recorded"
                       ],
-    "last_verified_at":  "2026-06-30T04:42:00+08:00",
+    "last_verified_at":  "2026-06-30T05:46:00+08:00",
     "created_at":  "2026-06-25T01:55:36+08:00",
-    "updated_at":  "2026-06-30T04:42:00+08:00",
+    "updated_at":  "2026-06-30T05:46:00+08:00",
     "known_issues":  [
+                         "Before V2.167, final verification T056 could falsely fail boundary audit because nested frontend test/spec files did not match intended allowed_files globs, and the final-verification parent could open a new attempt after the non-partial blocker.",
                          "Before V2.166, split final verification T051 `Repair final frontend metering entitlement composables` still bundled domain composables together and timed out after 900 seconds.",
                          "Before V2.165, split final verification T050 `Repair final frontend composable contracts` still bundled all composables into one worker and timed out after 900 seconds.",
                          "Before V2.164, final verification T049 `Repair final frontend state composable utility contracts` bundled stores, composables, utilities, constants, and types into one worker and timed out after 900 seconds.",

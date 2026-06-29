@@ -5516,3 +5516,49 @@
 - command: python -B -m pytest tests/test_document_to_plan.py -q
 - result: 56 passed
 - next verification command: diff check, state validation, commit/push, and controlled Billing Core final-verification relaunch.
+
+## 2026-06-30T05:38:00+08:00 V2.167 final test boundary glob and stop boundary
+
+- command: Billing Core final verification `run_attempt_039` monitoring
+- result: T051, T052, T053, T054, and T055 completed; T056 worker returned `completed`/0 but failed boundary audit with `B-T056-1` because nested frontend tests matched the allowlist intent but not the old matcher implementation. The parent also incorrectly opened `run_attempt_040` after a non-partial blocker; the residual attempt was stopped and no Alchemy worker process remains.
+- next verification command: focused runtime and full-roadmap regressions.
+
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_allowed_file_globs_match_nested_frontend_tests -q
+- result: 1 passed
+- next verification command: final-verification non-partial stop regression.
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_worker_stops_after_non_partial_blocker -q
+- result: 1 passed
+- next verification command: compileall and wider runtime/full-roadmap regressions.
+
+- command: python -B -m compileall runtime autodev tests -q
+- result: passed
+- next verification command: python -B -m pytest tests/test_runtime.py -q
+
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 145 passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 93 passed
+- next verification command: state JSON parse and diff hygiene.
+
+- command: python -c "import json, pathlib; json.loads(pathlib.Path('.codex-longrun/state.json').read_text(encoding='utf-8-sig')); print('state json ok')"
+- result: state json ok
+- next verification command: git diff --check, commit/push V2.167, and controlled Billing Core final-verification relaunch.
+
+- command: git diff --check
+- result: passed with CRLF normalization warning for `.codex-longrun/state.json`
+- next verification command: commit/push V2.167 and controlled Billing Core final-verification relaunch.
+
+- command: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_allowed_file_globs_match_nested_frontend_tests -q
+- result: 1 passed after tightening literal-prefix fast paths for wildcard prefixes.
+- next verification command: rerun runtime suite.
+
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 145 passed after the wildcard-prefix fast-path correction.
+- next verification command: final compileall and diff hygiene.
+
+- command: python -B -m compileall runtime autodev tests -q
+- result: passed
+- next verification command: git diff --check and commit/push V2.167.

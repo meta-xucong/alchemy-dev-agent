@@ -2227,3 +2227,14 @@ PY"`
 - Added `test_final_verification_metering_entitlement_composables_timeout_is_split_again` and documented the change in `docs/175_v2_166_metering_entitlement_composable_split.md`.
 - Real `final_verification_repair_resume_035.md` now builds a graph with T045-T050 completed and split T051/T052/T053 leaves pending, followed by table/navigation composables, utility/type repair, tests, audit, simulation, real repository checks, review, and delivery.
 - Current total-project estimate remains about 99.6%; the next relaunch should start at T051 `Repair final frontend channel monitor format composable`.
+
+## 2026-06-30T05:38:00+08:00 V2.167 Final Test Boundary Glob And Stop Boundary
+
+- Relaunched after V2.166. `final_verification/run_attempt_039` preserved the final-verification graph and advanced through T051 channel monitor format composable, T052 model entitlement composable, T053 onboarding quota composables, T054 table/navigation composables, and T055 utility/constant/type contracts.
+- T056 `Repair final frontend test and fixture contracts` returned `completed` with return code 0, but Alchemy marked it failed with non-partial blocker `B-T056-1` because nested frontend test/spec files were incorrectly treated as outside `allowed_files`.
+- The boundary audit bug came from `PurePosixPath.match` semantics for repository globs such as `frontend/src/**/__tests__/**` and `frontend/src/**/*.spec.ts`.
+- A second controller issue appeared at the same boundary: despite the non-partial blocker, the final-verification parent opened `run_attempt_040`. That attempt was stopped and no Alchemy worker process remains.
+- Implemented V2.167 in `runtime/codex_worker.py`: allowed-file wildcard matching is now segment-aware, with `**` matching zero or more path segments and `*`/`?`/brackets matching within one path segment.
+- Implemented V2.167 in `autodev/full_roadmap_executor.py`: final-verification workers now stop the parent attempt loop on any `can_continue_partially=false` runtime blocker and mark the attempt with `stop_boundary=non_partial_blocker`.
+- Added focused regressions for nested frontend test globs and final-verification non-partial stop behavior.
+- Current total-project estimate remains about 99.6%; final verification is 55/61 nodes completed, with T056 and T057-T061 remaining.
