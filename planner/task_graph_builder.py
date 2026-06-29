@@ -674,9 +674,14 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             text
         ) or should_preserve_final_frontend_admin_payment_refund_leaf(text)
         split_admin_payment = split_admin_payment or split_admin_payment_refund
-        split_admin_dashboard_settings = should_split_final_frontend_admin_dashboard_settings_timeout(
+        split_admin_settings_email_compliance = should_split_final_frontend_admin_settings_email_compliance_timeout(
             text
-        ) or should_preserve_final_frontend_admin_dashboard_settings_split(text)
+        ) or should_preserve_final_frontend_admin_settings_email_compliance_split(text)
+        split_admin_dashboard_settings = (
+            should_split_final_frontend_admin_dashboard_settings_timeout(text)
+            or should_preserve_final_frontend_admin_dashboard_settings_split(text)
+            or split_admin_settings_email_compliance
+        )
         split_admin_view_pages = (
             should_split_final_frontend_admin_view_page_timeout(text)
             or should_preserve_final_frontend_admin_view_page_split(text)
@@ -734,6 +739,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_view_pages=split_view_pages,
                 split_admin_view_pages=split_admin_view_pages,
                 split_admin_dashboard_settings=split_admin_dashboard_settings,
+                split_admin_settings_email_compliance=split_admin_settings_email_compliance,
             )
         )
     return specs
@@ -1117,6 +1123,64 @@ def should_preserve_final_frontend_admin_dashboard_settings_split(text: str) -> 
             "t032",
         )
     ) and _has_primary_failed_task_id_in_range(text, 33, 48)
+
+
+def should_split_final_frontend_admin_settings_email_compliance_timeout(text: str) -> bool:
+    focused_settings_scope = _has_primary_failed_task_id_in_range(text, 30, 34) and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin settings email compliance files",
+            "frontend/src/views/admin/settingsview.vue",
+            "frontend/src/views/admin/settings/emailtemplateeditor.vue",
+            "frontend/src/components/admin/admincompliancedialog.vue",
+            "settings email compliance",
+        )
+    )
+    if focused_settings_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return "primary failed task ids: t030" in text and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin settings email compliance files",
+            "frontend/src/views/admin/settingsview.vue",
+            "settings email compliance",
+        )
+    )
+
+
+def should_preserve_final_frontend_admin_settings_email_compliance_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend admin settings view file",
+            "repair final frontend admin email template editor file",
+            "repair final frontend admin compliance dialog file",
+            "repair final frontend admin settings support files",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t029",
+            "t030",
+            "t031",
+            "t032",
+            "t033",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 34, 50)
 
 
 def should_split_final_frontend_admin_component_timeout(text: str) -> bool:
@@ -1517,6 +1581,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_view_pages: bool = False,
     split_admin_view_pages: bool = False,
     split_admin_dashboard_settings: bool = False,
+    split_admin_settings_email_compliance: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -2162,23 +2227,89 @@ def final_frontend_routes_views_repair_task_specs(
                             ],
                             "priority": 86,
                         },
-                        {
-                            "title": "Repair final frontend admin settings email compliance files",
-                            "description": "Align admin settings, email template, and compliance UI files with CRM administration semantics.",
-                            "assigned_agent": "frontend",
-                            "relevant_files": [
-                                "frontend/src/views/admin/SettingsView.vue",
-                                "frontend/src/views/admin/settings/EmailTemplateEditor.vue",
-                                "frontend/src/components/admin/AdminComplianceDialog.vue",
-                                "frontend/src/styles/onboarding.css",
-                                "frontend/src/types/index.ts",
-                            ],
-                            "completion_criteria": [
-                                "Settings and email/compliance UI use CRM account, billing, notification, compliance, and audit language.",
-                                "Settings surfaces no longer expose relay provider, channel, model-routing, proxy, upstream account, or token-log behavior.",
-                            ],
-                            "priority": 85,
-                        },
+                        *(
+                            [
+                                {
+                                    "title": "Repair final frontend admin settings view file",
+                                    "description": "Align the admin settings page with CRM configuration, billing, account, and compliance semantics.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/views/admin/SettingsView.vue",
+                                        "frontend/src/styles/onboarding.css",
+                                        "frontend/src/types/index.ts",
+                                    ],
+                                    "completion_criteria": [
+                                        "SettingsView uses CRM configuration, account, billing, notification, compliance, and audit language.",
+                                        "SettingsView no longer exposes relay provider, channel, model-routing, proxy, upstream account, or token-log behavior.",
+                                    ],
+                                    "priority": 85,
+                                },
+                                {
+                                    "title": "Repair final frontend admin email template editor file",
+                                    "description": "Align the admin email template editor with CRM communication and compliance semantics.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/views/admin/settings/EmailTemplateEditor.vue",
+                                        "frontend/src/styles/onboarding.css",
+                                        "frontend/src/types/index.ts",
+                                    ],
+                                    "completion_criteria": [
+                                        "EmailTemplateEditor uses CRM customer communication, notification, onboarding, billing, and compliance language.",
+                                        "Email template editing no longer exposes relay provider, channel, proxy, upstream account, model-routing, or token-log behavior.",
+                                    ],
+                                    "priority": 84,
+                                },
+                                {
+                                    "title": "Repair final frontend admin compliance dialog file",
+                                    "description": "Align the admin compliance dialog with CRM audit, risk, and operations semantics.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/components/admin/AdminComplianceDialog.vue",
+                                        "frontend/src/styles/onboarding.css",
+                                        "frontend/src/types/index.ts",
+                                    ],
+                                    "completion_criteria": [
+                                        "AdminComplianceDialog describes CRM compliance, audit, risk review, account, billing, and operations controls.",
+                                        "The dialog no longer exposes token relay, provider channel, upstream account, proxy, model-routing, or token-log behavior.",
+                                    ],
+                                    "priority": 83,
+                                },
+                                {
+                                    "title": "Repair final frontend admin settings support files",
+                                    "description": "Align support files touched by settings/email/compliance cleanup without reopening the settings pages.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/styles/onboarding.css",
+                                        "frontend/src/types/index.ts",
+                                    ],
+                                    "completion_criteria": [
+                                        "Support styles and types compile with CRM settings, billing, compliance, and audit semantics.",
+                                        "Support files do not reintroduce relay/provider/channel/proxy/model-routing product concepts.",
+                                    ],
+                                    "priority": 82,
+                                },
+                            ]
+                            if split_admin_settings_email_compliance
+                            else [
+                                {
+                                    "title": "Repair final frontend admin settings email compliance files",
+                                    "description": "Align admin settings, email template, and compliance UI files with CRM administration semantics.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/views/admin/SettingsView.vue",
+                                        "frontend/src/views/admin/settings/EmailTemplateEditor.vue",
+                                        "frontend/src/components/admin/AdminComplianceDialog.vue",
+                                        "frontend/src/styles/onboarding.css",
+                                        "frontend/src/types/index.ts",
+                                    ],
+                                    "completion_criteria": [
+                                        "Settings and email/compliance UI use CRM account, billing, notification, compliance, and audit language.",
+                                        "Settings surfaces no longer expose relay provider, channel, model-routing, proxy, upstream account, or token-log behavior.",
+                                    ],
+                                    "priority": 85,
+                                }
+                            ]
+                        ),
                         {
                             "title": "Repair final frontend admin announcement backup promo files",
                             "description": "Align admin announcement, backup, promo-code, and announcement component files with CRM operations semantics.",
