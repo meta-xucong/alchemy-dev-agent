@@ -2099,3 +2099,13 @@ PY"`
 - Added focused document-to-plan coverage plus `docs/162_v2_153_final_frontend_admin_email_template_leaf.md`.
 - Current total-project estimate remains about 99.2%-99.3%; the blocked surface is now a single email-template editor Vue file.
 - Next step: commit/push V2.153, relaunch the controlled Billing Core final verification, and monitor the file-only T031 leaf without direct Codex Desktop product-code edits.
+
+## 2026-06-29T21:56:00+08:00 V2.154 Final Frontend Admin Announcement Backup Promo Split
+
+- Relaunched after V2.153. `final_verification/run_attempt_028` preserved T001-T030, completed T031 `Repair final frontend admin email template editor leaf file`, completed T032 `Repair final frontend admin compliance dialog file`, completed T033 `Repair final frontend admin settings support files`, and advanced to T034 `Repair final frontend admin announcement backup promo files`.
+- T034 timed out after 900 seconds. Alchemy again handled the stop boundary correctly: no same-scope debug task, no downstream T035 dispatch, and no residual Codex worker process.
+- Implemented V2.154 in `planner/task_graph_builder.py`: focused T034 announcement/backup/promo timeouts split the old task into announcements view, backup view, promo-code view, and announcement component/support tasks.
+- The first V2.154 regression exposed a deeper Alchemy issue: late final-frontend failures could preserve task IDs against a compressed graph because some earlier split-preservation ranges ended at T032/T035. V2.154 extends those ranges and forces earlier split-chain preservation for T034+ failures.
+- Added focused document-to-plan coverage plus `docs/163_v2_154_final_frontend_admin_announcement_backup_promo_split.md`.
+- Current total-project estimate remains about 99.3%; the blocked surface is now narrowed to announcement/backup/promo admin view cleanup.
+- Next step: commit/push V2.154, relaunch the controlled Billing Core final verification, and confirm the real graph resumes from the split announcement task sequence.

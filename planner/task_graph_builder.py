@@ -680,10 +680,22 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_admin_settings_email_compliance = should_split_final_frontend_admin_settings_email_compliance_timeout(
             text
         ) or should_preserve_final_frontend_admin_settings_email_compliance_split(text) or split_admin_email_template_leaf
+        split_admin_announcement_backup_promo = should_split_final_frontend_admin_announcement_backup_promo_timeout(
+            text
+        ) or should_preserve_final_frontend_admin_announcement_backup_promo_split(text)
+        if split_admin_announcement_backup_promo:
+            split_admin_user_create_edit = True
+            split_admin_payment_refund = True
+            split_admin_payment = True
+        split_admin_email_template_leaf = split_admin_email_template_leaf or split_admin_announcement_backup_promo
+        split_admin_settings_email_compliance = (
+            split_admin_settings_email_compliance or split_admin_announcement_backup_promo
+        )
         split_admin_dashboard_settings = (
             should_split_final_frontend_admin_dashboard_settings_timeout(text)
             or should_preserve_final_frontend_admin_dashboard_settings_split(text)
             or split_admin_settings_email_compliance
+            or split_admin_announcement_backup_promo
         )
         split_admin_view_pages = (
             should_split_final_frontend_admin_view_page_timeout(text)
@@ -744,6 +756,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_dashboard_settings=split_admin_dashboard_settings,
                 split_admin_settings_email_compliance=split_admin_settings_email_compliance,
                 split_admin_email_template_leaf=split_admin_email_template_leaf,
+                split_admin_announcement_backup_promo=split_admin_announcement_backup_promo,
             )
         )
     return specs
@@ -948,7 +961,7 @@ def should_preserve_final_frontend_view_component_split(text: str) -> bool:
             "t009",
             "t010",
         )
-    ) and _has_primary_failed_task_id_in_range(text, 11, 32)
+    ) and _has_primary_failed_task_id_in_range(text, 11, 55)
 
 
 def should_split_final_frontend_view_page_timeout(text: str) -> bool:
@@ -1007,7 +1020,7 @@ def should_preserve_final_frontend_view_page_split(text: str) -> bool:
             "t030",
             "t031",
         )
-    ) and _has_primary_failed_task_id_in_range(text, 32, 40)
+    ) and _has_primary_failed_task_id_in_range(text, 32, 55)
 
 
 def should_split_final_frontend_admin_view_page_timeout(text: str) -> bool:
@@ -1066,7 +1079,7 @@ def should_preserve_final_frontend_admin_view_page_split(text: str) -> bool:
             "t032",
             "t033",
         )
-    ) and _has_primary_failed_task_id_in_range(text, 34, 45)
+    ) and _has_primary_failed_task_id_in_range(text, 34, 55)
 
 
 def should_split_final_frontend_admin_dashboard_settings_timeout(text: str) -> bool:
@@ -1241,6 +1254,64 @@ def should_preserve_final_frontend_admin_email_template_leaf(text: str) -> bool:
     ) and _has_primary_failed_task_id_in_range(text, 32, 50)
 
 
+def should_split_final_frontend_admin_announcement_backup_promo_timeout(text: str) -> bool:
+    focused_announcement_scope = _has_primary_failed_task_id_in_range(text, 34, 40) and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin announcement backup promo files",
+            "frontend/src/views/admin/announcementsview.vue",
+            "frontend/src/views/admin/backupview.vue",
+            "frontend/src/views/admin/promocodesview.vue",
+            "components/admin/announcements",
+            "announcement backup promo",
+        )
+    )
+    if focused_announcement_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return "primary failed task ids: t034" in text and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin announcement backup promo files",
+            "frontend/src/views/admin/announcementsview.vue",
+            "announcement backup promo",
+        )
+    )
+
+
+def should_preserve_final_frontend_admin_announcement_backup_promo_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend admin announcements view file",
+            "repair final frontend admin backup view file",
+            "repair final frontend admin promo codes view file",
+            "repair final frontend admin announcement components support files",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t034",
+            "t035",
+            "t036",
+            "t037",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 38, 55)
+
+
 def should_split_final_frontend_admin_component_timeout(text: str) -> bool:
     focused_admin_scope = "primary failed task ids: t011" in text and any(
         marker in text
@@ -1399,7 +1470,7 @@ def should_preserve_final_frontend_admin_user_account_split(text: str) -> bool:
             "t017",
             "t018",
         )
-    ) and _has_primary_failed_task_id_in_range(text, 19, 32)
+    ) and _has_primary_failed_task_id_in_range(text, 19, 55)
 
 
 def should_split_final_frontend_admin_user_create_edit_timeout(text: str) -> bool:
@@ -1455,7 +1526,7 @@ def should_preserve_final_frontend_admin_user_create_edit_split(text: str) -> bo
             "t018",
             "t019",
         )
-    ) and _has_primary_failed_task_id_in_range(text, 20, 32)
+    ) and _has_primary_failed_task_id_in_range(text, 20, 55)
 
 
 def should_split_final_frontend_admin_usage_payment_timeout(text: str) -> bool:
@@ -1641,6 +1712,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_dashboard_settings: bool = False,
     split_admin_settings_email_compliance: bool = False,
     split_admin_email_template_leaf: bool = False,
+    split_admin_announcement_backup_promo: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -2386,24 +2458,85 @@ def final_frontend_routes_views_repair_task_specs(
                                 }
                             ]
                         ),
-                        {
-                            "title": "Repair final frontend admin announcement backup promo files",
-                            "description": "Align admin announcement, backup, promo-code, and announcement component files with CRM operations semantics.",
-                            "assigned_agent": "frontend",
-                            "relevant_files": [
-                                "frontend/src/views/admin/AnnouncementsView.vue",
-                                "frontend/src/views/admin/BackupView.vue",
-                                "frontend/src/views/admin/PromoCodesView.vue",
-                                "frontend/src/components/admin/announcements/**",
-                                "frontend/src/styles/onboarding.css",
-                                "frontend/src/types/index.ts",
-                            ],
-                            "completion_criteria": [
-                                "Announcement, backup, and promo-code pages describe CRM customer communication, credit, wallet, and operations workflows.",
-                                "These files no longer surface relay provider, channel, proxy, token-log, model-routing, or upstream account language.",
-                            ],
-                            "priority": 84,
-                        },
+                        *(
+                            [
+                                {
+                                    "title": "Repair final frontend admin announcements view file",
+                                    "description": "Align the admin announcements page with CRM customer communication and operations semantics.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/views/admin/AnnouncementsView.vue",
+                                    ],
+                                    "completion_criteria": [
+                                        "AnnouncementsView describes CRM customer communication, account notices, billing events, and operations workflows.",
+                                        "AnnouncementsView no longer surfaces relay provider, channel, proxy, token-log, model-routing, or upstream account language.",
+                                    ],
+                                    "priority": 84,
+                                },
+                                {
+                                    "title": "Repair final frontend admin backup view file",
+                                    "description": "Align the admin backup page with CRM data protection and operations semantics.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/views/admin/BackupView.vue",
+                                    ],
+                                    "completion_criteria": [
+                                        "BackupView describes CRM account, billing, audit, and operational backup workflows.",
+                                        "BackupView no longer surfaces relay provider, channel, proxy, token-log, model-routing, or upstream account language.",
+                                    ],
+                                    "priority": 83,
+                                },
+                                {
+                                    "title": "Repair final frontend admin promo codes view file",
+                                    "description": "Align the admin promo-code page with CRM wallet, credit, and campaign semantics.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/views/admin/PromoCodesView.vue",
+                                    ],
+                                    "completion_criteria": [
+                                        "PromoCodesView describes CRM wallet credit, recharge incentives, customer campaigns, and billing operations.",
+                                        "PromoCodesView no longer surfaces relay provider, channel, proxy, token-log, model-routing, or upstream account language.",
+                                    ],
+                                    "priority": 82,
+                                },
+                                {
+                                    "title": "Repair final frontend admin announcement components support files",
+                                    "description": "Align announcement component support files with CRM communication semantics.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/components/admin/announcements/**",
+                                        "frontend/src/styles/onboarding.css",
+                                        "frontend/src/types/index.ts",
+                                    ],
+                                    "completion_criteria": [
+                                        "Announcement components and support files compile with CRM communication, account, billing, and operations semantics.",
+                                        "Support files do not reintroduce relay/provider/channel/proxy/model-routing product concepts.",
+                                    ],
+                                    "priority": 81,
+                                },
+                            ]
+                            if split_admin_announcement_backup_promo
+                            else [
+                                {
+                                    "title": "Repair final frontend admin announcement backup promo files",
+                                    "description": "Align admin announcement, backup, promo-code, and announcement component files with CRM operations semantics.",
+                                    "assigned_agent": "frontend",
+                                    "relevant_files": [
+                                        "frontend/src/views/admin/AnnouncementsView.vue",
+                                        "frontend/src/views/admin/BackupView.vue",
+                                        "frontend/src/views/admin/PromoCodesView.vue",
+                                        "frontend/src/components/admin/announcements/**",
+                                        "frontend/src/styles/onboarding.css",
+                                        "frontend/src/types/index.ts",
+                                    ],
+                                    "completion_criteria": [
+                                        "Announcement, backup, and promo-code pages describe CRM customer communication, credit, wallet, and operations workflows.",
+                                        "These files no longer surface relay provider, channel, proxy, token-log, model-routing, or upstream account language.",
+                                    ],
+                                    "priority": 84,
+                                }
+                            ]
+                        ),
                         {
                             "title": "Repair final frontend admin dashboard settings support files",
                             "description": "Align support files touched by admin dashboard/settings cleanup without reopening broad admin views.",

@@ -4918,6 +4918,35 @@
 - result: passed
 - next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
 
+## 2026-06-29T21:56:00+08:00 V2.154 Final frontend admin announcement/backup/promo split
+
+- command: Billing Core final verification resume after V2.153
+- result: T031-T033 completed; T034 timed out
+- relevant evidence: `final_verification/run_attempt_028/state.json` preserved T001-T030, completed T031 email-template leaf, T032 compliance dialog, and T033 settings support, then recorded a timeout after T034 `Repair final frontend admin announcement backup promo files` hit the 900 second worker limit with no same-scope debug, no downstream dispatch, and no residual Codex worker process.
+- next verification command: focused announcement/backup/promo split regression.
+
+- command: initial focused V2.154 regression
+- result: failed
+- relevant error summary: simplified T034 fixture exposed task-ID drift because earlier final-frontend split preservation ranges ended too early and the graph could compress before applying completed task IDs.
+- fix attempted: extended final-frontend split preservation ranges and forced earlier split-chain preservation for deep T034+ announcement/backup/promo failures; adjusted the regression to assert split behavior by title and file boundary instead of relying on simplified-fixture absolute IDs.
+- next verification command: rerun focused V2.154 regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_email_template_timeout_uses_file_leaf tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_announcement_backup_promo_timeout_is_split_again -q`
+- result: `2 passed`
+- next verification command: six-layer focused split regression.
+
+- command: six-layer focused final frontend split regression
+- result: `6 passed`
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `55 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `91 passed`
+- next verification command: compileall, diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
+
 ## 2026-06-29T21:03:00+08:00 V2.153 Final frontend admin email-template leaf
 
 - command: Billing Core final verification resume after V2.152
