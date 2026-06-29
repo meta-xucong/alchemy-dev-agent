@@ -14,6 +14,7 @@ from autodev.full_roadmap_executor import (
     FullRoadmapExecutor,
     blockers_are_auto_repairable,
     bootstrap_phase_repair_documents,
+    final_verification_resume_repair_documents,
     interrupted_phase_resume_source,
     latest_verification_issue_context_document,
     next_phase_repair_path,
@@ -4170,7 +4171,76 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         text = repair_docs[-1].read_text(encoding="utf-8")
         self.assertIn("Repair attempt: run_attempt_008", text)
         self.assertIn("Completed tasks to preserve: T003, T004", text)
-        self.assertIn("Primary failed task IDs: T004-DEBUG-1", text)
+        self.assertIn("Primary failed task IDs: T004", text)
+        self.assertNotIn("Primary failed task IDs: T004-DEBUG-1", text)
+
+    def test_final_verification_resume_maps_stopped_debug_to_parent_and_dependency_preserve(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [
+                    {
+                        "attempt": 33,
+                        "output_dir": str(output_dir / "run_attempt_033"),
+                        "status": "blocked",
+                    }
+                ],
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {
+                        "completed_tasks": ["T036"],
+                        "failed_tasks": ["T042", "T042-DEBUG-1"],
+                        "blockers": [
+                            {
+                                "id": "B-T042-DEBUG-1-0",
+                                "type": "technical_limit",
+                                "description": "Codex worker was cancelled by operator stop request.",
+                                "task_ids": ["T042-DEBUG-1"],
+                            }
+                        ],
+                        "task_graph": {
+                            "nodes": [
+                                {"id": "T036", "title": "Repair promo codes", "status": "completed"},
+                                {"id": "T037", "title": "Repair announcement components", "status": "completed", "dependencies": ["T036"]},
+                                {"id": "T038", "title": "Repair dashboard settings support", "status": "completed", "dependencies": ["T037"]},
+                                {"id": "T039", "title": "Repair user usage redeem views", "status": "completed", "dependencies": ["T038"]},
+                                {"id": "T040", "title": "Repair payment order plan views", "status": "completed", "dependencies": ["T039"]},
+                                {"id": "T041", "title": "Repair operations views", "status": "completed", "dependencies": ["T040"]},
+                                {
+                                    "id": "T042",
+                                    "title": "Repair final frontend legacy admin view cleanup",
+                                    "type": "integration",
+                                    "status": "ready",
+                                    "dependencies": ["T041"],
+                                    "relevant_files": ["frontend/src/views/admin/ChannelsView.vue"],
+                                },
+                                {
+                                    "id": "T042-DEBUG-1",
+                                    "title": "Debug T042",
+                                    "type": "debug",
+                                    "status": "blocked",
+                                    "relevant_files": ["frontend/src/views/admin/ChannelsView.vue"],
+                                },
+                            ]
+                        },
+                    },
+                },
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+        self.assertIn("Repair attempt: run_attempt_033", text)
+        self.assertIn("Primary failed task IDs: T042", text)
+        self.assertNotIn("Primary failed task IDs: T042-DEBUG-1", text)
+        completed_line = next(line for line in text.splitlines() if line.startswith("- Completed tasks to preserve:"))
+        for task_id in ("T036", "T037", "T038", "T039", "T040", "T041"):
+            self.assertIn(task_id, completed_line)
 
     def test_final_verification_resume_reopens_preserved_task_when_later_failure_targets_its_scope(self) -> None:
         root = temp_root()

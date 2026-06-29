@@ -2155,3 +2155,11 @@ PY"`
 - Implemented V2.159 in untime/orchestrator.py: out-of-scope boundary-violation worker results now record a non-partial worker_boundary_blocker and do not create same-scope debug tasks.
 - Current total-project estimate remains about 99.4%; the remaining work is T042 boundary-aware repair and T043-T051 final verification tail.
 - Next step: commit/push V2.159, relaunch, and confirm the next graph preserves T036-T041 and handles T042 by split/expanded boundary instead of same-scope debug.
+
+## 2026-06-30T01:01:12+08:00 V2.160 Final Resume Debug Parent Focus
+
+- After V2.159, relaunch did not create a useful new final-verification attempt because the newest resume context still focused the stopped debug task instead of root T042.
+- A direct Alchemy helper probe generated inal_verification_repair_resume_029.md, confirming the bug: it focused T042-DEBUG-1, omitted root T042 as the primary failed task, and had incomplete completed-task preservation.
+- Implemented V2.160 in utodev/full_roadmap_executor.py: final-verification repair resume generation now maps failed debug IDs back to the nearest non-debug parent, preserves completed dependency-chain tasks, treats operator/supervisor/out-of-scope boundary evidence as repair-worthy, and only reuses an existing resume if its focus matches the latest report.
+- Current total-project estimate remains about 99.4%; the immediate blocker is now Alchemy final-verification resume correctness for T042, not CRM product code.
+- Next step: commit/push V2.160, relaunch, and confirm the next resume supersedes stale _029 with a T042-focused repair graph.

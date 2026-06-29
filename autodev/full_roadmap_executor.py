@@ -1603,7 +1603,7 @@ def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[obj
     nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
     nodes_by_id = {str(node.get("id", "")): node for node in nodes if str(node.get("id", ""))}
     focus_task_ids = repair_focus_task_ids(blockers, nodes)
-    completed_task_ids = repair_completed_task_ids(runtime_state, nodes)
+    completed_task_ids = repair_completed_task_ids(runtime_state, nodes, focus_task_ids)
     lines = ["", "## Focused Repair Scope", ""]
     if focus_task_ids:
         lines.append(f"- Primary failed task IDs: {', '.join(focus_task_ids)}.")
@@ -1625,23 +1625,78 @@ def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[obj
 
 
 def repair_focus_task_ids(blockers: Sequence[object], nodes: Sequence[dict[str, object]]) -> list[str]:
+    nodes_by_id = {str(node.get("id", "")): node for node in nodes if str(node.get("id", ""))}
     task_ids: list[str] = []
     for blocker in blockers:
         if not isinstance(blocker, dict):
             continue
         task_ids.extend(str(item) for item in _list(blocker.get("task_ids")))
     if task_ids:
-        return dedupe_strings(task_ids)
+        return normalize_repair_focus_task_ids(task_ids, nodes_by_id)
     failed_statuses = {"failed", "blocked", "timed_out", "cancelled"}
-    return dedupe_strings(
-        str(node.get("id", ""))
-        for node in nodes
-        if str(node.get("status", "")).lower() in failed_statuses
+    return normalize_repair_focus_task_ids(
+        [
+            str(node.get("id", ""))
+            for node in nodes
+            if str(node.get("status", "")).lower() in failed_statuses
+        ],
+        nodes_by_id,
     )
 
 
-def repair_completed_task_ids(runtime_state: dict[str, Any], nodes: Sequence[dict[str, object]]) -> list[str]:
-    completed = [str(item) for item in _list(runtime_state.get("completed_tasks"))]
+def normalize_repair_focus_task_ids(task_ids: Sequence[str], nodes_by_id: dict[str, dict[str, object]]) -> list[str]:
+    normalized: list[str] = []
+    for task_id in task_ids:
+        clean = str(task_id or "").strip()
+        if not clean:
+            continue
+        normalized.append(repair_focus_root_task_id(clean, nodes_by_id))
+    return dedupe_strings(normalized)
+
+
+def repair_focus_root_task_id(task_id: str, nodes_by_id: dict[str, dict[str, object]]) -> str:
+    node = nodes_by_id.get(task_id)
+    if node and str(node.get("type", "")).lower() != "debug":
+        return task_id
+    current = task_id
+    while "-DEBUG-" in current:
+        current = current.rsplit("-DEBUG-", 1)[0]
+        parent = nodes_by_id.get(current)
+        if not parent or str(parent.get("type", "")).lower() != "debug":
+            return current
+    return task_id
+
+
+def task_dependency_closure(task_ids: Sequence[str], nodes_by_id: dict[str, dict[str, object]]) -> list[str]:
+    seen: list[str] = []
+
+    def visit(task_id: str) -> None:
+        for dependency in _list(nodes_by_id.get(task_id, {}).get("dependencies")):
+            dep_id = str(dependency or "").strip()
+            if dep_id and dep_id not in seen:
+                visit(dep_id)
+                seen.append(dep_id)
+
+    for task_id in task_ids:
+        visit(task_id)
+    return seen
+
+
+def repair_preserve_dependency_completed_task_ids(
+    focus_task_ids: Sequence[str],
+    nodes_by_id: dict[str, dict[str, object]],
+) -> list[str]:
+    return [
+        task_id
+        for task_id in task_dependency_closure(focus_task_ids, nodes_by_id)
+        if str(nodes_by_id.get(task_id, {}).get("status", "")).lower() in {"done", "completed"}
+    ]
+
+
+def repair_completed_task_ids(runtime_state: dict[str, Any], nodes: Sequence[dict[str, object]], focus_task_ids: Sequence[str] = ()) -> list[str]:
+    nodes_by_id = {str(node.get("id", "")): node for node in nodes if str(node.get("id", ""))}
+    completed = repair_preserve_dependency_completed_task_ids(focus_task_ids, nodes_by_id)
+    completed.extend(str(item) for item in _list(runtime_state.get("completed_tasks")))
     completed.extend(
         str(node.get("id", ""))
         for node in nodes
@@ -2021,16 +2076,23 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
         "worker timeout",
         "timed out",
         "exceeded the codex worker timeout",
+        "operator stop request",
+        "supervisor",
+        "outside the task boundary",
+        "out-of-scope",
     ]
     if not any(token in lowered for token in repair_markers):
         return [str(existing[-1].resolve())] if existing else []
     attempt_marker = final_verification_report_attempt_marker(report)
-    if existing and (not attempt_marker or final_verification_repair_resume_mentions(existing[-1], attempt_marker)):
-        return [str(existing[-1].resolve())]
     result = _dict(report.get("result"))
     runtime_state = _dict(result.get("runtime_state"))
     blockers = [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
     focused_lines = phase_focused_repair_lines(result, blockers)
+    if existing and (
+        not attempt_marker
+        or final_verification_repair_resume_matches_focus(existing[-1], attempt_marker, focused_lines)
+    ):
+        return [str(existing[-1].resolve())]
     path = next_final_verification_repair_resume_path(output_dir)
     lines = [
         "# Final Verification Repair Resume",
@@ -2082,6 +2144,17 @@ def final_verification_repair_resume_mentions(path: Path, marker: str) -> bool:
         return marker in path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return False
+
+
+def final_verification_repair_resume_matches_focus(path: Path, marker: str, focused_lines: Sequence[str]) -> bool:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    if marker not in text:
+        return False
+    focus_requirements = [line for line in focused_lines if line.startswith("- Primary failed task IDs:")]
+    return all(line in text for line in focus_requirements)
 
 
 def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:

@@ -5330,3 +5330,25 @@
 - command: python -B -m pytest tests/test_runtime.py -q
 - result: 144 passed
 - next verification command: diff check, state validation, commit/push, and controlled Billing Core final-verification relaunch.
+
+## 2026-06-30T01:01:12+08:00 V2.160 Final resume debug parent focus
+
+- command: Alchemy helper probe inal_verification_resume_repair_documents against current Billing Core final verification state
+- result: generated stale-focus inal_verification_repair_resume_029.md that proves the bug; it focuses T042-DEBUG-1 instead of root T042.
+- next verification command: focused full-roadmap repair-resume regressions.
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_preserves_partial_downstream_handoff tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_maps_stopped_debug_to_parent_and_dependency_preserve tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_relaunch_writes_fresh_resume_for_latest_failed_attempt -q
+- result: 3 passed
+- next verification command: compileall and full suites.
+
+- command: python -B -m compileall autodev tests -q
+- result: passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 92 passed
+- next verification command: python -B -m pytest tests/test_document_to_plan.py -q
+
+- command: python -B -m pytest tests/test_document_to_plan.py -q
+- result: 56 passed
+- next verification command: diff check, state validation, commit/push, and controlled Billing Core final-verification relaunch.

@@ -1,8 +1,9 @@
 {
     "objective":  "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase":  "billing_core_boundary_violation_stop_v2_159",
+    "current_phase":  "billing_core_final_resume_debug_parent_focus_v2_160",
     "phase_status":  "advancing",
     "completed_phases":  [
+                             "implemented V2.160 final-verification repair resume debug-parent focus and dependency-chain preservation",
                              "implemented V2.159 boundary-violation stop so out-of-scope worker edits do not create same-scope debug token loops",
                              "implemented V2.158 timeout grace observability so Codex Desktop can distinguish active bounded progress grace from uncontrolled worker overrun",
                              "committed and pushed Alchemy V2.74 checkpoint",
@@ -101,14 +102,19 @@
                              "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
                          ],
     "next_actions":  [
-                         "Commit and push V2.159 boundary-violation stop.",
+                         "Commit and push V2.160 final-verification debug-parent repair resume focus.",
                          "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1 using a quoted script path.",
-                         "Confirm the next final-verification repair resume preserves T036-T041 completed and resumes T042 without creating same-scope debug for the prior boundary violation.",
+                         "Confirm a new final_verification_repair_resume document supersedes stale _029 and focuses root T042 with T036-T041 preserved.",
+                         "Confirm the next final-verification graph resumes T042 without same-scope debug replay or completed-task ID drift.",
                          "If T042 rebuilds as the same broad legacy admin cleanup task, split legacy admin cleanup into account/channel/group/proxy/subscription support tasks.",
-                         "After T042 completes, continue monitoring T043-T051 final audit, simulation, real repository checks, review, and delivery evidence.",
-                         "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
+                         "After T042 completes, continue monitoring T043-T051 final audit, simulation, real repository checks, review, and delivery evidence."
                      ],
     "tests_run":  [
+                      "V2.160: python -B -m pytest tests/test_document_to_plan.py -q =\u003e 56 passed",
+                      "V2.160: python -B -m pytest tests/test_full_roadmap_execution.py -q =\u003e 92 passed",
+                      "V2.160: python -B -m compileall autodev tests -q =\u003e passed",
+                      "V2.160: focused final-verification debug-parent repair resume regressions =\u003e 3 passed",
+                      "V2.160: Billing Core final verification recovery probe =\u003e stale final_verification_repair_resume_029.md focused T042-DEBUG-1, requiring focus-match freshness repair before relaunch",
                       "V2.159: python -B -m pytest tests/test_runtime.py -q =\u003e 144 passed",
                       "V2.159: python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_allows_filename_glob_scope -q =\u003e 1 passed after one parallel-suite interference failure",
                       "V2.159: python -B -m pytest tests/test_full_roadmap_execution.py -q =\u003e 91 passed",
@@ -811,10 +817,11 @@
                           "Relevant tests or checks pass",
                           "Progress and verification are recorded"
                       ],
-    "last_verified_at":  "2026-06-30T00:52:54+08:00",
+    "last_verified_at":  "2026-06-30T01:01:12+08:00",
     "created_at":  "2026-06-25T01:55:36+08:00",
-    "updated_at":  "2026-06-30T00:52:54+08:00",
+    "updated_at":  "2026-06-30T01:01:12+08:00",
     "known_issues":  [
+                         "Before V2.160, final-verification repair resume generation could focus an operator-stopped debug task such as T042-DEBUG-1 instead of reopening its non-debug parent T042, and could reuse a stale latest-attempt resume whose focus no longer matched fixed logic.",
                          "Before V2.159, a worker boundary violation that changed files outside allowed_files still created a same-scope debug task, wasting a worker window instead of forcing split or boundary expansion on the next resume.",
                          "Before V2.158, timeout-progress grace did not expose a first-class live deadline in worker lifecycle JSON, so Codex Desktop could misread a bounded grace window as an uncontrolled worker overrun.",
                          "Before V2.157, single-file final frontend leaf tasks could still spend their whole worker window on broad frontend verification instead of returning a scoped edit and leaving full checks to final verification.",
