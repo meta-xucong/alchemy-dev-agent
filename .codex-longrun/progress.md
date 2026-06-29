@@ -2217,3 +2217,13 @@ PY"`
 - Added `test_final_verification_composable_contracts_timeout_is_split_again` and documented the change in `docs/174_v2_165_composable_contract_split.md`.
 - Real `final_verification_repair_resume_034.md` now builds a graph with T045-T049 completed and split T050/T051/T052 composable subtasks pending, followed by utility, test, audit, simulation, real repository checks, review, and delivery.
 - Current total-project estimate is about 99.55%-99.6%. The immediate next step is commit/push V2.165, relaunch through encoded PowerShell, and monitor split T050 identity/OAuth composables.
+
+## 2026-06-30T04:42:00+08:00 V2.166 Final Metering Entitlement Composable Split
+
+- Relaunched after V2.165. `final_verification/run_attempt_038` preserved T001-T049 and started split T050.
+- T050 `Repair final frontend identity OAuth composables` completed successfully.
+- T051 `Repair final frontend metering entitlement composables` timed out after 900 seconds. Alchemy again handled the stop boundary correctly: non-partial blocker `B-T051-1`, no same-scope debug task, no downstream T052 dispatch, and no residual real worker process.
+- Implemented V2.166 in `planner/task_graph_builder.py`: focused metering/entitlement composable timeouts now split into channel-monitor-format, model-entitlement, and onboarding/quota composable leaves.
+- Added `test_final_verification_metering_entitlement_composables_timeout_is_split_again` and documented the change in `docs/175_v2_166_metering_entitlement_composable_split.md`.
+- Real `final_verification_repair_resume_035.md` now builds a graph with T045-T050 completed and split T051/T052/T053 leaves pending, followed by table/navigation composables, utility/type repair, tests, audit, simulation, real repository checks, review, and delivery.
+- Current total-project estimate remains about 99.6%; the next relaunch should start at T051 `Repair final frontend channel monitor format composable`.

@@ -2891,6 +2891,102 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("frontend/src/composables/useTableLoader.ts", nodes["T052"]["relevant_files"])
         self.assertEqual(nodes["T053"]["title"], "Repair final frontend utility constant type contracts")
 
+    def test_final_verification_metering_entitlement_composables_timeout_is_split_again(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            for path in (
+                "frontend/src/api",
+                "frontend/src/constants",
+                "frontend/src/i18n",
+                "frontend/src/types",
+                "frontend/src/router",
+                "frontend/src/views/admin/__tests__",
+                "frontend/src/views/admin/ops/components",
+                "frontend/src/views/admin/orders",
+                "frontend/src/views/admin/settings",
+                "frontend/src/views/auth",
+                "frontend/src/views/public",
+                "frontend/src/views/setup",
+                "frontend/src/views/user",
+                "frontend/src/components/account",
+                "frontend/src/components/admin/announcements",
+                "frontend/src/components/admin/payment",
+                "frontend/src/components/admin/user",
+                "frontend/src/components/charts",
+                "frontend/src/styles",
+                "frontend/src/composables/__tests__",
+                "frontend/src/stores",
+                "frontend/src/utils",
+                "frontend/tests",
+            ):
+                (repo / path).mkdir(parents=True)
+            (repo / "frontend" / "src" / "views" / "NotFoundView.vue").write_text("<template />\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "final_verification_repair_resume_035.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_038",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- FINAL_AUDIT_STATUS=FAIL: final source-boundary repair needs continuation.",
+                        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain upstream account, proxy, channel-monitor, model-routing, or subscription-plan behavior.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T051.",
+                        f"- Completed tasks to preserve: {', '.join(f'T{index:03d}' for index in range(1, 51))}.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T051 - Repair final frontend metering entitlement composables",
+                        "- Must continue focused task T051: Repair final frontend metering entitlement composables.",
+                        "- Previous relevant files: frontend/src/composables/useChannelMonitorFormat.ts, frontend/src/composables/useModelWhitelist.ts, frontend/src/composables/useOnboardingTour.ts, frontend/src/composables/useQuotaNotifyState.ts, frontend/src/composables/__tests__/useModelWhitelist.spec.ts, frontend/src/types/**, frontend/package.json, frontend/pnpm-lock.yaml.",
+                        "- Worker summary: T051 exceeded the Codex worker timeout.",
+                        "- Timeout note: preserve T050 and split the domain composables into channel monitor format, model entitlement, and onboarding/quota scopes before replaying this task.",
+                        "",
+                        "## Previous Graph Titles",
+                        "",
+                        "- Repair final frontend store contracts",
+                        "- Repair final frontend identity OAuth composables",
+                        "- Repair final frontend metering entitlement composables",
+                        "- Repair final frontend table navigation composables",
+                        "- Repair final frontend utility constant type contracts",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-30T04:38:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        titles = [node["title"] for node in graph["nodes"]]
+        self.assertNotIn("Repair final frontend metering entitlement composables", titles)
+        self.assertEqual(nodes["T050"]["title"], "Repair final frontend identity OAuth composables")
+        self.assertEqual(nodes["T050"]["status"], "completed")
+        self.assertEqual(nodes["T051"]["title"], "Repair final frontend channel monitor format composable")
+        self.assertEqual(nodes["T051"]["relevant_files"][0], "frontend/src/composables/useChannelMonitorFormat.ts")
+        self.assertEqual(nodes["T052"]["title"], "Repair final frontend model entitlement composable")
+        self.assertIn("frontend/src/composables/useModelWhitelist.ts", nodes["T052"]["relevant_files"])
+        self.assertEqual(nodes["T053"]["title"], "Repair final frontend onboarding quota composables")
+        self.assertIn("frontend/src/composables/useQuotaNotifyState.ts", nodes["T053"]["relevant_files"])
+        self.assertEqual(nodes["T054"]["title"], "Repair final frontend table navigation composables")
+
     def test_final_verification_admin_settings_email_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

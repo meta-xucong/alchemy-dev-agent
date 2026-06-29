@@ -5469,6 +5469,32 @@
 - result: T049 remained completed; T050/T051/T052 became identity/OAuth, metering/entitlement, and table/navigation composable tasks; downstream utility/test/audit/real-check/review/delivery tasks remained pending.
 - next verification command: validate state, diff check, commit/push V2.165, and controlled Billing Core final-verification relaunch.
 
+## 2026-06-30T04:42:00+08:00 V2.166 metering-entitlement composable timeout split
+
+- command: Billing Core final verification `run_attempt_038` monitoring
+- result: T050 identity/OAuth composables completed; T051 metering/entitlement composables timed out at 900 seconds; Alchemy recorded non-partial blocker `B-T051-1`, did not create a same-scope debug task, and did not dispatch downstream work.
+- next verification command: focused metering-entitlement composable split regression.
+
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_metering_entitlement_composables_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_composable_contracts_timeout_is_split_again -q
+- result: 2 passed
+- next verification command: compileall and full planner/full-roadmap suites.
+
+- command: python -B -m compileall planner tests -q
+- result: passed
+- next verification command: python -B -m pytest tests/test_document_to_plan.py -q
+
+- command: python -B -m pytest tests/test_document_to_plan.py -q
+- result: 61 passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 92 passed
+- next verification command: real final_verification_repair_resume_035 graph probe.
+
+- command: real `final_verification_repair_resume_035.md` graph probe
+- result: T050 remained completed; T051/T052/T053 became channel-monitor-format, model-entitlement, and onboarding/quota composable leaves; downstream table/navigation, utility/type, test, audit, real-check, review, and delivery tasks remained pending.
+- next verification command: validate state, diff check, commit/push V2.166, and controlled Billing Core final-verification relaunch.
+
 ## 2026-06-30T01:08:29+08:00 V2.161 Debug parent dependency preservation
 
 - command: Real Billing Core final-verification report probe using phase_focused_repair_lines

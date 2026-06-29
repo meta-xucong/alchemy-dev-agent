@@ -726,6 +726,11 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             should_split_final_frontend_composable_contracts_timeout(text)
             or should_preserve_final_frontend_composable_contracts_split(text)
         )
+        split_metering_entitlement_composables = (
+            should_split_final_frontend_metering_entitlement_composables_timeout(text)
+            or should_preserve_final_frontend_metering_entitlement_composables_split(text)
+        )
+        split_composable_contracts = split_composable_contracts or split_metering_entitlement_composables
         split_state_composable_utility = split_state_composable_utility or split_composable_contracts
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
             text
@@ -785,6 +790,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_setup_not_found_views=split_setup_not_found_views,
                 split_state_composable_utility=split_state_composable_utility,
                 split_composable_contracts=split_composable_contracts,
+                split_metering_entitlement_composables=split_metering_entitlement_composables,
             )
         )
     return specs
@@ -1304,6 +1310,51 @@ def should_preserve_final_frontend_composable_contracts_split(text: str) -> bool
             "t052",
         )
     ) and _has_primary_failed_task_id_in_range(text, 53, 70)
+
+
+def should_split_final_frontend_metering_entitlement_composables_timeout(text: str) -> bool:
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return _has_primary_failed_task_id_in_range(text, 50, 70) and any(
+        marker in text
+        for marker in (
+            "repair final frontend metering entitlement composables",
+            "usechannelmonitorformat",
+            "usemodelwhitelist",
+            "useonboardingtour",
+            "usequotanotifystate",
+        )
+    )
+
+
+def should_preserve_final_frontend_metering_entitlement_composables_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend channel monitor format composable",
+            "repair final frontend model entitlement composable",
+            "repair final frontend onboarding quota composables",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t051",
+            "t052",
+            "t053",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 54, 75)
 
 
 def should_split_final_frontend_admin_dashboard_settings_timeout(text: str) -> bool:
@@ -1949,6 +2000,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_setup_not_found_views: bool = False,
     split_state_composable_utility: bool = False,
     split_composable_contracts: bool = False,
+    split_metering_entitlement_composables: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -2033,6 +2085,78 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 90,
     }
+    metering_entitlement_task = {
+        "title": "Repair final frontend metering entitlement composables",
+        "description": "Align domain composables with CRM metering, entitlement, onboarding, and account-capacity semantics.",
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/composables/useChannelMonitorFormat.ts",
+            "frontend/src/composables/useModelWhitelist.ts",
+            "frontend/src/composables/useOnboardingTour.ts",
+            "frontend/src/composables/useQuotaNotifyState.ts",
+            "frontend/src/composables/__tests__/useModelWhitelist.spec.ts",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Domain composables use CRM metering, entitlement, onboarding, and account-capacity language.",
+            "Domain composable contracts no longer expose retired channel-monitor, provider-channel, proxy, model-routing, or token-log behavior as product concepts.",
+        ],
+        "priority": 89,
+    }
+    metering_entitlement_split_tasks = [
+        {
+            "title": "Repair final frontend channel monitor format composable",
+            "description": "Align the channel monitor formatting composable with CRM metering and service-health language.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/composables/useChannelMonitorFormat.ts",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "useChannelMonitorFormat uses CRM metering, service-health, account-activity, and operational status language.",
+                "The composable no longer exposes retired provider-channel, proxy, relay, model-routing, or token-log product semantics.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final frontend model entitlement composable",
+            "description": "Align the model whitelist composable with CRM entitlement and plan-capability language.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/composables/useModelWhitelist.ts",
+                "frontend/src/composables/__tests__/useModelWhitelist.spec.ts",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "useModelWhitelist uses CRM entitlement, plan-capability, and account-access language.",
+                "The composable and test no longer expose relay model-routing, provider-channel, proxy, or token-log behavior as product concepts.",
+            ],
+            "priority": 88,
+        },
+        {
+            "title": "Repair final frontend onboarding quota composables",
+            "description": "Align onboarding and quota notification composables with CRM account setup and account-capacity semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/composables/useOnboardingTour.ts",
+                "frontend/src/composables/useQuotaNotifyState.ts",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Onboarding and quota notification composables use CRM account setup, wallet, entitlement, and account-capacity language.",
+                "These composables no longer expose retired relay, upstream-account, provider-channel, model-routing, or token-log product behavior.",
+            ],
+            "priority": 87,
+        },
+    ]
     composable_split_tasks = [
         {
             "title": "Repair final frontend identity OAuth composables",
@@ -2054,26 +2178,7 @@ def final_frontend_routes_views_repair_task_specs(
             ],
             "priority": 90,
         },
-        {
-            "title": "Repair final frontend metering entitlement composables",
-            "description": "Align domain composables with CRM metering, entitlement, onboarding, and account-capacity semantics.",
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/composables/useChannelMonitorFormat.ts",
-                "frontend/src/composables/useModelWhitelist.ts",
-                "frontend/src/composables/useOnboardingTour.ts",
-                "frontend/src/composables/useQuotaNotifyState.ts",
-                "frontend/src/composables/__tests__/useModelWhitelist.spec.ts",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Domain composables use CRM metering, entitlement, onboarding, and account-capacity language.",
-                "Domain composable contracts no longer expose retired channel-monitor, provider-channel, proxy, model-routing, or token-log behavior as product concepts.",
-            ],
-            "priority": 89,
-        },
+        *(metering_entitlement_split_tasks if split_metering_entitlement_composables else [metering_entitlement_task]),
         {
             "title": "Repair final frontend table navigation composables",
             "description": "Align shared UI composables with CRM-neutral table, navigation, loading, and form contracts.",
