@@ -2044,3 +2044,15 @@ PY"`
 - A generic read-only Codex smoke still hung after writing `OK`, but a worker-like smoke using Alchemy's real worker mode (`--disable plugins --json`) exited cleanly with an `OK` agent message.
 - Current total-project estimate remains about 98.9%; the immediate Alchemy issue is fixed and the worker-like Codex path is healthy enough to relaunch.
 - Next step: commit/push V2.148, then relaunch the controlled Billing Core final verification.
+
+## 2026-06-29T19:08:00+08:00 V2.149 Final Frontend View Page Timeout Split
+
+- Relaunched after V2.148. `final_verification/run_attempt_023` preserved T001-T025 and completed T026 refund dialog, T027 payment analytics, and T028 analytics/shared component contracts.
+- T029 `Repair final frontend view page contracts` timed out after 900 seconds.
+- Alchemy handled the timeout boundary correctly: it recorded `B-T029-1`, stopped the run, did not launch same-scope debug work, and did not dispatch downstream T030.
+- Inspected the inherited worktree view surface for task sizing only. It spans admin views, user/payment views, auth callbacks, public/setup views, and not-found pages.
+- Implemented V2.149 in `planner/task_graph_builder.py`: focused T029 view-page timeout resumes preserve T001-T028 and split the work into admin view pages, user/payment view pages, and auth/public/setup view pages.
+- Added focused document-to-plan coverage plus `docs/158_v2_149_final_frontend_view_page_timeout_split.md`.
+- Temporary graph probe against copied `run_attempt_023` artifacts shows `final_verification_repair_resume_019.md` preserves T001-T028 and starts at `Repair final frontend admin view page contracts`.
+- Current total-project estimate is about 99.2%; the blocked subtask is now narrowed to final frontend view-page cleanup.
+- Next step: commit/push V2.149, relaunch the controlled Billing Core final verification, and monitor split T029 without direct Codex Desktop product-code edits.

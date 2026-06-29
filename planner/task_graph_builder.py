@@ -674,6 +674,9 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             text
         ) or should_preserve_final_frontend_admin_payment_refund_leaf(text)
         split_admin_payment = split_admin_payment or split_admin_payment_refund
+        split_view_pages = should_split_final_frontend_view_page_timeout(
+            text
+        ) or should_preserve_final_frontend_view_page_split(text)
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
             text
         ) or should_preserve_final_frontend_admin_usage_payment_split(text) or split_admin_payment
@@ -699,6 +702,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             should_split_final_frontend_view_component_timeout(text)
             or should_preserve_final_frontend_view_component_split(text)
             or split_admin_components
+            or split_view_pages
         )
         specs.extend(
             final_frontend_api_i18n_repair_task_specs(
@@ -717,6 +721,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_usage_payment=split_admin_usage_payment,
                 split_admin_payment=split_admin_payment,
                 split_admin_payment_refund=split_admin_payment_refund,
+                split_view_pages=split_view_pages,
             )
         )
     return specs
@@ -922,6 +927,65 @@ def should_preserve_final_frontend_view_component_split(text: str) -> bool:
             "t010",
         )
     ) and _has_primary_failed_task_id_in_range(text, 11, 32)
+
+
+def should_split_final_frontend_view_page_timeout(text: str) -> bool:
+    focused_view_page_scope = _has_primary_failed_task_id_in_range(text, 29, 31) and any(
+        marker in text
+        for marker in (
+            "repair final frontend view page contracts",
+            "repair final frontend admin view page contracts",
+            "repair final frontend user payment view page contracts",
+            "repair final frontend auth public setup view contracts",
+            "frontend/src/views",
+            "views/admin",
+            "views/user",
+            "views/auth",
+        )
+    )
+    if focused_view_page_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return all(
+        marker in text
+        for marker in (
+            "primary failed task ids: t029",
+            "frontend",
+            "view",
+            "page",
+        )
+    )
+
+
+def should_preserve_final_frontend_view_page_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend admin view page contracts",
+            "repair final frontend user payment view page contracts",
+            "repair final frontend auth public setup view contracts",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t029",
+            "t030",
+            "t031",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 32, 40)
 
 
 def should_split_final_frontend_admin_component_timeout(text: str) -> bool:
@@ -1319,6 +1383,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_usage_payment: bool = False,
     split_admin_payment: bool = False,
     split_admin_payment_refund: bool = False,
+    split_view_pages: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1944,12 +2009,71 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 86,
     }
+    view_page_split_tasks = [
+        {
+            "title": "Repair final frontend admin view page contracts",
+            "description": "Align admin view pages with CRM identity, billing, wallet, metering, audit, operations, and admin semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/views/admin/**",
+                "frontend/src/components/admin/**",
+                "frontend/src/styles/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin view pages no longer present token relay, provider channel, upstream account, model-routing, proxy, or subscription-plan behavior.",
+                "Admin pages compile against CRM billing, identity, wallet, metering, payment, analytics, audit, and operations workflows.",
+            ],
+            "priority": 86,
+        },
+        {
+            "title": "Repair final frontend user payment view page contracts",
+            "description": "Align user dashboard, usage, API key, order, payment, redeem, and profile view pages with CRM account and billing semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/views/user/**",
+                "frontend/src/components/account/**",
+                "frontend/src/components/charts/**",
+                "frontend/src/styles/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "User view pages use CRM account identity, wallet, usage metering, billing, order, payment, and audit language.",
+                "User payment and account views no longer expose relay provider, channel, token-log, proxy, or model-routing behavior.",
+            ],
+            "priority": 85,
+        },
+        {
+            "title": "Repair final frontend auth public setup view contracts",
+            "description": "Align auth, public legal, setup, and not-found view pages with the final CRM product boundary.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/views/auth/**",
+                "frontend/src/views/public/**",
+                "frontend/src/views/setup/**",
+                "frontend/src/views/NotFoundView.vue",
+                "frontend/src/styles/**",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Auth, public, setup, and not-found views use CRM product, account, compliance, and onboarding language.",
+                "Residual relay/API gateway/provider/channel/token-log copy is removed or quarantined from public product behavior.",
+            ],
+            "priority": 84,
+        },
+    ]
     if split_view_components:
         component_tasks = [
             account_component_task,
             *(admin_split_tasks if split_admin_components else [admin_component_task]),
             analytics_component_task,
-            view_page_task,
+            *(view_page_split_tasks if split_view_pages else [view_page_task]),
         ]
         return [route_task, *component_tasks, state_task, test_task]
     return [

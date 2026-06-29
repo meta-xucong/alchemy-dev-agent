@@ -4960,6 +4960,42 @@
 - relevant evidence: process exited cleanly in about 38 seconds; stdout contained `agent_message` text `OK` and `turn.completed`.
 - next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
 
+## 2026-06-29T19:08:00+08:00 V2.149 Final frontend view-page timeout split
+
+- command: Billing Core final verification resume after V2.148
+- result: T026-T028 completed; T029 timed out
+- relevant evidence: `final_verification/run_attempt_023/state.json` preserved T001-T028, then recorded `B-T029-1` after T029 `Repair final frontend view page contracts` hit the 900 second worker timeout with no same-scope debug or downstream dispatch.
+- next verification command: focused view-page split regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_view_page_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_payment_refund_timeout_uses_file_leaf tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_payment_timeout_is_split_again -q`
+- result: `3 passed`
+- next verification command: temporary real Billing Core final-verification resume graph probe after run_attempt_023.
+
+- command: post-compaction focused rerun: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_view_page_timeout_is_split_again -q`
+- result: `1 passed`
+- next verification command: commit/push and controlled Billing Core final verification relaunch.
+
+- command: temporary real Billing Core final-verification resume graph probe after `run_attempt_023`
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_019.md` in a temp copy; graph construction preserves T001-T028 completed and starts T029 as `Repair final frontend admin view page contracts`, followed by user/payment and auth/public/setup view subtasks.
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `50 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `91 passed`
+- next verification command: compileall and diff check.
+
+- command: `python -B -m compileall planner tests -q`
+- result: passed
+- next verification command: diff check.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
+
 ## 2026-06-29T14:12:00+08:00 V2.147 Final frontend admin payment refund leaf task
 
 - command: Billing Core final verification resume after V2.146
