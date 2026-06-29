@@ -1,6 +1,6 @@
 {
   "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-  "current_phase": "billing_core_final_frontend_admin_payment_refund_leaf_v2_147",
+  "current_phase": "codex_connectivity_blocker_classification_v2_148",
   "phase_status": "advancing",
   "completed_phases": [
     "committed and pushed Alchemy V2.74 checkpoint",
@@ -86,17 +86,27 @@
     "implemented V2.144 final frontend admin user create/edit timeout split so Billing Core final verification resumes T018 as separate create-modal and edit-modal tasks",
     "implemented V2.145 final frontend admin usage/payment timeout split so Billing Core final verification resumes T024 as separate usage and payment component tasks",
     "implemented V2.146 final frontend admin payment timeout split so Billing Core final verification resumes T025 as payment order/detail, refund, and analytics subtasks",
-    "implemented V2.147 final frontend admin payment refund leaf task so Billing Core final verification resumes T026 with only AdminRefundDialog.vue in scope"
+    "implemented V2.147 final frontend admin payment refund leaf task so Billing Core final verification resumes T026 with only AdminRefundDialog.vue in scope",
+    "implemented V2.148 Codex connectivity blocker classification so unparseable stream failures stop as environment blockers instead of product debug/retry loops"
   ],
   "next_actions": [
-    "Commit and push V2.147 final frontend admin payment refund leaf task.",
+    "Commit and push V2.148 Codex connectivity blocker classification.",
     "Relaunch the controlled Billing Core final verification through resume_v2_88_supervised_probe.ps1 using a quoted script path.",
-    "Confirm final_verification_repair_resume_017 preserves T001-T025 and starts at T026 `Repair final frontend admin payment refund dialog file` in the inherited worktree.",
+    "Confirm final_verification_repair_resume_018 preserves T001-T025 and starts at T026 `Repair final frontend admin payment refund dialog file` in the inherited worktree.",
     "Monitor split frontend repair tasks T026/T027/T028/T029/T030/T031/T032/T033/T034/T035; Codex Desktop must not directly implement CRM product changes.",
-    "If the file-only leaf task still times out, optimize Alchemy worker prompt/checkpointing for final-verification leaf tasks before relaunch.",
+    "If connectivity fails again, V2.148 should stop as an environment blocker instead of creating product debug work.",
     "After final audit evidence is available, produce the CRM deliverability assessment and supplemental development document."
   ],
   "tests_run": [
+    "V2.148: worker-like codex smoke with --disable plugins --json => passed; exited cleanly in about 38 seconds with OK agent_message and turn.completed",
+    "V2.148: generic read-only codex smoke wrote OK but did not exit before outer timeout; process was stopped",
+    "V2.148: codex smoke wrote OK but CLI process did not exit before the 180 second outer timeout; lingering smoke process was stopped",
+    "V2.148: git diff --check => passed",
+    "V2.148: python -B -m compileall runtime tests -q => passed",
+    "V2.148: python -B -m pytest tests/test_full_roadmap_execution.py -q => 91 passed",
+    "V2.148: python -B -m pytest tests/test_runtime.py -q => first run timed out at outer 245 seconds, rerun passed with 142 passed in 378.52s",
+    "V2.148: temporary real Billing Core final-verification resume graph probe after run_attempt_022 => passed; generated final_verification_repair_resume_018.md in a temp copy, preserved T001-T025, and starts at T026 Repair final frontend admin payment refund dialog file",
+    "V2.148: focused runtime connectivity/usage parser and orchestrator regressions => 5 passed after message-priority correction",
     "temporary real Billing Core final-verification resume graph probe after run_attempt_021 => passed; generated final_verification_repair_resume_017.md in a temp copy, preserved T001-T025, and starts at T026 Repair final frontend admin payment refund dialog file with only AdminRefundDialog.vue in scope",
     "V2.147: git diff --check => passed",
     "V2.147: python -B -m compileall planner tests -q => passed",
@@ -724,10 +734,11 @@
     "Relevant tests or checks pass",
     "Progress and verification are recorded"
   ],
-  "last_verified_at": "2026-06-29T14:12:00+08:00",
+  "last_verified_at": "2026-06-29T15:12:00+08:00",
   "created_at": "2026-06-25T01:55:36+08:00",
-  "updated_at": "2026-06-29T14:12:00+08:00",
+  "updated_at": "2026-06-29T15:12:00+08:00",
   "known_issues": [
+    "Before V2.148, unparseable real Codex output caused by stream disconnected / idle timeout waiting for SSE was treated as a normal product task failure, creating debug and retry work instead of stopping as a local Codex connectivity blocker.",
     "Before V2.147, final verification T026 `Repair final frontend admin payment refund dialog component` could time out even as a single-component task because its allowed scope still included shared types and package metadata; the next resume now narrows it to a file-only leaf task.",
     "Before V2.146, final verification T025 `Repair final frontend admin payment component` could time out after 900 seconds and the next resume would risk replaying the same payment directory worker instead of splitting order/detail, refund, and analytics scopes.",
     "Before V2.145, final verification T024 `Repair final frontend admin usage payment components` could time out after 900 seconds and the next resume would risk replaying the same two-family admin usage/payment worker instead of splitting usage and payment scopes.",

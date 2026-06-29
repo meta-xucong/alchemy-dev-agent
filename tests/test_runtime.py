@@ -393,6 +393,39 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.status, "failed")
         self.assertIn("parseable", result.summary)
 
+    def test_real_worker_reports_unparseable_connectivity_failure_as_blocked(self) -> None:
+        raw_output = "\n".join(
+            [
+                json.dumps({"type": "thread.started", "thread_id": "thread-connectivity"}),
+                json.dumps({"type": "turn.started"}),
+                json.dumps(
+                    {
+                        "type": "error",
+                        "message": "Reconnecting... 5/5 (stream disconnected before completion: error sending request for url)",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "turn.failed",
+                        "error": {
+                            "message": "stream disconnected before completion: idle timeout waiting for SSE",
+                        },
+                    }
+                ),
+            ]
+        )
+
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            return subprocess.CompletedProcess(args, 1, raw_output, "")
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T011N", goal="do work", repository_path="."))
+
+        self.assertEqual(result.status, "blocked")
+        self.assertIn("connectivity failed", result.summary.lower())
+        self.assertIn("idle timeout waiting for SSE", result.summary)
+        self.assertIn("connectivity failed", result.known_issues[0].lower())
+
     def test_build_codex_subprocess_env_redirects_home_to_writable_override_root(self) -> None:
         repo = Path.cwd()
         source_root = Path.home() / ".codex" / "memories" / f"codex-home-source-{time.time_ns()}"
@@ -2947,6 +2980,67 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(state.task_graph.nodes[0].status, "blocked")
         self.assertEqual(state.blockers[0]["type"], "environment")
         self.assertIn("local Codex", state.blockers[0]["description"])
+        self.assertFalse(any(event["type"] == "debug_task_created" for event in state.iteration_history))
+
+    def test_worker_connectivity_failure_blocks_without_debug_retry(self) -> None:
+        class ConnectivityFailureWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="blocked",
+                    summary=(
+                        "Codex CLI connectivity failed before structured worker output: "
+                        "stream disconnected before completion: idle timeout waiting for SSE"
+                    ),
+                    known_issues=[
+                        "Local Codex CLI connectivity failed before a parseable worker result was returned.",
+                    ],
+                    raw_output=json.dumps(
+                        {
+                            "type": "turn.failed",
+                            "error": {
+                                "message": "stream disconnected before completion: idle timeout waiting for SSE",
+                            },
+                        }
+                    ),
+                )
+
+        graph = TaskGraph(
+            graph_id="connectivity-blocker",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Implement when Codex connection is available",
+                    description="Should block without spawning debug work.",
+                    type="frontend",
+                    assigned_agent="frontend",
+                    priority=90,
+                )
+            ],
+        )
+        worker = ConnectivityFailureWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "stop on connectivity failure",
+                initial_state=RuntimeState(objective="stop on connectivity failure", task_graph=graph),
+                max_iterations=3,
+            )
+
+        self.assertEqual(worker.calls, ["T001"])
+        self.assertEqual(len(state.task_graph.nodes), 1)
+        self.assertEqual(state.task_graph.nodes[0].status, "blocked")
+        self.assertEqual(state.blockers[0]["type"], "environment")
+        self.assertIn("connectivity", state.blockers[0]["description"].lower())
         self.assertFalse(any(event["type"] == "debug_task_created" for event in state.iteration_history))
 
     def test_worker_raw_usage_limit_context_does_not_become_environment_blocker(self) -> None:

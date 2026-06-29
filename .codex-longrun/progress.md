@@ -2031,3 +2031,16 @@ PY"`
 - Temporary graph probe against copied `run_attempt_021` artifacts shows `final_verification_repair_resume_017.md` preserves T001-T025 and starts at `Repair final frontend admin payment refund dialog file`.
 - Current total-project estimate is about 98.9%; the blocked subtask is now narrowed to a single refund dialog file.
 - Next step: commit/push V2.147, relaunch the controlled Billing Core final verification, and monitor the file-only T026 without direct Codex Desktop product-code edits.
+
+## 2026-06-29T14:52:00+08:00 V2.148 Codex Connectivity Blocker Classification
+
+- Relaunched after V2.147. `final_verification/run_attempt_022` preserved T001-T025 and started T026 `Repair final frontend admin payment refund dialog file`.
+- T026 first failed because local Codex CLI output showed repeated `stream disconnected`, websocket/request errors, `turn.failed`, and `idle timeout waiting for SSE` before any parseable worker JSON was returned.
+- Alchemy incorrectly treated that as a normal product-task failure, created `T026-DEBUG-1`, and retried T026. The retry later timed out and stopped correctly with `B-T026-2`.
+- Implemented V2.148 in `runtime/codex_worker.py`: unparseable real Codex output caused by connectivity failure now returns `blocked` instead of `failed`.
+- Implemented V2.148 in `runtime/orchestrator.py`: Codex connectivity failures are classified as environment blockers, so they stop without same-scope debug or product retry.
+- Added focused worker/orchestrator regressions plus `docs/157_v2_148_codex_connectivity_blocker.md`.
+- Temporary graph probe against copied `run_attempt_022` artifacts shows the next resume still preserves T001-T025 and starts at the file-only T026 refund dialog task.
+- A generic read-only Codex smoke still hung after writing `OK`, but a worker-like smoke using Alchemy's real worker mode (`--disable plugins --json`) exited cleanly with an `OK` agent message.
+- Current total-project estimate remains about 98.9%; the immediate Alchemy issue is fixed and the worker-like Codex path is healthy enough to relaunch.
+- Next step: commit/push V2.148, then relaunch the controlled Billing Core final verification.

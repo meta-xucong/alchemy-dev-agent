@@ -32,6 +32,10 @@ ENVIRONMENT_BLOCKER_PATTERNS = (
     "you've hit your usage limit",
     "purchase more credits",
     "local codex cli usage limit reached",
+    "codex cli connectivity failed",
+    "local codex cli connectivity failed",
+    "stream disconnected",
+    "idle timeout waiting for sse",
 )
 CODEX_USAGE_LIMIT_ENVIRONMENT_PATTERNS = (
     "codex cli usage limit reached",
@@ -1489,7 +1493,8 @@ def _worker_result_environment_blocker_summary(result: CodexWorkerResult | dict 
         return ""
     return (
         "Worker environment or local Codex CLI availability blocked execution. "
-        "Evidence indicates missing dependencies, unavailable verification tooling, or local Codex usage limits."
+        "Evidence indicates missing dependencies, unavailable verification tooling, local Codex usage limits, "
+        "or local Codex connectivity failures."
     )
 
 

@@ -434,6 +434,28 @@ class CodexWorkerAdapter:
             )
         parsed = self._parse_worker_json(stdout) or self._parse_worker_json(raw_output)
         if parsed is None:
+            connectivity_message = _codex_connectivity_failure_message(raw_output)
+            if connectivity_message:
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="blocked",
+                    summary=f"Codex CLI connectivity failed before structured worker output: {connectivity_message}",
+                    commands_run=[
+                        CommandResult(
+                            command=" ".join(args),
+                            exit_code=completed.returncode,
+                            summary="Codex subprocess stopped before returning structured worker output because the local Codex connection failed.",
+                            stdout=stdout,
+                            stderr=stderr,
+                        )
+                    ],
+                    known_issues=[
+                        "Local Codex CLI connectivity failed before a parseable worker result was returned; retry only after a smoke check or connectivity recovery.",
+                    ],
+                    confidence=0.0,
+                    raw_output=_truncate_raw_output(raw_output),
+                    worker_lifecycle=lifecycle_record.to_dict() if lifecycle_record is not None else {},
+                )
             status: WorkerStatus = "failed" if completed.returncode else "partial"
             return CodexWorkerResult(
                 task_id=worker_input.task_id,
@@ -869,6 +891,50 @@ def _codex_usage_limit_message(output: str) -> str:
         if message and any(marker in message.lower() for marker in CODEX_USAGE_LIMIT_MARKERS):
             return message.strip()
     return ""
+
+
+CODEX_CONNECTIVITY_FAILURE_MARKERS = (
+    "stream disconnected",
+    "idle timeout waiting for sse",
+    "failed to connect to websocket",
+    "error sending request",
+    "remote host closed",
+    "peer closed connection",
+    "os error 10054",
+)
+
+
+def _codex_connectivity_failure_message(output: str) -> str:
+    fallback = ""
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        lower_line = line.lower()
+        if any(marker in lower_line for marker in CODEX_CONNECTIVITY_FAILURE_MARKERS):
+            fallback = fallback or line
+        if not line.startswith("{"):
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        event_type = str(payload.get("type", "") or "")
+        message = ""
+        if event_type == "error":
+            message = str(payload.get("message", "") or "")
+        elif event_type in {"turn.failed", "response.failed"}:
+            error = payload.get("error")
+            if isinstance(error, dict):
+                message = str(error.get("message", "") or "")
+            message = message or str(payload.get("message", "") or "")
+        if message and any(marker in message.lower() for marker in CODEX_CONNECTIVITY_FAILURE_MARKERS):
+            if event_type in {"turn.failed", "response.failed"}:
+                return message.strip()
+            fallback = fallback or message.strip()
+    return fallback.strip()
 
 
 def _normalize_repo_path(path: str) -> str:

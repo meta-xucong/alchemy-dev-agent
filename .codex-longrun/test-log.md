@@ -4918,6 +4918,48 @@
 - result: passed
 - next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
 
+## 2026-06-29T14:52:00+08:00 V2.148 Codex connectivity blocker classification
+
+- command: Billing Core final verification resume after V2.147
+- result: T026 first hit Codex connectivity failure, Alchemy incorrectly launched debug/retry, then T026 timed out
+- relevant evidence: `final_verification/run_attempt_022/state.json` shows `T026-DEBUG-1` completed after a first T026 failed result caused by `stream disconnected` / `turn.failed` / `idle timeout waiting for SSE`; later T026 retry recorded timeout blocker `B-T026-2`.
+- next verification command: focused Codex worker and orchestrator connectivity-blocker regressions.
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_reports_unparseable_output_as_failed tests/test_runtime.py::CodexWorkerTests::test_real_worker_reports_unparseable_connectivity_failure_as_blocked tests/test_runtime.py::OrchestratorTests::test_worker_connectivity_failure_blocks_without_debug_retry tests/test_runtime.py::OrchestratorTests::test_worker_usage_limit_blocks_without_debug_retry tests/test_runtime.py::OrchestratorTests::test_worker_raw_usage_limit_context_does_not_become_environment_blocker -q`
+- result: first run failed on message-priority/description assertions, then passed after code correction: `5 passed`
+- next verification command: temporary real Billing Core final-verification resume graph probe after run_attempt_022.
+
+- command: temporary real Billing Core final-verification resume graph probe after `run_attempt_022`
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_018.md` in a temp copy; graph construction preserves T001-T025 completed and starts T026 as `Repair final frontend admin payment refund dialog file`.
+- next verification command: full runtime suite.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: first run was cut off by outer timeout at about 245 seconds; rerun with a longer timeout passed: `142 passed in 378.52s`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `91 passed`
+- next verification command: compileall and diff check.
+
+- command: `python -B -m compileall runtime tests -q`
+- result: passed
+- next verification command: diff check and Codex smoke.
+
+- command: `git diff --check`
+- result: passed
+- next verification command: Codex smoke.
+
+- command: `codex.exe exec -m gpt-5.4 -s read-only --skip-git-repo-check --color never --output-last-message .codex-longrun/logs/codex_network_smoke_last.md "Reply with exactly OK and nothing else."`
+- result: partial/pass with cleanup risk
+- relevant evidence: output file contained `OK`, but the CLI process did not exit before the 180 second outer timeout and was manually stopped.
+- next verification command: worker-like Codex smoke using Alchemy's real worker flags.
+
+- command: `codex.exe --disable plugins --dangerously-bypass-approvals-and-sandbox exec --json --cd <alchemy-dev-agent> "Reply with exactly OK and nothing else."`
+- result: passed
+- relevant evidence: process exited cleanly in about 38 seconds; stdout contained `agent_message` text `OK` and `turn.completed`.
+- next verification command: state validation, commit/push, and controlled Billing Core final verification relaunch.
+
 ## 2026-06-29T14:12:00+08:00 V2.147 Final frontend admin payment refund leaf task
 
 - command: Billing Core final verification resume after V2.146
