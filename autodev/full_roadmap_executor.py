@@ -1603,7 +1603,13 @@ def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[obj
     nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
     nodes_by_id = {str(node.get("id", "")): node for node in nodes if str(node.get("id", ""))}
     focus_task_ids = repair_focus_task_ids(blockers, nodes)
-    completed_task_ids = repair_completed_task_ids(runtime_state, nodes, focus_task_ids)
+    debug_parent_focus_ids = repair_debug_parent_focus_task_ids(blockers, nodes_by_id)
+    completed_task_ids = repair_completed_task_ids(
+        runtime_state,
+        nodes,
+        focus_task_ids,
+        protected_dependency_focus_task_ids=debug_parent_focus_ids,
+    )
     lines = ["", "## Focused Repair Scope", ""]
     if focus_task_ids:
         lines.append(f"- Primary failed task IDs: {', '.join(focus_task_ids)}.")
@@ -1654,6 +1660,24 @@ def normalize_repair_focus_task_ids(task_ids: Sequence[str], nodes_by_id: dict[s
     return dedupe_strings(normalized)
 
 
+def repair_debug_parent_focus_task_ids(
+    blockers: Sequence[object],
+    nodes_by_id: dict[str, dict[str, object]],
+) -> list[str]:
+    mapped: list[str] = []
+    for blocker in blockers:
+        if not isinstance(blocker, dict):
+            continue
+        for item in _list(blocker.get("task_ids")):
+            task_id = str(item or "").strip()
+            if not task_id:
+                continue
+            root_id = repair_focus_root_task_id(task_id, nodes_by_id)
+            if root_id != task_id:
+                mapped.append(root_id)
+    return dedupe_strings(mapped)
+
+
 def repair_focus_root_task_id(task_id: str, nodes_by_id: dict[str, dict[str, object]]) -> str:
     node = nodes_by_id.get(task_id)
     if node and str(node.get("type", "")).lower() != "debug":
@@ -1693,7 +1717,13 @@ def repair_preserve_dependency_completed_task_ids(
     ]
 
 
-def repair_completed_task_ids(runtime_state: dict[str, Any], nodes: Sequence[dict[str, object]], focus_task_ids: Sequence[str] = ()) -> list[str]:
+def repair_completed_task_ids(
+    runtime_state: dict[str, Any],
+    nodes: Sequence[dict[str, object]],
+    focus_task_ids: Sequence[str] = (),
+    *,
+    protected_dependency_focus_task_ids: Sequence[str] = (),
+) -> list[str]:
     nodes_by_id = {str(node.get("id", "")): node for node in nodes if str(node.get("id", ""))}
     completed = repair_preserve_dependency_completed_task_ids(focus_task_ids, nodes_by_id)
     completed.extend(str(item) for item in _list(runtime_state.get("completed_tasks")))
@@ -1705,6 +1735,9 @@ def repair_completed_task_ids(runtime_state: dict[str, Any], nodes: Sequence[dic
     completed.extend(partial_downstream_handoff_completed_task_ids(nodes))
     completed_ids = dedupe_strings(completed)
     reopen_ids = repair_completed_task_ids_to_reopen(nodes, completed_ids)
+    if reopen_ids and protected_dependency_focus_task_ids:
+        protected_ids = set(repair_preserve_dependency_completed_task_ids(protected_dependency_focus_task_ids, nodes_by_id))
+        reopen_ids = {task_id for task_id in reopen_ids if task_id not in protected_ids}
     if reopen_ids:
         completed_ids = [task_id for task_id in completed_ids if task_id not in reopen_ids]
     return completed_ids

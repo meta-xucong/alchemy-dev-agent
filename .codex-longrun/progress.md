@@ -2163,3 +2163,10 @@ PY"`
 - Implemented V2.160 in utodev/full_roadmap_executor.py: final-verification repair resume generation now maps failed debug IDs back to the nearest non-debug parent, preserves completed dependency-chain tasks, treats operator/supervisor/out-of-scope boundary evidence as repair-worthy, and only reuses an existing resume if its focus matches the latest report.
 - Current total-project estimate remains about 99.4%; the immediate blocker is now Alchemy final-verification resume correctness for T042, not CRM product code.
 - Next step: commit/push V2.160, relaunch, and confirm the next resume supersedes stale _029 with a T042-focused repair graph.
+
+## 2026-06-30T01:08:29+08:00 V2.161 Debug Parent Dependency Preservation
+
+- Rechecked V2.160 against the real Billing Core inal_verification_worker_report.json. Primary focus mapped to T042 correctly, but completed-task reopen pruning still removed recently completed dependency-chain tasks T038-T041.
+- Implemented V2.161 in utodev/full_roadmap_executor.py: when a failed debug task is mapped back to a parent task, completed dependency-chain tasks for that parent are protected from reopen pruning. Ordinary non-debug later-failure reopen behavior remains covered by regression.
+- Real report probe now computes Primary failed task IDs: T042 and preserves T001-T041.
+- Current total-project estimate remains about 99.4%; next relaunch should reject stale _029, write a newer T042-focused resume, and create the next final-verification attempt.

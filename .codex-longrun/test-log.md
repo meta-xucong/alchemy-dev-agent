@@ -5352,3 +5352,25 @@
 - command: python -B -m pytest tests/test_document_to_plan.py -q
 - result: 56 passed
 - next verification command: diff check, state validation, commit/push, and controlled Billing Core final-verification relaunch.
+
+## 2026-06-30T01:08:29+08:00 V2.161 Debug parent dependency preservation
+
+- command: Real Billing Core final-verification report probe using phase_focused_repair_lines
+- result: computed Primary failed task IDs: T042 and Completed tasks to preserve: T001...T041.
+- next verification command: focused resume regressions including ordinary reopen preservation.
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_preserves_partial_downstream_handoff tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_maps_stopped_debug_to_parent_and_dependency_preserve tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_relaunch_writes_fresh_resume_for_latest_failed_attempt tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_reopens_preserved_task_when_later_failure_targets_its_scope -q
+- result: 4 passed
+- next verification command: compileall and full suites.
+
+- command: python -B -m compileall autodev tests -q
+- result: passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 92 passed
+- next verification command: python -B -m pytest tests/test_document_to_plan.py -q
+
+- command: python -B -m pytest tests/test_document_to_plan.py -q
+- result: 56 passed
+- next verification command: diff check, state validation, commit/push, and controlled Billing Core final-verification relaunch.
