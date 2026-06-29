@@ -661,6 +661,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             }
         )
     if any(token in text for token in ["frontend", "i18n", "router", "view", "api module", "reachable views"]):
+        preserve_deep_final_frontend_tail = should_preserve_final_frontend_deep_tail_split(text)
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
             text
         ) or should_preserve_final_frontend_api_i18n_split(text)
@@ -759,6 +760,28 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             or split_admin_components
             or split_view_pages
         )
+        if preserve_deep_final_frontend_tail:
+            split_api_i18n = True
+            split_admin_user_create_edit = True
+            split_admin_payment_refund = True
+            split_admin_payment = True
+            split_admin_announcement_backup_promo = True
+            split_admin_email_template_leaf = True
+            split_admin_settings_email_compliance = True
+            split_admin_dashboard_settings = True
+            split_admin_view_pages = True
+            split_auth_public_setup_views = True
+            split_setup_not_found_views = True
+            split_view_pages = True
+            split_metering_entitlement_composables = True
+            split_composable_contracts = True
+            split_state_composable_utility = True
+            split_admin_usage_payment = True
+            split_admin_user_account = True
+            split_admin_account_modal = True
+            split_admin_account_identity = True
+            split_admin_components = True
+            split_frontend_view_components = True
         specs.extend(
             final_frontend_api_i18n_repair_task_specs(
                 split=split_api_i18n
@@ -842,6 +865,21 @@ def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
             "t008",
         )
     ) and _has_primary_failed_task_id_in_range(text, 9, 55)
+
+
+def should_preserve_final_frontend_deep_tail_split(text: str) -> bool:
+    if "completed tasks to preserve:" not in text or not _has_primary_failed_task_id_in_range(text, 50, 90):
+        return False
+    return any(
+        marker in text
+        for marker in (
+            "repair final frontend test and fixture contracts",
+            "repair final frontend utility constant type contracts",
+            "repair final frontend table navigation composables",
+            "repair final frontend channel monitor format composable",
+            "repair final frontend onboarding quota composables",
+        )
+    )
 
 
 def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, object]]:

@@ -868,6 +868,7 @@ class DocumentToPlanTests(unittest.TestCase):
                         "",
                         "## Requirements",
                         "",
+                        "- FINAL_AUDIT_STATUS=FAIL: final_verification T056 repair needs continuation before final handoff.",
                         "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
                         "- FINAL_AUDIT_STATUS=FAIL: final source-boundary repair needs continuation.",
                         "- Must split backend schema/domain repair by Ent schema, domain/repository, and service/handler/server wiring instead of replaying one broad worker.",
@@ -2986,6 +2987,93 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T053"]["title"], "Repair final frontend onboarding quota composables")
         self.assertIn("frontend/src/composables/useQuotaNotifyState.ts", nodes["T053"]["relevant_files"])
         self.assertEqual(nodes["T054"]["title"], "Repair final frontend table navigation composables")
+
+    def test_final_verification_test_fixture_focus_preserves_deep_tail_graph(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            for path in (
+                "frontend/src/api",
+                "frontend/src/constants",
+                "frontend/src/i18n",
+                "frontend/src/types",
+                "frontend/src/router",
+                "frontend/src/views/admin/__tests__",
+                "frontend/src/views/admin/ops/components",
+                "frontend/src/views/admin/orders",
+                "frontend/src/views/admin/settings",
+                "frontend/src/views/auth",
+                "frontend/src/views/public",
+                "frontend/src/views/setup",
+                "frontend/src/views/user",
+                "frontend/src/components/account",
+                "frontend/src/components/admin/announcements",
+                "frontend/src/components/admin/payment",
+                "frontend/src/components/admin/user",
+                "frontend/src/components/charts",
+                "frontend/src/styles",
+                "frontend/src/composables/__tests__",
+                "frontend/src/stores",
+                "frontend/src/utils",
+                "frontend/tests",
+            ):
+                (repo / path).mkdir(parents=True)
+            (repo / "frontend" / "src" / "views" / "NotFoundView.vue").write_text("<template />\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            completed = ", ".join(f"T{index:03d}" for index in range(1, 56))
+            spec = root / "final_verification_repair_resume_036.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_039",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- FINAL_AUDIT_STATUS=FAIL: final_verification T056 repair needs continuation before final handoff.",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- Must preserve backend migration, Ent schema, domain, repository, service, handler, server, and command wiring repair tasks before frontend tail repair.",
+                        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain upstream account, proxy, channel-monitor, model-routing, or subscription-plan behavior.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T056.",
+                        f"- Completed tasks to preserve: {completed}.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T056 - Repair final frontend test and fixture contracts",
+                        "- Must continue focused task T056: Repair final frontend test and fixture contracts.",
+                        "- Previous relevant files: frontend/src/**/__tests__/**, frontend/src/**/*.spec.ts, frontend/src/**/*.spec.tsx, frontend/tests/**, frontend/vitest.config.ts, frontend/package.json, frontend/pnpm-lock.yaml.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-30T05:58:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes["T006"]["title"], "Repair final frontend API module contracts")
+        self.assertEqual(nodes["T050"]["title"], "Repair final frontend identity OAuth composables")
+        self.assertEqual(nodes["T051"]["title"], "Repair final frontend channel monitor format composable")
+        self.assertEqual(nodes["T052"]["title"], "Repair final frontend model entitlement composable")
+        self.assertEqual(nodes["T053"]["title"], "Repair final frontend onboarding quota composables")
+        self.assertEqual(nodes["T054"]["title"], "Repair final frontend table navigation composables")
+        self.assertEqual(nodes["T055"]["title"], "Repair final frontend utility constant type contracts")
+        self.assertEqual(nodes["T056"]["title"], "Repair final frontend test and fixture contracts")
+        self.assertEqual(nodes["T055"]["status"], "completed")
+        self.assertNotEqual(nodes["T056"]["status"], "completed")
 
     def test_final_verification_admin_settings_email_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:

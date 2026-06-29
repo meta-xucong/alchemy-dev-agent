@@ -1812,11 +1812,27 @@ def unresolved_repair_target_paths(nodes: Sequence[dict[str, object]]) -> list[s
         worker_result = latest_worker_result_from_task(node)
         if not worker_result:
             continue
+        if repair_worker_result_is_boundary_violation(worker_result):
+            continue
         worker_status = str(worker_result.get("status", "") or "").lower()
         if status not in unresolved_statuses and worker_status not in REPAIR_WORKER_STATUSES:
             continue
         target_paths.extend(repair_result_target_paths(worker_result, include_raw_output=False))
     return dedupe_strings(target_paths)
+
+
+def repair_worker_result_is_boundary_violation(worker_result: dict[str, object]) -> bool:
+    text = json.dumps(worker_result, ensure_ascii=False).lower()
+    return any(
+        marker in text
+        for marker in (
+            "modified files outside allowed_files",
+            "modified files outside the task boundary",
+            "outside allowed_files",
+            "outside the task boundary",
+            "out-of-scope files changed",
+        )
+    )
 
 
 def repair_result_target_paths(worker_result: dict[str, object], *, include_raw_output: bool = True) -> list[str]:
@@ -2260,8 +2276,26 @@ def final_verification_state_is_operator_stop_noise(state: dict[str, object]) ->
     failed_tasks = failed_task_ids_from_state(state)
     if not blockers:
         return not failed_tasks
+    if all(final_verification_blocker_is_operator_stop_noise(blocker) for blocker in blockers):
+        return True
     noisy_types = {"", "environment", "operator_control", "external_dependency"}
     return all(str(blocker.get("type", "") or "").lower() in noisy_types for blocker in blockers)
+
+
+def final_verification_blocker_is_operator_stop_noise(blocker: dict[str, object]) -> bool:
+    description = str(blocker.get("description", blocker.get("summary", "")) or "").lower()
+    return any(
+        marker in description
+        for marker in (
+            "operator stop request",
+            "supervisor stop",
+            "operator stopped",
+            "supervisor stopped",
+            "worker cancellation requested",
+            "cancelled by operator",
+            "cancelled by supervisor",
+        )
+    )
 
 
 def failed_task_ids_from_state(state: dict[str, object]) -> list[str]:
@@ -2293,7 +2327,11 @@ def final_verification_repair_resume_matches_focus(path: Path, marker: str, focu
         return False
     if marker not in text:
         return False
-    focus_requirements = [line for line in focused_lines if line.startswith("- Primary failed task IDs:")]
+    focus_requirements = [
+        line
+        for line in focused_lines
+        if line.startswith("- Primary failed task IDs:") or line.startswith("- Completed tasks to preserve:")
+    ]
     return all(line in text for line in focus_requirements)
 
 

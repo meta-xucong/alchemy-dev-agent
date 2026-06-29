@@ -3122,6 +3122,18 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                 ],
                 "task_graph": {
                     "nodes": [
+                        {
+                            "id": "T006",
+                            "title": "Repair final frontend API module contracts",
+                            "status": "completed",
+                            "relevant_files": ["frontend/src/api/**", "frontend/src/types/**"],
+                        },
+                        {
+                            "id": "T050",
+                            "title": "Repair final frontend identity OAuth composables",
+                            "status": "completed",
+                            "relevant_files": ["frontend/src/composables/useOpenAIOAuth.ts"],
+                        },
                         {"id": "T051", "title": "Repair final frontend channel monitor format composable", "status": "completed"},
                         {"id": "T052", "title": "Repair final frontend model entitlement composable", "status": "completed"},
                         {"id": "T053", "title": "Repair final frontend onboarding quota composables", "status": "completed"},
@@ -3132,6 +3144,18 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                             "title": "Repair final frontend test and fixture contracts",
                             "status": "failed",
                             "relevant_files": ["frontend/src/**/__tests__/**", "frontend/src/**/*.spec.ts"],
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "failed",
+                                        "summary": "Codex worker modified files outside the task boundary; offending changes were rolled back.",
+                                        "known_issues": [
+                                            "Out-of-scope files changed: frontend/src/api/__tests__/admin.payment.spec.ts"
+                                        ],
+                                    },
+                                }
+                            ],
                         },
                         {"id": "T057", "title": "Audit final requirements and phase evidence", "status": "pending"},
                     ]
@@ -3147,8 +3171,8 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                 "blockers": [
                     {
                         "id": "B-T051-0",
-                        "type": "environment",
-                        "description": "Worker was cancelled by supervisor stop.",
+                        "type": "technical_limit",
+                        "description": "Codex worker was cancelled by operator stop request.",
                         "task_ids": ["T051"],
                         "can_continue_partially": False,
                     }
@@ -3167,8 +3191,8 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                         "blockers": [
                             {
                                 "id": "B-T051-0",
-                                "type": "environment",
-                                "description": "Worker was cancelled by supervisor stop.",
+                                "type": "technical_limit",
+                                "description": "Codex worker was cancelled by operator stop request.",
                                 "task_ids": ["T051"],
                                 "can_continue_partially": False,
                             }
@@ -3184,7 +3208,9 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         text = Path(docs[0]).read_text(encoding="utf-8")
         self.assertIn("Repair attempt: run_attempt_039", text)
         self.assertIn("Primary failed task IDs: T056", text)
-        self.assertIn("Completed tasks to preserve: T051, T052, T053, T054, T055", text)
+        completed_line = next(line for line in text.splitlines() if "Completed tasks to preserve:" in line)
+        for task_id in ("T006", "T050", "T051", "T052", "T053", "T054", "T055"):
+            self.assertIn(task_id, completed_line)
         self.assertNotIn("Primary failed task IDs: T051", text)
 
     def test_final_verification_relaunch_carries_previous_failure_repair_context(self) -> None:

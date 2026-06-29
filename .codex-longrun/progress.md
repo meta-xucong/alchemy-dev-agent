@@ -2248,3 +2248,14 @@ PY"`
 - Added `test_final_verification_resume_uses_latest_non_stopped_failed_state`.
 - Real helper probe generated `final_verification_repair_resume_036.md` from `run_attempt_039`, focused T056, and preserved completed tasks including T051-T055.
 - Current total-project estimate remains about 99.6%; the next relaunch should resume T056 directly.
+
+## 2026-06-30T06:08:00+08:00 V2.169 Final Tail Resume Preservation
+
+- Relaunched after V2.168. `run_attempt_042` still misbehaved: it consumed the T056-focused resume but rebuilt a compressed 30-node graph, marked the test/fixture task completed under a lower task id, and reopened earlier frontend API/i18n work as T006.
+- Wrote `supervisor_stop.json` for `run_attempt_042`; Alchemy honored it and left no residual worker processes.
+- Root cause: T056 boundary-failure evidence was used to reopen completed predecessor tasks via changed-path extraction, and the planner did not force preservation of the deep final-frontend split graph for T050+ tail failures.
+- Implemented V2.169 in `autodev/full_roadmap_executor.py`: boundary-violation worker results no longer reopen completed predecessors, resume reuse now checks both primary failed task and completed-preservation lines, and operator-stop noise is detected by blocker description even when typed as `technical_limit`.
+- Implemented V2.169 in `planner/task_graph_builder.py`: T050+ final frontend tail resumes force the API/i18n, route/view/component, admin, auth/setup, state/composable, metering, utility, and test split families to remain expanded.
+- Added `test_final_verification_test_fixture_focus_preserves_deep_tail_graph` and strengthened the final-verification state fallback test.
+- Real helper probe generated `final_verification_repair_resume_038.md`, focused `run_attempt_039` / T056, preserved T001-T055, and a graph probe kept T050-T055 completed with T056 pending.
+- Current total-project estimate remains about 99.6%; the next relaunch should finally resume the real T056 tail task without replaying T051 or T006.

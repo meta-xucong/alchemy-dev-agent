@@ -5592,3 +5592,45 @@
 - command: git diff --check
 - result: passed with CRLF normalization warning for `.codex-longrun/state.json`
 - next verification command: commit/push V2.168 and controlled Billing Core final-verification relaunch.
+
+## 2026-06-30T06:08:00+08:00 V2.169 final tail resume preservation
+
+- command: Billing Core final verification `run_attempt_042` monitoring
+- result: the T056-focused resume was consumed, but the planner compressed the graph and reopened T006 while marking the test/fixture task completed under a lower id. `supervisor_stop.json` stopped the attempt and no residual worker process remained.
+- next verification command: patch final tail preservation and run focused regressions.
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_uses_latest_non_stopped_failed_state -q
+- result: 1 passed after adding technical_limit/operator-stop detection and boundary-result preserve behavior.
+- next verification command: planner deep-tail regression.
+
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_test_fixture_focus_preserves_deep_tail_graph -q
+- result: 1 passed
+- next verification command: real Billing Core resume and graph probes.
+
+- command: real `final_verification_resume_repair_documents` probe
+- result: generated `final_verification_repair_resume_038.md` with `Repair attempt: run_attempt_039`, `Primary failed task IDs: T056`, and completed tasks T001 through T055.
+- next verification command: real graph probe.
+
+- command: real graph probe using `final_verification_repair_resume_038.md`
+- result: generated a 60-node final-verification repair graph with T050-T055 completed and T056 `Repair final frontend test and fixture contracts` pending.
+- next verification command: full planner/full-roadmap regressions.
+
+- command: python -B -m pytest tests/test_document_to_plan.py -q
+- result: 62 passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 94 passed
+- next verification command: compileall, diff hygiene, commit/push V2.169, and controlled relaunch.
+
+- command: python -B -m compileall autodev planner tests -q
+- result: passed
+- next verification command: git diff --check.
+
+- command: python -c "import json, pathlib; json.loads(pathlib.Path('.codex-longrun/state.json').read_text(encoding='utf-8-sig')); print('state json ok')"
+- result: state json ok
+- next verification command: git diff --check.
+
+- command: git diff --check
+- result: passed with CRLF normalization warning for `.codex-longrun/state.json`
+- next verification command: commit/push V2.169 and controlled Billing Core final-verification relaunch.
