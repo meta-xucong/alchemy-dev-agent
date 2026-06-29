@@ -2019,3 +2019,15 @@ PY"`
 - Temporary graph probe against copied `run_attempt_020` artifacts shows `final_verification_repair_resume_016.md` preserves T001-T024 and starts at `Repair final frontend admin payment order detail components`.
 - Current total-project estimate remains about 98.8%; the blocked subtask is now narrowed to admin payment frontend cleanup.
 - Next step: commit/push V2.146, relaunch the controlled Billing Core final verification, and monitor split T025 without direct Codex Desktop product-code edits.
+
+## 2026-06-29T14:12:00+08:00 V2.147 Final Frontend Admin Payment Refund Leaf Task
+
+- Relaunched after V2.146. `final_verification/run_attempt_021` preserved T001-T024, completed T025 `Repair final frontend admin payment order detail components`, and advanced to T026.
+- T026 `Repair final frontend admin payment refund dialog component` still timed out after 900 seconds despite targeting one main component.
+- Alchemy handled the timeout boundary correctly: it recorded `B-T026-1`, stopped the run, did not launch same-scope debug work, and did not dispatch downstream T027.
+- The issue now looks less like broad file count and more like the remaining task still allowing shared types/package metadata, which can invite wider worker search/repair for a final-verification leaf cleanup.
+- Implemented V2.147 in `planner/task_graph_builder.py`: focused T026 refund timeout resumes preserve T001-T025 and narrow T026 to a file-only leaf task for `frontend/src/components/admin/payment/AdminRefundDialog.vue`.
+- Added focused document-to-plan coverage plus `docs/156_v2_147_final_frontend_admin_payment_refund_leaf.md`.
+- Temporary graph probe against copied `run_attempt_021` artifacts shows `final_verification_repair_resume_017.md` preserves T001-T025 and starts at `Repair final frontend admin payment refund dialog file`.
+- Current total-project estimate is about 98.9%; the blocked subtask is now narrowed to a single refund dialog file.
+- Next step: commit/push V2.147, relaunch the controlled Billing Core final verification, and monitor the file-only T026 without direct Codex Desktop product-code edits.

@@ -670,6 +670,10 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_admin_payment = should_split_final_frontend_admin_payment_timeout(
             text
         ) or should_preserve_final_frontend_admin_payment_split(text)
+        split_admin_payment_refund = should_narrow_final_frontend_admin_payment_refund_timeout(
+            text
+        ) or should_preserve_final_frontend_admin_payment_refund_leaf(text)
+        split_admin_payment = split_admin_payment or split_admin_payment_refund
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
             text
         ) or should_preserve_final_frontend_admin_usage_payment_split(text) or split_admin_payment
@@ -712,6 +716,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_user_create_edit=split_admin_user_create_edit,
                 split_admin_usage_payment=split_admin_usage_payment,
                 split_admin_payment=split_admin_payment,
+                split_admin_payment_refund=split_admin_payment_refund,
             )
         )
     return specs
@@ -1252,6 +1257,52 @@ def should_preserve_final_frontend_admin_payment_split(text: str) -> bool:
     ) and _has_primary_failed_task_id_in_range(text, 28, 35)
 
 
+def should_narrow_final_frontend_admin_payment_refund_timeout(text: str) -> bool:
+    focused_refund_scope = _has_primary_failed_task_id_in_range(text, 26, 26) and any(
+        marker in text
+        for marker in (
+            "repair final frontend admin payment refund dialog component",
+            "repair final frontend admin payment refund dialog file",
+            "adminrefunddialog",
+            "frontend/src/components/admin/payment/adminrefunddialog.vue",
+        )
+    )
+    if focused_refund_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return all(
+        marker in text
+        for marker in (
+            "primary failed task ids: t026",
+            "admin",
+            "payment",
+            "refund",
+            "dialog",
+        )
+    )
+
+
+def should_preserve_final_frontend_admin_payment_refund_leaf(text: str) -> bool:
+    if "repair final frontend admin payment refund dialog file" in text:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t026",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 27, 35)
+
+
 def _has_primary_failed_task_id_in_range(text: str, start: int, end: int) -> bool:
     return any(f"primary failed task ids: t{index:03d}" in text for index in range(start, end + 1))
 
@@ -1267,6 +1318,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_user_create_edit: bool = False,
     split_admin_usage_payment: bool = False,
     split_admin_payment: bool = False,
+    split_admin_payment_refund: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1715,6 +1767,38 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 87,
     }
+    admin_payment_refund_task = {
+        "title": "Repair final frontend admin payment refund dialog component",
+        "description": "Align the admin payment refund dialog with CRM wallet reversal, refund, and audit semantics.",
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/admin/payment/AdminRefundDialog.vue",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "AdminRefundDialog uses CRM refund, wallet reversal, reconciliation, and audit language.",
+            "Refund dialog contracts no longer expose relay provider, channel, token-log, or model-routing behavior.",
+        ],
+        "priority": 86,
+    }
+    admin_payment_refund_leaf_task = {
+        "title": "Repair final frontend admin payment refund dialog file",
+        "description": (
+            "Perform a file-only refund dialog repair after the broader refund task timed out. "
+            "Do not edit shared types or package metadata in this leaf task."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/admin/payment/AdminRefundDialog.vue",
+        ],
+        "completion_criteria": [
+            "AdminRefundDialog uses CRM refund, wallet reversal, reconciliation, and audit language within the component file.",
+            "If a shared type or package metadata change is required, report the exact follow-up path instead of widening this task.",
+        ],
+        "priority": 86,
+    }
     admin_payment_split_tasks = [
         {
             "title": "Repair final frontend admin payment order detail components",
@@ -1733,22 +1817,7 @@ def final_frontend_routes_views_repair_task_specs(
             ],
             "priority": 87,
         },
-        {
-            "title": "Repair final frontend admin payment refund dialog component",
-            "description": "Align the admin payment refund dialog with CRM wallet reversal, refund, and audit semantics.",
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/components/admin/payment/AdminRefundDialog.vue",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "AdminRefundDialog uses CRM refund, wallet reversal, reconciliation, and audit language.",
-                "Refund dialog contracts no longer expose relay provider, channel, token-log, or model-routing behavior.",
-            ],
-            "priority": 86,
-        },
+        admin_payment_refund_leaf_task if split_admin_payment_refund else admin_payment_refund_task,
         {
             "title": "Repair final frontend admin payment analytics components",
             "description": "Align admin payment charts and stat cards with CRM revenue, charging, reconciliation, and customer value analytics.",

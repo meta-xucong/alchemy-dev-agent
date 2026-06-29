@@ -1950,6 +1950,120 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("frontend/src/components/admin/payment/DailyRevenueChart.vue", nodes["T027"]["relevant_files"])
         self.assertEqual(nodes["T028"]["title"], "Repair final frontend analytics and shared component contracts")
 
+    def test_final_verification_admin_payment_refund_timeout_uses_file_leaf(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            for path in (
+                "frontend/src/api",
+                "frontend/src/constants",
+                "frontend/src/i18n",
+                "frontend/src/types",
+                "frontend/src/router",
+                "frontend/src/views",
+                "frontend/src/components/account",
+                "frontend/src/components/auth",
+                "frontend/src/components/admin/account/__tests__",
+                "frontend/src/components/admin/user/__tests__",
+                "frontend/src/components/admin/announcements/__tests__",
+                "frontend/src/components/admin/channel",
+                "frontend/src/components/admin/group",
+                "frontend/src/components/admin/proxy",
+                "frontend/src/components/admin/monitor",
+                "frontend/src/components/admin/usage",
+                "frontend/src/components/admin/payment",
+                "frontend/src/components/channels",
+                "frontend/src/components/charts",
+                "frontend/src/components/common",
+                "frontend/src/components/Guide",
+                "frontend/src/components/ui",
+                "frontend/src/styles",
+                "frontend/src/composables",
+                "frontend/src/stores",
+                "frontend/src/utils",
+                "frontend/tests",
+            ):
+                (repo / path).mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "final_verification_repair_resume_017.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_021",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- FINAL_AUDIT_STATUS=FAIL: final source-boundary repair needs continuation.",
+                        "- Must grant the repair worker edit access to backend migrations, Ent schema/generated files, backend domain/repository/service/handler/server contracts, and backend command wiring when those surfaces contain residual relay-era product concepts.",
+                        "- Must split backend schema/domain repair by Ent schema, domain/repository, and service/handler/server wiring instead of replaying one broad worker.",
+                        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain upstream account, proxy, channel-monitor, model-routing, or subscription-plan behavior.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T026.",
+                        "- Completed tasks to preserve: T001, T002, T003, T004, T005, T006, T007, T008, T009, T010, T011, T012, T013, T014, T015, T016, T017, T018, T019, T020, T021, T022, T023, T024, T025.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T026 - Repair final frontend admin payment refund dialog component",
+                        "- Must continue focused task T026: Repair final frontend admin payment refund dialog component.",
+                        "- Previous relevant files: frontend/src/components/admin/payment/AdminRefundDialog.vue, frontend/src/types/**, frontend/package.json, frontend/pnpm-lock.yaml.",
+                        "- Worker summary: Codex worker timed out after 900 seconds.",
+                        "- Timeout note: preserve T025 and narrow this refund dialog to a file-only leaf task before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-29T14:00:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        for task_id in (
+            "T001",
+            "T002",
+            "T003",
+            "T004",
+            "T005",
+            "T006",
+            "T007",
+            "T008",
+            "T009",
+            "T010",
+            "T011",
+            "T012",
+            "T013",
+            "T014",
+            "T015",
+            "T016",
+            "T017",
+            "T018",
+            "T019",
+            "T020",
+            "T021",
+            "T022",
+            "T023",
+            "T024",
+            "T025",
+        ):
+            self.assertEqual(nodes[task_id]["status"], "completed")
+        self.assertEqual(nodes["T026"]["title"], "Repair final frontend admin payment refund dialog file")
+        self.assertEqual(nodes["T026"]["relevant_files"], ["frontend/src/components/admin/payment/AdminRefundDialog.vue"])
+        self.assertEqual(nodes["T027"]["title"], "Repair final frontend admin payment analytics components")
+        self.assertEqual(nodes["T028"]["title"], "Repair final frontend analytics and shared component contracts")
+
     def test_large_refactor_frontend_phase_survives_repository_index_cap(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"
