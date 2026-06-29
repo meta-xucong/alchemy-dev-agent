@@ -4813,3 +4813,43 @@
 - result: passed
 - relevant evidence: generated `final_verification_repair_resume_012.md` in a temp copy; graph construction preserves T001-T015 completed and starts T016 as `Repair final frontend admin user access group components`.
 - next verification command: diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.
+
+## 2026-06-29T09:32:00+08:00 V2.143 Usage-limit false positive and repair resume preservation
+
+- command: Billing Core final verification resume after V2.142
+- result: T016 completed; T017 falsely blocked
+- relevant evidence: `final_verification/run_attempt_017/state.json` preserved T001-T015, completed T016 `Repair final frontend admin user access group components`, then marked T017 blocked as a Codex usage-limit environment blocker even though the trigger was ordinary product/source text containing `usage limits`.
+- next verification command: focused usage-limit parser and repair-resume preservation regressions.
+
+- command: `python -B -m pytest tests/test_runtime.py::CodexWorkerTests::test_real_worker_usage_limit_jsonl_blocks_without_parse_retry tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_usage_limit_text_inside_successful_jsonl_output tests/test_runtime.py::CodexWorkerTests::test_real_worker_ignores_product_usage_limits_text_before_worker_json tests/test_runtime.py::OrchestratorTests::test_worker_usage_limit_blocks_without_debug_retry tests/test_runtime.py::OrchestratorTests::test_worker_raw_usage_limit_context_does_not_become_environment_blocker -q`
+- result: `5 passed`
+- next verification command: focused full-roadmap blocker and completed-task preservation regressions.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_phase_repair_distinguishes_technical_and_environment_blockers tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_repair_completed_task_preservation_ignores_blocked_worker_raw_output_paths -q`
+- result: `2 passed`
+- next verification command: focused planner T017 preservation regression.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_user_api_key_blocker_preserves_split_tail tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_admin_user_account_timeout_is_split_again -q`
+- result: `2 passed`
+- next verification command: full runtime suite.
+
+- command: `python -B -m pytest tests/test_runtime.py -q`
+- result: `140 passed`
+- next verification command: full document-to-plan suite.
+
+- command: `python -B -m pytest tests/test_document_to_plan.py -q`
+- result: `45 passed`
+- next verification command: full full-roadmap suite.
+
+- command: `python -B -m pytest tests/test_full_roadmap_execution.py -q`
+- result: `91 passed`
+- next verification command: compileall.
+
+- command: `python -B -m compileall planner runtime autodev tests -q`
+- result: passed
+- next verification command: temporary real Billing Core final-verification resume graph probe after run_attempt_017.
+
+- command: temporary real Billing Core final-verification resume graph probe after `run_attempt_017`
+- result: passed
+- relevant evidence: generated `final_verification_repair_resume_013.md` in a temp copy; graph construction preserves T001-T016 completed and starts T017 as `Repair final frontend admin user API key component`.
+- next verification command: diff check, state validation, commit/push, and controlled Billing Core final verification relaunch.

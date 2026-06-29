@@ -30,7 +30,8 @@ WORKER_TEXT_FIELD_LIMIT = 4_000
 COMMAND_OUTPUT_FIELD_LIMIT = 1_000
 CODEX_USAGE_LIMIT_MARKERS = (
     "you've hit your usage limit",
-    "usage limit",
+    "you have hit your usage limit",
+    "usage limit reached",
     "purchase more credits",
 )
 

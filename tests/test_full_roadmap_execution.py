@@ -22,6 +22,7 @@ from autodev.full_roadmap_executor import (
     phase_repository_path,
     phase_run_payload,
     read_json,
+    repair_completed_task_ids,
     should_auto_repair_phase,
     write_json,
     write_phase_document,
@@ -2742,6 +2743,19 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                 ]
             )
         )
+        self.assertTrue(
+            blockers_are_auto_repairable(
+                [
+                    {
+                        "id": "B-T017-0",
+                        "type": "technical_limit",
+                        "description": "Retry policy exhausted while rewriting CRM API key usage limits copy.",
+                        "task_ids": ["T017"],
+                        "can_continue_partially": False,
+                    }
+                ]
+            )
+        )
         self.assertFalse(
             blockers_are_auto_repairable(
                 [
@@ -2767,6 +2781,68 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                 ]
             )
         )
+
+    def test_repair_completed_task_preservation_ignores_blocked_worker_raw_output_paths(self) -> None:
+        runtime_state = {
+            "completed_tasks": ["T006", "T007", "T008", "T016"],
+        }
+        nodes = [
+            {
+                "id": "T006",
+                "status": "completed",
+                "relevant_files": ["frontend/src/api/**"],
+            },
+            {
+                "id": "T007",
+                "status": "completed",
+                "relevant_files": ["frontend/src/i18n/**"],
+            },
+            {
+                "id": "T008",
+                "status": "completed",
+                "relevant_files": ["frontend/src/types/**"],
+            },
+            {
+                "id": "T016",
+                "status": "completed",
+                "relevant_files": [
+                    "frontend/src/components/admin/user/GroupReplaceModal.vue",
+                    "frontend/src/components/admin/user/UserAllowedGroupsModal.vue",
+                ],
+            },
+            {
+                "id": "T017",
+                "status": "blocked",
+                "relevant_files": [
+                    "frontend/src/components/admin/user/UserApiKeysModal.vue",
+                    "frontend/src/types/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "evidence": [
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "status": "blocked",
+                            "summary": "Codex CLI usage limit reached: frontend/src/i18n/locales/en.ts:52 product copy mentioned usage limits.",
+                            "files_changed": ["frontend/src/components/admin/user/UserApiKeysModal.vue"],
+                            "raw_output": "frontend/src/i18n/locales/en.ts:52: product copy mentions usage limits.",
+                            "commands_run": [
+                                {
+                                    "stderr": "frontend/src/i18n/locales/zh.ts:70: model copy remains for a later task.",
+                                    "stdout": "frontend/src/api/legacy.ts:1: older API output from a broad search.",
+                                }
+                            ],
+                        },
+                    }
+                ],
+            },
+        ]
+
+        completed = repair_completed_task_ids(runtime_state, nodes)
+
+        self.assertIn("T007", completed)
+        self.assertIn("T016", completed)
 
     def test_real_codex_phases_continue_in_previous_phase_worktree(self) -> None:
         root = temp_root()

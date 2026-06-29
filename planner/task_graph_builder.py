@@ -664,7 +664,10 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
             text
         ) or should_preserve_final_frontend_api_i18n_split(text)
-        split_admin_user_account = should_split_final_frontend_admin_user_account_timeout(text)
+        split_admin_user_account = (
+            should_split_final_frontend_admin_user_account_timeout(text)
+            or should_preserve_final_frontend_admin_user_account_split(text)
+        )
         split_admin_account_modal = (
             should_split_final_frontend_admin_account_modal_timeout(text)
             or split_admin_user_account
@@ -745,19 +748,7 @@ def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
             "t007",
             "t008",
         )
-    ) and any(
-        marker in text
-        for marker in (
-            "primary failed task ids: t009",
-            "primary failed task ids: t010",
-            "primary failed task ids: t011",
-            "primary failed task ids: t012",
-            "primary failed task ids: t013",
-            "primary failed task ids: t014",
-            "primary failed task ids: t015",
-            "primary failed task ids: t016",
-        )
-    )
+    ) and _has_primary_failed_task_id_in_range(text, 9, 32)
 
 
 def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, object]]:
@@ -911,17 +902,7 @@ def should_preserve_final_frontend_view_component_split(text: str) -> bool:
             "t009",
             "t010",
         )
-    ) and any(
-        marker in text
-        for marker in (
-            "primary failed task ids: t011",
-            "primary failed task ids: t012",
-            "primary failed task ids: t013",
-            "primary failed task ids: t014",
-            "primary failed task ids: t015",
-            "primary failed task ids: t016",
-        )
-    )
+    ) and _has_primary_failed_task_id_in_range(text, 11, 32)
 
 
 def should_split_final_frontend_admin_component_timeout(text: str) -> bool:
@@ -1025,10 +1006,13 @@ def should_split_final_frontend_admin_account_modal_timeout(text: str) -> bool:
 
 
 def should_split_final_frontend_admin_user_account_timeout(text: str) -> bool:
-    focused_user_account_scope = "primary failed task ids: t016" in text and any(
+    focused_user_account_scope = _has_primary_failed_task_id_in_range(text, 16, 18) and any(
         marker in text
         for marker in (
             "repair final frontend admin user account components",
+            "repair final frontend admin user access group components",
+            "repair final frontend admin user api key component",
+            "repair final frontend admin user create edit components",
             "groupreplacemodal",
             "userallowedgroupsmodal",
             "userapikeysmodal",
@@ -1058,6 +1042,32 @@ def should_split_final_frontend_admin_user_account_timeout(text: str) -> bool:
             "component",
         )
     )
+
+
+def should_preserve_final_frontend_admin_user_account_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend admin user access group components",
+            "repair final frontend admin user api key component",
+            "repair final frontend admin user create edit components",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t016",
+            "t017",
+            "t018",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 19, 32)
+
+
+def _has_primary_failed_task_id_in_range(text: str, start: int, end: int) -> bool:
+    return any(f"primary failed task ids: t{index:03d}" in text for index in range(start, end + 1))
 
 
 def final_frontend_routes_views_repair_task_specs(

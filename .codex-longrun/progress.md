@@ -1973,3 +1973,15 @@ PY"`
 - Added focused document-to-plan and full-roadmap regressions, plus `docs/151_v2_142_final_frontend_admin_user_account_timeout_split.md`.
 - Temporary graph probe against a copied real final-verification output shows `final_verification_repair_resume_012.md` preserves T001-T015 and starts at `Repair final frontend admin user access group components`.
 - Next step: commit/push V2.142, relaunch the controlled Billing Core final verification, and monitor the split T016 task.
+
+## 2026-06-29T09:32:00+08:00 V2.143 Usage-Limit False Positive And Repair Resume Preservation
+
+- Relaunched after V2.142. `final_verification/run_attempt_017` preserved T001-T015, completed T016 `Repair final frontend admin user access group components`, and advanced to T017.
+- T017 `Repair final frontend admin user API key component` did not time out, but Alchemy marked it blocked as a Codex usage-limit environment blocker because raw/source output contained ordinary product text with `usage limits`.
+- Found a second recovery issue: repair-resume completed-task preservation extracted paths from broad raw worker output and could reopen completed split tasks such as T007, collapsing the final-verification graph back toward older frontend tasks.
+- Implemented V2.143 in `runtime/codex_worker.py`: usage-limit detection no longer treats bare `usage limit` as a quota marker.
+- Implemented V2.143 in `autodev/full_roadmap_executor.py`: non-repairable usage-limit markers are narrower, and completed-task reopen path extraction ignores raw command output plus false usage-limit summaries.
+- Implemented V2.143 in `planner/task_graph_builder.py`: final frontend split preservation now carries through T017 and downstream final-verification tail tasks.
+- Added focused runtime, full-roadmap, and document-to-plan regressions, plus `docs/152_v2_143_usage_limit_false_positive_repair_resume_preservation.md`.
+- Temporary graph probe against a copied real final-verification output shows `final_verification_repair_resume_013.md` preserves T001-T016 and starts at `Repair final frontend admin user API key component`.
+- Next step: commit/push V2.143, relaunch the controlled Billing Core final verification, and monitor T017 without direct Codex Desktop product-code edits.

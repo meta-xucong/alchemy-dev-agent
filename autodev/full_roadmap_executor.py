@@ -45,7 +45,9 @@ NON_REPAIRABLE_BLOCKER_MARKERS = (
     "permission",
     "approval",
     "external",
-    "usage limit",
+    "you've hit your usage limit",
+    "you have hit your usage limit",
+    "usage limit reached",
     "purchase more credits",
     "local codex cli usage limit",
     "codex cli usage limit",
@@ -1720,26 +1722,33 @@ def unresolved_repair_target_paths(nodes: Sequence[dict[str, object]]) -> list[s
         worker_status = str(worker_result.get("status", "") or "").lower()
         if status not in unresolved_statuses and worker_status not in REPAIR_WORKER_STATUSES:
             continue
-        target_paths.extend(repair_result_target_paths(worker_result))
+        target_paths.extend(repair_result_target_paths(worker_result, include_raw_output=False))
     return dedupe_strings(target_paths)
 
 
-def repair_result_target_paths(worker_result: dict[str, object]) -> list[str]:
+def repair_result_target_paths(worker_result: dict[str, object], *, include_raw_output: bool = True) -> list[str]:
     texts: list[str] = []
-    for key in ("summary", "tests_failed", "known_issues", "follow_up_tasks", "evidence", "raw_output"):
+    keys = ["tests_failed", "known_issues", "follow_up_tasks", "evidence"]
+    summary = str(worker_result.get("summary", "") or "")
+    if not summary.lower().startswith("codex cli usage limit reached:"):
+        keys.insert(0, "summary")
+    if include_raw_output:
+        keys.append("raw_output")
+    for key in keys:
         value = worker_result.get(key)
         if isinstance(value, str):
             texts.append(value)
         else:
             texts.extend(str(item) for item in _list(value))
-    for command in _list(worker_result.get("commands_run")):
-        if not isinstance(command, dict):
-            continue
-        texts.extend(
-            str(command.get(key, "") or "")
-            for key in ("command", "summary", "stderr", "stdout")
-            if str(command.get(key, "") or "")
-        )
+    if include_raw_output:
+        for command in _list(worker_result.get("commands_run")):
+            if not isinstance(command, dict):
+                continue
+            texts.extend(
+                str(command.get(key, "") or "")
+                for key in ("command", "summary", "stderr", "stdout")
+                if str(command.get(key, "") or "")
+            )
     return dedupe_strings(
         normalize_repair_path(match.group("path"))
         for text in texts

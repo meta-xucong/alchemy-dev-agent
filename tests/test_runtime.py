@@ -629,6 +629,36 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.summary, "planned from repair evidence")
         self.assertEqual(result.tests_passed, ["planner evidence parsed"])
 
+    def test_real_worker_ignores_product_usage_limits_text_before_worker_json(self) -> None:
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            payload = {
+                "task_id": "T012N",
+                "status": "completed",
+                "summary": "updated CRM account API key component",
+                "files_changed": ["frontend/src/components/admin/user/UserApiKeysModal.vue"],
+                "commands_run": [],
+                "tests_passed": ["scoped component check"],
+                "tests_failed": [],
+                "evidence": [],
+                "known_issues": [],
+                "follow_up_tasks": [],
+                "confidence": 0.9,
+            }
+            stdout = "\n".join(
+                [
+                    "frontend/src/i18n/locales/en.ts:52: Smart allocation across service accounts with health checks, usage limits, and automatic failover.",
+                    json.dumps(payload),
+                ]
+            )
+            return subprocess.CompletedProcess(args, 0, stdout, "Reading prompt from stdin...\n")
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T012N", goal="ignore product copy usage limits", repository_path="."))
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.summary, "updated CRM account API key component")
+        self.assertEqual(result.files_changed, ["frontend/src/components/admin/user/UserApiKeysModal.vue"])
+
     def test_real_worker_truncates_large_raw_output_after_parsing(self) -> None:
         def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
             payload = {
