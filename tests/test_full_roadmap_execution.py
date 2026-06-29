@@ -3093,6 +3093,100 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertFalse((output_dir / "attempt_002.json").exists())
         self.assertEqual(report["attempts"][0]["stop_boundary"], "non_partial_blocker")
 
+    def test_final_verification_resume_uses_latest_non_stopped_failed_state(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        (output_dir / "final_verification_repair_resume_035.md").write_text(
+            "Repair attempt: run_attempt_035\n- Primary failed task IDs: T051.\n",
+            encoding="utf-8",
+        )
+        failed_run = output_dir / "run_attempt_039"
+        stopped_run = output_dir / "run_attempt_041"
+        failed_run.mkdir()
+        stopped_run.mkdir()
+        write_json(
+            failed_run / "state.json",
+            {
+                "done": False,
+                "completed_tasks": ["T051", "T052", "T053", "T054", "T055"],
+                "failed_tasks": ["T056"],
+                "blockers": [
+                    {
+                        "id": "B-T056-1",
+                        "type": "technical_limit",
+                        "description": "T056 modified files outside allowed_files.",
+                        "task_ids": ["T056"],
+                        "can_continue_partially": False,
+                    }
+                ],
+                "task_graph": {
+                    "nodes": [
+                        {"id": "T051", "title": "Repair final frontend channel monitor format composable", "status": "completed"},
+                        {"id": "T052", "title": "Repair final frontend model entitlement composable", "status": "completed"},
+                        {"id": "T053", "title": "Repair final frontend onboarding quota composables", "status": "completed"},
+                        {"id": "T054", "title": "Repair final frontend table navigation composables", "status": "completed"},
+                        {"id": "T055", "title": "Repair final frontend utility constant type contracts", "status": "completed"},
+                        {
+                            "id": "T056",
+                            "title": "Repair final frontend test and fixture contracts",
+                            "status": "failed",
+                            "relevant_files": ["frontend/src/**/__tests__/**", "frontend/src/**/*.spec.ts"],
+                        },
+                        {"id": "T057", "title": "Audit final requirements and phase evidence", "status": "pending"},
+                    ]
+                },
+            },
+        )
+        write_json(
+            stopped_run / "state.json",
+            {
+                "done": False,
+                "active_tasks": [],
+                "failed_tasks": ["T051"],
+                "blockers": [
+                    {
+                        "id": "B-T051-0",
+                        "type": "environment",
+                        "description": "Worker was cancelled by supervisor stop.",
+                        "task_ids": ["T051"],
+                        "can_continue_partially": False,
+                    }
+                ],
+            },
+        )
+        write_json(stopped_run / "supervisor_stop.json", {"reason": "stale replay"})
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [{"attempt": 41, "output_dir": str(stopped_run), "status": "blocked"}],
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {
+                        "blockers": [
+                            {
+                                "id": "B-T051-0",
+                                "type": "environment",
+                                "description": "Worker was cancelled by supervisor stop.",
+                                "task_ids": ["T051"],
+                                "can_continue_partially": False,
+                            }
+                        ]
+                    },
+                },
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+
+        self.assertEqual(len(docs), 1)
+        text = Path(docs[0]).read_text(encoding="utf-8")
+        self.assertIn("Repair attempt: run_attempt_039", text)
+        self.assertIn("Primary failed task IDs: T056", text)
+        self.assertIn("Completed tasks to preserve: T051, T052, T053, T054, T055", text)
+        self.assertNotIn("Primary failed task IDs: T051", text)
+
     def test_final_verification_relaunch_carries_previous_failure_repair_context(self) -> None:
         root = temp_root()
         doc = root / "roadmap.md"

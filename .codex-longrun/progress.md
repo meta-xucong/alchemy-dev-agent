@@ -2238,3 +2238,13 @@ PY"`
 - Implemented V2.167 in `autodev/full_roadmap_executor.py`: final-verification workers now stop the parent attempt loop on any `can_continue_partially=false` runtime blocker and mark the attempt with `stop_boundary=non_partial_blocker`.
 - Added focused regressions for nested frontend test globs and final-verification non-partial stop behavior.
 - Current total-project estimate remains about 99.6%; final verification is 55/61 nodes completed, with T056 and T057-T061 remaining.
+
+## 2026-06-30T05:55:00+08:00 V2.168 Final Verification State Fallback
+
+- Relaunched after V2.167. The new stop-boundary behavior worked, but `run_attempt_041` reused stale `final_verification_repair_resume_035.md` and replayed T051 instead of preserving T051-T055 and resuming T056.
+- Wrote `supervisor_stop.json` for `run_attempt_041`; Alchemy honored it, blocked T051, and left no residual worker processes.
+- Root cause: the latest `final_verification_worker_report.json` could be produced by a supervisor-stopped replay attempt, while the useful technical blocker lived in an earlier attempt state. Existing resume generation trusted the stopped report and did not fall back to the latest concrete failed state.
+- Implemented V2.168 in `autodev/full_roadmap_executor.py`: final-verification resume generation now falls back to the newest failed attempt state with concrete blockers, skips operator/environment stop noise, and still allows stopped attempts that contain useful technical blockers.
+- Added `test_final_verification_resume_uses_latest_non_stopped_failed_state`.
+- Real helper probe generated `final_verification_repair_resume_036.md` from `run_attempt_039`, focused T056, and preserved completed tasks including T051-T055.
+- Current total-project estimate remains about 99.6%; the next relaunch should resume T056 directly.

@@ -2110,6 +2110,17 @@ def next_final_verification_repair_resume_path(output_dir: Path) -> Path:
 def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
     existing = sorted(output_dir.glob("final_verification_repair_resume_*.md"))
     report = read_optional_json(output_dir / "final_verification_worker_report.json")
+    recovered_report = final_verification_latest_failed_attempt_state_report(output_dir)
+    if str(report.get("status", "")).lower() == "failed":
+        if final_verification_report_attempt_is_operator_stopped(report) and recovered_report:
+            report = recovered_report
+        elif recovered_report:
+            report_index = final_verification_report_attempt_index(report)
+            recovered_index = final_verification_report_attempt_index(recovered_report)
+            if recovered_index > report_index:
+                report = recovered_report
+    elif recovered_report:
+        report = recovered_report
     if str(report.get("status", "")).lower() != "failed":
         return [str(existing[-1].resolve())] if existing else []
     report_text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
@@ -2125,6 +2136,8 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
         "supervisor",
         "outside the task boundary",
         "out-of-scope",
+        "failed_tasks",
+        "blocked",
     ]
     if not any(token in lowered for token in repair_markers):
         return [str(existing[-1].resolve())] if existing else []
@@ -2180,6 +2193,88 @@ def final_verification_report_attempt_marker(report: dict[str, object]) -> str:
         return f"run_attempt_{int(attempt):03d}"
     except (TypeError, ValueError):
         return str(attempt)
+
+
+def final_verification_report_attempt_index(report: dict[str, object]) -> int:
+    marker = final_verification_report_attempt_marker(report)
+    suffix = marker.removeprefix("run_attempt_")
+    try:
+        return int(suffix)
+    except ValueError:
+        return -1
+
+
+def final_verification_report_attempt_is_operator_stopped(report: dict[str, object]) -> bool:
+    attempts = [item for item in _list(report.get("attempts")) if isinstance(item, dict)]
+    if not attempts:
+        return False
+    output_dir = str(attempts[-1].get("output_dir", "") or "")
+    if not output_dir:
+        return False
+    run_dir = Path(output_dir)
+    if not supervisor_stop_marker_exists(run_dir):
+        return False
+    state = read_optional_json(run_dir / "state.json")
+    return not state or final_verification_state_is_operator_stop_noise(state)
+
+
+def final_verification_latest_failed_attempt_state_report(output_dir: Path) -> dict[str, object]:
+    for run_dir in reversed(sorted(output_dir.glob("run_attempt_*"), key=_phase_run_sort_key)):
+        if not run_dir.is_dir():
+            continue
+        state = read_optional_json(run_dir / "state.json")
+        if supervisor_stop_marker_exists(run_dir) and final_verification_state_is_operator_stop_noise(state):
+            continue
+        if not state or bool(state.get("done")):
+            continue
+        blockers = _list(state.get("blockers"))
+        failed_tasks = failed_task_ids_from_state(state)
+        if not blockers and not failed_tasks:
+            continue
+        attempt_index = _phase_run_sort_key(run_dir)[0]
+        result = {
+            "status": "blocked",
+            "runtime_state": state,
+            "blockers": blockers,
+        }
+        return {
+            "status": "failed",
+            "attempts": [
+                {
+                    "attempt": attempt_index,
+                    "output_dir": str(run_dir),
+                    "status": "blocked",
+                    "recovered_from_state_json": True,
+                }
+            ],
+            "result": result,
+            "required_actions": repairable_blocker_summaries(blockers),
+            "blockers": repairable_blocker_summaries(blockers),
+            "recovered_from_state_json": True,
+        }
+    return {}
+
+
+def final_verification_state_is_operator_stop_noise(state: dict[str, object]) -> bool:
+    blockers = [item for item in _list(state.get("blockers")) if isinstance(item, dict)]
+    failed_tasks = failed_task_ids_from_state(state)
+    if not blockers:
+        return not failed_tasks
+    noisy_types = {"", "environment", "operator_control", "external_dependency"}
+    return all(str(blocker.get("type", "") or "").lower() in noisy_types for blocker in blockers)
+
+
+def failed_task_ids_from_state(state: dict[str, object]) -> list[str]:
+    task_ids = [str(item) for item in _list(state.get("failed_tasks"))]
+    task_graph = _dict(state.get("task_graph"))
+    nodes = _list(task_graph.get("nodes"))
+    task_ids.extend(
+        str(node.get("id", ""))
+        for node in nodes
+        if isinstance(node, dict)
+        and str(node.get("status", "")).lower() in {"failed", "blocked", "timed_out", "cancelled"}
+    )
+    return dedupe_strings(task_ids)
 
 
 def final_verification_repair_resume_mentions(path: Path, marker: str) -> bool:

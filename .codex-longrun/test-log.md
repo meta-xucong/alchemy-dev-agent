@@ -5562,3 +5562,33 @@
 - command: python -B -m compileall runtime autodev tests -q
 - result: passed
 - next verification command: git diff --check and commit/push V2.167.
+
+## 2026-06-30T05:55:00+08:00 V2.168 final verification state fallback
+
+- command: Billing Core final verification `run_attempt_041` monitoring
+- result: V2.167 stopped non-partial replay correctly, but the attempt reused stale `final_verification_repair_resume_035.md` and restarted T051 instead of preserving T051-T055 and resuming T056. `supervisor_stop.json` stopped the attempt and no residual worker process remained.
+- next verification command: focused final-verification state-fallback regression.
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_uses_latest_non_stopped_failed_state -q
+- result: 1 passed
+- next verification command: real Billing Core resume-document probe.
+
+- command: real `final_verification_resume_repair_documents` probe on `.alchemy/billing_core_v274_20260624_012/final_verification`
+- result: generated `final_verification_repair_resume_036.md` with `Repair attempt: run_attempt_039` and `Primary failed task IDs: T056`
+- next verification command: full-roadmap regression, compileall, diff hygiene, commit/push V2.168, and controlled relaunch.
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 94 passed
+- next verification command: compileall.
+
+- command: python -B -m compileall autodev tests -q
+- result: passed
+- next verification command: state JSON parse and git diff --check.
+
+- command: python -c "import json, pathlib; json.loads(pathlib.Path('.codex-longrun/state.json').read_text(encoding='utf-8-sig')); print('state json ok')"
+- result: state json ok
+- next verification command: git diff --check.
+
+- command: git diff --check
+- result: passed with CRLF normalization warning for `.codex-longrun/state.json`
+- next verification command: commit/push V2.168 and controlled Billing Core final-verification relaunch.
