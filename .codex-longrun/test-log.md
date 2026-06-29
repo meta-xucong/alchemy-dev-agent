@@ -5391,6 +5391,32 @@
 - result: T040-T043 remained completed; T044-T047 became auth, public legal, setup/not-found, and support-file tasks; T048+ continued the final verification tail.
 - next verification command: controlled relaunch through PowerShell `-EncodedCommand`.
 
+## 2026-06-30T02:48:00+08:00 V2.163 setup/not-found timeout split
+
+- command: Billing Core final verification `run_attempt_035` monitoring
+- result: T044 auth views completed, T045 public legal views completed, then T046 setup/not-found timed out at 900 seconds; Alchemy recorded non-partial blocker `B-T046-1` and did not create a same-scope debug task.
+- next verification command: focused T046 setup/not-found split regression.
+
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_setup_not_found_timeout_is_split_again tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_auth_public_setup_timeout_is_split_again -q
+- result: 2 passed
+- next verification command: compileall, full document-to-plan, and full-roadmap suites.
+
+- command: python -B -m compileall planner tests -q
+- result: passed
+- next verification command: python -B -m pytest tests/test_document_to_plan.py -q
+
+- command: python -B -m pytest tests/test_document_to_plan.py -q
+- result: 58 passed
+- next verification command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 92 passed
+- next verification command: commit/push V2.163, relaunch controlled final verification, and monitor split T046.
+
+- command: Alchemy helper probe generated `final_verification_repair_resume_032.md` and built a graph from it
+- result: T043-T045 remained completed; T046 became setup-view-only; T047 became NotFoundView-only; downstream support/final audit tasks were preserved.
+- next verification command: controlled relaunch through PowerShell `-EncodedCommand`.
+
 ## 2026-06-30T01:08:29+08:00 V2.161 Debug parent dependency preservation
 
 - command: Real Billing Core final-verification report probe using phase_focused_repair_lines

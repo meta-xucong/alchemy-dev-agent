@@ -2187,3 +2187,13 @@ PY"`
 - Added `test_final_verification_auth_public_setup_timeout_is_split_again` and documented the change in `docs/171_v2_162_auth_public_setup_split.md`.
 - Generated `final_verification_repair_resume_031.md` from the real final-verification report. A graph probe now preserves T040-T043 and starts the next editable work at split T044 `Repair final frontend auth view contracts`.
 - Current total-project estimate remains about 99.4%-99.5%; final-verification tail is 43/51 completed before the split, and the next graph expands to a smaller 54-node tail with T044-T047 replacing the old broad T044.
+
+## 2026-06-30T02:48:00+08:00 V2.163 Final Setup Not-Found Split
+
+- Relaunched after V2.162. `final_verification/run_attempt_035` preserved T001-T043 and started split T044.
+- T044 `Repair final frontend auth view contracts` completed, then T045 `Repair final frontend public legal view contracts` completed. This validated that the V2.162 split avoided replaying the broad auth/public/setup task.
+- T046 `Repair final frontend setup and not-found view contracts` still timed out after 900 seconds. Alchemy again handled the stop boundary correctly: non-partial blocker `B-T046-1`, no same-scope debug task, no downstream dispatch, and no residual worker process.
+- Implemented V2.163 in `planner/task_graph_builder.py`: focused T046 setup/not-found timeouts now split into setup-view-only and NotFoundView-only tasks.
+- Added `test_final_verification_setup_not_found_timeout_is_split_again` and documented the change in `docs/172_v2_163_setup_not_found_split.md`.
+- Generated `final_verification_repair_resume_032.md` from the real final-verification report. A graph probe now preserves T043-T045 and starts the next editable work at split T046 `Repair final frontend setup view contracts`.
+- Current final-verification tail is 45 completed tasks before the split; the next graph expands to 55 nodes with T046 setup-only and T047 NotFound-only before support files and final audit.

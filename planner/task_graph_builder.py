@@ -707,6 +707,11 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             should_split_final_frontend_auth_public_setup_timeout(text)
             or should_preserve_final_frontend_auth_public_setup_split(text)
         )
+        split_setup_not_found_views = (
+            should_split_final_frontend_setup_not_found_timeout(text)
+            or should_preserve_final_frontend_setup_not_found_split(text)
+        )
+        split_auth_public_setup_views = split_auth_public_setup_views or split_setup_not_found_views
         split_view_pages = (
             should_split_final_frontend_view_page_timeout(text)
             or should_preserve_final_frontend_view_page_split(text)
@@ -764,6 +769,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_admin_email_template_leaf=split_admin_email_template_leaf,
                 split_admin_announcement_backup_promo=split_admin_announcement_backup_promo,
                 split_auth_public_setup_views=split_auth_public_setup_views,
+                split_setup_not_found_views=split_setup_not_found_views,
             )
         )
     return specs
@@ -1143,6 +1149,57 @@ def should_preserve_final_frontend_auth_public_setup_split(text: str) -> bool:
             "repair final frontend state composable utility contracts",
         )
     ) and _has_primary_failed_task_id_in_range(text, 45, 60)
+
+
+def should_split_final_frontend_setup_not_found_timeout(text: str) -> bool:
+    focused_setup_scope = _has_primary_failed_task_id_in_range(text, 31, 60) and any(
+        marker in text
+        for marker in (
+            "repair final frontend setup and not-found view contracts",
+            "frontend/src/views/setup",
+            "frontend/src/views/notfoundview.vue",
+            "not-found view",
+        )
+    )
+    if focused_setup_scope:
+        return True
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return "repair final frontend setup and not-found view contracts" in text and any(
+        marker in text
+        for marker in (
+            "frontend/src/views/setup",
+            "notfoundview",
+            "not-found",
+        )
+    )
+
+
+def should_preserve_final_frontend_setup_not_found_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend setup view contracts",
+            "repair final frontend not-found view file",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "repair final frontend auth public setup support files",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 47, 60)
 
 
 def should_split_final_frontend_admin_dashboard_settings_timeout(text: str) -> bool:
@@ -1785,6 +1842,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_admin_email_template_leaf: bool = False,
     split_admin_announcement_backup_promo: bool = False,
     split_auth_public_setup_views: bool = False,
+    split_setup_not_found_views: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -2812,20 +2870,53 @@ def final_frontend_routes_views_repair_task_specs(
                     ],
                     "priority": 83,
                 },
-                {
-                    "title": "Repair final frontend setup and not-found view contracts",
-                    "description": "Align setup and not-found pages with CRM onboarding, recovery, and product boundary semantics.",
-                    "assigned_agent": "frontend",
-                    "relevant_files": [
-                        "frontend/src/views/setup/**",
-                        "frontend/src/views/NotFoundView.vue",
-                    ],
-                    "completion_criteria": [
-                        "Setup and not-found pages use CRM onboarding, account, billing, and support language.",
-                        "Setup and not-found pages no longer expose relay/API gateway/provider/channel/token-log copy.",
-                    ],
-                    "priority": 82,
-                },
+                *(
+                    [
+                        {
+                            "title": "Repair final frontend setup view contracts",
+                            "description": "Align setup pages with CRM onboarding, account, billing, and product boundary semantics.",
+                            "assigned_agent": "frontend",
+                            "relevant_files": [
+                                "frontend/src/views/setup/**",
+                            ],
+                            "completion_criteria": [
+                                "Setup pages use CRM onboarding, account, billing, wallet, and support language.",
+                                "Setup pages no longer expose relay/API gateway/provider/channel/token-log copy.",
+                            ],
+                            "priority": 82,
+                        },
+                        {
+                            "title": "Repair final frontend not-found view file",
+                            "description": "Align the not-found page with CRM product recovery and support semantics.",
+                            "assigned_agent": "frontend",
+                            "relevant_files": [
+                                "frontend/src/views/NotFoundView.vue",
+                            ],
+                            "completion_criteria": [
+                                "NotFoundView uses CRM product, account recovery, billing, and support language.",
+                                "NotFoundView no longer exposes relay/API gateway/provider/channel/token-log copy.",
+                            ],
+                            "priority": 81,
+                        },
+                    ]
+                    if split_setup_not_found_views
+                    else [
+                        {
+                            "title": "Repair final frontend setup and not-found view contracts",
+                            "description": "Align setup and not-found pages with CRM onboarding, recovery, and product boundary semantics.",
+                            "assigned_agent": "frontend",
+                            "relevant_files": [
+                                "frontend/src/views/setup/**",
+                                "frontend/src/views/NotFoundView.vue",
+                            ],
+                            "completion_criteria": [
+                                "Setup and not-found pages use CRM onboarding, account, billing, and support language.",
+                                "Setup and not-found pages no longer expose relay/API gateway/provider/channel/token-log copy.",
+                            ],
+                            "priority": 82,
+                        }
+                    ]
+                ),
                 {
                     "title": "Repair final frontend auth public setup support files",
                     "description": "Align shared support files touched by auth, public, setup, and not-found view cleanup.",
