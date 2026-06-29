@@ -2207,3 +2207,13 @@ PY"`
 - V2.164 also hardens preservation of the V2.163 setup/not-found split by completed task IDs; the first real `_033` graph probe showed that without this, T046/T047 could collapse and make the new store task inherit completed ID T048.
 - Added `test_final_verification_state_composable_utility_timeout_is_split_again` and documented the change in `docs/173_v2_164_state_composable_utility_split.md`.
 - Real `final_verification_repair_resume_033.md` now builds a graph with T043-T048 completed and split T049/T050/T051 pending.
+
+## 2026-06-30T04:12:00+08:00 V2.165 Final Composable Contract Split
+
+- Relaunched after V2.164. `final_verification/run_attempt_037` preserved T001-T048 and started split T049.
+- T049 `Repair final frontend store contracts` completed successfully and Alchemy advanced to T050.
+- T050 `Repair final frontend composable contracts` timed out after 900 seconds. Alchemy handled the stop boundary correctly: non-partial blocker `B-T050-1`, no same-scope debug task, no downstream T051 dispatch, and no residual real worker process.
+- Implemented V2.165 in `planner/task_graph_builder.py`: focused composable-contract timeouts now split into identity/OAuth composables, metering/entitlement composables, and table/navigation composables.
+- Added `test_final_verification_composable_contracts_timeout_is_split_again` and documented the change in `docs/174_v2_165_composable_contract_split.md`.
+- Real `final_verification_repair_resume_034.md` now builds a graph with T045-T049 completed and split T050/T051/T052 composable subtasks pending, followed by utility, test, audit, simulation, real repository checks, review, and delivery.
+- Current total-project estimate is about 99.55%-99.6%. The immediate next step is commit/push V2.165, relaunch through encoded PowerShell, and monitor split T050 identity/OAuth composables.

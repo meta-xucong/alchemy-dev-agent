@@ -1,8 +1,9 @@
 {
     "objective":  "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase":  "billing_core_final_state_composable_split_v2_164",
+    "current_phase":  "billing_core_final_composable_split_v2_165",
     "phase_status":  "advancing",
     "completed_phases":  [
+                             "implemented V2.165 final composable-contract timeout split after T050 timed out cleanly without debug replay",
                              "implemented V2.164 final state/composable/utility timeout split and preserved setup/not-found split IDs",
                              "implemented V2.163 final setup/not-found view timeout split after split T046 timed out cleanly without debug replay",
                              "implemented V2.162 final auth/public/setup view timeout split after T044 timed out cleanly without debug replay",
@@ -107,14 +108,20 @@
                              "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
                          ],
     "next_actions":  [
-                         "Commit and push V2.164 final state/composable/utility timeout split.",
+                         "Commit and push V2.165 final composable-contract timeout split.",
                          "Relaunch the controlled Billing Core final verification through PowerShell -EncodedCommand so spaced paths are not split.",
-                         "Confirm final_verification/run_attempt_037 reuses final_verification_repair_resume_033.md and starts split T049 store cleanup with T043-T048 preserved.",
-                         "If split T049-T051 timeout, boundary-block, or replay broad work, fix Alchemy split/boundary logic before relaunching.",
-                         "After implementation cleanup tasks finish, monitor final audit, simulation probes, real repository checks, review, and delivery evidence.",
+                         "Confirm final_verification/run_attempt_038 reuses final_verification_repair_resume_034 and starts split T050 identity/OAuth composables with T045-T049 preserved.",
+                         "If split T050-T052 timeout, boundary-block, or replay broad work, fix Alchemy split/boundary logic before relaunching.",
+                         "After implementation cleanup tasks finish, monitor utility/type repair, test fixture repair, final audit, simulation probes, real repository checks, review, and delivery evidence.",
                          "Record final verification results and remaining blockers before any handoff."
                      ],
     "tests_run":  [
+                      "V2.165: real Billing Core final_verification_repair_resume_034 graph probe preserved T049 and split T050 into identity/OAuth, metering/entitlement, and table/navigation composable tasks",
+                      "V2.165: python -B -m pytest tests/test_full_roadmap_execution.py -q =\u003e 92 passed",
+                      "V2.165: python -B -m pytest tests/test_document_to_plan.py -q =\u003e 60 passed",
+                      "V2.165: python -B -m compileall planner tests -q =\u003e passed",
+                      "V2.165: focused composable/state split regressions =\u003e 2 passed",
+                      "V2.165: run_attempt_037 T049 completed and T050 timed out with non-partial B-T050-1, no debug, no downstream dispatch",
                       "V2.164: real Billing Core final_verification_repair_resume_033 graph probe preserved T043-T048 and split T049 into store, composable, and utility/constant/type tasks",
                       "V2.164: python -B -m pytest tests/test_full_roadmap_execution.py -q =\u003e 92 passed",
                       "V2.164: python -B -m pytest tests/test_document_to_plan.py -q =\u003e 59 passed",
@@ -844,10 +851,11 @@
                           "Relevant tests or checks pass",
                           "Progress and verification are recorded"
                       ],
-    "last_verified_at":  "2026-06-30T03:45:00+08:00",
+    "last_verified_at":  "2026-06-30T04:12:00+08:00",
     "created_at":  "2026-06-25T01:55:36+08:00",
-    "updated_at":  "2026-06-30T03:45:00+08:00",
+    "updated_at":  "2026-06-30T04:12:00+08:00",
     "known_issues":  [
+                         "Before V2.165, split final verification T050 `Repair final frontend composable contracts` still bundled all composables into one worker and timed out after 900 seconds.",
                          "Before V2.164, final verification T049 `Repair final frontend state composable utility contracts` bundled stores, composables, utilities, constants, and types into one worker and timed out after 900 seconds.",
                          "Before V2.164, later T049 repair resumes could collapse V2.163 setup/not-found split tasks back into a broad T046 and shift new split tasks into completed IDs.",
                          "Before V2.163, split final verification T046 `Repair final frontend setup and not-found view contracts` still bundled setup views and NotFoundView into one worker and timed out after 900 seconds.",

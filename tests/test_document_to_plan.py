@@ -2796,6 +2796,101 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(split_nodes[0]["status"], "pending")
         self.assertIn("Repair final frontend test and fixture contracts", titles)
 
+    def test_final_verification_composable_contracts_timeout_is_split_again(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            for path in (
+                "frontend/src/api",
+                "frontend/src/constants",
+                "frontend/src/i18n",
+                "frontend/src/types",
+                "frontend/src/router",
+                "frontend/src/views/admin/__tests__",
+                "frontend/src/views/admin/ops/components",
+                "frontend/src/views/admin/orders",
+                "frontend/src/views/admin/settings",
+                "frontend/src/views/auth",
+                "frontend/src/views/public",
+                "frontend/src/views/setup",
+                "frontend/src/views/user",
+                "frontend/src/components/account",
+                "frontend/src/components/admin/announcements",
+                "frontend/src/components/admin/payment",
+                "frontend/src/components/admin/user",
+                "frontend/src/components/charts",
+                "frontend/src/styles",
+                "frontend/src/composables/__tests__",
+                "frontend/src/stores",
+                "frontend/src/utils",
+                "frontend/tests",
+            ):
+                (repo / path).mkdir(parents=True)
+            (repo / "frontend" / "src" / "views" / "NotFoundView.vue").write_text("<template />\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "final_verification_repair_resume_034.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_037",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- FINAL_AUDIT_STATUS=FAIL: final source-boundary repair needs continuation.",
+                        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain upstream account, proxy, channel-monitor, model-routing, or subscription-plan behavior.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T050.",
+                        f"- Completed tasks to preserve: {', '.join(f'T{index:03d}' for index in range(1, 50))}.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T050 - Repair final frontend composable contracts",
+                        "- Must continue focused task T050: Repair final frontend composable contracts.",
+                        "- Previous relevant files: frontend/src/composables/**, frontend/src/types/**, frontend/package.json, frontend/pnpm-lock.yaml.",
+                        "- Worker summary: T050 exceeded the Codex worker timeout.",
+                        "- Timeout note: preserve T049 and split composables by OAuth, domain metering/entitlement, and shared table/navigation helpers before replaying the same scope.",
+                        "",
+                        "## Previous Graph Titles",
+                        "",
+                        "- Repair final frontend store contracts",
+                        "- Repair final frontend composable contracts",
+                        "- Repair final frontend utility constant type contracts",
+                        "- Repair final frontend test and fixture contracts",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-30T04:05:00+08:00",
+            )
+
+            bundle = ContextBundleBuilder().build(brief)
+            graph = TaskGraphBuilder().build(bundle).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        titles = [node["title"] for node in graph["nodes"]]
+        self.assertNotIn("Repair final frontend composable contracts", titles)
+        self.assertEqual(nodes["T049"]["title"], "Repair final frontend store contracts")
+        self.assertEqual(nodes["T049"]["status"], "completed")
+        self.assertEqual(nodes["T050"]["title"], "Repair final frontend identity OAuth composables")
+        self.assertIn("frontend/src/composables/useOpenAIOAuth.ts", nodes["T050"]["relevant_files"])
+        self.assertEqual(nodes["T051"]["title"], "Repair final frontend metering entitlement composables")
+        self.assertIn("frontend/src/composables/useModelWhitelist.ts", nodes["T051"]["relevant_files"])
+        self.assertEqual(nodes["T052"]["title"], "Repair final frontend table navigation composables")
+        self.assertIn("frontend/src/composables/useTableLoader.ts", nodes["T052"]["relevant_files"])
+        self.assertEqual(nodes["T053"]["title"], "Repair final frontend utility constant type contracts")
+
     def test_final_verification_admin_settings_email_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

@@ -722,6 +722,11 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             should_split_final_frontend_state_composable_utility_timeout(text)
             or should_preserve_final_frontend_state_composable_utility_split(text)
         )
+        split_composable_contracts = (
+            should_split_final_frontend_composable_contracts_timeout(text)
+            or should_preserve_final_frontend_composable_contracts_split(text)
+        )
+        split_state_composable_utility = split_state_composable_utility or split_composable_contracts
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
             text
         ) or should_preserve_final_frontend_admin_usage_payment_split(text) or split_admin_payment
@@ -779,6 +784,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_auth_public_setup_views=split_auth_public_setup_views,
                 split_setup_not_found_views=split_setup_not_found_views,
                 split_state_composable_utility=split_state_composable_utility,
+                split_composable_contracts=split_composable_contracts,
             )
         )
     return specs
@@ -1255,6 +1261,49 @@ def should_preserve_final_frontend_state_composable_utility_split(text: str) -> 
             "t051",
         )
     ) and _has_primary_failed_task_id_in_range(text, 52, 65)
+
+
+def should_split_final_frontend_composable_contracts_timeout(text: str) -> bool:
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    return _has_primary_failed_task_id_in_range(text, 48, 65) and any(
+        marker in text
+        for marker in (
+            "repair final frontend composable contracts",
+            "frontend/src/composables",
+            "composable contracts",
+        )
+    )
+
+
+def should_preserve_final_frontend_composable_contracts_split(text: str) -> bool:
+    split_titles_present = all(
+        marker in text
+        for marker in (
+            "repair final frontend identity oauth composables",
+            "repair final frontend metering entitlement composables",
+            "repair final frontend table navigation composables",
+        )
+    )
+    if split_titles_present:
+        return True
+    return all(
+        marker in text
+        for marker in (
+            "completed tasks to preserve:",
+            "t050",
+            "t051",
+            "t052",
+        )
+    ) and _has_primary_failed_task_id_in_range(text, 53, 70)
 
 
 def should_split_final_frontend_admin_dashboard_settings_timeout(text: str) -> bool:
@@ -1899,6 +1948,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_auth_public_setup_views: bool = False,
     split_setup_not_found_views: bool = False,
     split_state_composable_utility: bool = False,
+    split_composable_contracts: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1967,6 +2017,89 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 91,
     }
+    composable_task = {
+        "title": "Repair final frontend composable contracts",
+        "description": "Align frontend composables with CRM billing, wallet, metering, payment, and account workflows.",
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/composables/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Composables no longer expose relay, provider-channel, proxy, model-routing, upstream account, or token-log product concepts.",
+            "Composable APIs use CRM billing, wallet, metering, entitlement, payment, analytics, and audit language.",
+        ],
+        "priority": 90,
+    }
+    composable_split_tasks = [
+        {
+            "title": "Repair final frontend identity OAuth composables",
+            "description": "Align identity and OAuth composables with CRM account, connector, and authentication workflows.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/composables/useAccountOAuth.ts",
+                "frontend/src/composables/useAntigravityOAuth.ts",
+                "frontend/src/composables/useGeminiOAuth.ts",
+                "frontend/src/composables/useOpenAIOAuth.ts",
+                "frontend/src/composables/__tests__/useOpenAIOAuth.spec.ts",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Identity/OAuth composables use CRM account, connector, authentication, and authorization language.",
+                "OAuth composable contracts no longer expose relay, upstream-account, provider-channel, token-log, or model-routing product behavior.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final frontend metering entitlement composables",
+            "description": "Align domain composables with CRM metering, entitlement, onboarding, and account-capacity semantics.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/composables/useChannelMonitorFormat.ts",
+                "frontend/src/composables/useModelWhitelist.ts",
+                "frontend/src/composables/useOnboardingTour.ts",
+                "frontend/src/composables/useQuotaNotifyState.ts",
+                "frontend/src/composables/__tests__/useModelWhitelist.spec.ts",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Domain composables use CRM metering, entitlement, onboarding, and account-capacity language.",
+                "Domain composable contracts no longer expose retired channel-monitor, provider-channel, proxy, model-routing, or token-log behavior as product concepts.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final frontend table navigation composables",
+            "description": "Align shared UI composables with CRM-neutral table, navigation, loading, and form contracts.",
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/composables/useAutoRefresh.ts",
+                "frontend/src/composables/useClipboard.ts",
+                "frontend/src/composables/useForm.ts",
+                "frontend/src/composables/useKeyedDebouncedSearch.ts",
+                "frontend/src/composables/useNavigationLoading.ts",
+                "frontend/src/composables/usePersistedPageSize.ts",
+                "frontend/src/composables/useRoutePrefetch.ts",
+                "frontend/src/composables/useSwipeSelect.ts",
+                "frontend/src/composables/useTableLoader.ts",
+                "frontend/src/composables/useTableSelection.ts",
+                "frontend/src/composables/__tests__/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Shared UI composables remain CRM-neutral helpers without relay-era product vocabulary.",
+                "Navigation, loading, form, table, search, and selection composable tests compile against the final frontend contracts.",
+            ],
+            "priority": 88,
+        },
+    ]
     state_split_tasks = [
         {
             "title": "Repair final frontend store contracts",
@@ -1984,22 +2117,7 @@ def final_frontend_routes_views_repair_task_specs(
             ],
             "priority": 91,
         },
-        {
-            "title": "Repair final frontend composable contracts",
-            "description": "Align frontend composables with CRM billing, wallet, metering, payment, and account workflows.",
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/composables/**",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Composables no longer expose relay, provider-channel, proxy, model-routing, upstream account, or token-log product concepts.",
-                "Composable APIs use CRM billing, wallet, metering, entitlement, payment, analytics, and audit language.",
-            ],
-            "priority": 90,
-        },
+        *(composable_split_tasks if split_composable_contracts else [composable_task]),
         {
             "title": "Repair final frontend utility constant type contracts",
             "description": "Align frontend utilities, constants, and shared types with the final CRM product boundary.",
