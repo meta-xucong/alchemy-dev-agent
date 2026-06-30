@@ -3076,6 +3076,10 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T058"]["title"], "Repair final frontend view router i18n utility test contracts")
         self.assertEqual(nodes["T059"]["title"], "Repair final frontend test config and fixture contracts")
         self.assertEqual(nodes["T060"]["title"], "Audit final requirements and phase evidence")
+        self.assertIn("frontend/src/api/**/*.spec.ts", nodes["T056"]["relevant_files"])
+        self.assertNotIn("frontend/src/**/*.spec.ts", nodes["T056"]["relevant_files"])
+        self.assertIn("frontend/src/components/**/*.spec.ts", nodes["T057"]["relevant_files"])
+        self.assertNotIn("frontend/src/**/*.spec.tsx", nodes["T058"]["relevant_files"])
         self.assertEqual(nodes["T055"]["status"], "completed")
         self.assertNotEqual(nodes["T056"]["status"], "completed")
 
@@ -3167,6 +3171,92 @@ class DocumentToPlanTests(unittest.TestCase):
         for task_id in ("T056", "T057", "T058", "T059"):
             self.assertEqual(nodes[task_id]["status"], "completed")
         self.assertNotEqual(nodes["T060"]["status"], "completed")
+
+    def test_final_audit_focus_keeps_deep_tail_shape_when_tail_tasks_reopen(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            for path in (
+                "frontend/src/api",
+                "frontend/src/constants",
+                "frontend/src/i18n",
+                "frontend/src/types",
+                "frontend/src/router",
+                "frontend/src/views/admin/__tests__",
+                "frontend/src/views/admin/ops/components",
+                "frontend/src/views/admin/orders",
+                "frontend/src/views/admin/settings",
+                "frontend/src/views/auth",
+                "frontend/src/views/public",
+                "frontend/src/views/setup",
+                "frontend/src/views/user",
+                "frontend/src/components/account",
+                "frontend/src/components/admin/announcements",
+                "frontend/src/components/admin/payment",
+                "frontend/src/components/admin/user",
+                "frontend/src/components/admin/usage/__tests__",
+                "frontend/src/components/charts",
+                "frontend/src/styles",
+                "frontend/src/composables/__tests__",
+                "frontend/src/stores",
+                "frontend/src/utils",
+                "frontend/tests",
+            ):
+                (repo / path).mkdir(parents=True)
+            (repo / "frontend" / "src" / "views" / "NotFoundView.vue").write_text("<template />\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            reopened = {"T006", "T009", "T024", "T039", "T041", "T056", "T057"}
+            completed = ", ".join(f"T{index:03d}" for index in range(1, 60) if f"T{index:03d}" not in reopened)
+            spec = root / "final_verification_repair_resume_044.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_046",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T060.",
+                        f"- Completed tasks to preserve: {completed}.",
+                        "- Preserve final frontend split tail graph shape: T056, T057, T058, T059.",
+                        "",
+                        "### Task T060 - Audit final requirements and phase evidence",
+                        "",
+                        "- Worker summary: FINAL_AUDIT_STATUS=FAIL. /admin/ops and UsageTable findings remain.",
+                        "- Tests failed: frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts failed; frontend/src/api/admin/ops.ts still exposes old-domain API concepts.",
+                        "- Follow-up tasks: Repair frontend/src/components/admin/usage/UsageTable.vue; remove or reframe /admin/ops frontend route/API/views.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-30T09:30:00+08:00",
+            )
+
+            graph = TaskGraphBuilder().build(ContextBundleBuilder().build(brief)).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes["T056"]["title"], "Repair final frontend API and integration test contracts")
+        self.assertEqual(nodes["T057"]["title"], "Repair final frontend component and composable test contracts")
+        self.assertEqual(nodes["T058"]["title"], "Repair final frontend view router i18n utility test contracts")
+        self.assertEqual(nodes["T059"]["title"], "Repair final frontend test config and fixture contracts")
+        self.assertNotEqual(nodes["T056"]["status"], "completed")
+        self.assertNotEqual(nodes["T057"]["status"], "completed")
+        self.assertEqual(nodes["T058"]["status"], "completed")
+        self.assertEqual(nodes["T059"]["status"], "completed")
+        self.assertEqual(nodes["T060"]["title"], "Audit final requirements and phase evidence")
 
     def test_final_verification_admin_settings_email_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:

@@ -873,6 +873,8 @@ def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
 
 
 def should_preserve_final_frontend_deep_tail_split(text: str) -> bool:
+    if "preserve final frontend split tail graph shape:" in text:
+        return True
     if "completed tasks to preserve:" not in text or not _has_primary_failed_task_id_in_range(text, 50, 90):
         return False
     if completed_preserve_line_contains_all(text, "t056", "t057", "t058", "t059"):
@@ -2369,8 +2371,9 @@ def final_frontend_routes_views_repair_task_specs(
             "assigned_agent": "frontend",
             "relevant_files": [
                 "frontend/src/api/__tests__/**",
+                "frontend/src/api/**/*.spec.ts",
+                "frontend/src/api/**/*.spec.tsx",
                 "frontend/src/__tests__/integration/**",
-                "frontend/src/**/*.spec.ts",
                 "frontend/package.json",
                 "frontend/pnpm-lock.yaml",
             ],
@@ -2406,10 +2409,16 @@ def final_frontend_routes_views_repair_task_specs(
             "relevant_files": [
                 "frontend/src/views/**/__tests__/**",
                 "frontend/src/views/**/*.spec.ts",
+                "frontend/src/views/**/*.spec.tsx",
                 "frontend/src/router/__tests__/**",
+                "frontend/src/router/**/*.spec.ts",
+                "frontend/src/router/**/*.spec.tsx",
                 "frontend/src/i18n/__tests__/**",
+                "frontend/src/i18n/**/*.spec.ts",
+                "frontend/src/i18n/**/*.spec.tsx",
                 "frontend/src/utils/__tests__/**",
-                "frontend/src/**/*.spec.tsx",
+                "frontend/src/utils/**/*.spec.ts",
+                "frontend/src/utils/**/*.spec.tsx",
                 "frontend/package.json",
                 "frontend/pnpm-lock.yaml",
             ],

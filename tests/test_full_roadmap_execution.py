@@ -24,6 +24,7 @@ from autodev.full_roadmap_executor import (
     phase_run_payload,
     read_json,
     repair_completed_task_ids,
+    repair_path_matches_pattern,
     should_auto_repair_phase,
     write_json,
     write_phase_document,
@@ -4632,6 +4633,177 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("T003", completed_line)
         self.assertNotIn("T004", completed_line)
         self.assertIn("backend/internal/repository/account_repo.go", text)
+
+    def test_repair_scope_matching_supports_recursive_frontend_globs(self) -> None:
+        self.assertTrue(
+            repair_path_matches_pattern(
+                "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts",
+                "frontend/src/components/**/__tests__/**",
+            )
+        )
+        self.assertTrue(
+            repair_path_matches_pattern(
+                "frontend/src/views/admin/ops/components/RuntimePanel.vue",
+                "frontend/src/views/admin/ops/**",
+            )
+        )
+        self.assertTrue(
+            repair_path_matches_pattern("frontend/src/api/admin/ops.ts", "frontend/src/api/**")
+        )
+        self.assertFalse(
+            repair_path_matches_pattern("frontend/src/views/admin/UsageView.vue", "frontend/src/views/admin/ops/**")
+        )
+
+    def test_final_audit_usage_and_ops_findings_reopen_preserved_frontend_scopes(self) -> None:
+        nodes = [
+            {
+                "id": "T006",
+                "title": "Repair final frontend API module contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/api/**", "frontend/src/types/**"],
+            },
+            {
+                "id": "T009",
+                "title": "Repair final frontend route and app shell contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/router/**", "frontend/src/components/layout/**"],
+            },
+            {
+                "id": "T024",
+                "title": "Repair final frontend admin usage component",
+                "status": "completed",
+                "relevant_files": ["frontend/src/components/admin/usage/**", "frontend/src/types/**"],
+            },
+            {
+                "id": "T041",
+                "title": "Repair final frontend admin operations view contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/views/admin/ops/**", "frontend/src/components/admin/monitor/**"],
+            },
+            {
+                "id": "T057",
+                "title": "Repair final frontend component and composable test contracts",
+                "status": "completed",
+                "relevant_files": [
+                    "frontend/src/components/**/__tests__/**",
+                    "frontend/src/components/**/*.spec.ts",
+                ],
+            },
+            {
+                "id": "T060",
+                "title": "Audit final requirements and phase evidence",
+                "status": "blocked",
+                "evidence": [
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "status": "blocked",
+                            "summary": "FINAL_AUDIT_STATUS=FAIL: /admin/ops and UsageTable findings remain.",
+                            "tests_failed": [
+                                "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts failed image usage tooltip labels.",
+                                "frontend/src/api/admin/ops.ts still exposes old-domain operations API concepts.",
+                            ],
+                            "follow_up_tasks": [
+                                "Repair frontend/src/components/admin/usage/UsageTable.vue image usage tooltip rendering.",
+                                "Remove or fully reframe /admin/ops frontend route, API service, and views.",
+                            ],
+                            "commands_run": [
+                                {
+                                    "command": "rg /admin/ops frontend/src",
+                                    "stdout": "frontend/src/router/index.ts: registers /admin/ops",
+                                }
+                            ],
+                        },
+                    }
+                ],
+            },
+        ]
+        runtime_state = {
+            "completed_tasks": ["T006", "T009", "T024", "T041", "T057"],
+            "failed_tasks": ["T060"],
+            "task_graph": {"nodes": nodes},
+        }
+
+        preserved = repair_completed_task_ids(runtime_state, nodes, focus_task_ids=["T060"])
+
+        for reopened in ("T006", "T009", "T024", "T041", "T057"):
+            self.assertNotIn(reopened, preserved)
+
+    def test_final_audit_resume_records_deep_tail_shape_separately_from_preserve(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        run_dir = output_dir / "run_attempt_046"
+        run_dir.mkdir(parents=True)
+        nodes = [
+            {"id": "T001", "title": "Use deterministic final verification graph", "status": "completed"},
+            {
+                "id": "T056",
+                "title": "Repair final frontend API and integration test contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/**/*.spec.ts"],
+            },
+            {
+                "id": "T057",
+                "title": "Repair final frontend component and composable test contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/components/**/__tests__/**"],
+            },
+            {
+                "id": "T058",
+                "title": "Repair final frontend view router i18n utility test contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/router/__tests__/**", "frontend/src/views/**/*.spec.ts"],
+            },
+            {
+                "id": "T059",
+                "title": "Repair final frontend test config and fixture contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/tests/**"],
+            },
+            {
+                "id": "T060",
+                "title": "Audit final requirements and phase evidence",
+                "status": "blocked",
+                "evidence": [
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "status": "blocked",
+                            "summary": "FINAL_AUDIT_STATUS=FAIL: /admin/ops and UsageTable findings remain.",
+                            "tests_failed": [
+                                "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts failed.",
+                                "frontend/src/api/admin/ops.ts still exposes old-domain API concepts.",
+                            ],
+                            "follow_up_tasks": [
+                                "Repair frontend/src/components/admin/usage/UsageTable.vue.",
+                                "Remove or fully reframe /admin/ops route and views.",
+                            ],
+                        },
+                    }
+                ],
+            },
+        ]
+        write_json(
+            run_dir / "state.json",
+            {
+                "done": False,
+                "completed_tasks": ["T001", "T056", "T057", "T058", "T059"],
+                "failed_tasks": ["T060"],
+                "blockers": [{"id": "B-T060", "task_ids": ["T060"], "type": "technical_limit"}],
+                "task_graph": {"nodes": nodes},
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+
+        self.assertIn("Repair attempt: run_attempt_046", text)
+        self.assertIn("Preserve final frontend split tail graph shape: T056, T057, T058, T059", text)
+        completed_line = next(line for line in text.splitlines() if line.startswith("- Completed tasks to preserve:"))
+        self.assertNotIn("T056", completed_line)
+        self.assertNotIn("T057", completed_line)
+        self.assertIn("T058", completed_line)
+        self.assertIn("T059", completed_line)
 
     def test_executor_generates_document_package_for_one_sentence_mode(self) -> None:
         root = temp_root()

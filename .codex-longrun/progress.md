@@ -2288,3 +2288,13 @@ PY"`
 - Implemented V2.172 in `autodev/phase_promotion.py`: final-verification promotion is rejected if final gate tasks are completed only by `focused_repair_preserved_task` evidence.
 - Real `_041` graph probe now produces 63 nodes with T056-T059 completed and T060-T063 pending. The old false `run_attempt_045` payload is now blocked by promotion guard with a reason requiring final gate tasks to rerun.
 - Current total-project estimate remains about 99.7%-99.8%. The next relaunch should create a fresh final-verification attempt that starts at T060 instead of trusting the false pass.
+
+## 2026-06-30T09:35:00+08:00 V2.173 Final Audit Reopen Scope Mapping
+
+- Relaunched after V2.172. `final_verification/run_attempt_046` behaved correctly at runtime: T056-T059 stayed completed, T060 ran the final audit, T060 returned `FINAL_AUDIT_STATUS=FAIL` as a non-partial `technical_limit` blocker, and T061-T064 were not dispatched.
+- The remaining issue was the repair handoff: T060 is a read-only audit task, so UsageTable and `/admin/ops` findings must reopen editable frontend repair scopes instead of preserving every previous frontend task and rerunning T060.
+- Implemented V2.173 in `autodev/full_roadmap_executor.py`: repair target scope matching now uses segment-aware recursive glob matching, T060 audit text maps stable `/admin/ops` and UsageTable hints to concrete frontend paths, and resume documents record deep final frontend tail graph shape separately from the completed-preserve list.
+- Implemented V2.173 in `planner/task_graph_builder.py`: final audit resumes with the new graph-shape line keep the deep final frontend tail expanded even when T056/T057 are reopened, and split frontend test scopes were narrowed to reduce false task reopening.
+- Implemented V2.173 in `runtime/orchestrator.py`: repository scope matching now uses the same segment-aware recursive glob semantics.
+- Real helper probe generated `final_verification_repair_resume_044.md` from `run_attempt_046`. The real graph probe using `_044` produced 63 nodes with 52 completed and 11 pending: T006, T009, T024, T039, T041, T056, T057, then T060-T063.
+- Current total-project estimate remains about 99.7%-99.8%. The next controlled relaunch should start with the reopened frontend repair tasks in the inherited Billing Core worktree, not with a compressed graph or another read-only T060 loop.

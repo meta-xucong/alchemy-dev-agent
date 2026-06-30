@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import fnmatch
 import re
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from .agent_router import AgentRouter
 from .artifact_verifier import StaticWebArtifactVerifier
@@ -1419,19 +1420,44 @@ def _repo_path_variants(path: str) -> list[str]:
 def _repo_path_matches_pattern(path: str, pattern: str) -> bool:
     normalized = path.lower()
     clean = pattern.lower()
-    if clean.endswith("/**"):
+    if clean.endswith("/**") and not _repo_pattern_has_glob_meta(clean[:-3]):
         prefix = clean[:-3].rstrip("/")
         return normalized == prefix or normalized.startswith(prefix + "/")
-    if clean.endswith("/*"):
+    if clean.endswith("/*") and not _repo_pattern_has_glob_meta(clean[:-2]):
         prefix = clean[:-2].rstrip("/")
         if not normalized.startswith(prefix + "/"):
             return False
         return "/" not in normalized[len(prefix) + 1 :]
-    if clean.endswith("/"):
+    if clean.endswith("/") and not _repo_pattern_has_glob_meta(clean):
         return normalized.startswith(clean)
     if any(char in clean for char in "*?["):
-        return PurePosixPath(normalized).match(clean)
+        return _repo_segment_glob_matches(normalized, clean)
     return normalized == clean
+
+
+def _repo_pattern_has_glob_meta(pattern: str) -> bool:
+    return any(char in pattern for char in "*?[")
+
+
+def _repo_segment_glob_matches(path: str, pattern: str) -> bool:
+    path_parts = [part for part in path.replace("\\", "/").strip("/").split("/") if part]
+    pattern_parts = [part for part in pattern.replace("\\", "/").strip("/").split("/") if part]
+    return _repo_match_path_segments(path_parts, pattern_parts)
+
+
+def _repo_match_path_segments(path_parts: list[str], pattern_parts: list[str]) -> bool:
+    if not pattern_parts:
+        return not path_parts
+    head, *tail = pattern_parts
+    if head == "**":
+        if _repo_match_path_segments(path_parts, tail):
+            return True
+        return bool(path_parts) and _repo_match_path_segments(path_parts[1:], pattern_parts)
+    if not path_parts:
+        return False
+    if not fnmatch.fnmatchcase(path_parts[0], head):
+        return False
+    return _repo_match_path_segments(path_parts[1:], tail)
 
 
 def _worker_result_timed_out(result: CodexWorkerResult | dict | None) -> bool:

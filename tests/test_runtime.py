@@ -28,7 +28,7 @@ from runtime.codex_worker import (
 )
 from runtime.evaluator import Evaluator
 from runtime.github_flow import GitHubExecutionResult, GitHubFlow
-from runtime.orchestrator import Orchestrator
+from runtime.orchestrator import Orchestrator, _repo_path_matches_pattern
 from runtime.models import Dependency, RuntimeState, TaskGraph, TaskNode
 from runtime.state_manager import StateManager
 from runtime.task_graph_engine import TaskGraphEngine
@@ -198,6 +198,20 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertTrue(_is_allowed_changed_path("frontend/src/components/Foo/Foo.spec.tsx", allowed))
         self.assertTrue(_is_allowed_changed_path("frontend/tests/e2e/payment.spec.ts", allowed))
         self.assertFalse(_is_allowed_changed_path("frontend/src/views/user/PaymentView.vue", allowed))
+
+    def test_orchestrator_scope_globs_match_nested_frontend_paths(self) -> None:
+        self.assertTrue(
+            _repo_path_matches_pattern(
+                "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts",
+                "frontend/src/components/**/__tests__/**",
+            )
+        )
+        self.assertTrue(
+            _repo_path_matches_pattern("frontend/src/views/admin/ops/components/RuntimePanel.vue", "frontend/src/views/admin/ops/**")
+        )
+        self.assertFalse(
+            _repo_path_matches_pattern("frontend/src/views/admin/UsageView.vue", "frontend/src/views/admin/ops/**")
+        )
 
     def test_worker_does_not_block_from_natural_language_goal(self) -> None:
         worker = CodexWorkerAdapter()

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, Callable, Sequence
 
 from runtime.evaluator import Evaluator
@@ -1622,6 +1623,9 @@ def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[obj
         lines.append("- Primary failed task IDs: none reported; infer the narrowest failing task from the gate evidence.")
     if completed_task_ids:
         lines.append(f"- Completed tasks to preserve: {', '.join(completed_task_ids)}.")
+    deep_tail_ids = final_frontend_deep_tail_task_ids(nodes)
+    if deep_tail_ids:
+        lines.append(f"- Preserve final frontend split tail graph shape: {', '.join(deep_tail_ids)}.")
     lines.extend(
         [
             "- Do not regenerate a broad phase graph when blocker task IDs identify a specific failed task.",
@@ -1633,6 +1637,23 @@ def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[obj
         task = nodes_by_id.get(task_id, {"id": task_id})
         lines.extend(repair_task_focus_lines(task_id, task))
     return lines
+
+
+def final_frontend_deep_tail_task_ids(nodes: Sequence[dict[str, object]]) -> list[str]:
+    expected_titles = {
+        "T056": "repair final frontend api and integration test contracts",
+        "T057": "repair final frontend component and composable test contracts",
+        "T058": "repair final frontend view router i18n utility test contracts",
+        "T059": "repair final frontend test config and fixture contracts",
+    }
+    titles_by_id = {
+        str(node.get("id", "") or "").upper(): str(node.get("title", "") or "").lower()
+        for node in nodes
+        if isinstance(node, dict)
+    }
+    if all(expected in titles_by_id.get(task_id, "") for task_id, expected in expected_titles.items()):
+        return list(expected_titles)
+    return []
 
 
 def repair_focus_task_ids(blockers: Sequence[object], nodes: Sequence[dict[str, object]]) -> list[str]:
@@ -1837,7 +1858,12 @@ def repair_worker_result_is_boundary_violation(worker_result: dict[str, object])
     )
 
 
-def repair_result_target_paths(worker_result: dict[str, object], *, include_raw_output: bool = True) -> list[str]:
+def repair_result_target_paths(
+    worker_result: dict[str, object],
+    *,
+    include_raw_output: bool = True,
+    include_commands: bool = False,
+) -> list[str]:
     texts: list[str] = []
     keys = ["tests_failed", "known_issues", "follow_up_tasks", "evidence"]
     summary = str(worker_result.get("summary", "") or "")
@@ -1851,7 +1877,8 @@ def repair_result_target_paths(worker_result: dict[str, object], *, include_raw_
             texts.append(value)
         else:
             texts.extend(str(item) for item in _list(value))
-    if include_raw_output:
+    usage_limit_summary = summary.lower().startswith("codex cli usage limit reached:")
+    if include_raw_output or (include_commands and not usage_limit_summary):
         for command in _list(worker_result.get("commands_run")):
             if not isinstance(command, dict):
                 continue
@@ -1860,11 +1887,34 @@ def repair_result_target_paths(worker_result: dict[str, object], *, include_raw_
                 for key in ("command", "summary", "stderr", "stdout")
                 if str(command.get(key, "") or "")
             )
-    return dedupe_strings(
+    paths = [
         normalize_repair_path(match.group("path"))
         for text in texts
         for match in REPAIR_EVIDENCE_PATH_PATTERN.finditer(text)
-    )[:12]
+    ]
+    paths.extend(repair_result_target_path_hints(texts))
+    return dedupe_strings(paths)[:16]
+
+
+def repair_result_target_path_hints(texts: Sequence[str]) -> list[str]:
+    joined = "\n".join(texts).lower()
+    hints: list[str] = []
+    if "/admin/ops" in joined:
+        hints.extend(
+            [
+                "frontend/src/router/index.ts",
+                "frontend/src/api/admin/ops.ts",
+                "frontend/src/views/admin/ops/**",
+            ]
+        )
+    if "usagetable" in joined or "image usage tooltip" in joined:
+        hints.extend(
+            [
+                "frontend/src/components/admin/usage/UsageTable.vue",
+                "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts",
+            ]
+        )
+    return hints
 
 
 def task_scope_matches_paths(task: dict[str, object], paths: Sequence[str]) -> bool:
@@ -1895,19 +1945,44 @@ def repair_path_matches_pattern(path: str, pattern: str) -> bool:
     clean = normalize_repair_path(pattern).lower()
     if not normalized or not clean:
         return False
-    if clean.endswith("/**"):
+    if clean.endswith("/**") and not repair_pattern_has_glob_meta(clean[:-3]):
         prefix = clean[:-3].rstrip("/")
         return normalized == prefix or normalized.startswith(prefix + "/")
-    if clean.endswith("/*"):
+    if clean.endswith("/*") and not repair_pattern_has_glob_meta(clean[:-2]):
         prefix = clean[:-2].rstrip("/")
         if not normalized.startswith(prefix + "/"):
             return False
         return "/" not in normalized[len(prefix) + 1 :]
-    if clean.endswith("/"):
+    if clean.endswith("/") and not repair_pattern_has_glob_meta(clean):
         return normalized.startswith(clean)
     if any(char in clean for char in "*?["):
-        return PurePosixPath(normalized).match(clean)
+        return repair_segment_glob_matches(normalized, clean)
     return normalized == clean
+
+
+def repair_pattern_has_glob_meta(pattern: str) -> bool:
+    return any(char in pattern for char in "*?[")
+
+
+def repair_segment_glob_matches(path: str, pattern: str) -> bool:
+    path_parts = [part for part in normalize_repair_path(path).split("/") if part]
+    pattern_parts = [part for part in normalize_repair_path(pattern).split("/") if part]
+    return repair_match_path_segments(path_parts, pattern_parts)
+
+
+def repair_match_path_segments(path_parts: list[str], pattern_parts: list[str]) -> bool:
+    if not pattern_parts:
+        return not path_parts
+    head, *tail = pattern_parts
+    if head == "**":
+        if repair_match_path_segments(path_parts, tail):
+            return True
+        return bool(path_parts) and repair_match_path_segments(path_parts[1:], pattern_parts)
+    if not path_parts:
+        return False
+    if not fnmatch.fnmatchcase(path_parts[0], head):
+        return False
+    return repair_match_path_segments(path_parts[1:], tail)
 
 
 def repair_task_focus_lines(task_id: str, task: dict[str, object]) -> list[str]:
@@ -2332,7 +2407,9 @@ def final_verification_repair_resume_matches_focus(path: Path, marker: str, focu
     focus_requirements = [
         line
         for line in focused_lines
-        if line.startswith("- Primary failed task IDs:") or line.startswith("- Completed tasks to preserve:")
+        if line.startswith("- Primary failed task IDs:")
+        or line.startswith("- Completed tasks to preserve:")
+        or line.startswith("- Preserve final frontend split tail graph shape:")
     ]
     return all(line in text for line in focus_requirements)
 

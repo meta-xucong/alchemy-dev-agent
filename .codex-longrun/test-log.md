@@ -5736,3 +5736,53 @@
 - command: phase_promotion_decision probe on old false `run_attempt_045/document_run_report.json`
 - result: blocked; reason says final verification gate tasks must rerun instead of being preserved as completed.
 - next verification command: state validation, diff hygiene, commit/push V2.172, and controlled relaunch.
+
+## 2026-06-30T09:35:00+08:00 V2.173 final audit reopen scope mapping
+
+- command: Billing Core final verification `run_attempt_046` monitoring
+- result: T060 completed the read-only final audit and correctly stopped as non-partial `technical_limit`; T061-T064 remained pending and no residual worker process was found.
+- next verification command: repair T060 audit-to-editable-scope mapping in Alchemy.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py -k "repair_scope_matching_supports_recursive_frontend_globs or final_audit_usage_and_ops_findings_reopen_preserved_frontend_scopes or final_verification_resume_reopens_preserved_task_when_later_failure_targets_its_scope"
+- result: 3 passed
+- next verification command: focused planner/runtime tests.
+
+- command: python -m pytest tests/test_document_to_plan.py -k "final_verification_test_fixture_focus_preserves_deep_tail_graph or final_audit_focus_preserves_test_fixture_split_tail"
+- result: 2 passed
+- next verification command: focused runtime glob tests.
+
+- command: python -m pytest tests/test_runtime.py -k "allowed_file_globs_match_nested_frontend_tests or orchestrator_scope_globs_match_nested_frontend_paths"
+- result: 2 passed
+- next verification command: full runtime suite.
+
+- command: python -m pytest tests/test_runtime.py
+- result: 147 passed in 171.56s
+- next verification command: full planner/full-roadmap suites after V2.173 refinements.
+
+- command: real `final_verification_resume_repair_documents` probe on `.alchemy/billing_core_v274_20260624_012/final_verification`
+- result: generated `final_verification_repair_resume_044.md` from `run_attempt_046`; preserve list reopens T006, T009, T024, T039, T041, T056, and T057 while recording `Preserve final frontend split tail graph shape: T056, T057, T058, T059`.
+- next verification command: real graph probe using `_044`.
+
+- command: real planner graph probe using `final_verification_repair_resume_044.md`
+- result: generated 63 nodes with 52 completed and 11 pending: T006, T009, T024, T039, T041, T056, T057, T060, T061, T062, T063.
+- next verification command: full regressions.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py
+- result: 99 passed
+- next verification command: full document-to-plan suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 64 passed
+- next verification command: compileall.
+
+- command: python -m compileall autodev runtime planner tests
+- result: passed
+- next verification command: state validation.
+
+- command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .
+- result: passed
+- next verification command: diff hygiene.
+
+- command: git diff --check
+- result: passed with CRLF normalization warning for `.codex-longrun/state.json`
+- next verification command: commit/push V2.173 and controlled Billing Core relaunch.
