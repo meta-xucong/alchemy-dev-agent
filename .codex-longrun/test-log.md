@@ -5838,3 +5838,29 @@
 - command: python -m compileall planner tests
 - result: passed
 - next verification command: state validation, diff hygiene, and commit/push V2.175.
+
+## 2026-06-30T12:20:00+08:00 V2.176 reopened repair order
+
+- command: Billing Core final verification `run_attempt_049` monitoring
+- result: narrowed T009 completed, then T056 was wrongly dispatched before ready T024/T039/T041. Supervisor stop cancelled T056 and left no residual product worker process.
+- next verification command: fix reopened repair ordering across preserved intermediate nodes.
+
+- command: python -m pytest tests/test_document_to_plan.py -k "deep_tail_shape_when_tail_tasks_reopen or route_app_shell_timeout_is_narrowed_without_id_drift"
+- result: 2 passed after moving the ordering fix into the final-verification graph path and tightening the dependency assertions.
+- next verification command: full planner suite.
+
+- command: real planner graph probe using `final_verification_repair_resume_045.md`
+- result: generated 63 nodes; T056 depends on T009, T024, T039, and T041, while T060 depends on all reopened repairs.
+- next verification command: full roadmap execution suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 65 passed
+- next verification command: compile check.
+
+- command: python -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py
+- result: passed
+- next verification command: full roadmap execution suite.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py
+- result: 99 passed
+- next verification command: state validation, diff hygiene, commit/push V2.176, then controlled Billing Core relaunch.

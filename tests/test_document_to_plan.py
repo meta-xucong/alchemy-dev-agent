@@ -3331,6 +3331,9 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T060"]["title"], "Audit final requirements and phase evidence")
         for task_id in ("T006", "T009", "T024", "T039", "T041", "T056", "T057"):
             self.assertIn(task_id, nodes["T060"]["dependencies"])
+        for task_id in ("T006", "T009", "T024", "T039", "T041"):
+            self.assertIn(task_id, nodes["T056"]["dependencies"])
+        self.assertIn("T056", nodes["T057"]["dependencies"])
 
     def test_final_verification_admin_settings_email_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:

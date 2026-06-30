@@ -322,6 +322,9 @@ class TaskGraphBuilder:
             ]
         )
         mark_preserved_completed_tasks(nodes, preserved_task_ids)
+        if repair_specs:
+            repair_task_ids = [f"T{index:03d}" for index in range(2, len(repair_specs) + 2)]
+            enforce_reopened_repair_order(nodes, repair_task_ids)
         return TaskGraph(graph_id=f"{context_bundle.project_id}-document-plan", version=1, nodes=nodes, dependencies=dependencies)
 
     def _implementation_nodes(
@@ -5173,6 +5176,22 @@ def mark_preserved_completed_tasks(nodes: list[TaskNode], task_ids: list[str]) -
                 "summary": "Task preserved as completed from focused repair brief evidence.",
             }
         )
+
+
+def enforce_reopened_repair_order(nodes: list[TaskNode], task_ids: list[str]) -> None:
+    nodes_by_id = {node.id: node for node in nodes}
+    open_predecessors: list[str] = []
+    for task_id in task_ids:
+        node = nodes_by_id.get(task_id)
+        if not node:
+            continue
+        already_waits_for_open_repair = any(predecessor_id in node.dependencies for predecessor_id in open_predecessors)
+        if not already_waits_for_open_repair:
+            for predecessor_id in open_predecessors:
+                if predecessor_id not in node.dependencies:
+                    node.dependencies.append(predecessor_id)
+        if node.status not in {"completed", "skipped"}:
+            open_predecessors.append(task_id)
 
 
 def should_decompose_large_refactor_frontend_phase(requirements: list[Requirement], *, assigned_agent: str) -> bool:

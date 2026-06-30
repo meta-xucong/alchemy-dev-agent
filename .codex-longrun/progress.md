@@ -2316,3 +2316,11 @@ PY"`
 - Implemented V2.175 in `planner/task_graph_builder.py`: deterministic final-verification audit tasks now depend on every repair task, so preserved downstream nodes cannot let final audit bypass still-open repair tasks.
 - Real graph probe using `_045` still produces 63 nodes, and T060 dependencies now include T009, T024, T039, T041, T056, T057, and T059.
 - Current total-project estimate remains about 99.8%. The next relaunch should continue with reopened repair tasks and only reach T060 after they are complete.
+
+## 2026-06-30T12:20:00+08:00 V2.176 Reopened Repair Order
+
+- Relaunched after V2.175. `final_verification/run_attempt_049` reran narrowed T009 from `_045` and completed it, but then dispatched T056 while T024/T039/T041 were still ready.
+- Wrote `supervisor_stop.json` for `run_attempt_049`; Alchemy cancelled the wrongly dispatched T056 worker and exited without residual product worker processes.
+- Implemented V2.176 in `planner/task_graph_builder.py`: after preserved final-verification tasks are marked completed, reopened repair tasks now keep dependency ordering across preserved intermediate nodes. Later reopened tasks such as T056 must wait for earlier reopened product repairs such as T024/T039/T041.
+- Real graph probe using `_045` produces 63 nodes where T024 depends on T009, T039 depends on T009/T024, T041 depends on T009/T024/T039, T056 depends on T009/T024/T039/T041, and T060 still depends on every reopened repair.
+- Current total-project estimate remains about 99.8%. The next relaunch should preserve T009 progress if a new resume document captures run049, then dispatch T024 before T056 or T060.
