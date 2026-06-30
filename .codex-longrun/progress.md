@@ -2332,3 +2332,11 @@ PY"`
 - Implemented V2.177 in `autodev/full_roadmap_executor.py`: final-verification resume generation now extracts useful completed-task progress from supervisor-stopped attempts, writes progress-preserving repair resumes, keeps source-boundary/final-gate markers so planner stays in final-verification mode, and reuses newer valid progress resumes instead of falling back to older failures.
 - Real helper probe generated `final_verification_repair_resume_050.md` from `run_attempt_049`, preserving T009 and avoiding T056 as a product failure. Real graph probe using `_050` produced 63 nodes with T009 completed and T024 as the first ready task.
 - Current total-project estimate remains about 99.8%. The next controlled relaunch should start T024 in the inherited Billing Core worktree.
+
+## 2026-06-30T14:10:00+08:00 V2.178 Final Backend Service Timeout Narrowing
+
+- Relaunched after V2.177. `run_attempt_051` proved the corrected chain by completing T024, T039, T041, T056, and T057 in order, then T060 final audit failed with concrete product blockers.
+- Relaunched from T060 repair context. `run_attempt_052` completed T002 migration repair, then T005 ran for 900 seconds plus one 300 second progress grace and correctly stopped as non-partial timeout without debug/downstream dispatch.
+- Implemented V2.178 in `planner/task_graph_builder.py`: focused T005 final backend service/handler/server timeouts now keep the T005 task ID but narrow the scope to service/domain/repository leftovers instead of replaying handler/server/cmd work.
+- Real graph probe using `_052` now produces T005 `Repair final backend service contract leftovers` with service/domain/repository files, then T054 frontend table/navigation composables and T060 audit.
+- Current total-project estimate is about 99.85%-99.9%. The next relaunch should run narrowed T005.

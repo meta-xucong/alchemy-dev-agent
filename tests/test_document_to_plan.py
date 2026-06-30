@@ -847,6 +847,70 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T008"]["title"], "Audit final requirements and phase evidence")
         self.assertIn("T007", nodes["T008"]["dependencies"])
 
+    def test_final_verification_backend_service_handler_timeout_is_narrowed_without_id_drift(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            (repo / "backend" / "internal" / "service").mkdir(parents=True)
+            (repo / "backend" / "internal" / "handler").mkdir(parents=True)
+            (repo / "backend" / "internal" / "server").mkdir(parents=True)
+            (repo / "frontend" / "src" / "api").mkdir(parents=True)
+            (repo / "frontend" / "src" / "i18n").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "final_verification_repair_resume_052.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_052",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- Must grant the repair worker edit access to backend migrations, Ent schema/generated files, backend domain/repository/service/handler/server contracts, and backend command wiring when those surfaces contain residual relay-era product concepts.",
+                        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain upstream account, proxy, channel-monitor, model-routing, or subscription-plan behavior.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T005.",
+                        "- Completed tasks to preserve: T001, T002, T003, T004, T006, T007, T008, T009, T010, T011, T012, T013, T014, T015, T016, T017, T018, T019, T020, T021, T022, T023, T024, T025, T026, T027, T028, T029, T030, T031, T032, T033, T034, T035, T036, T037, T038, T039, T040, T041, T042, T043, T044, T045, T046, T047, T048, T049, T050, T051, T052, T053, T055, T056, T057, T058, T059.",
+                        "- Preserve final frontend split tail graph shape: T056, T057, T058, T059.",
+                        "- Treat a worker timeout as a stop boundary, then resume by checkpointing evidence or splitting the task rather than replaying the same wide scope.",
+                        "",
+                        "### Task T005 - Repair final backend service handler server contracts",
+                        "- Previous relevant files: backend/internal/service/**, backend/internal/handler/**, backend/internal/server/**, backend/cmd/**, backend/go.mod, backend/go.sum.",
+                        "- Worker summary: Codex worker timed out after 900 seconds plus 300 seconds of progress grace.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-06-30T14:05:00+08:00",
+            )
+
+            graph = TaskGraphBuilder().build(ContextBundleBuilder().build(brief)).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes["T005"]["title"], "Repair final backend service contract leftovers")
+        self.assertIn("backend/internal/service/**", nodes["T005"]["relevant_files"])
+        self.assertIn("backend/internal/repository/**", nodes["T005"]["relevant_files"])
+        self.assertNotIn("backend/internal/handler/**", nodes["T005"]["relevant_files"])
+        self.assertNotIn("backend/internal/server/**", nodes["T005"]["relevant_files"])
+        self.assertNotIn("backend/cmd/**", nodes["T005"]["relevant_files"])
+        self.assertEqual(nodes["T006"]["status"], "completed")
+        self.assertEqual(nodes["T060"]["title"], "Audit final requirements and phase evidence")
+        self.assertIn("T005", nodes["T060"]["dependencies"])
+
     def test_final_verification_frontend_api_i18n_timeout_is_split(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

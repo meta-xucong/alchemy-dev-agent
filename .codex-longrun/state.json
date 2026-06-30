@@ -1,8 +1,9 @@
 {
     "objective":  "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase":  "billing_core_supervisor_stopped_progress_resume_v2_177",
+    "current_phase":  "billing_core_final_backend_service_timeout_narrowing_v2_178",
     "phase_status":  "advancing",
     "completed_phases":  [
+                             "implemented V2.178 final backend service timeout narrowing so focused T005 resumes do not replay broad service/handler/server/cmd scope",
                              "implemented V2.177 supervisor-stopped final-verification progress preservation so completed tasks like T009 are not rerun after guarded stops",
                              "implemented V2.176 reopened repair ordering so downstream final-verification repairs cannot bypass earlier reopened repairs through preserved intermediate nodes",
                              "implemented V2.175 final-verification gate dependency hardening so T060 waits for every reopened repair task",
@@ -120,12 +121,16 @@
                              "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
                          ],
     "next_actions":  [
-                         "Commit and push V2.177 after state validation and diff hygiene.",
-                         "Relaunch via resume_v2_88_supervised_probe.ps1 and confirm Alchemy consumes final_verification_repair_resume_050.md.",
-                         "Confirm the next final-verification attempt dispatches T024 first, not T009, T056, or T060.",
+                         "Commit and push V2.178 after state validation and diff hygiene.",
+                         "Relaunch via resume_v2_88_supervised_probe.ps1 and confirm Alchemy consumes final_verification_repair_resume_052.md.",
+                         "Confirm the next final-verification attempt dispatches narrowed T005 service contract leftovers, not the previous broad backend service/handler/server/cmd worker.",
                          "Continue supervised Billing Core final verification in the inherited worktree only; Codex Desktop should keep fixing Alchemy controller defects rather than editing product code directly."
                      ],
     "tests_run":  [
+                        "V2.178: python -m pytest tests/test_full_roadmap_execution.py => 100 passed",
+                        "V2.178: python -m pytest tests/test_document_to_plan.py => 66 passed",
+                        "V2.178: python -m py_compile planner/task_graph_builder.py tests/test_document_to_plan.py => passed",
+                        "V2.178: real graph probe using final_verification_repair_resume_052.md => T005 narrowed to service/domain/repository leftovers",
                         "V2.177: python -m pytest tests/test_full_roadmap_execution.py => 100 passed",
                         "V2.177: python -m pytest tests/test_document_to_plan.py => 65 passed",
                         "V2.177: python -m py_compile autodev/full_roadmap_executor.py tests/test_full_roadmap_execution.py => passed",
@@ -830,6 +835,7 @@
                       "python -B -m pytest tests/test_full_roadmap_execution.py -q =\u003e 86 passed"
                   ],
     "known_bugs":  [
+                         "Before V2.178, focused T005 final backend service/handler/server timeouts rebuilt the same broad worker scope instead of narrowing or splitting, risking another long replay after a clean non-partial timeout.",
                          "Before V2.177, supervisor-stopped final-verification attempts with useful completed-task progress could be filtered as operator noise, causing relaunches to reuse stale repair resumes and rerun completed tasks such as T009.",
                          "Before V2.176, preserved completed intermediate final-verification nodes could let downstream reopened repair/test tasks such as T056 become ready before earlier reopened product repairs T024/T039/T041 completed.",
                          "Before V2.175, final-verification T060 could be dispatched while reopened repair tasks were still ready because the audit depended only on the last repair-spec ID after downstream preserve evidence collapsed the chain.",
@@ -937,10 +943,11 @@
                           "Relevant tests or checks pass",
                           "Progress and verification are recorded"
                       ],
-    "last_verified_at":  "2026-06-30T13:05:00+08:00",
+    "last_verified_at":  "2026-06-30T14:10:00+08:00",
     "created_at":  "2026-06-25T01:55:36+08:00",
-    "updated_at":  "2026-06-30T13:05:00+08:00",
+    "updated_at":  "2026-06-30T14:10:00+08:00",
     "known_issues":  [
+                         "Before V2.178, focused T005 final backend service/handler/server timeouts rebuilt the same broad worker scope instead of narrowing or splitting, risking another long replay after a clean non-partial timeout.",
                          "Before V2.177, supervisor-stopped final-verification attempts with useful completed-task progress could be filtered as operator noise, causing relaunches to reuse stale repair resumes and rerun completed tasks such as T009.",
                          "Before V2.176, preserved completed intermediate final-verification nodes could let downstream reopened repair/test tasks such as T056 become ready before earlier reopened product repairs T024/T039/T041 completed.",
                          "Before V2.172, a T060-focused final audit resume preserving T056-T059 could compress the final-verification graph to 30 nodes, apply old preserve IDs to new gate tasks, and falsely promote final verification as passed.",

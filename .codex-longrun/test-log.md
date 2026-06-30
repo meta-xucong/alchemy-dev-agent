@@ -5890,3 +5890,25 @@
 - command: python -m pytest tests/test_document_to_plan.py
 - result: 65 passed
 - next verification command: state validation, diff hygiene, commit/push V2.177, then controlled Billing Core relaunch.
+
+## 2026-06-30T14:10:00+08:00 V2.178 final backend service timeout narrowing
+
+- command: Billing Core final verification `run_attempt_051` and `run_attempt_052` monitoring
+- result: run051 completed T024/T039/T041/T056/T057 then T060 failed with real product blockers. run052 completed T002, then T005 timed out after 900 seconds plus one 300 second progress grace and stopped cleanly without debug/downstream dispatch.
+- next verification command: narrow focused T005 timeout scope.
+
+- command: python -m pytest tests/test_document_to_plan.py -k "backend_service_handler_timeout_is_narrowed or repair_context_builds_editable_repair_task"
+- result: 2 passed
+- next verification command: full planner suite.
+
+- command: real planner graph probe using `final_verification_repair_resume_052.md`
+- result: T005 stays as the next task ID but is narrowed to `Repair final backend service contract leftovers` with service/domain/repository files only.
+- next verification command: full regression suites.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 66 passed
+- next verification command: full roadmap suite.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py
+- result: 100 passed
+- next verification command: state validation, diff hygiene, commit/push V2.178, then controlled Billing Core relaunch.

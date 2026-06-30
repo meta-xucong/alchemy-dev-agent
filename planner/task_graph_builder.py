@@ -641,29 +641,53 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 "priority": 94,
             }
         )
-        specs.append(
-            {
-                "title": "Repair final backend service handler server contracts",
-                "description": (
-                    "Align backend service, handler, server, and command wiring with the cleaned CRM domain contracts. "
-                    "Avoid broad `go test ./...` here; final real repository checks own full backend verification."
-                ),
-                "assigned_agent": "backend",
-                "relevant_files": [
-                    "backend/internal/service/**",
-                    "backend/internal/handler/**",
-                    "backend/internal/server/**",
-                    "backend/cmd/**",
-                    "backend/go.mod",
-                    "backend/go.sum",
-                ],
-                "completion_criteria": [
-                    "Service, handler, server, and command wiring expose CRM billing, identity, wallet, metering, charging, reconciliation, analytics, audit, and admin behavior only.",
-                    "Hand-written backend callers align with the cleaned schema without running full repository Go tests in this repair task.",
-                ],
-                "priority": 93,
-            }
-        )
+        if should_narrow_final_backend_service_handler_timeout(text):
+            specs.append(
+                {
+                    "title": "Repair final backend service contract leftovers",
+                    "description": (
+                        "Narrow the timed-out service/handler/server repair to service-layer CRM billing contract "
+                        "leftovers first. Keep handler, server, command, and broad backend verification for later audit-driven follow-up."
+                    ),
+                    "assigned_agent": "backend",
+                    "relevant_files": [
+                        "backend/internal/service/**",
+                        "backend/internal/domain/**",
+                        "backend/internal/repository/**",
+                        "backend/go.mod",
+                        "backend/go.sum",
+                    ],
+                    "completion_criteria": [
+                        "Service-layer contracts no longer expose relay, upstream, proxy, channel, model-provider, or token middle-station product behavior.",
+                        "Service package verification is attempted with narrow package-level checks or leaves precise downstream handler/server follow-ups.",
+                    ],
+                    "priority": 93,
+                }
+            )
+        else:
+            specs.append(
+                {
+                    "title": "Repair final backend service handler server contracts",
+                    "description": (
+                        "Align backend service, handler, server, and command wiring with the cleaned CRM domain contracts. "
+                        "Avoid broad `go test ./...` here; final real repository checks own full backend verification."
+                    ),
+                    "assigned_agent": "backend",
+                    "relevant_files": [
+                        "backend/internal/service/**",
+                        "backend/internal/handler/**",
+                        "backend/internal/server/**",
+                        "backend/cmd/**",
+                        "backend/go.mod",
+                        "backend/go.sum",
+                    ],
+                    "completion_criteria": [
+                        "Service, handler, server, and command wiring expose CRM billing, identity, wallet, metering, charging, reconciliation, analytics, audit, and admin behavior only.",
+                        "Hand-written backend callers align with the cleaned schema without running full repository Go tests in this repair task.",
+                    ],
+                    "priority": 93,
+                }
+            )
     if any(token in text for token in ["frontend", "i18n", "router", "view", "api module", "reachable views"]):
         preserve_deep_final_frontend_tail = should_preserve_final_frontend_deep_tail_split(text)
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
@@ -855,6 +879,29 @@ def should_split_final_frontend_api_i18n_timeout(text: str) -> bool:
         )
     )
     return focused_api_i18n_scope
+
+
+def should_narrow_final_backend_service_handler_timeout(text: str) -> bool:
+    if "primary failed task ids: t005" not in text:
+        return False
+    service_scope = "repair final backend service handler server contracts" in text or (
+        "backend/internal/service" in text
+        and ("backend/internal/handler" in text or "backend/internal/server" in text)
+    ) or (
+        "service/handler/server contracts" in text
+        or "domain/repository/service/handler/server contracts" in text
+    )
+    if not service_scope:
+        return False
+    return any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    )
 
 
 def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
