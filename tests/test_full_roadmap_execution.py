@@ -3251,6 +3251,122 @@ class FullRoadmapExecutionTests(unittest.TestCase):
             self.assertIn(task_id, completed_line)
         self.assertNotIn("Primary failed task IDs: T051", text)
 
+    def test_final_verification_resume_preserves_supervisor_stopped_progress(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        for index in range(1, 45):
+            (output_dir / f"final_verification_repair_resume_{index:03d}.md").write_text(
+                f"Repair attempt: run_attempt_{index:03d}\n",
+                encoding="utf-8",
+            )
+        (output_dir / "final_verification_repair_resume_045.md").write_text(
+            "\n".join(
+                [
+                    "Repair attempt: run_attempt_047",
+                    "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                    "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+                    "- Primary failed task IDs: T009.",
+                    "- Completed tasks to preserve: T001, T002, T003, T004, T005, T006, T007, T008, T010, T011, T058, T059.",
+                    "- Preserve final frontend split tail graph shape: T056, T057, T058, T059.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (output_dir / "final_verification_repair_resume_046.md").write_text(
+            "\n".join(
+                [
+                    "Repair attempt: run_attempt_049",
+                    "- Completed tasks to preserve: T009, T001, T008, T058, T059.",
+                    "- Preserve final frontend split tail graph shape: T056, T057, T058, T059.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        progressed_run = output_dir / "run_attempt_049"
+        stale_stop_run = output_dir / "run_attempt_050"
+        progressed_run.mkdir()
+        stale_stop_run.mkdir()
+        nodes_with_t009_progress = [
+            {"id": "T001", "title": "Use deterministic final verification graph", "status": "completed"},
+            {"id": "T008", "title": "Repair final frontend constants and shared types contracts", "status": "completed"},
+            {"id": "T009", "title": "Repair final frontend route registration file", "status": "completed"},
+            {"id": "T024", "title": "Repair final frontend admin usage component", "status": "ready"},
+            {"id": "T039", "title": "Repair final frontend admin user usage redeem view contracts", "status": "ready"},
+            {"id": "T041", "title": "Repair final frontend admin operations view contracts", "status": "ready"},
+            {"id": "T056", "title": "Repair final frontend API and integration test contracts", "status": "blocked"},
+            {"id": "T057", "title": "Repair final frontend component and composable test contracts", "status": "pending"},
+            {"id": "T058", "title": "Repair final frontend view router i18n utility test contracts", "status": "completed"},
+            {"id": "T059", "title": "Repair final frontend test config and fixture contracts", "status": "completed"},
+        ]
+        write_json(
+            progressed_run / "state.json",
+            {
+                "done": False,
+                "completed_tasks": ["T001", "T008", "T009", "T058", "T059"],
+                "failed_tasks": ["T056"],
+                "blockers": [
+                    {
+                        "id": "B-T056-0",
+                        "type": "technical_limit",
+                        "description": "Codex worker was cancelled by operator stop request.",
+                        "task_ids": ["T056"],
+                        "can_continue_partially": False,
+                    }
+                ],
+                "task_graph": {"nodes": nodes_with_t009_progress},
+            },
+        )
+        write_json(progressed_run / "supervisor_stop.json", {"reason": "stopped wrong downstream dispatch"})
+        nodes_without_new_progress = [dict(node) for node in nodes_with_t009_progress]
+        for node in nodes_without_new_progress:
+            if node["id"] == "T009":
+                node["status"] = "blocked"
+        write_json(
+            stale_stop_run / "state.json",
+            {
+                "done": False,
+                "completed_tasks": ["T001", "T008", "T058", "T059"],
+                "failed_tasks": ["T009"],
+                "blockers": [
+                    {
+                        "id": "B-T009-0",
+                        "type": "technical_limit",
+                        "description": "Codex worker was cancelled by operator stop request.",
+                        "task_ids": ["T009"],
+                        "can_continue_partially": False,
+                    }
+                ],
+                "task_graph": {"nodes": nodes_without_new_progress},
+            },
+        )
+        write_json(stale_stop_run / "supervisor_stop.json", {"reason": "stopped stale replay"})
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [{"attempt": 50, "output_dir": str(stale_stop_run), "status": "blocked"}],
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {"blockers": [{"description": "Codex worker was cancelled by operator stop request."}]},
+                },
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+
+        self.assertEqual(Path(docs[-1]).name, "final_verification_repair_resume_047.md")
+        self.assertIn("Repair attempt: run_attempt_049", text)
+        self.assertIn("source-boundary", text)
+        self.assertIn("FINAL_AUDIT_STATUS", text)
+        self.assertIn("Primary failed task IDs: none reported", text)
+        completed_line = next(line for line in text.splitlines() if line.startswith("- Completed tasks to preserve:"))
+        self.assertIn("T009", completed_line)
+        self.assertNotIn("Primary failed task IDs: T056", text)
+        docs_again = final_verification_resume_repair_documents(output_dir)
+        self.assertEqual(Path(docs_again[-1]).name, "final_verification_repair_resume_047.md")
+
     def test_final_verification_relaunch_carries_previous_failure_repair_context(self) -> None:
         root = temp_root()
         doc = root / "roadmap.md"

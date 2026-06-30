@@ -2324,3 +2324,11 @@ PY"`
 - Implemented V2.176 in `planner/task_graph_builder.py`: after preserved final-verification tasks are marked completed, reopened repair tasks now keep dependency ordering across preserved intermediate nodes. Later reopened tasks such as T056 must wait for earlier reopened product repairs such as T024/T039/T041.
 - Real graph probe using `_045` produces 63 nodes where T024 depends on T009, T039 depends on T009/T024, T041 depends on T009/T024/T039, T056 depends on T009/T024/T039/T041, and T060 still depends on every reopened repair.
 - Current total-project estimate remains about 99.8%. The next relaunch should preserve T009 progress if a new resume document captures run049, then dispatch T024 before T056 or T060.
+
+## 2026-06-30T13:05:00+08:00 V2.177 Supervisor-Stopped Progress Resume
+
+- Relaunched after V2.176. `final_verification/run_attempt_050` had the corrected dependency graph, but it reused stale `_045` and reran T009 instead of preserving T009 completion from supervisor-stopped `run_attempt_049`.
+- Wrote `supervisor_stop.json` for `run_attempt_050`; Alchemy cancelled T009 and exited without residual product worker processes.
+- Implemented V2.177 in `autodev/full_roadmap_executor.py`: final-verification resume generation now extracts useful completed-task progress from supervisor-stopped attempts, writes progress-preserving repair resumes, keeps source-boundary/final-gate markers so planner stays in final-verification mode, and reuses newer valid progress resumes instead of falling back to older failures.
+- Real helper probe generated `final_verification_repair_resume_050.md` from `run_attempt_049`, preserving T009 and avoiding T056 as a product failure. Real graph probe using `_050` produced 63 nodes with T009 completed and T024 as the first ready task.
+- Current total-project estimate remains about 99.8%. The next controlled relaunch should start T024 in the inherited Billing Core worktree.

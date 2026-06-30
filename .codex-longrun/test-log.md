@@ -5864,3 +5864,29 @@
 - command: python -m pytest tests/test_full_roadmap_execution.py
 - result: 99 passed
 - next verification command: state validation, diff hygiene, commit/push V2.176, then controlled Billing Core relaunch.
+
+## 2026-06-30T13:05:00+08:00 V2.177 supervisor-stopped progress resume
+
+- command: Billing Core final verification `run_attempt_050` monitoring
+- result: V2.176 ordering was present, but stale `_045` was reused and T009 reran despite T009 completion in `run_attempt_049`. Supervisor stop cancelled T009 and left no residual product worker process.
+- next verification command: preserve completed progress from supervisor-stopped attempts.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py -k "supervisor_stopped_progress or latest_non_stopped_failed_state"
+- result: 2 passed
+- next verification command: real repair document probe.
+
+- command: real `final_verification_resume_repair_documents` probe on `.alchemy/billing_core_v274_20260624_012/final_verification`
+- result: generated and then stabilized on `final_verification_repair_resume_050.md`, focused run_attempt_049 progress, preserved T009, and did not treat operator-stopped T056 as product failure.
+- next verification command: real graph probe using `_050`.
+
+- command: real planner graph probe using `final_verification_repair_resume_050.md`
+- result: generated 63 nodes; T009 is completed, T024 is the first ready task, T056 waits for T024/T039/T041, and T060 waits for all reopened repairs.
+- next verification command: full regression suites.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py
+- result: 100 passed
+- next verification command: planner regression suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 65 passed
+- next verification command: state validation, diff hygiene, commit/push V2.177, then controlled Billing Core relaunch.

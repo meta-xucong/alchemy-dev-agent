@@ -2202,6 +2202,7 @@ def next_final_verification_repair_resume_path(output_dir: Path) -> Path:
 
 def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
     existing = sorted(output_dir.glob("final_verification_repair_resume_*.md"))
+    latest_existing_completed_ids = latest_valid_final_verification_repair_resume_completed_task_ids(existing)
     report = read_optional_json(output_dir / "final_verification_worker_report.json")
     recovered_report = final_verification_latest_failed_attempt_state_report(output_dir)
     if str(report.get("status", "")).lower() == "failed":
@@ -2214,6 +2215,32 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
                 report = recovered_report
     elif recovered_report:
         report = recovered_report
+    stopped_progress_context = final_verification_latest_supervisor_stopped_progress_context(
+        output_dir,
+        latest_existing_completed_ids,
+    )
+    report_is_operator_stopped = (
+        str(report.get("status", "")).lower() == "failed" and final_verification_report_attempt_is_operator_stopped(report)
+    )
+    if stopped_progress_context and (
+        report_is_operator_stopped
+        or int(stopped_progress_context["attempt_index"]) > final_verification_report_attempt_index(report)
+    ):
+        return [
+            str(
+                write_final_verification_supervisor_progress_resume(
+                    output_dir,
+                    existing,
+                    stopped_progress_context,
+                ).resolve()
+            )
+        ]
+    latest_valid_resume = latest_valid_final_verification_repair_resume(existing)
+    if latest_valid_resume and (
+        report_is_operator_stopped
+        or final_verification_repair_resume_attempt_index(latest_valid_resume) > final_verification_report_attempt_index(report)
+    ):
+        return [str(latest_valid_resume.resolve())]
     if str(report.get("status", "")).lower() != "failed":
         return [str(existing[-1].resolve())] if existing else []
     report_text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
@@ -2271,6 +2298,137 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
     return [str(path.resolve())]
+
+
+def final_verification_repair_resume_completed_task_ids(path: Path) -> list[str]:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    completed: list[str] = []
+    for match in re.finditer(r"completed tasks to preserve:\s*([^.\n]+)", text, re.IGNORECASE):
+        completed.extend(item.upper() for item in re.findall(r"\bT\d{3}(?:-DEBUG-\d+)*\b", match.group(1), re.IGNORECASE))
+    return dedupe_strings(completed)
+
+
+def latest_valid_final_verification_repair_resume_completed_task_ids(paths: Sequence[Path]) -> list[str]:
+    latest = latest_valid_final_verification_repair_resume(paths)
+    return final_verification_repair_resume_completed_task_ids(latest) if latest else []
+
+
+def latest_valid_final_verification_repair_resume(paths: Sequence[Path]) -> Path | None:
+    for path in reversed(list(paths)):
+        if final_verification_progress_resume_has_repair_context(path):
+            return path
+    return None
+
+
+def final_verification_repair_resume_attempt_index(path: Path) -> int:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return -1
+    match = re.search(r"Repair attempt:\s*run_attempt_(\d+)", text)
+    if not match:
+        return -1
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return -1
+
+
+def final_verification_latest_supervisor_stopped_progress_context(
+    output_dir: Path,
+    already_preserved_task_ids: Sequence[str],
+) -> dict[str, object]:
+    already_preserved = {str(task_id).upper() for task_id in already_preserved_task_ids}
+    for run_dir in reversed(sorted(output_dir.glob("run_attempt_*"), key=_phase_run_sort_key)):
+        if not run_dir.is_dir() or not supervisor_stop_marker_exists(run_dir):
+            continue
+        state = read_optional_json(run_dir / "state.json")
+        if not state or bool(state.get("done")):
+            continue
+        if not final_verification_state_is_operator_stop_noise(state):
+            continue
+        task_graph = _dict(state.get("task_graph"))
+        nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
+        completed_task_ids = repair_completed_task_ids(state, nodes)
+        if not any(task_id.upper() not in already_preserved for task_id in completed_task_ids):
+            continue
+        return {
+            "attempt_index": _phase_run_sort_key(run_dir)[0],
+            "attempt_marker": run_dir.name,
+            "completed_task_ids": completed_task_ids,
+            "deep_tail_ids": final_frontend_deep_tail_task_ids(nodes),
+            "state": state,
+        }
+    return {}
+
+
+def write_final_verification_supervisor_progress_resume(
+    output_dir: Path,
+    existing: Sequence[Path],
+    context: dict[str, object],
+) -> Path:
+    attempt_marker = str(context.get("attempt_marker") or "latest supervisor-stopped final verification attempt")
+    completed_task_ids = [str(item) for item in _list(context.get("completed_task_ids"))]
+    deep_tail_ids = [str(item) for item in _list(context.get("deep_tail_ids"))]
+    focused_lines = [
+        "",
+        "## Focused Repair Scope",
+        "",
+        "- Primary failed task IDs: none reported; continue from the next incomplete final-verification repair task after preserved completed tasks.",
+    ]
+    if completed_task_ids:
+        focused_lines.append(f"- Completed tasks to preserve: {', '.join(completed_task_ids)}.")
+    if deep_tail_ids:
+        focused_lines.append(f"- Preserve final frontend split tail graph shape: {', '.join(deep_tail_ids)}.")
+    focused_lines.extend(
+        [
+            "- Do not regenerate a broad phase graph when supervisor-stopped progress only needs preservation.",
+            "- Treat operator-stopped workers as control-plane noise unless their state contains a concrete non-operator blocker.",
+        ]
+    )
+    if (
+        existing
+        and final_verification_repair_resume_matches_focus(existing[-1], attempt_marker, focused_lines)
+        and final_verification_progress_resume_has_repair_context(existing[-1])
+    ):
+        return existing[-1]
+    report_text = json.dumps(context.get("state", {}), ensure_ascii=False, indent=2, sort_keys=True)
+    path = next_final_verification_repair_resume_path(output_dir)
+    lines = [
+        "# Final Verification Repair Resume",
+        "",
+        f"Repair attempt: {attempt_marker}",
+        "",
+        "## Requirements",
+        "",
+        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+        "- Preserve completed final-verification tasks from the supervisor-stopped attempt before launching more repair workers.",
+        "- Continue from the next incomplete repair task after the preserved completed task IDs.",
+        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain residual source-boundary findings.",
+        "- Must rerun final audit, simulation/static probes, and real repository checks after remaining repairs.",
+        "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after remaining repairs.",
+        *focused_lines,
+        "",
+        "## Previous Supervisor-Stopped Progress",
+        "",
+        "```json",
+        report_text[:12000],
+        "```",
+        "",
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def final_verification_progress_resume_has_repair_context(path: Path) -> bool:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace").lower()
+    except OSError:
+        return False
+    return "source-boundary" in text and "frontend" in text and "final_audit_status" in text
 
 
 def final_verification_report_attempt_marker(report: dict[str, object]) -> str:
