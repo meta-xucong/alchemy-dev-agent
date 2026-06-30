@@ -1,8 +1,9 @@
 {
     "objective":  "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase":  "billing_core_final_audit_blocker_resume_v2_171",
+    "current_phase":  "billing_core_final_audit_deep_tail_gate_v2_172",
     "phase_status":  "advancing",
     "completed_phases":  [
+                             "implemented V2.172 final audit deep-tail preservation and final gate preserved-evidence promotion guard after run_attempt_045 false pass",
                              "implemented V2.171 final audit blocker classification and resume preservation after T060 audit failure was misclassified and mis-preserved",
                              "implemented V2.170 final frontend test/fixture timeout split after T056 timed out cleanly as a non-partial stop boundary",
                              "implemented V2.169 final tail resume preservation so T056-focused repairs keep the deep split graph and do not reopen completed predecessors from boundary changed-path evidence",
@@ -114,14 +115,20 @@
                              "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
                          ],
     "next_actions":  [
-                         "Run V2.171 diff hygiene and commit/push the Alchemy controller fix.",
+                         "Run V2.172 state validation and diff hygiene, then commit/push the Alchemy controller fix.",
                          "Relaunch the controlled Billing Core final verification through PowerShell -EncodedCommand so spaced paths are not split.",
-                         "Confirm the next final-verification attempt consumes final_verification_repair_resume_041.md, preserves T001-T059, and does not mark T060 completed.",
+                         "Confirm the next final-verification attempt consumes final_verification_repair_resume_041.md, keeps T056-T059 completed, and starts with T060 pending rather than trusting run_attempt_045's false pass.",
                          "Monitor the repair graph generated from T060 audit findings: UsageTable image usage tooltip tests, frontend /admin/ops exposure, and residual retired schema/migration/source-boundary findings.",
                          "If the repair graph is too broad or replays completed test leaves, stop and fix Alchemy task-boundary or resume logic before allowing more product workers.",
-                         "After T060 repairs pass, monitor T061 simulation probes, T062 real repository checks, T063 review, and T064 delivery evidence."
+                         "After T060 repairs pass, monitor T061 simulation probes, T062 real repository checks, T063 review, and delivery evidence."
                      ],
     "tests_run":  [
+                      "V2.172: phase_promotion_decision probe on old false run_attempt_045 => blocked preserved final gate tasks",
+                      "V2.172: real planner graph probe using final_verification_repair_resume_041.md => 63 nodes, T056-T059 completed, T060-T063 pending",
+                      "V2.172: python -B -m compileall planner autodev tests -q => passed",
+                      "V2.172: python -B -m pytest tests/test_full_roadmap_execution.py -q => 96 passed",
+                      "V2.172: python -B -m pytest tests/test_document_to_plan.py -q => 63 passed",
+                      "V2.172: focused final audit deep-tail and preserved gate promotion regressions => 3 passed",
                       "V2.171: real Billing Core final_verification_repair_resume_041 probe => focused run_attempt_044/T060 and preserved completed tasks only through T059",
                       "V2.171: python C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\validate_state.py --project . => passed",
                       "V2.171: python -B -m compileall runtime autodev tests -q => passed",
@@ -897,10 +904,11 @@
                           "Relevant tests or checks pass",
                           "Progress and verification are recorded"
                       ],
-    "last_verified_at":  "2026-06-30T07:42:00+08:00",
+    "last_verified_at":  "2026-06-30T08:24:00+08:00",
     "created_at":  "2026-06-25T01:55:36+08:00",
-    "updated_at":  "2026-06-30T07:42:00+08:00",
+    "updated_at":  "2026-06-30T08:24:00+08:00",
     "known_issues":  [
+                         "Before V2.172, a T060-focused final audit resume preserving T056-T059 could compress the final-verification graph to 30 nodes, apply old preserve IDs to new gate tasks, and falsely promote final verification as passed.",
                          "Before V2.171, final audit raw Codex retry warnings such as stream disconnected could misclassify a completed partial audit as an environment blocker, and blocked partial audit evidence could be mis-preserved as completed downstream handoff.",
                          "Before V2.170, final verification T056 `Repair final frontend test and fixture contracts` still bundled all frontend tests and fixtures into one worker and timed out after 900 seconds.",
                          "Before V2.169, a T056-focused final-verification resume could still rebuild a compressed graph, mark the test/fixture task completed under a lower id, and reopen earlier frontend API/i18n work from boundary changed-path evidence.",

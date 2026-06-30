@@ -779,6 +779,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             split_metering_entitlement_composables = True
             split_composable_contracts = True
             split_state_composable_utility = True
+            split_frontend_test_fixtures = True
             split_admin_usage_payment = True
             split_admin_user_account = True
             split_admin_account_modal = True
@@ -874,6 +875,8 @@ def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
 def should_preserve_final_frontend_deep_tail_split(text: str) -> bool:
     if "completed tasks to preserve:" not in text or not _has_primary_failed_task_id_in_range(text, 50, 90):
         return False
+    if completed_preserve_line_contains_all(text, "t056", "t057", "t058", "t059"):
+        return True
     return any(
         marker in text
         for marker in (
@@ -920,6 +923,8 @@ def should_preserve_final_frontend_test_fixture_split(text: str) -> bool:
     )
     if split_titles_present:
         return True
+    if completed_preserve_line_contains_all(text, "t056", "t057", "t058", "t059"):
+        return _has_primary_failed_task_id_in_range(text, 56, 90)
     return all(
         marker in text
         for marker in (
@@ -927,6 +932,15 @@ def should_preserve_final_frontend_test_fixture_split(text: str) -> bool:
             "repair final frontend test and fixture contracts",
         )
     ) and _has_primary_failed_task_id_in_range(text, 56, 90)
+
+
+def completed_preserve_line_contains_all(text: str, *task_ids: str) -> bool:
+    for line in text.splitlines():
+        if "completed tasks to preserve:" not in line:
+            continue
+        if all(task_id.lower() in line for task_id in task_ids):
+            return True
+    return False
 
 
 def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, object]]:

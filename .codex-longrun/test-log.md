@@ -5706,3 +5706,33 @@
 - command: real `final_verification_resume_repair_documents` probe on `.alchemy/billing_core_v274_20260624_012/final_verification`
 - result: generated `final_verification_repair_resume_041.md` with `Repair attempt: run_attempt_044`, `Primary failed task IDs: T060`, and completed tasks preserved only through T059.
 - next verification command: diff hygiene, commit/push V2.171, and controlled Billing Core final-verification relaunch.
+
+## 2026-06-30T08:24:00+08:00 V2.172 final audit deep tail and gate preservation
+
+- command: Billing Core final verification `run_attempt_045` monitoring
+- result: relaunch consumed `_041` but compressed the graph to 30 nodes and marked final audit/simulation/real-check/review gates completed from `focused_repair_preserved_task`, producing a false `passed` report with score 1.0.
+- next verification command: patch deep final frontend tail preservation and final-verification promotion guard.
+
+- command: python -B -m pytest tests/test_document_to_plan.py::DocumentToPlanTests::test_final_audit_focus_preserves_test_fixture_split_tail tests/test_document_to_plan.py::DocumentToPlanTests::test_final_verification_test_fixture_focus_preserves_deep_tail_graph tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_promotion_rejects_preserved_gate_tasks -q
+- result: 3 passed
+- next verification command: full planner suite.
+
+- command: python -B -m pytest tests/test_document_to_plan.py -q
+- result: 63 passed
+- next verification command: full full-roadmap suite.
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 96 passed
+- next verification command: compileall and real probes.
+
+- command: python -B -m compileall planner autodev tests -q
+- result: passed
+- next verification command: real `_041` graph and old false-promotion probes.
+
+- command: real planner graph probe using `final_verification_repair_resume_041.md`
+- result: generated 63 nodes with T056-T059 completed and T060-T063 pending.
+- next verification command: old `run_attempt_045` promotion probe.
+
+- command: phase_promotion_decision probe on old false `run_attempt_045/document_run_report.json`
+- result: blocked; reason says final verification gate tasks must rerun instead of being preserved as completed.
+- next verification command: state validation, diff hygiene, commit/push V2.172, and controlled relaunch.

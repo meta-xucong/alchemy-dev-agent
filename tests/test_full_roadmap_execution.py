@@ -599,6 +599,43 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertTrue(promotion["can_promote"])
         self.assertEqual(promotion["score"], 0.85)
 
+    def test_final_verification_promotion_rejects_preserved_gate_tasks(self) -> None:
+        phase = RoadmapPhase(
+            phase_id="final_verification",
+            title="Final Full-System Audit And Testing",
+            promotion_gate={"required_score": 0.85},
+        )
+        preserved = {"type": "focused_repair_preserved_task", "summary": "Preserved from repair brief."}
+        result = {
+            "status": "done",
+            "blockers": [],
+            "delivery_report": {"final_gate": {"score": 1.0}},
+            "runtime_state": {
+                "task_graph": {
+                    "nodes": [
+                        {
+                            "id": "T026",
+                            "title": "Audit final requirements and phase evidence",
+                            "status": "completed",
+                            "evidence": [preserved],
+                        },
+                        {
+                            "id": "T027",
+                            "title": "Run final simulation probes",
+                            "status": "completed",
+                            "evidence": [preserved],
+                        },
+                    ]
+                }
+            },
+        }
+
+        promotion = phase_promotion_decision(phase, result)
+
+        self.assertFalse(promotion["can_promote"])
+        self.assertEqual(promotion["status"], "blocked")
+        self.assertIn("Final verification gate tasks must rerun", " ".join(promotion["reasons"]))
+
     def test_interrupted_phase_attempt_uses_new_run_directory(self) -> None:
         root = temp_root()
         phase_dir = root / "phases" / "phase_002"

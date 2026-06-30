@@ -2279,3 +2279,12 @@ PY"`
 - Implemented V2.171 in `autodev/full_roadmap_executor.py`: blocked/failed/timed-out/cancelled nodes are no longer inferred as completed partial downstream handoff tasks during repair-resume preservation.
 - Real helper probe regenerated `final_verification_repair_resume_041.md` from `run_attempt_044`, focused T060, and preserved completed tasks only through T059.
 - Current total-project estimate is about 99.7%-99.8%. The next relaunch should consume `_041`, keep T056-T059 completed, and let Alchemy create editable repair work from the T060 audit findings.
+
+## 2026-06-30T08:24:00+08:00 V2.172 Final Audit Deep Tail And Gate Preservation
+
+- Relaunched after V2.171. `final_verification/run_attempt_045` exposed a deeper ID-drift bug: the planner compressed the T060-focused final-verification graph to 30 nodes, then old preserve IDs marked the compressed audit/simulation/real-check/review gate tasks completed.
+- The false compressed graph produced `final_score=1.0` and a `passed` final-verification worker report even though no real T060 audit repair or final checks had rerun.
+- Implemented V2.172 in `planner/task_graph_builder.py`: final audit resumes that preserve T056-T059 now force the V2.170 final frontend test/fixture split tail to stay expanded, and deep-tail preservation also enables `split_frontend_test_fixtures`.
+- Implemented V2.172 in `autodev/phase_promotion.py`: final-verification promotion is rejected if final gate tasks are completed only by `focused_repair_preserved_task` evidence.
+- Real `_041` graph probe now produces 63 nodes with T056-T059 completed and T060-T063 pending. The old false `run_attempt_045` payload is now blocked by promotion guard with a reason requiring final gate tasks to rerun.
+- Current total-project estimate remains about 99.7%-99.8%. The next relaunch should create a fresh final-verification attempt that starts at T060 instead of trusting the false pass.
