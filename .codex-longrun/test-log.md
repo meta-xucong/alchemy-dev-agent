@@ -5816,3 +5816,25 @@
 - command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .
 - result: passed
 - next verification command: diff hygiene and commit/push V2.174.
+
+## 2026-06-30T11:40:00+08:00 V2.175 final gate waits for reopened repairs
+
+- command: Billing Core final verification `run_attempt_048` monitoring
+- result: narrowed T009 completed, but T060 final audit was wrongly dispatched while T024/T039/T041/T056/T057 were still ready or pending. Supervisor stop cancelled T060 and left no residual product worker process.
+- next verification command: fix final-verification audit dependencies.
+
+- command: python -m pytest tests/test_document_to_plan.py -k "deep_tail_shape_when_tail_tasks_reopen or route_app_shell_timeout_is_narrowed or test_fixture_split_tail"
+- result: 3 passed
+- next verification command: real graph dependency probe.
+
+- command: real planner graph probe using `final_verification_repair_resume_045.md`
+- result: generated 63 nodes; T060 dependencies include T009, T024, T039, T041, T056, T057, and T059.
+- next verification command: full planner suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 65 passed
+- next verification command: compileall.
+
+- command: python -m compileall planner tests
+- result: passed
+- next verification command: state validation, diff hygiene, and commit/push V2.175.

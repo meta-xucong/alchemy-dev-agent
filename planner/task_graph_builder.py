@@ -202,6 +202,7 @@ class TaskGraphBuilder:
         real_id = "T004"
         review_id = "T005"
         dependencies: list[Dependency] = []
+        audit_dependencies = ["T001"]
         if repair_specs:
             previous_id = "T001"
             for offset, spec in enumerate(repair_specs, start=2):
@@ -223,6 +224,7 @@ class TaskGraphBuilder:
                 )
                 dependencies.append(Dependency(source=previous_id, target=task_id, type="blocks"))
                 previous_id = task_id
+            audit_dependencies = [f"T{index:03d}" for index in range(2, len(repair_specs) + 2)]
             audit_id = f"T{len(repair_specs) + 2:03d}"
             simulation_id = f"T{len(repair_specs) + 3:03d}"
             real_id = f"T{len(repair_specs) + 4:03d}"
@@ -243,7 +245,7 @@ class TaskGraphBuilder:
                     ),
                     type="test",
                     assigned_agent="test",
-                    dependencies=[f"T{len(repair_specs) + 1:03d}" if repair_specs else "T001"],
+                    dependencies=audit_dependencies,
                     completion_criteria=marker_criteria,
                     relevant_files=top_level_files,
                     commands_to_run=[],
@@ -310,11 +312,10 @@ class TaskGraphBuilder:
                 requirement.planned_task_ids = [f"T{index:03d}" for index in range(2, len(repair_specs) + 2)] + requirement.planned_task_ids
         dependencies.extend(
             [
-                Dependency(
-                    source=f"T{len(repair_specs) + 1:03d}" if repair_specs else "T001",
-                    target=audit_id,
-                    type="requires_test_pass",
-                ),
+                *[
+                    Dependency(source=source, target=audit_id, type="requires_test_pass")
+                    for source in audit_dependencies
+                ],
                 Dependency(source=audit_id, target=simulation_id, type="requires_test_pass"),
                 Dependency(source=simulation_id, target=real_id, type="requires_test_pass"),
                 Dependency(source=real_id, target=review_id, type="requires_review"),

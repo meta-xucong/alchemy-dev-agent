@@ -845,7 +845,7 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("frontend/src/i18n/**", nodes["T006"]["relevant_files"])
         self.assertEqual(nodes["T007"]["title"], "Repair final frontend routes views and tests")
         self.assertEqual(nodes["T008"]["title"], "Audit final requirements and phase evidence")
-        self.assertEqual(nodes["T008"]["dependencies"], ["T007"])
+        self.assertIn("T007", nodes["T008"]["dependencies"])
 
     def test_final_verification_frontend_api_i18n_timeout_is_split(self) -> None:
         with temp_plan_dir() as root:
@@ -915,7 +915,7 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T009"]["title"], "Repair final frontend routes views and tests")
         self.assertEqual(nodes["T009"]["dependencies"], ["T008"])
         self.assertEqual(nodes["T010"]["title"], "Audit final requirements and phase evidence")
-        self.assertEqual(nodes["T010"]["dependencies"], ["T009"])
+        self.assertIn("T009", nodes["T010"]["dependencies"])
 
     def test_final_verification_frontend_routes_timeout_preserves_prior_frontend_split(self) -> None:
         with temp_plan_dir() as root:
@@ -993,7 +993,7 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T012"]["title"], "Repair final frontend test and fixture contracts")
         self.assertIn("frontend/tests/**", nodes["T012"]["relevant_files"])
         self.assertEqual(nodes["T013"]["title"], "Audit final requirements and phase evidence")
-        self.assertEqual(nodes["T013"]["dependencies"], ["T012"])
+        self.assertIn("T012", nodes["T013"]["dependencies"])
 
     def test_final_verification_route_app_shell_timeout_is_narrowed_without_id_drift(self) -> None:
         with temp_plan_dir() as root:
@@ -1063,6 +1063,9 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertNotIn("frontend/src/router/**", nodes["T009"]["relevant_files"])
         self.assertEqual(nodes["T010"]["status"], "completed")
         self.assertEqual(nodes["T011"]["status"], "completed")
+        audit = next(node for node in graph["nodes"] if node["title"] == "Audit final requirements and phase evidence")
+        for task_id in ("T009", "T024", "T056", "T057"):
+            self.assertIn(task_id, audit["dependencies"])
 
     def test_final_verification_frontend_view_component_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:
@@ -1152,7 +1155,7 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T014"]["title"], "Repair final frontend state composable utility contracts")
         self.assertEqual(nodes["T015"]["title"], "Repair final frontend test and fixture contracts")
         self.assertEqual(nodes["T016"]["title"], "Audit final requirements and phase evidence")
-        self.assertEqual(nodes["T016"]["dependencies"], ["T015"])
+        self.assertIn("T015", nodes["T016"]["dependencies"])
 
     def test_final_verification_admin_component_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:
@@ -1255,7 +1258,7 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T017"]["title"], "Repair final frontend state composable utility contracts")
         self.assertEqual(nodes["T018"]["title"], "Repair final frontend test and fixture contracts")
         self.assertEqual(nodes["T019"]["title"], "Audit final requirements and phase evidence")
-        self.assertEqual(nodes["T019"]["dependencies"], ["T018"])
+        self.assertIn("T018", nodes["T019"]["dependencies"])
 
     def test_final_verification_admin_account_identity_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:
@@ -1358,7 +1361,7 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T021"]["title"], "Repair final frontend state composable utility contracts")
         self.assertEqual(nodes["T022"]["title"], "Repair final frontend test and fixture contracts")
         self.assertEqual(nodes["T023"]["title"], "Audit final requirements and phase evidence")
-        self.assertEqual(nodes["T023"]["dependencies"], ["T022"])
+        self.assertIn("T022", nodes["T023"]["dependencies"])
 
     def test_final_verification_admin_account_modal_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:
@@ -1462,7 +1465,7 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T024"]["title"], "Repair final frontend state composable utility contracts")
         self.assertEqual(nodes["T025"]["title"], "Repair final frontend test and fixture contracts")
         self.assertEqual(nodes["T026"]["title"], "Audit final requirements and phase evidence")
-        self.assertEqual(nodes["T026"]["dependencies"], ["T025"])
+        self.assertIn("T025", nodes["T026"]["dependencies"])
 
     def test_final_verification_admin_user_account_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:
@@ -1577,7 +1580,7 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T026"]["title"], "Repair final frontend state composable utility contracts")
         self.assertEqual(nodes["T027"]["title"], "Repair final frontend test and fixture contracts")
         self.assertEqual(nodes["T028"]["title"], "Audit final requirements and phase evidence")
-        self.assertEqual(nodes["T028"]["dependencies"], ["T027"])
+        self.assertIn("T027", nodes["T028"]["dependencies"])
 
     def test_final_verification_admin_user_api_key_blocker_preserves_split_tail(self) -> None:
         with temp_plan_dir() as root:
@@ -3326,6 +3329,8 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(nodes["T058"]["status"], "completed")
         self.assertEqual(nodes["T059"]["status"], "completed")
         self.assertEqual(nodes["T060"]["title"], "Audit final requirements and phase evidence")
+        for task_id in ("T006", "T009", "T024", "T039", "T041", "T056", "T057"):
+            self.assertIn(task_id, nodes["T060"]["dependencies"])
 
     def test_final_verification_admin_settings_email_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:

@@ -2307,3 +2307,12 @@ PY"`
 - Implemented V2.174 in `planner/task_graph_builder.py`: focused T009 route/app-shell timeouts keep the same T009 task ID but narrow scope to concrete route/navigation files (`router/index.ts`, `AppSidebar.vue`, `App.vue`, `stores/app.ts`) to avoid replaying the broad directory task and to avoid downstream ID drift.
 - Real helper probe generated `final_verification_repair_resume_045.md` from `run_attempt_047`. The real graph probe using `_045` produced 63 nodes with 53 completed and 10 pending: narrowed T009, T024, T039, T041, T056, T057, then T060-T063.
 - Current total-project estimate remains about 99.75%-99.85%. The next controlled relaunch should start at narrowed T009 and continue the final frontend repair chain.
+
+## 2026-06-30T11:40:00+08:00 V2.175 Final Gate Waits For Reopened Repairs
+
+- Relaunched after V2.174. `final_verification/run_attempt_048` consumed `_045`, started narrowed T009, and completed it quickly. Evidence shows `/admin/ops` route registration and sidebar navigation exposure were removed from `frontend/src/router/index.ts` and `frontend/src/components/layout/AppSidebar.vue`.
+- Alchemy then incorrectly dispatched T060 final audit while reopened repair tasks T024/T039/T041/T056/T057 were still ready or pending. This was a planner dependency bug, not a worker/environment failure.
+- Wrote `supervisor_stop.json` for `run_attempt_048`; Alchemy cancelled the wrongly dispatched T060 worker and exited without residual product worker processes.
+- Implemented V2.175 in `planner/task_graph_builder.py`: deterministic final-verification audit tasks now depend on every repair task, so preserved downstream nodes cannot let final audit bypass still-open repair tasks.
+- Real graph probe using `_045` still produces 63 nodes, and T060 dependencies now include T009, T024, T039, T041, T056, T057, and T059.
+- Current total-project estimate remains about 99.8%. The next relaunch should continue with reopened repair tasks and only reach T060 after they are complete.
