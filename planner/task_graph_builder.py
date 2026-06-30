@@ -757,6 +757,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             or split_admin_account_identity
             or split_admin_usage_payment
         )
+        narrow_route_app_shell = should_narrow_final_frontend_route_app_shell_timeout(text)
         split_frontend_view_components = (
             should_split_final_frontend_view_component_timeout(text)
             or should_preserve_final_frontend_view_component_split(text)
@@ -797,7 +798,9 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                     should_split_final_frontend_routes_views_timeout(text)
                     or split_frontend_view_components
                     or split_state_composable_utility
+                    or narrow_route_app_shell
                 ),
+                narrow_route_app_shell=narrow_route_app_shell,
                 split_view_components=split_frontend_view_components,
                 split_admin_components=split_admin_components,
                 split_admin_account_identity=split_admin_account_identity,
@@ -1049,6 +1052,30 @@ def should_split_final_frontend_routes_views_timeout(text: str) -> bool:
             "component",
             "store",
             "test",
+        )
+    )
+
+
+def should_narrow_final_frontend_route_app_shell_timeout(text: str) -> bool:
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    ):
+        return False
+    if "primary failed task ids: t009" not in text:
+        return False
+    return any(
+        marker in text
+        for marker in (
+            "repair final frontend route and app shell contracts",
+            "route/app-shell repair timed out",
+            "route and app shell",
+            "route/app-shell workflow",
         )
     )
 
@@ -2082,6 +2109,7 @@ def _has_primary_failed_task_id_in_range(text: str, start: int, end: int) -> boo
 def final_frontend_routes_views_repair_task_specs(
     *,
     split: bool,
+    narrow_route_app_shell: bool = False,
     split_view_components: bool = False,
     split_admin_components: bool = False,
     split_admin_account_identity: bool = False,
@@ -2129,27 +2157,51 @@ def final_frontend_routes_views_repair_task_specs(
                 "priority": 93,
             }
         ]
-    route_task = {
-        "title": "Repair final frontend route and app shell contracts",
-        "description": (
-            "Close residual route, app-shell, layout, and navigation references to retired relay-era workflows."
-        ),
-        "assigned_agent": "frontend",
-        "relevant_files": [
-            "frontend/src/router/**",
-            "frontend/src/components/layout/**",
-            "frontend/src/App.vue",
-            "frontend/src/main.ts",
-            "frontend/src/stores/app.ts",
-            "frontend/package.json",
-            "frontend/pnpm-lock.yaml",
-        ],
-        "completion_criteria": [
-            "Reachable navigation and route registration expose CRM billing, identity, wallet, metering, analytics, audit, and admin workflows only.",
-            "Retired relay-era pages are not reachable through router, app shell, or layout navigation.",
-        ],
-        "priority": 93,
-    }
+    route_task = (
+        {
+            "title": "Repair final frontend route registration file",
+            "description": (
+                "Narrow the final route/app-shell repair to the concrete route registration and navigation files "
+                "that can keep retired /admin/ops behavior reachable."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/router/index.ts",
+                "frontend/src/components/layout/AppSidebar.vue",
+                "frontend/src/App.vue",
+                "frontend/src/stores/app.ts",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "The concrete router registration and app navigation files no longer expose retired relay-era /admin/ops behavior.",
+                "Navigation still exposes CRM billing, identity, wallet, metering, analytics, audit, and admin workflows.",
+            ],
+            "priority": 93,
+        }
+        if narrow_route_app_shell
+        else {
+            "title": "Repair final frontend route and app shell contracts",
+            "description": (
+                "Close residual route, app-shell, layout, and navigation references to retired relay-era workflows."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/router/**",
+                "frontend/src/components/layout/**",
+                "frontend/src/App.vue",
+                "frontend/src/main.ts",
+                "frontend/src/stores/app.ts",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Reachable navigation and route registration expose CRM billing, identity, wallet, metering, analytics, audit, and admin workflows only.",
+                "Retired relay-era pages are not reachable through router, app shell, or layout navigation.",
+            ],
+            "priority": 93,
+        }
+    )
     state_task = {
         "title": "Repair final frontend state composable utility contracts",
         "description": (

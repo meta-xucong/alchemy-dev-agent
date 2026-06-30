@@ -1,8 +1,9 @@
 {
     "objective":  "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase":  "billing_core_final_audit_reopen_scopes_v2_173",
+    "current_phase":  "billing_core_route_app_shell_timeout_narrowing_v2_174",
     "phase_status":  "advancing",
     "completed_phases":  [
+                             "implemented V2.174 route/app-shell timeout narrowing so focused T009 resumes keep the same task ID with exact route/navigation files",
                              "implemented V2.173 final audit reopen scope mapping so T060 findings reopen editable frontend scopes while preserving deep tail graph shape",
                              "implemented V2.172 final audit deep-tail preservation and final gate preserved-evidence promotion guard after run_attempt_045 false pass",
                              "implemented V2.171 final audit blocker classification and resume preservation after T060 audit failure was misclassified and mis-preserved",
@@ -116,14 +117,17 @@
                              "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
                          ],
     "next_actions":  [
-                         "Run V2.172 state validation and diff hygiene, then commit/push the Alchemy controller fix.",
+                         "Run V2.174 state validation and diff hygiene, then commit/push the planner fix.",
                          "Relaunch the controlled Billing Core final verification through PowerShell -EncodedCommand so spaced paths are not split.",
-                         "Confirm the next final-verification attempt consumes final_verification_repair_resume_041.md, keeps T056-T059 completed, and starts with T060 pending rather than trusting run_attempt_045's false pass.",
-                         "Monitor the repair graph generated from T060 audit findings: UsageTable image usage tooltip tests, frontend /admin/ops exposure, and residual retired schema/migration/source-boundary findings.",
-                         "If the repair graph is too broad or replays completed test leaves, stop and fix Alchemy task-boundary or resume logic before allowing more product workers.",
-                         "After T060 repairs pass, monitor T061 simulation probes, T062 real repository checks, T063 review, and delivery evidence."
+                         "Confirm the next final-verification attempt consumes final_verification_repair_resume_045.md and starts T009 as Repair final frontend route registration file with exact route/app-shell scope.",
+                         "Monitor Alchemy workers only; do not directly edit Billing Core product code from Codex Desktop.",
+                         "After narrowed T009 passes, monitor T024 usage component, T039 usage/redeem views, T041 ops views, T056/T057 tests, and T060-T063 final gates.",
+                         "If narrowed T009 still times out without progress evidence, stop and add progress-aware timeout/checkpoint handling before replaying broad work."
                      ],
     "tests_run":  [
+                        "V2.174: real graph probe using final_verification_repair_resume_045.md => 63 nodes, T009 narrowed, T010/T011 completed, 10 pending",
+                        "V2.174: real final_verification_resume_repair_documents probe => generated final_verification_repair_resume_045.md from run_attempt_047",
+                        "V2.174: python -m pytest tests/test_document_to_plan.py -k route_app_shell_timeout_is_narrowed or frontend_routes_timeout_preserves_prior_frontend_split => 2 passed",
                         "V2.173: real graph probe using final_verification_repair_resume_044.md => 63 nodes, 52 completed, 11 pending including reopened frontend repairs and T060-T063 gates",
                         "V2.173: real final_verification_resume_repair_documents probe => generated final_verification_repair_resume_044.md from run_attempt_046 with deep tail shape line",
                         "V2.173: python -m compileall autodev runtime planner tests => passed",
@@ -812,6 +816,7 @@
                       "python -B -m pytest tests/test_full_roadmap_execution.py -q =\u003e 86 passed"
                   ],
     "known_bugs":  [
+                         "Before V2.174, a focused T009 route/app-shell timeout would replay the same broad router/layout scope or risk ID drift if split by inserting new tasks before already-preserved downstream nodes.",
                          "Before V2.173, final audit T060 findings such as UsageTable image tooltip failures and /admin/ops source-boundary exposure could fail to reopen the completed frontend repair tasks that owned those paths, causing Alchemy to risk rerunning the read-only audit loop.",
                          "Before V2.173, repair resume path matching used weak recursive glob semantics, so patterns such as frontend/src/components/**/__tests__/** did not reliably match deep frontend files during completed-task reopen analysis.",
                          "Before V2.173, removing T056/T057 from the completed-preserve list could make the planner lose the deep final frontend tail shape and compress the final verification graph again.",
@@ -915,9 +920,9 @@
                           "Relevant tests or checks pass",
                           "Progress and verification are recorded"
                       ],
-    "last_verified_at":  "2026-06-30T09:35:00+08:00",
+    "last_verified_at":  "2026-06-30T11:20:00+08:00",
     "created_at":  "2026-06-25T01:55:36+08:00",
-    "updated_at":  "2026-06-30T09:35:00+08:00",
+    "updated_at":  "2026-06-30T11:20:00+08:00",
     "known_issues":  [
                          "Before V2.172, a T060-focused final audit resume preserving T056-T059 could compress the final-verification graph to 30 nodes, apply old preserve IDs to new gate tasks, and falsely promote final verification as passed.",
                          "Before V2.171, final audit raw Codex retry warnings such as stream disconnected could misclassify a completed partial audit as an environment blocker, and blocked partial audit evidence could be mis-preserved as completed downstream handoff.",

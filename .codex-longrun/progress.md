@@ -2298,3 +2298,12 @@ PY"`
 - Implemented V2.173 in `runtime/orchestrator.py`: repository scope matching now uses the same segment-aware recursive glob semantics.
 - Real helper probe generated `final_verification_repair_resume_044.md` from `run_attempt_046`. The real graph probe using `_044` produced 63 nodes with 52 completed and 11 pending: T006, T009, T024, T039, T041, T056, T057, then T060-T063.
 - Current total-project estimate remains about 99.7%-99.8%. The next controlled relaunch should start with the reopened frontend repair tasks in the inherited Billing Core worktree, not with a compressed graph or another read-only T060 loop.
+
+## 2026-06-30T11:20:00+08:00 V2.174 Route App Shell Timeout Narrowing
+
+- Relaunched after V2.173. `final_verification/run_attempt_047` consumed `_044`, kept the 64-node runtime graph, and started at T006 instead of rerunning read-only T060.
+- T006 `Repair final frontend API module contracts` completed successfully in the inherited Billing Core worktree and advanced to T009. Evidence shows the worker edited frontend API contract files including `frontend/src/api/admin/ops.ts`; targeted API tests passed. The remaining `useTableSelection` typecheck failure was recorded as outside T006 scope.
+- T009 `Repair final frontend route and app shell contracts` timed out after 900 seconds. Alchemy handled this correctly as non-partial blocker `B-T009-1`, did not launch debug or downstream workers, and left no residual product worker process.
+- Implemented V2.174 in `planner/task_graph_builder.py`: focused T009 route/app-shell timeouts keep the same T009 task ID but narrow scope to concrete route/navigation files (`router/index.ts`, `AppSidebar.vue`, `App.vue`, `stores/app.ts`) to avoid replaying the broad directory task and to avoid downstream ID drift.
+- Real helper probe generated `final_verification_repair_resume_045.md` from `run_attempt_047`. The real graph probe using `_045` produced 63 nodes with 53 completed and 10 pending: narrowed T009, T024, T039, T041, T056, T057, then T060-T063.
+- Current total-project estimate remains about 99.75%-99.85%. The next controlled relaunch should start at narrowed T009 and continue the final frontend repair chain.

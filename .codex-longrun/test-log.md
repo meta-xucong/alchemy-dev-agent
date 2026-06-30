@@ -5786,3 +5786,33 @@
 - command: git diff --check
 - result: passed with CRLF normalization warning for `.codex-longrun/state.json`
 - next verification command: commit/push V2.173 and controlled Billing Core relaunch.
+
+## 2026-06-30T11:20:00+08:00 V2.174 route app shell timeout narrowing
+
+- command: Billing Core final verification `run_attempt_047` monitoring
+- result: `_044` recovery worked; T006 completed and T009 started. T009 timed out after 900 seconds, producing non-partial blocker `B-T009-1` without debug or downstream dispatch.
+- next verification command: narrow T009 route/app-shell scope in planner.
+
+- command: python -m pytest tests/test_document_to_plan.py -k "route_app_shell_timeout_is_narrowed or frontend_routes_timeout_preserves_prior_frontend_split"
+- result: 2 passed
+- next verification command: real `_045` resume and graph probes.
+
+- command: real `final_verification_resume_repair_documents` probe on `.alchemy/billing_core_v274_20260624_012/final_verification`
+- result: generated `final_verification_repair_resume_045.md` from `run_attempt_047`, focused T009, and preserved completed tasks without T009.
+- next verification command: real graph probe using `_045`.
+
+- command: real planner graph probe using `final_verification_repair_resume_045.md`
+- result: generated 63 nodes with 53 completed and 10 pending; T009 is narrowed to `Repair final frontend route registration file` with exact route/app-shell files, and T10/T11 remain completed.
+- next verification command: full planner suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 65 passed
+- next verification command: compileall.
+
+- command: python -m compileall planner tests
+- result: passed
+- next verification command: state validation.
+
+- command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .
+- result: passed
+- next verification command: diff hygiene and commit/push V2.174.
