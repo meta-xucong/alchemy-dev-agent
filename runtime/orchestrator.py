@@ -1470,8 +1470,12 @@ def _worker_result_boundary_violation(result: CodexWorkerResult | dict | None) -
         return False
 
     if isinstance(result, CodexWorkerResult):
+        if not result.files_changed:
+            return False
         text_values: list[object] = [result.summary, *result.known_issues]
     elif isinstance(result, dict):
+        if not _list(result.get("files_changed")):
+            return False
         text_values = [result.get("summary", ""), result.get("known_issues", [])]
     else:
         return False
@@ -1488,7 +1492,9 @@ def _worker_result_environment_blocker_summary(result: CodexWorkerResult | dict 
     if result is None:
         return ""
     raw_text_parts: list[str] = []
+    status = ""
     if isinstance(result, CodexWorkerResult):
+        status = str(result.status or "").lower()
         commands = result.commands_run
         text_parts = [
             result.summary,
@@ -1500,6 +1506,7 @@ def _worker_result_environment_blocker_summary(result: CodexWorkerResult | dict 
             text_parts.extend([command.summary, command.stderr])
             raw_text_parts.append(command.stdout)
     else:
+        status = str(result.get("status", "") or "").lower()
         commands = _list(result.get("commands_run", []))
         text_parts = [
             str(result.get("summary", "") or ""),
@@ -1520,12 +1527,15 @@ def _worker_result_environment_blocker_summary(result: CodexWorkerResult | dict 
                 text_parts.append(str(command))
     text = "\n".join(part for part in text_parts if part).lower()
     raw_text = "\n".join(part for part in raw_text_parts if part).lower()
-    usage_limit_in_structured_error = any(
+    raw_environment_patterns_are_authoritative = status == "blocked"
+    usage_limit_in_structured_error = raw_environment_patterns_are_authoritative and any(
         _codex_usage_limit_message(part) for part in raw_text_parts if part
     )
-    has_environment_pattern = any(pattern in text for pattern in ENVIRONMENT_BLOCKER_PATTERNS) or any(
-        pattern in raw_text for pattern in NON_USAGE_ENVIRONMENT_BLOCKER_PATTERNS
-    )
+    has_environment_pattern = any(pattern in text for pattern in ENVIRONMENT_BLOCKER_PATTERNS)
+    if raw_environment_patterns_are_authoritative:
+        has_environment_pattern = has_environment_pattern or any(
+            pattern in raw_text for pattern in NON_USAGE_ENVIRONMENT_BLOCKER_PATTERNS
+        )
     if not has_environment_pattern and not usage_limit_in_structured_error:
         return ""
     return (

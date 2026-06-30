@@ -2268,3 +2268,14 @@ PY"`
 - Real helper probe generated `final_verification_repair_resume_039.md` from `run_attempt_043`, preserving T001-T055.
 - Real graph probe using `_039` produced a 63-node graph with T056-T059 as the four test/fixture leaf tasks and final audit/simulation/real-check/review pending.
 - Current total-project estimate remains about 99.6%; the next relaunch should start at split T056 API/integration test contracts.
+
+## 2026-06-30T07:42:00+08:00 V2.171 Final Audit Blocker And Resume Preservation
+
+- Relaunched after V2.170. `final_verification/run_attempt_044` preserved T001-T055 and completed all four split final frontend test/fixture tasks: T056 API/integration tests, T057 component/composable tests, T058 view/router/i18n/utility tests, and T059 test config/fixtures.
+- T060 `Audit final requirements and phase evidence` completed its read-only worker but returned `FINAL_AUDIT_STATUS=FAIL`, including a failing UsageTable image usage tooltip spec, remaining `/admin/ops` frontend exposure, and residual retired schema/migration/source-boundary findings.
+- Alchemy incorrectly classified the T060 audit failure as an environment blocker because raw worker output contained transient `stream disconnected` retry warnings, even though the worker lifecycle completed with return code 0.
+- A second resume bug appeared when the helper generated `final_verification_repair_resume_040.md`: it correctly focused T060 but incorrectly listed T060 in Completed tasks to preserve because blocked partial audit evidence was inferred as a completed downstream handoff.
+- Implemented V2.171 in `runtime/orchestrator.py`: raw environment patterns are authoritative only for structured `blocked` worker results, and boundary-violation classification requires actual `files_changed` evidence.
+- Implemented V2.171 in `autodev/full_roadmap_executor.py`: blocked/failed/timed-out/cancelled nodes are no longer inferred as completed partial downstream handoff tasks during repair-resume preservation.
+- Real helper probe regenerated `final_verification_repair_resume_041.md` from `run_attempt_044`, focused T060, and preserved completed tasks only through T059.
+- Current total-project estimate is about 99.7%-99.8%. The next relaunch should consume `_041`, keep T056-T059 completed, and let Alchemy create editable repair work from the T060 audit findings.

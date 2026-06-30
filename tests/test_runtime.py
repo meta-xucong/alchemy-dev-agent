@@ -3139,6 +3139,73 @@ class OrchestratorTests(unittest.TestCase):
         self.assertIn("connectivity", state.blockers[0]["description"].lower())
         self.assertFalse(any(event["type"] == "debug_task_created" for event in state.iteration_history))
 
+    def test_partial_audit_raw_stream_warning_does_not_become_environment_blocker(self) -> None:
+        class PartialAuditWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                raw_output = "\n".join(
+                    [
+                        json.dumps({"type": "thread.started", "thread_id": "thread-audit"}),
+                        json.dumps(
+                            {
+                                "type": "turn.warning",
+                                "message": "stream disconnected - retrying sampling request (1/5)",
+                            }
+                        ),
+                        json.dumps({"type": "turn.completed"}),
+                    ]
+                )
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="partial",
+                    summary="FINAL_AUDIT_STATUS=FAIL. Audit completed, but repairs require repository edits.",
+                    tests_passed=["Phase evidence audit passed."],
+                    tests_failed=[
+                        "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts failed.",
+                    ],
+                    known_issues=["The audit found defects requiring edits outside allowed_files."],
+                    follow_up_tasks=["Repair the failing UsageTable image tooltip contract."],
+                    raw_output=raw_output,
+                    worker_lifecycle={"status": "completed", "returncode": 0},
+                )
+
+        graph = TaskGraph(
+            graph_id="final-audit-raw-stream-warning",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T060",
+                    title="Audit final requirements and phase evidence",
+                    description="Read-only final audit should report product defects.",
+                    type="test",
+                    assigned_agent="test",
+                    priority=90,
+                    max_attempts=1,
+                )
+            ],
+        )
+        worker = PartialAuditWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "audit final evidence",
+                initial_state=RuntimeState(objective="audit final evidence", task_graph=graph),
+                max_iterations=1,
+            )
+
+        self.assertEqual(worker.calls, ["T060"])
+        self.assertEqual(state.task_graph.nodes[0].status, "failed")
+        self.assertEqual(state.blockers[0]["type"], "technical_limit")
+        self.assertIn("FINAL_AUDIT_STATUS=FAIL", state.blockers[0]["description"])
+        self.assertFalse(any(event["type"] == "worker_environment_blocker" for event in state.iteration_history))
+
     def test_worker_raw_usage_limit_context_does_not_become_environment_blocker(self) -> None:
         class HistoricalUsageLimitWorker:
             def __init__(self) -> None:

@@ -4355,6 +4355,57 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertIn("Primary failed task IDs: T004", text)
         self.assertNotIn("Primary failed task IDs: T004-DEBUG-1", text)
 
+    def test_blocked_partial_final_audit_is_not_preserved_as_completed(self) -> None:
+        runtime_state = {
+            "completed_tasks": ["T059"],
+            "failed_tasks": ["T060"],
+            "task_graph": {
+                "nodes": [
+                    {"id": "T059", "title": "Repair final frontend fixtures", "status": "completed"},
+                    {
+                        "id": "T060",
+                        "title": "Audit final requirements and phase evidence",
+                        "type": "test",
+                        "status": "blocked",
+                        "dependencies": ["T059"],
+                        "evidence": [
+                            {
+                                "type": "worker_result",
+                                "result": {
+                                    "status": "partial",
+                                    "summary": "FINAL_AUDIT_STATUS=FAIL. Repairs require repository edits.",
+                                    "tests_passed": ["Phase evidence audit passed."],
+                                    "tests_failed": [
+                                        "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts failed."
+                                    ],
+                                    "known_issues": [
+                                        "The audit found defects requiring edits outside allowed_files."
+                                    ],
+                                    "follow_up_tasks": [
+                                        "Repair frontend/src/components/admin/usage/UsageTable.vue or its spec."
+                                    ],
+                                },
+                            }
+                        ],
+                    },
+                    {
+                        "id": "T061",
+                        "title": "Run final simulation probes",
+                        "type": "test",
+                        "status": "pending",
+                        "dependencies": ["T060"],
+                        "relevant_files": ["frontend/src/components/admin/usage/**"],
+                    },
+                ]
+            },
+        }
+        nodes = runtime_state["task_graph"]["nodes"]
+
+        completed = repair_completed_task_ids(runtime_state, nodes, ["T060"])
+
+        self.assertIn("T059", completed)
+        self.assertNotIn("T060", completed)
+
     def test_final_verification_resume_maps_stopped_debug_to_parent_and_dependency_preserve(self) -> None:
         root = temp_root()
         output_dir = root / "final_verification"

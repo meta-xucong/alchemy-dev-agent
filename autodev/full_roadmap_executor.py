@@ -1755,6 +1755,8 @@ def partial_downstream_handoff_completed_task_ids(nodes: Sequence[dict[str, obje
         task_id = str(node.get("id", "") or "").strip()
         if not task_id or str(node.get("type", "")).lower() == "debug":
             continue
+        if str(node.get("status", "") or "").lower() in {"failed", "blocked", "timed_out", "cancelled"}:
+            continue
         worker_result = latest_worker_result_from_task(node)
         if str(worker_result.get("status", "")).lower() != "partial":
             continue

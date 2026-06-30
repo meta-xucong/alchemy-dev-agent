@@ -5676,3 +5676,33 @@
 - command: git diff --check
 - result: passed with CRLF normalization warning for `.codex-longrun/state.json`
 - next verification command: commit/push V2.170 and controlled relaunch.
+
+## 2026-06-30T07:42:00+08:00 V2.171 final audit blocker and resume preservation
+
+- command: Billing Core final verification `run_attempt_044` monitoring
+- result: T056-T059 split frontend test/fixture tasks completed. T060 final audit worker completed with return code 0 but reported `FINAL_AUDIT_STATUS=FAIL`; Alchemy misclassified it as an environment blocker because raw output contained transient `stream disconnected` retry warnings.
+- next verification command: focused runtime blocker-classification regressions.
+
+- command: python -B -m pytest tests/test_runtime.py::OrchestratorTests::test_boundary_violation_records_blocker_without_debug_task tests/test_runtime.py::OrchestratorTests::test_worker_connectivity_failure_blocks_without_debug_retry tests/test_runtime.py::OrchestratorTests::test_partial_audit_raw_stream_warning_does_not_become_environment_blocker tests/test_runtime.py::OrchestratorTests::test_worker_raw_usage_limit_context_does_not_become_environment_blocker tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_final_verification_resume_preserves_partial_downstream_handoff tests/test_full_roadmap_execution.py::FullRoadmapExecutionTests::test_blocked_partial_final_audit_is_not_preserved_as_completed -q
+- result: 6 passed
+- next verification command: full runtime suite.
+
+- command: python -B -m pytest tests/test_runtime.py -q
+- result: 146 passed
+- next verification command: full full-roadmap suite.
+
+- command: python -B -m pytest tests/test_full_roadmap_execution.py -q
+- result: 95 passed
+- next verification command: compileall, state validation, and real resume probe.
+
+- command: python -B -m compileall runtime autodev tests -q
+- result: passed
+- next verification command: long-running state validation.
+
+- command: python C:\Users\T14S\.codex\skills\long-running-task\scripts\validate_state.py --project .
+- result: passed
+- next verification command: real final_verification_resume_repair_documents probe.
+
+- command: real `final_verification_resume_repair_documents` probe on `.alchemy/billing_core_v274_20260624_012/final_verification`
+- result: generated `final_verification_repair_resume_041.md` with `Repair attempt: run_attempt_044`, `Primary failed task IDs: T060`, and completed tasks preserved only through T059.
+- next verification command: diff hygiene, commit/push V2.171, and controlled Billing Core final-verification relaunch.
