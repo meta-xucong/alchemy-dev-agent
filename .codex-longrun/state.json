@@ -1,6 +1,6 @@
 {
     "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase": "billing_core_final_audit_run_attempt_057_active",
+    "current_phase": "billing_core_final_audit_run_attempt_057_t005_active",
     "phase_status": "verifying",
     "completed_phases": [
         "implemented V2.182 repeated final backend domain/repository timeout leaf narrowing so T004 resumes as domain constants plus account repository scope without task-ID drift",
@@ -125,11 +125,12 @@
         "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
     ],
     "next_actions": [
-        "Monitor final_verification/run_attempt_057 T004 domain/account repository leaf worker until it completes or records a real non-partial blocker.",
-        "If T004 completes, confirm T005 starts next and downstream frontend/delivery/final gates remain ordered behind pending repairs.",
-        "If leaf T004 times out again, inspect whether Alchemy needs another split/checkpoint or whether the remaining issue is a product-worker task completion blocker."
+        "Monitor final_verification/run_attempt_057 T005 backend service/handler/server worker until it completes or records a real non-partial blocker.",
+        "If T005 completes, confirm frontend repair chain starts next and T060 delivery/final gates remain ordered behind pending repairs.",
+        "If T005 times out, generate a focused repair resume and only fix Alchemy if the controller would replay the same broad scope."
     ],
     "tests_run": [
+        "V2.182 monitor: final_verification/run_attempt_057 T004 leaf completed; T005 backend service/handler/server started next in inherited worktree",
         "V2.182 relaunch: final_verification/run_attempt_057 active on T004 domain/account repository leaf in inherited real_run_worktree_20260623232224162902; no T005/downstream dispatch after two-minute monitor",
         "V2.182: run_attempt_056 => narrowed T004 timed out after 900 seconds; active_tasks=[], failed_tasks=[T004], no T005/downstream dispatch",
         "V2.182: python -m pytest tests/test_document_to_plan.py -k \"backend_domain_repository\" => 2 passed",
@@ -974,7 +975,7 @@
         "Relevant tests or checks pass",
         "Progress and verification are recorded"
     ],
-    "last_verified_at": "2026-07-02T03:38:58+08:00",
+    "last_verified_at": "2026-07-02T03:46:12+08:00",
     "created_at": "2026-06-25T01:55:36+08:00",
     "updated_at": "2026-07-02T02:38:40.5691240+08:00",
     "known_issues": [
