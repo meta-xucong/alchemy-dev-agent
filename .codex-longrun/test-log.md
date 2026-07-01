@@ -5934,3 +5934,38 @@
 - command: Billing Core relaunch via .alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1
 - result: created final_verification/run_attempt_054; repository path remains the inherited isolated worktree, and worker lifecycle shows T005 running instead of dying on config or WinError 5 launch errors.
 - next verification command: monitor run_attempt_054 for the actual T005 product outcome.
+
+## 2026-07-02T01:36:06+08:00 V2.180 final audit delivery repair scope
+
+- command: inspect Billing Core final_verification/run_attempt_054 state and worker reports
+- result: T005 and T054 completed; T060 final audit blocked with a non-partial blocker. No active product worker process remained.
+- next verification command: generate focused repair resume from run_attempt_054.
+
+- command: real final_verification_resume_repair_documents probe before V2.180
+- result: generated `final_verification_repair_resume_054.md`, but graph probe showed T005 was still preserved and no editable README/deploy delivery task existed.
+- fix attempted: teach repair evidence hints about AccountTypeUpstream/account_data.go and add final delivery artifact repair specs.
+- next verification command: focused planner regression.
+
+- command: python -m pytest tests/test_document_to_plan.py -k "final_audit_focus_adds_delivery_artifact_repair or final_audit_focus_keeps_deep_tail_shape_when_tail_tasks_reopen"
+- result: 2 passed
+- next verification command: full document-to-plan suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 67 passed
+- next verification command: focused full-roadmap resume regressions.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py -k "final_verification_resume_preserves_supervisor_stopped_progress or final_verification_resume_uses_latest_non_stopped_failed_state"
+- result: 2 passed
+- next verification command: compileall.
+
+- command: python -m compileall autodev planner tests -q
+- result: passed
+- next verification command: real helper and graph probe.
+
+- command: real final_verification_resume_repair_documents probe after V2.180
+- result: generated `final_verification_repair_resume_055.md`; completed-preserve list no longer includes T004/T005.
+- next verification command: real graph probe using `_055`.
+
+- command: real planner graph probe using `final_verification_repair_resume_055.md`
+- result: 64 nodes; T004/T005, T006/T009/T041/T058, and T060 delivery artifact repair are pending before final audit T061 and gates T062-T064.
+- next verification command: state validation, diff hygiene, commit/push V2.180, then controlled Billing Core relaunch.

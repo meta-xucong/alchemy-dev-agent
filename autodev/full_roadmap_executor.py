@@ -1899,6 +1899,15 @@ def repair_result_target_paths(
 def repair_result_target_path_hints(texts: Sequence[str]) -> list[str]:
     joined = "\n".join(texts).lower()
     hints: list[str] = []
+    if "accounttypeupstream" in joined or "account_data.go" in joined:
+        hints.extend(
+            [
+                "backend/internal/handler/admin/account_data.go",
+                "backend/internal/handler/admin/account_data_handler_test.go",
+                "backend/internal/service/domain_constants.go",
+                "backend/internal/domain/constants.go",
+            ]
+        )
     if "/admin/ops" in joined:
         hints.extend(
             [

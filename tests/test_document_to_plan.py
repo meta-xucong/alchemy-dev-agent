@@ -3399,6 +3399,75 @@ class DocumentToPlanTests(unittest.TestCase):
             self.assertIn(task_id, nodes["T056"]["dependencies"])
         self.assertIn("T056", nodes["T057"]["dependencies"])
 
+    def test_final_audit_focus_adds_delivery_artifact_repair(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            for path in (
+                "backend/internal/handler/admin",
+                "backend/internal/service",
+                "backend/internal/server",
+                "backend/cmd/server",
+                "deploy",
+                "frontend/src/router/__tests__",
+            ):
+                (repo / path).mkdir(parents=True)
+            (repo / "README.md").write_text("# Billing Core\n", encoding="utf-8")
+            (repo / "Dockerfile").write_text("FROM scratch\n", encoding="utf-8")
+            (repo / "deploy" / "docker-compose.yml").write_text("services: {}\n", encoding="utf-8")
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            completed = ", ".join(f"T{index:03d}" for index in range(1, 60) if index != 5)
+            spec = root / "final_verification_repair_resume_054.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_054",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- Must grant the repair worker edit access to backend migrations, Ent schema/generated files, backend domain/repository/service/handler/server contracts, and backend command wiring when those surfaces contain residual relay-era product concepts.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T060.",
+                        f"- Completed tasks to preserve: {completed}.",
+                        "- Preserve final frontend split tail graph shape: T056, T057, T058, T059.",
+                        "",
+                        "### Task T060 - Audit final requirements and phase evidence",
+                        "",
+                        "- Worker summary: FINAL_AUDIT_STATUS: FAIL with static delivery artifacts still exposing old product surfaces.",
+                        "- Tests failed: backend go test fails because service.AccountTypeUpstream is undefined in backend/internal/handler/admin/account_data.go.",
+                        "- Tests failed: frontend route test expects AdminOps /admin/ops while router/index.ts defines AdminAudit at /admin/audit.",
+                        "- Known issues: Delivered README.md, deploy/docker-compose.yml, deploy/config.example.yaml, and deploy/relay still expose token relay/gateway/proxy behavior.",
+                        "- Follow-up tasks: Clean or reframe README.md, deploy/docker-compose*.yml, deploy/config.example.yaml, and deploy/relay.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-07-02T01:45:00+08:00",
+            )
+
+            graph = TaskGraphBuilder().build(ContextBundleBuilder().build(brief)).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        delivery = next(node for node in graph["nodes"] if node["title"] == "Repair final delivery artifact contracts")
+        self.assertEqual(nodes["T005"]["title"], "Repair final backend service handler server contracts")
+        self.assertNotEqual(nodes["T005"]["status"], "completed")
+        self.assertIn("backend/internal/handler/**", nodes["T005"]["relevant_files"])
+        self.assertIn("README.md", delivery["relevant_files"])
+        self.assertIn("deploy/**", delivery["relevant_files"])
+        audit_node = next(node for node in graph["nodes"] if node["title"] == "Audit final requirements and phase evidence")
+        self.assertIn(delivery["id"], audit_node["dependencies"])
+
     def test_final_verification_admin_settings_email_timeout_is_split_again(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"

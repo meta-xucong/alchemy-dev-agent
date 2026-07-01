@@ -2350,3 +2350,15 @@ PY"`
 - Real smoke verified the new path twice: the explicit LocalAppData executable returned `completed/OK`, then the default `CodexWorkerAdapter` path also returned `completed/OK` after automatic fallback.
 - Relaunched Billing Core through `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`; `final_verification/run_attempt_054` started in the inherited worktree and is actively running narrowed T005 `Repair final backend service contract leftovers` instead of failing on config or WinError 5 launch errors.
 - Current total-project estimate remains about 99.9%; the remaining work is now back in the real product tail rather than in local Codex launch failure loops.
+
+## 2026-07-02T01:36:06+08:00 V2.180 Final Audit Delivery Repair Scope
+
+- Re-audited `final_verification/run_attempt_054`: T005 `Repair final backend service contract leftovers` completed, T054 route prefetch composables completed, and T060 final audit stopped at a non-partial blocker instead of dispatching downstream T061-T064.
+- T060 evidence named real product/delivery failures: `service.AccountTypeUpstream` is still referenced from `backend/internal/handler/admin/account_data.go`, frontend route tests disagree on `/admin/ops` versus `/admin/audit`, and README/deploy/relay artifacts still expose old relay/gateway/proxy delivery surfaces.
+- The first generated resume `_054` was incomplete: it reopened frontend scopes but preserved T005 and did not create an editable delivery-artifact task.
+- Implemented V2.180 in `autodev/full_roadmap_executor.py`: `AccountTypeUpstream` and `account_data.go` evidence now becomes backend repair target paths, so T005 is not preserved as complete.
+- Implemented V2.180 in `planner/task_graph_builder.py`: final audit evidence that names README/deploy/docker delivery artifacts plus relay/gateway/proxy findings now adds `Repair final delivery artifact contracts`.
+- Added `test_final_audit_focus_adds_delivery_artifact_repair` and documented the change in `docs/189_v2_180_final_audit_delivery_repair_scope.md`.
+- Real helper probe generated `final_verification_repair_resume_055.md` from `run_attempt_054`; the preserve list no longer includes T004/T005.
+- Real graph probe using `_055` produced 64 nodes: T004/T005 backend repair, T006/T009/T041/T058 frontend repair, T060 delivery artifact repair, then final audit at T061 and final gates T062-T064.
+- Current total-project estimate remains about 99.9%; next controlled relaunch should consume `_055` in the inherited Billing Core worktree rather than replaying the incomplete `_054` graph.

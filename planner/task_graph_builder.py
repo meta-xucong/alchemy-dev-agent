@@ -852,7 +852,50 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_frontend_test_fixtures=split_frontend_test_fixtures,
             )
         )
+    if should_repair_final_delivery_artifacts(text):
+        specs.append(
+            {
+                "title": "Repair final delivery artifact contracts",
+                "description": (
+                    "Clean delivered documentation, Docker, compose, and deployment artifacts so the handoff no "
+                    "longer exposes retired token relay, API gateway resale, proxy, provider channel, or relay "
+                    "service behavior."
+                ),
+                "assigned_agent": "docs",
+                "relevant_files": [
+                    "README.md",
+                    "Dockerfile",
+                    "deploy/**",
+                    "deploy/docker-compose*.yml",
+                    "deploy/config.example.yaml",
+                    ".github/workflows/**",
+                ],
+                "completion_criteria": [
+                    "Delivery documentation and deployment samples describe the CRM Billing Core product, not a token relay or gateway resale service.",
+                    "Retired relay service artifacts are removed, disabled, or reframed as non-delivered legacy infrastructure.",
+                    "Static delivery audit findings from final verification are addressed before final audit reruns.",
+                ],
+                "priority": 87,
+            }
+        )
     return specs
+
+
+def should_repair_final_delivery_artifacts(text: str) -> bool:
+    if not any(marker in text for marker in ["readme", "deploy", "docker-compose", "delivery artifact"]):
+        return False
+    return any(
+        marker in text
+        for marker in [
+            "relay",
+            "gateway",
+            "proxy",
+            "old-domain",
+            "retired",
+            "token relay",
+            "static delivery audit",
+        ]
+    )
 
 
 def should_split_final_frontend_api_i18n_timeout(text: str) -> bool:
