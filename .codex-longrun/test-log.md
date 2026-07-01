@@ -6041,3 +6041,11 @@
 - command: real planner graph probe using `final_verification_repair_resume_059.md`
 - result: 64 nodes; T004 stays T004 but narrows to domain constants/account repository files, T005/frontend/T060 delivery repairs stay pending behind it, and final audit waits at T061.
 - next verification command: state validation, diff hygiene, commit/push V2.182, then controlled Billing Core relaunch.
+
+- command: Billing Core relaunch via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: created `final_verification/run_attempt_057`; state task graph uses `final_verification_repair_resume_059.md`, repository path is the inherited `real_run_worktree_20260623232224162902`, and active task is T004 `Repair final backend domain account repository contract leaf`.
+- next verification command: monitor T004 completion or blocker.
+
+- command: two-minute monitor of Billing Core `final_verification/run_attempt_057`
+- result: T004 still running normally; `active_tasks=["T004"]`, `completed_tasks=[]`, `failed_tasks=[]`, `blockers=[]`, and no T005/downstream dispatch.
+- next verification command: continue monitoring run_attempt_057 until T004 completes or records a concrete blocker.
