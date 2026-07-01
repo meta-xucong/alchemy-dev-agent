@@ -5973,3 +5973,7 @@
 - command: Billing Core relaunch via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
 - result: created `final_verification/run_attempt_055`; state references `final_verification_repair_resume_055.md`, repository path is the inherited `real_run_worktree_20260623232224162902`, and active task is T004 backend domain/repository repair.
 - next verification command: monitor T004 worker completion or timeout boundary, then confirm T005 starts before frontend/delivery repairs.
+
+- command: Billing Core `final_verification/run_attempt_055` status check
+- result: T004 timed out after 900 seconds and recorded non-partial blocker `B-T004-1`; `active_tasks=[]`, completed list unchanged, and T005/downstream tasks remain pending.
+- next verification command: generate a new repair resume from run_attempt_055 and verify whether T004 is narrowed or split before the next relaunch.
