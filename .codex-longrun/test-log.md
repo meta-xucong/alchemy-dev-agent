@@ -6095,3 +6095,33 @@
 - command: three-minute monitor of Billing Core `final_verification/run_attempt_058`
 - result: T006 still running normally; `active_tasks=["T006"]`, `completed_tasks=[]`, `failed_tasks=[]`, `blockers=[]`, and no T009/T060/downstream dispatch.
 - next verification command: continue monitoring run_attempt_058 until T006 completes or records a concrete blocker.
+
+## 2026-07-02T04:49:25+08:00 V2.184 final frontend API payment usage leaf
+
+- command: monitor Billing Core `final_verification/run_attempt_058` through the T006 900 second worker boundary
+- result: T006 admin billing API leaf timed out; scheduler recorded non-partial `B-T006-1`, left `active_tasks=[]`, and did not dispatch T009/T060/downstream tasks.
+- next verification command: generate a new repair resume and verify it does not replay the same admin billing API leaf.
+
+- command: real final_verification_resume_repair_documents probe after run_attempt_058
+- result: generated `final_verification_repair_resume_061.md` with focused timeout title `Repair final frontend admin billing API contract leaf`.
+- next verification command: focused planner regression.
+
+- command: python -m pytest tests/test_document_to_plan.py -k "frontend_api"
+- result: 3 passed
+- next verification command: full document-to-plan suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 71 passed
+- next verification command: focused full-roadmap resume regressions.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py -k "final_verification_resume_preserves_supervisor_stopped_progress or final_verification_resume_uses_latest_non_stopped_failed_state"
+- result: 2 passed
+- next verification command: compileall.
+
+- command: python -m compileall autodev planner tests -q
+- result: passed
+- next verification command: real graph probe using `_061`.
+
+- command: real planner graph probe using `final_verification_repair_resume_061.md`
+- result: 64 nodes; T006 narrowed to payment/usage API leaf and T009/T060/final gates remain pending behind T006.
+- next verification command: state validation, diff hygiene, commit/push V2.184, then controlled Billing Core relaunch.

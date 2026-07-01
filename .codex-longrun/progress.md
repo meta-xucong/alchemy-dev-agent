@@ -2400,3 +2400,11 @@ PY"`
 - Real graph probe using `_060` produced 64 nodes: T004/T005 completed, T006 narrowed to admin payment/usage/redeem/settings/retired API files and focused API tests, and T009/T060/final gates remain ordered behind T006.
 - Committed and pushed V2.183 as `0139ab2`, then relaunched through `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`.
 - `final_verification/run_attempt_058` consumed `final_verification_repair_resume_060.md`, started T006 `Repair final frontend admin billing API contract leaf`, and is running in the inherited isolated worktree. Three-minute monitor showed no blocker and no premature T009/T060/downstream dispatch.
+
+## 2026-07-02T04:49:25+08:00 V2.184 Final Frontend API Payment Usage Leaf
+
+- Monitored `final_verification/run_attempt_058` through the T006 API leaf boundary. T006 `Repair final frontend admin billing API contract leaf` still timed out after 900 seconds.
+- Alchemy scheduler behavior remained correct: the run recorded non-partial blocker `B-T006-1`, left `active_tasks=[]`, and did not dispatch T009, T060, or final gates.
+- Real helper probe generated `final_verification_repair_resume_061.md` with focused timeout title `Repair final frontend admin billing API contract leaf`.
+- Implemented V2.184 in `planner/task_graph_builder.py`: a repeated T006 admin billing API leaf timeout keeps task ID T006 stable but narrows to a payment/usage API micro leaf.
+- Real graph probe using `_061` produced 64 nodes: T006 narrowed to payment/usage API files and focused tests, while T009/T060/final gates remain ordered behind T006.

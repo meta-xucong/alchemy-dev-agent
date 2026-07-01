@@ -975,11 +975,13 @@ def should_split_final_frontend_api_i18n_timeout(text: str) -> bool:
     return focused_api_i18n_scope
 
 
-def should_narrow_final_frontend_api_module_leaf_timeout(text: str) -> bool:
+def should_narrow_final_frontend_api_module_leaf_timeout(text: str) -> bool | str:
     if "primary failed task ids: t006" not in text:
         return False
     if "focused timeout task ids: t006" not in text:
         return False
+    if "repair final frontend admin billing api contract leaf" in text:
+        return "payment_usage"
     return "repair final frontend api module contracts" in text
 
 
@@ -1123,7 +1125,9 @@ def completed_preserve_line_contains_all(text: str, *task_ids: str) -> bool:
     return False
 
 
-def final_frontend_api_i18n_repair_task_specs(*, split: bool, split_api_module_leaf: bool = False) -> list[dict[str, object]]:
+def final_frontend_api_i18n_repair_task_specs(
+    *, split: bool, split_api_module_leaf: bool | str = False
+) -> list[dict[str, object]]:
     if not split:
         return [
             {
@@ -1187,7 +1191,33 @@ def final_frontend_api_i18n_repair_task_specs(*, split: bool, split_api_module_l
     ]
 
 
-def final_frontend_api_module_repair_spec(*, split_leaf: bool) -> dict[str, object]:
+def final_frontend_api_module_repair_spec(*, split_leaf: bool | str) -> dict[str, object]:
+    if split_leaf == "payment_usage":
+        return {
+            "title": "Repair final frontend payment usage API contract leaf",
+            "description": (
+                "The admin billing API leaf timed out again. Keep task ID T006 stable and narrow the retry "
+                "to payment and usage API contracts plus their focused tests."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/api/admin/payment.ts",
+                "frontend/src/api/admin/usage.ts",
+                "frontend/src/api/payment.ts",
+                "frontend/src/api/usage.ts",
+                "frontend/src/api/__tests__/admin.payment.spec.ts",
+                "frontend/src/api/__tests__/admin.usage.spec.ts",
+                "frontend/src/api/__tests__/payment.spec.ts",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Payment and usage API contracts use CRM billing, wallet, metering, charging, and reconciliation terminology.",
+                "Residual upstream, proxy, channel, model-routing, or subscription-plan API surfaces are removed from these files or isolated from delivered behavior.",
+                "Only focused payment/usage API checks are attempted; broad frontend verification remains for final gates.",
+            ],
+            "priority": 94,
+        }
     if split_leaf:
         return {
             "title": "Repair final frontend admin billing API contract leaf",

@@ -1214,6 +1214,73 @@ class DocumentToPlanTests(unittest.TestCase):
         delivery = next(node for node in graph["nodes"] if node["title"] == "Repair final delivery artifact contracts")
         self.assertIn("T006", delivery["dependencies"])
 
+    def test_final_verification_frontend_api_leaf_timeout_is_payment_usage_narrowed(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            (repo / "backend" / "migrations").mkdir(parents=True)
+            (repo / "backend" / "ent" / "schema").mkdir(parents=True)
+            (repo / "backend" / "internal" / "domain").mkdir(parents=True)
+            (repo / "backend" / "internal" / "repository").mkdir(parents=True)
+            (repo / "backend" / "internal" / "service").mkdir(parents=True)
+            (repo / "backend" / "internal" / "handler").mkdir(parents=True)
+            (repo / "backend" / "internal" / "server").mkdir(parents=True)
+            (repo / "deploy").mkdir(parents=True)
+            (repo / "frontend" / "src" / "api" / "admin").mkdir(parents=True)
+            (repo / "frontend" / "src" / "api" / "__tests__").mkdir(parents=True)
+            (repo / "frontend" / "src" / "i18n").mkdir(parents=True)
+            (repo / "backend" / "go.mod").write_text("module example.com/billing\n", encoding="utf-8")
+            (repo / "frontend" / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+            spec = root / "final_verification_repair_resume_061.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Final Verification Repair Resume",
+                        "",
+                        "Repair attempt: run_attempt_058",
+                        "",
+                        "## Requirements",
+                        "",
+                        "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                        "- Must grant the repair worker edit access to frontend API, i18n, router, view, component, composable, constants, type, store, and test files when those surfaces contain upstream account, proxy, channel, channel-monitor, model-routing, or subscription-plan behavior.",
+                        "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
+                        "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+                        "",
+                        "## Focused Repair Scope",
+                        "",
+                        "- Primary failed task IDs: T006.",
+                        "- Focused timeout task IDs: T006.",
+                        "- Focused timeout task titles: T006: Repair final frontend admin billing API contract leaf.",
+                        "- Completed tasks to preserve: T001, T002, T003, T004, T005, T007, T008, T010, T011, T012, T013, T014, T015, T016, T017, T018, T019, T020, T021, T022, T023, T024, T025, T026, T027, T028, T029, T030, T031, T032, T033, T034, T035, T036, T037, T038, T039, T040, T042, T043, T044, T045, T046, T047, T048, T049, T050, T051, T052, T053, T054, T055, T056, T057, T059.",
+                        "- Preserve final frontend split tail graph shape: T056, T057, T058, T059.",
+                        "",
+                        "### Task T006 - Repair final frontend admin billing API contract leaf",
+                        "",
+                        "- Previous relevant files: frontend/src/api/admin/payment.ts, frontend/src/api/admin/usage.ts, frontend/src/api/admin/redeem.ts, frontend/src/api/admin/settings.ts, frontend/src/api/payment.ts, frontend/src/api/usage.ts, frontend/src/api/redeem.ts, frontend/src/api/retired.ts, frontend/src/api/__tests__/admin.payment.spec.ts, frontend/src/api/__tests__/admin.usage.spec.ts, frontend/src/api/__tests__/redeem.wallet-ledger.spec.ts, frontend/src/api/__tests__/retired-surfaces.spec.ts, frontend/package.json, frontend/pnpm-lock.yaml.",
+                        "- Worker summary: Codex worker timed out after 900 seconds.",
+                        "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Final CRM handoff audit",
+                documents=[spec],
+                repository_path=repo,
+                constraints=["Scope boundary mode: large_refactor"],
+                created_at="2026-07-02T04:45:00+08:00",
+            )
+
+            graph = TaskGraphBuilder().build(ContextBundleBuilder().build(brief)).to_dict()
+
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        self.assertEqual(nodes["T006"]["title"], "Repair final frontend payment usage API contract leaf")
+        self.assertIn("frontend/src/api/admin/payment.ts", nodes["T006"]["relevant_files"])
+        self.assertIn("frontend/src/api/admin/usage.ts", nodes["T006"]["relevant_files"])
+        self.assertNotIn("frontend/src/api/admin/redeem.ts", nodes["T006"]["relevant_files"])
+        self.assertNotIn("frontend/src/api/retired.ts", nodes["T006"]["relevant_files"])
+        self.assertEqual(nodes["T007"]["status"], "completed")
+        self.assertIn("T006", nodes["T009"]["dependencies"])
+
     def test_final_verification_frontend_routes_timeout_preserves_prior_frontend_split(self) -> None:
         with temp_plan_dir() as root:
             repo = root / "repo"
