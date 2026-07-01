@@ -6087,3 +6087,11 @@
 - command: real planner graph probe using `final_verification_repair_resume_060.md`
 - result: 64 nodes; T004/T005 completed, T006 narrowed to admin billing API leaf, and T009/T060/final gates remain pending behind T006.
 - next verification command: state validation, diff hygiene, commit/push V2.183, then controlled Billing Core relaunch.
+
+- command: Billing Core relaunch via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: created `final_verification/run_attempt_058`; state task graph uses `final_verification_repair_resume_060.md`, repository path is the inherited `real_run_worktree_20260623232224162902`, and active task is T006 `Repair final frontend admin billing API contract leaf`.
+- next verification command: monitor T006 completion or blocker.
+
+- command: three-minute monitor of Billing Core `final_verification/run_attempt_058`
+- result: T006 still running normally; `active_tasks=["T006"]`, `completed_tasks=[]`, `failed_tasks=[]`, `blockers=[]`, and no T009/T060/downstream dispatch.
+- next verification command: continue monitoring run_attempt_058 until T006 completes or records a concrete blocker.
