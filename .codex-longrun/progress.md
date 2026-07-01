@@ -2390,3 +2390,11 @@ PY"`
 - `final_verification/run_attempt_057` consumed `final_verification_repair_resume_059.md`, started T004 `Repair final backend domain account repository contract leaf`, and is running in the inherited isolated worktree. Two-minute monitor showed no blocker and no premature T005/downstream dispatch.
 - Follow-up monitor showed the V2.182 leaf split worked: T004 completed at 2026-07-01T19:40:53Z, and Alchemy then started T005 `Repair final backend service handler server contracts` at 2026-07-01T19:41:02Z in the same inherited worktree.
 - Next monitor showed T005 completed at 2026-07-01T19:50:13Z, and Alchemy then started T006 `Repair final frontend API module contracts` at 2026-07-01T19:50:21Z. No blockers or premature final gates were observed.
+
+## 2026-07-02T04:20:40+08:00 V2.183 Final Frontend API Leaf Timeout
+
+- Monitored `final_verification/run_attempt_057` through the T006 boundary. T006 `Repair final frontend API module contracts` timed out after 900 seconds.
+- Alchemy scheduler behavior remained correct: T004 and T005 stayed completed, the run recorded non-partial blocker `B-T006-1`, left `active_tasks=[]`, and did not dispatch T009, T060, or final gates.
+- Real helper probe generated `final_verification_repair_resume_060.md` with primary failed T006, focused timeout T006, focused timeout title `Repair final frontend API module contracts`, T004/T005 completed, and previous repair context preserved.
+- Implemented V2.183 in `planner/task_graph_builder.py`: a focused T006 API module timeout keeps task ID T006 stable but narrows to an admin billing API leaf rather than replaying `frontend/src/api/**`.
+- Real graph probe using `_060` produced 64 nodes: T004/T005 completed, T006 narrowed to admin payment/usage/redeem/settings/retired API files and focused API tests, and T009/T060/final gates remain ordered behind T006.

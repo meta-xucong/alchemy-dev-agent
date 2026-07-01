@@ -1,8 +1,9 @@
 {
     "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase": "billing_core_final_audit_run_attempt_057_t006_active",
+    "current_phase": "billing_core_final_audit_t006_leaf_v2_183_relaunch",
     "phase_status": "verifying",
     "completed_phases": [
+        "implemented V2.183 final frontend API module timeout leaf narrowing so T006 resumes as admin billing API scope without replaying frontend/src/api/**",
         "implemented V2.182 repeated final backend domain/repository timeout leaf narrowing so T004 resumes as domain constants plus account repository scope without task-ID drift",
         "implemented V2.181 final backend domain/repository timeout narrowing so focused T004 resumes do not replay broad backend/internal/domain/** and backend/internal/repository/** scope",
         "implemented V2.180 final audit repair-scope recovery so T060 AccountTypeUpstream/account_data and README/deploy/relay findings reopen editable backend and delivery repair tasks",
@@ -125,11 +126,18 @@
         "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
     ],
     "next_actions": [
-        "Monitor final_verification/run_attempt_057 T006 frontend API module worker until it completes or records a real non-partial blocker.",
-        "If T006 completes, confirm the next pending frontend repair starts and final delivery/audit gates remain ordered behind all repairs.",
-        "If T006 times out, generate a focused repair resume and fix Alchemy only if the graph would replay the same broad frontend API scope."
+        "Commit and push V2.183 frontend API leaf narrowing after validation and diff hygiene checks.",
+        "Relaunch Billing Core through .alchemy\\billing_core_v274_20260624_012\\resume_v2_88_supervised_probe.ps1 so it consumes final_verification_repair_resume_060.md.",
+        "Monitor that the new attempt starts T006 as the admin billing API leaf in the inherited worktree and does not dispatch T009/T060 until T006 completes."
     ],
     "tests_run": [
+        "V2.183: run_attempt_057 => T006 frontend API module timed out after 900 seconds; active_tasks=[], failed_tasks=[T006], no T009/T060/downstream dispatch",
+        "V2.183: real helper probe => final_verification_repair_resume_060.md generated from run_attempt_057 with T004/T005 completed and focused timeout T006 title preserved",
+        "V2.183: python -m pytest tests/test_document_to_plan.py -k \"frontend_api\" => 2 passed",
+        "V2.183: python -m pytest tests/test_document_to_plan.py => 70 passed",
+        "V2.183: focused full-roadmap final-verification resume regressions => 2 passed",
+        "V2.183: python -m compileall autodev planner tests -q => passed",
+        "V2.183: real graph probe using _060 => 64 nodes; T006 narrowed to admin billing API leaf; T004/T005 completed; T009/T060/final gates preserved behind T006",
         "V2.182 monitor: final_verification/run_attempt_057 T005 completed; T006 frontend API module repair started next in inherited worktree",
         "V2.182 monitor: final_verification/run_attempt_057 T004 leaf completed; T005 backend service/handler/server started next in inherited worktree",
         "V2.182 relaunch: final_verification/run_attempt_057 active on T004 domain/account repository leaf in inherited real_run_worktree_20260623232224162902; no T005/downstream dispatch after two-minute monitor",
@@ -866,6 +874,7 @@
         "python -B -m pytest tests/test_full_roadmap_execution.py -q => 86 passed"
     ],
     "known_bugs": [
+        "Before V2.183, a focused T006 `Repair final frontend API module contracts` timeout would replay broad frontend/src/api/** and frontend/src/types/** instead of checkpointing to a smaller admin billing API leaf.",
         "Before V2.182, a repeated timeout of narrowed T004 `Repair final backend domain repository contract leftovers` would replay the same seven-file scope instead of checkpointing to a smaller backend domain/account repository leaf.",
         "Before V2.181, a focused final-verification T004 backend domain/repository timeout could regenerate the same broad backend/internal/domain/** and backend/internal/repository/** task, and the next resume could lose prior _055 delivery-artifact repair context.",
         "Billing Core run_attempt_055 T004 backend domain/repository repair exceeded the 900s worker timeout after the V2.180 relaunch; this is a current product/task-scope blocker, not a Codex launch or Go environment failure.",
@@ -976,7 +985,7 @@
         "Relevant tests or checks pass",
         "Progress and verification are recorded"
     ],
-    "last_verified_at": "2026-07-02T03:54:54+08:00",
+    "last_verified_at": "2026-07-02T04:20:40+08:00",
     "created_at": "2026-06-25T01:55:36+08:00",
     "updated_at": "2026-07-02T02:38:40.5691240+08:00",
     "known_issues": [

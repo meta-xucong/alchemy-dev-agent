@@ -867,7 +867,8 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             split_frontend_view_components = True
         specs.extend(
             final_frontend_api_i18n_repair_task_specs(
-                split=split_api_i18n
+                split=split_api_i18n,
+                split_api_module_leaf=should_narrow_final_frontend_api_module_leaf_timeout(text),
             )
         )
         specs.extend(
@@ -972,6 +973,14 @@ def should_split_final_frontend_api_i18n_timeout(text: str) -> bool:
         )
     )
     return focused_api_i18n_scope
+
+
+def should_narrow_final_frontend_api_module_leaf_timeout(text: str) -> bool:
+    if "primary failed task ids: t006" not in text:
+        return False
+    if "focused timeout task ids: t006" not in text:
+        return False
+    return "repair final frontend api module contracts" in text
 
 
 def should_narrow_final_backend_service_handler_timeout(text: str) -> bool:
@@ -1114,7 +1123,7 @@ def completed_preserve_line_contains_all(text: str, *task_ids: str) -> bool:
     return False
 
 
-def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, object]]:
+def final_frontend_api_i18n_repair_task_specs(*, split: bool, split_api_module_leaf: bool = False) -> list[dict[str, object]]:
     if not split:
         return [
             {
@@ -1138,25 +1147,7 @@ def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, 
             }
         ]
     return [
-        {
-            "title": "Repair final frontend API module contracts",
-            "description": (
-                "Remove or reframe frontend API modules and service contract types that still expose upstream account, "
-                "proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior."
-            ),
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/api/**",
-                "frontend/src/types/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Frontend API modules describe CRM billing, identity, wallet, metering, charging, payment, analytics, audit, and admin behavior only.",
-                "Retired relay-era API exports are removed or clearly quarantined as internal compatibility infrastructure.",
-            ],
-            "priority": 94,
-        },
+        final_frontend_api_module_repair_spec(split_leaf=split_api_module_leaf),
         {
             "title": "Repair final frontend i18n locale contracts",
             "description": (
@@ -1194,6 +1185,59 @@ def final_frontend_api_i18n_repair_task_specs(*, split: bool) -> list[dict[str, 
             "priority": 92,
         },
     ]
+
+
+def final_frontend_api_module_repair_spec(*, split_leaf: bool) -> dict[str, object]:
+    if split_leaf:
+        return {
+            "title": "Repair final frontend admin billing API contract leaf",
+            "description": (
+                "The frontend API module repair timed out. Keep task ID T006 stable and narrow the retry "
+                "to admin billing, usage, settings, redeem, and retired-surface API contracts."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/api/admin/payment.ts",
+                "frontend/src/api/admin/usage.ts",
+                "frontend/src/api/admin/redeem.ts",
+                "frontend/src/api/admin/settings.ts",
+                "frontend/src/api/payment.ts",
+                "frontend/src/api/usage.ts",
+                "frontend/src/api/redeem.ts",
+                "frontend/src/api/retired.ts",
+                "frontend/src/api/__tests__/admin.payment.spec.ts",
+                "frontend/src/api/__tests__/admin.usage.spec.ts",
+                "frontend/src/api/__tests__/redeem.wallet-ledger.spec.ts",
+                "frontend/src/api/__tests__/retired-surfaces.spec.ts",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin billing, usage, redeem, settings, and retired-surface API contracts use CRM billing terminology.",
+                "Residual upstream, proxy, channel, model-routing, or subscription-plan API surfaces are removed or isolated from delivered frontend behavior.",
+                "Only narrow API module checks are attempted; broad frontend verification remains for final gates.",
+            ],
+            "priority": 94,
+        }
+    return {
+        "title": "Repair final frontend API module contracts",
+        "description": (
+            "Remove or reframe frontend API modules and service contract types that still expose upstream account, "
+            "proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/api/**",
+            "frontend/src/types/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Frontend API modules describe CRM billing, identity, wallet, metering, charging, payment, analytics, audit, and admin behavior only.",
+            "Retired relay-era API exports are removed or clearly quarantined as internal compatibility infrastructure.",
+        ],
+        "priority": 94,
+    }
 
 
 def should_split_final_frontend_routes_views_timeout(text: str) -> bool:

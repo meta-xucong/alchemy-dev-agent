@@ -6057,3 +6057,33 @@
 - command: follow-up monitor of Billing Core `final_verification/run_attempt_057`
 - result: T005 completed and T006 started next; `active_tasks=["T006"]`, `completed_tasks` tail includes `T004, T005`, `failed_tasks=[]`, and `blockers=[]`.
 - next verification command: monitor T006 completion or blocker, then confirm remaining frontend/delivery repairs continue in dependency order.
+
+## 2026-07-02T04:20:40+08:00 V2.183 final frontend API leaf timeout
+
+- command: monitor Billing Core `final_verification/run_attempt_057` through the T006 900 second worker boundary
+- result: T006 timed out; scheduler recorded non-partial `B-T006-1`, left `active_tasks=[]`, preserved completed `T004, T005`, and did not dispatch T009/T060/downstream tasks.
+- next verification command: generate a new repair resume and verify it does not replay broad frontend API scope.
+
+- command: real final_verification_resume_repair_documents probe after run_attempt_057
+- result: generated `final_verification_repair_resume_060.md` with primary failed T006, focused timeout T006, focused timeout title `Repair final frontend API module contracts`, T004/T005 completed, and previous repair context preserved.
+- next verification command: focused planner regression.
+
+- command: python -m pytest tests/test_document_to_plan.py -k "frontend_api"
+- result: 2 passed
+- next verification command: full document-to-plan suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 70 passed
+- next verification command: focused full-roadmap resume regressions.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py -k "final_verification_resume_preserves_supervisor_stopped_progress or final_verification_resume_uses_latest_non_stopped_failed_state"
+- result: 2 passed
+- next verification command: compileall.
+
+- command: python -m compileall autodev planner tests -q
+- result: passed
+- next verification command: real graph probe using `_060`.
+
+- command: real planner graph probe using `final_verification_repair_resume_060.md`
+- result: 64 nodes; T004/T005 completed, T006 narrowed to admin billing API leaf, and T009/T060/final gates remain pending behind T006.
+- next verification command: state validation, diff hygiene, commit/push V2.183, then controlled Billing Core relaunch.
