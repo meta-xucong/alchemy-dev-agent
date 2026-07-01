@@ -1,7 +1,7 @@
 {
     "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase": "billing_core_final_audit_run_attempt_059_t006_payment_usage_active",
-    "phase_status": "verifying",
+    "current_phase": "billing_core_final_audit_t006_payment_usage_timeout_blocker",
+    "phase_status": "blocked",
     "completed_phases": [
         "implemented V2.184 repeated final frontend API leaf timeout narrowing so T006 resumes as payment/usage API micro leaf without replaying admin billing API scope",
         "implemented V2.183 final frontend API module timeout leaf narrowing so T006 resumes as admin billing API scope without replaying frontend/src/api/**",
@@ -127,11 +127,12 @@
         "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
     ],
     "next_actions": [
-        "Monitor final_verification/run_attempt_059 T006 payment/usage API leaf worker until it completes or records a real non-partial blocker.",
-        "If T006 completes, confirm T009 route/app-shell repair starts next and T060/final gates remain ordered behind pending repairs.",
-        "If T006 payment/usage leaf times out, inspect whether Alchemy needs another narrower split or whether the remaining issue is a product-worker completion blocker."
+        "Review final_verification/run_attempt_059 T006 payment/usage API leaf timeout and decide whether to continue splitting T006 into single-file leaves or adjust worker timeout/progress checkpointing.",
+        "If continuing autonomously, implement an Alchemy V2.185 split for T006 payment/usage API leaf into payment-only and usage-only micro tasks before relaunching from final_verification_repair_resume_062.md.",
+        "Do not manually edit Billing Core product code from the supervisor thread; keep product changes inside Alchemy real workers in the inherited worktree."
     ],
     "tests_run": [
+        "V2.184 monitor: final_verification/run_attempt_059 T006 payment/usage API leaf timed out after 900 seconds; active_tasks=[], failed_tasks=[T006], no T009/T060/downstream dispatch; final_verification_repair_resume_062.md generated",
         "V2.184 relaunch: final_verification/run_attempt_059 active on T006 payment/usage API leaf in inherited real_run_worktree_20260623232224162902; no T009/T060/downstream dispatch after three-minute monitor",
         "V2.184: run_attempt_058 => T006 admin billing API leaf timed out after 900 seconds; active_tasks=[], failed_tasks=[T006], no T009/T060/downstream dispatch",
         "V2.184: real helper probe => final_verification_repair_resume_061.md generated from run_attempt_058 with focused timeout title Repair final frontend admin billing API contract leaf",
@@ -884,6 +885,7 @@
         "python -B -m pytest tests/test_full_roadmap_execution.py -q => 86 passed"
     ],
     "known_bugs": [
+        "Billing Core final_verification/run_attempt_059 stopped at non-partial T006 payment/usage API leaf timeout after repeated Alchemy scope narrowing; remaining decision is whether to split T006 further into single-file leaves or add progress checkpointing/timeout policy.",
         "Before V2.184, a repeated timeout of T006 `Repair final frontend admin billing API contract leaf` would replay the same admin billing API scope instead of checkpointing to a smaller payment/usage API micro leaf.",
         "Before V2.183, a focused T006 `Repair final frontend API module contracts` timeout would replay broad frontend/src/api/** and frontend/src/types/** instead of checkpointing to a smaller admin billing API leaf.",
         "Before V2.182, a repeated timeout of narrowed T004 `Repair final backend domain repository contract leftovers` would replay the same seven-file scope instead of checkpointing to a smaller backend domain/account repository leaf.",
@@ -990,13 +992,15 @@
         "Before V2.136, final verification T006 `Repair final frontend API and i18n contracts` could time out after 900 seconds and the next resume would rebuild the same broad frontend API/i18n/constants/types worker instead of splitting it.",
         "Before V2.137, final verification T009 `Repair final frontend routes views and tests` could time out after 900 seconds and the next resume risked replaying the same broad route/view/test worker or drifting preserved T006-T008 split task IDs."
     ],
-    "blockers": [],
+    "blockers": [
+        "Billing Core final_verification/run_attempt_059 stopped at non-partial T006 payment/usage API leaf timeout after repeated Alchemy scope narrowing; remaining decision is whether to split T006 further into single-file leaves or add progress checkpointing/timeout policy."
+    ],
     "done_criteria": [
         "Requested implementation work is complete",
         "Relevant tests or checks pass",
         "Progress and verification are recorded"
     ],
-    "last_verified_at": "2026-07-02T05:00:56+08:00",
+    "last_verified_at": "2026-07-02T05:19:23+08:00",
     "created_at": "2026-06-25T01:55:36+08:00",
     "updated_at": "2026-07-02T02:38:40.5691240+08:00",
     "known_issues": [

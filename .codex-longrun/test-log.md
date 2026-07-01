@@ -6133,3 +6133,11 @@
 - command: three-minute monitor of Billing Core `final_verification/run_attempt_059`
 - result: T006 still running normally; `active_tasks=["T006"]`, `completed_tasks=[]`, `failed_tasks=[]`, `blockers=[]`, and no T009/T060/downstream dispatch.
 - next verification command: continue monitoring run_attempt_059 until T006 completes or records a concrete blocker.
+
+- command: monitor Billing Core `final_verification/run_attempt_059` through the T006 900 second worker boundary
+- result: T006 payment/usage API leaf timed out; scheduler recorded non-partial `B-T006-1`, left `active_tasks=[]`, did not dispatch T009/T060/downstream tasks, and no residual product worker process remained.
+- next verification command: review `final_verification_repair_resume_062.md` and decide whether to split T006 into single-file payment/usage leaves or adjust worker checkpointing/timeout policy.
+
+- command: real final_verification_resume_repair_documents probe after run_attempt_059
+- result: generated `final_verification_repair_resume_062.md` with focused timeout title `Repair final frontend payment usage API contract leaf`, T004/T005 completed, and previous repair context preserved.
+- next verification command: pending human review before further Alchemy framework splitting.
