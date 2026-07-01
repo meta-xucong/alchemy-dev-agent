@@ -2377,3 +2377,12 @@ PY"`
 - No Billing Core product code was edited directly; the next controlled relaunch should consume `_057` in the inherited `real_run_worktree_20260623232224162902` worktree.
 - Committed and pushed V2.181 as `04a19b8`, then relaunched through `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`.
 - `final_verification/run_attempt_056` consumed `final_verification_repair_resume_057.md`, started T004 `Repair final backend domain repository contract leftovers`, and is running in the inherited isolated worktree. One-minute monitor showed no blocker and no premature T005/downstream dispatch.
+
+## 2026-07-02T03:32:38+08:00 V2.182 Final Backend Domain Leaf Timeout
+
+- Monitored `final_verification/run_attempt_056` to its stop boundary. T004 still timed out after 900 seconds even with V2.181's narrowed seven-file scope.
+- Alchemy scheduler behavior remained correct: the run recorded non-partial blocker `B-T004-1`, left `active_tasks=[]`, and did not dispatch T005 or downstream final repair tasks.
+- Confirmed this was not the old false-failure chain: the worker used `C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe`, ran in the inherited `real_run_worktree_20260623232224162902`, and reached narrow Go checks inside the worktree before timeout.
+- Implemented V2.182 in `autodev/full_roadmap_executor.py`: repair resumes now include top-level focused timeout task titles and can recover previous repair documents from project/context document fields.
+- Implemented V2.182 in `planner/task_graph_builder.py`: a repeated timeout of T004 `Repair final backend domain repository contract leftovers` now keeps T004 stable but narrows it to the domain constants/account repository leaf.
+- Real helper probe generated `final_verification_repair_resume_059.md`; real graph probe using `_059` produced 64 nodes with T004 narrowed to `backend/internal/domain/constants.go`, `backend/internal/repository/account_repo.go`, `backend/go.mod`, and `backend/go.sum`, while T005/frontend/T060 delivery/final gates remain correctly ordered behind it.

@@ -1624,6 +1624,13 @@ def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[obj
     timeout_focus_task_ids = repair_timeout_focus_task_ids(blockers, nodes_by_id, focus_task_ids)
     if timeout_focus_task_ids:
         lines.append(f"- Focused timeout task IDs: {', '.join(timeout_focus_task_ids)}.")
+        timeout_titles = [
+            f"{task_id}: {nodes_by_id.get(task_id, {}).get('title')}"
+            for task_id in timeout_focus_task_ids
+            if str(nodes_by_id.get(task_id, {}).get("title", "")).strip()
+        ]
+        if timeout_titles:
+            lines.append(f"- Focused timeout task titles: {'; '.join(timeout_titles)}.")
     if completed_task_ids:
         lines.append(f"- Completed tasks to preserve: {', '.join(completed_task_ids)}.")
     deep_tail_ids = final_frontend_deep_tail_task_ids(nodes)
@@ -2347,7 +2354,7 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
 
 
 def final_verification_previous_repair_context(report: dict[str, object]) -> dict[str, object]:
-    paths = [Path(str(item)) for item in _list(report.get("auto_repair_documents")) if str(item or "").strip()]
+    paths = final_verification_previous_repair_paths(report)
     if not paths:
         return {}
     for path in reversed(paths):
@@ -2373,6 +2380,41 @@ def final_verification_previous_repair_context(report: dict[str, object]) -> dic
             "text": text[:8000],
         }
     return {}
+
+
+def final_verification_previous_repair_paths(report: dict[str, object]) -> list[Path]:
+    paths: list[Path] = []
+
+    def collect(value: object) -> None:
+        if isinstance(value, str):
+            if "final_verification_repair_resume_" in value:
+                paths.append(Path(value))
+            return
+        if isinstance(value, dict):
+            path_value = value.get("path")
+            if isinstance(path_value, str) and "final_verification_repair_resume_" in path_value:
+                paths.append(Path(path_value))
+            for nested_key in ("auto_repair_documents", "repair_documents", "documents"):
+                collect(value.get(nested_key))
+            return
+        if isinstance(value, list):
+            for item in value:
+                collect(item)
+
+    collect(report.get("auto_repair_documents"))
+    collect(report.get("repair_documents"))
+    collect(report.get("project_brief"))
+    collect(report.get("context_bundle"))
+    deduped: list[Path] = []
+    seen: set[str] = set()
+    for path in paths:
+        key = str(path).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if path.exists():
+            deduped.append(path)
+    return deduped
 
 
 def final_verification_repair_resume_completed_task_ids(path: Path) -> list[str]:
@@ -2642,6 +2684,7 @@ def final_verification_repair_resume_matches_focus(path: Path, marker: str, focu
         for line in focused_lines
         if line.startswith("- Primary failed task IDs:")
         or line.startswith("- Focused timeout task IDs:")
+        or line.startswith("- Focused timeout task titles:")
         or line.startswith("- Completed tasks to preserve:")
         or line.startswith("- Preserve final frontend split tail graph shape:")
         or line.startswith("- Preserve previous repair context from")

@@ -6011,3 +6011,33 @@
 - command: one-minute monitor of Billing Core `final_verification/run_attempt_056`
 - result: T004 still running normally; `active_tasks=["T004"]`, `completed_tasks=[]`, `failed_tasks=[]`, `blockers=[]`, and no T005/downstream dispatch.
 - next verification command: continue monitoring run_attempt_056 until T004 completes or records a concrete blocker.
+
+## 2026-07-02T03:32:38+08:00 V2.182 final backend domain leaf timeout
+
+- command: monitor Billing Core `final_verification/run_attempt_056` through the 900 second worker boundary
+- result: T004 timed out again; scheduler recorded non-partial `B-T004-1`, left `active_tasks=[]`, and did not dispatch T005 or downstream final repair tasks.
+- next verification command: generate a new repair resume and verify it does not replay the same seven-file T004 scope.
+
+- command: real final_verification_resume_repair_documents probe after run_attempt_056
+- result: generated `final_verification_repair_resume_059.md` with primary failed T004, focused timeout T004, focused timeout title `Repair final backend domain repository contract leftovers`, and previous `_057` repair context preserved.
+- next verification command: focused planner regression.
+
+- command: python -m pytest tests/test_document_to_plan.py -k "backend_domain_repository"
+- result: 2 passed
+- next verification command: full document-to-plan suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 69 passed
+- next verification command: focused full-roadmap resume regressions.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py -k "final_verification_resume_preserves_supervisor_stopped_progress or final_verification_resume_uses_latest_non_stopped_failed_state"
+- result: 2 passed
+- next verification command: compileall.
+
+- command: python -m compileall autodev planner tests -q
+- result: passed
+- next verification command: real graph probe using `_059`.
+
+- command: real planner graph probe using `final_verification_repair_resume_059.md`
+- result: 64 nodes; T004 stays T004 but narrows to domain constants/account repository files, T005/frontend/T060 delivery repairs stay pending behind it, and final audit waits at T061.
+- next verification command: state validation, diff hygiene, commit/push V2.182, then controlled Billing Core relaunch.

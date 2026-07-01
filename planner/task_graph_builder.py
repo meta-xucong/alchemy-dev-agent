@@ -620,7 +620,30 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 "priority": 95,
             }
         )
-        if should_narrow_final_backend_domain_repository_timeout(text):
+        if should_narrow_final_backend_domain_repository_leaf_timeout(text):
+            specs.append(
+                {
+                    "title": "Repair final backend domain account repository contract leaf",
+                    "description": (
+                        "The already narrowed domain/repository repair timed out again. Keep task ID T004 stable "
+                        "and checkpoint the next retry to the domain constants plus account repository contract leaf."
+                    ),
+                    "assigned_agent": "backend",
+                    "relevant_files": [
+                        "backend/internal/domain/constants.go",
+                        "backend/internal/repository/account_repo.go",
+                        "backend/go.mod",
+                        "backend/go.sum",
+                    ],
+                    "completion_criteria": [
+                        "Domain account type constants and account repository contracts use CRM-facing account terminology.",
+                        "Residual upstream account compatibility is removed or isolated from delivered CRM account behavior.",
+                        "Only narrow package-level or static checks are attempted; broad backend verification remains for final gates.",
+                    ],
+                    "priority": 94,
+                }
+            )
+        elif should_narrow_final_backend_domain_repository_timeout(text):
             specs.append(
                 {
                     "title": "Repair final backend domain repository contract leftovers",
@@ -988,6 +1011,12 @@ def should_narrow_final_backend_domain_repository_timeout(text: str) -> bool:
             "timeout note",
         )
     )
+
+
+def should_narrow_final_backend_domain_repository_leaf_timeout(text: str) -> bool:
+    if not should_narrow_final_backend_domain_repository_timeout(text):
+        return False
+    return "repair final backend domain repository contract leftovers" in text
 
 
 def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
