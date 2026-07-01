@@ -2365,3 +2365,13 @@ PY"`
 - Relaunched through `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1` after committing V2.180. `final_verification/run_attempt_055` consumed `_055`, started in the inherited `real_run_worktree_20260623232224162902`, and is active on T004 `Repair final backend domain and repository contracts`.
 - One-minute monitor check showed T004 still running normally with no blocker and no downstream dispatch; worker PID is recorded in `run_attempt_055/workers/T004.json`.
 - Follow-up status check at 2026-07-02T02:38:40+08:00 showed `run_attempt_055` is not complete: T004 timed out after the 900 second worker budget, recorded non-partial blocker `B-T004-1`, left `active_tasks=[]`, and did not dispatch T005 or downstream final repair tasks.
+
+## 2026-07-02T02:54:39+08:00 V2.181 Final Backend Domain Timeout Narrowing
+
+- Generated a new repair resume from `final_verification/run_attempt_055`; the first `_056` graph would still replay broad T004 domain/repository scope and risked losing prior `_055` delivery-artifact repair context.
+- Implemented V2.181 in `autodev/full_roadmap_executor.py`: final-verification repair resumes now promote focused timeout task IDs and carry previous repair context forward when a timeout resume references an earlier repair document.
+- Implemented V2.181 in `planner/task_graph_builder.py`: focused T004 backend domain/repository timeouts keep task ID T004 but narrow to exact domain/repository leftover files instead of `backend/internal/domain/**` and `backend/internal/repository/**`.
+- Added `test_final_verification_backend_domain_repository_timeout_is_narrowed_without_id_drift` and documented the behavior in `docs/190_v2_181_final_backend_domain_timeout_narrowing.md`.
+- Real helper probe generated `final_verification_repair_resume_057.md` from `run_attempt_055`; it preserves previous `_055` context for AccountTypeUpstream/account_data, frontend route repair, and README/deploy/relay delivery artifacts.
+- Real graph probe using `_057` produced 64 nodes: narrowed T004, T005 backend service/handler/server repair, frontend repair chain, T060 delivery artifact repair, then final audit at T061 and final gates T062-T064.
+- No Billing Core product code was edited directly; the next controlled relaunch should consume `_057` in the inherited `real_run_worktree_20260623232224162902` worktree.

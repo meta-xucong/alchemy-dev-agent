@@ -620,27 +620,54 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 "priority": 95,
             }
         )
-        specs.append(
-            {
-                "title": "Repair final backend domain and repository contracts",
-                "description": (
-                    "Align backend domain and repository callers with the CRM Billing Core schema after Ent/source-boundary cleanup. "
-                    "Use targeted compile or static checks only; leave full-suite Go verification to the final real repository checks."
-                ),
-                "assigned_agent": "backend",
-                "relevant_files": [
-                    "backend/internal/domain/**",
-                    "backend/internal/repository/**",
-                    "backend/go.mod",
-                    "backend/go.sum",
-                ],
-                "completion_criteria": [
-                    "Domain and repository contracts no longer expose upstream account-pool, proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior.",
-                    "Repository callers compile against the cleaned CRM schema using narrow package-level or no-test compile checks.",
-                ],
-                "priority": 94,
-            }
-        )
+        if should_narrow_final_backend_domain_repository_timeout(text):
+            specs.append(
+                {
+                    "title": "Repair final backend domain repository contract leftovers",
+                    "description": (
+                        "Narrow the timed-out domain/repository repair to concrete CRM account type and repository "
+                        "contract leftovers instead of replaying all domain and repository files."
+                    ),
+                    "assigned_agent": "backend",
+                    "relevant_files": [
+                        "backend/internal/domain/constants.go",
+                        "backend/internal/repository/account_repo.go",
+                        "backend/internal/repository/channel_repo.go",
+                        "backend/internal/repository/http_upstream.go",
+                        "backend/internal/repository/proxy_repo.go",
+                        "backend/go.mod",
+                        "backend/go.sum",
+                    ],
+                    "completion_criteria": [
+                        "Domain constants and repository contracts use CRM-facing account and catalog terminology.",
+                        "Residual upstream/proxy/channel repository compatibility is removed or isolated from delivered CRM behavior.",
+                        "Narrow package-level or static checks are attempted without taking over full backend verification.",
+                    ],
+                    "priority": 94,
+                }
+            )
+        else:
+            specs.append(
+                {
+                    "title": "Repair final backend domain and repository contracts",
+                    "description": (
+                        "Align backend domain and repository callers with the CRM Billing Core schema after Ent/source-boundary cleanup. "
+                        "Use targeted compile or static checks only; leave full-suite Go verification to the final real repository checks."
+                    ),
+                    "assigned_agent": "backend",
+                    "relevant_files": [
+                        "backend/internal/domain/**",
+                        "backend/internal/repository/**",
+                        "backend/go.mod",
+                        "backend/go.sum",
+                    ],
+                    "completion_criteria": [
+                        "Domain and repository contracts no longer expose upstream account-pool, proxy, channel, channel-monitor, model-routing, or subscription-plan product behavior.",
+                        "Repository callers compile against the cleaned CRM schema using narrow package-level or no-test compile checks.",
+                    ],
+                    "priority": 94,
+                }
+            )
         if should_narrow_final_backend_service_handler_timeout(text):
             specs.append(
                 {
@@ -936,6 +963,22 @@ def should_narrow_final_backend_service_handler_timeout(text: str) -> bool:
     )
     if not service_scope:
         return False
+    return any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    )
+
+
+def should_narrow_final_backend_domain_repository_timeout(text: str) -> bool:
+    if "primary failed task ids: t004" not in text:
+        return False
+    if "focused timeout task ids: t004" in text:
+        return True
     return any(
         marker in text
         for marker in (

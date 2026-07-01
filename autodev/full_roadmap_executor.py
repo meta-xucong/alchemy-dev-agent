@@ -1621,6 +1621,9 @@ def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[obj
         lines.append(f"- Primary failed task IDs: {', '.join(focus_task_ids)}.")
     else:
         lines.append("- Primary failed task IDs: none reported; infer the narrowest failing task from the gate evidence.")
+    timeout_focus_task_ids = repair_timeout_focus_task_ids(blockers, nodes_by_id, focus_task_ids)
+    if timeout_focus_task_ids:
+        lines.append(f"- Focused timeout task IDs: {', '.join(timeout_focus_task_ids)}.")
     if completed_task_ids:
         lines.append(f"- Completed tasks to preserve: {', '.join(completed_task_ids)}.")
     deep_tail_ids = final_frontend_deep_tail_task_ids(nodes)
@@ -1674,6 +1677,26 @@ def repair_focus_task_ids(blockers: Sequence[object], nodes: Sequence[dict[str, 
         ],
         nodes_by_id,
     )
+
+
+def repair_timeout_focus_task_ids(
+    blockers: Sequence[object],
+    nodes_by_id: dict[str, dict[str, object]],
+    focus_task_ids: Sequence[str],
+) -> list[str]:
+    timeout_ids: list[str] = []
+    for blocker in blockers:
+        if not isinstance(blocker, dict):
+            continue
+        text = json.dumps(blocker, ensure_ascii=False).lower()
+        if "timeout" not in text and "timed out" not in text:
+            continue
+        timeout_ids.extend(str(item) for item in _list(blocker.get("task_ids")))
+    for task_id in focus_task_ids:
+        node = nodes_by_id.get(task_id, {})
+        if str(node.get("status", "")).lower() == "timed_out":
+            timeout_ids.append(task_id)
+    return normalize_repair_focus_task_ids(timeout_ids, nodes_by_id)
 
 
 def normalize_repair_focus_task_ids(task_ids: Sequence[str], nodes_by_id: dict[str, dict[str, object]]) -> list[str]:
@@ -2275,6 +2298,9 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
     runtime_state = _dict(result.get("runtime_state"))
     blockers = [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
     focused_lines = phase_focused_repair_lines(result, blockers)
+    previous_repair_context = final_verification_previous_repair_context(report)
+    if previous_repair_context:
+        focused_lines.extend(previous_repair_context["focused_lines"])
     if existing and (
         not attempt_marker
         or final_verification_repair_resume_matches_focus(existing[-1], attempt_marker, focused_lines)
@@ -2305,8 +2331,48 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
         "```",
         "",
     ]
+    if previous_repair_context:
+        lines.extend(
+            [
+                "## Previous Repair Context",
+                "",
+                "```markdown",
+                previous_repair_context["text"],
+                "```",
+                "",
+            ]
+        )
     path.write_text("\n".join(lines), encoding="utf-8")
     return [str(path.resolve())]
+
+
+def final_verification_previous_repair_context(report: dict[str, object]) -> dict[str, object]:
+    paths = [Path(str(item)) for item in _list(report.get("auto_repair_documents")) if str(item or "").strip()]
+    if not paths:
+        return {}
+    for path in reversed(paths):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if not text.strip():
+            continue
+        lowered = text.lower()
+        signals: list[str] = []
+        if "accounttypeupstream" in lowered or "account_data.go" in lowered:
+            signals.append("AccountTypeUpstream/account_data backend repair")
+        if any(token in lowered for token in ["readme", "deploy", "docker-compose", "deploy/relay"]):
+            signals.append("README/deploy/relay delivery artifact repair")
+        if "/admin/ops" in lowered or "router/index.ts" in lowered:
+            signals.append("frontend route repair")
+        signal_text = ", ".join(signals) if signals else "prior repair surfaces"
+        return {
+            "focused_lines": [
+                f"- Preserve previous repair context from {path.name}: {signal_text}.",
+            ],
+            "text": text[:8000],
+        }
+    return {}
 
 
 def final_verification_repair_resume_completed_task_ids(path: Path) -> list[str]:
@@ -2575,8 +2641,10 @@ def final_verification_repair_resume_matches_focus(path: Path, marker: str, focu
         line
         for line in focused_lines
         if line.startswith("- Primary failed task IDs:")
+        or line.startswith("- Focused timeout task IDs:")
         or line.startswith("- Completed tasks to preserve:")
         or line.startswith("- Preserve final frontend split tail graph shape:")
+        or line.startswith("- Preserve previous repair context from")
     ]
     return all(line in text for line in focus_requirements)
 

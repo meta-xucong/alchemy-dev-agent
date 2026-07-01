@@ -1,8 +1,9 @@
 {
     "objective": "Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development in D:\\AI\\SSH\\sub2api-billing-core, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.",
-    "current_phase": "billing_core_final_audit_t004_timeout_v2_180_followup",
-    "phase_status": "blocked",
+    "current_phase": "billing_core_final_audit_t004_timeout_v2_181_relaunch",
+    "phase_status": "verifying",
     "completed_phases": [
+        "implemented V2.181 final backend domain/repository timeout narrowing so focused T004 resumes do not replay broad backend/internal/domain/** and backend/internal/repository/** scope",
         "implemented V2.180 final audit repair-scope recovery so T060 AccountTypeUpstream/account_data and README/deploy/relay findings reopen editable backend and delivery repair tasks",
         "implemented V2.179 Codex CLI config blocker and Windows local executable fallback so worker launch failures stop cleanly and recover from inaccessible WindowsApps codex.exe on this host",
         "implemented V2.178 final backend service timeout narrowing so focused T005 resumes do not replay broad service/handler/server/cmd scope",
@@ -123,11 +124,17 @@
         "implemented V2.157 single-file final frontend leaf prompt budgeting so workers avoid broad frontend verification inside one-file repair tasks"
     ],
     "next_actions": [
-        "Generate a new final-verification repair resume from run_attempt_055 and confirm T004 backend domain/repository timeout is narrowed or split before relaunch.",
-        "Fix Alchemy planner/resume behavior if the new graph would replay the same broad T004 scope; otherwise relaunch Billing Core through the existing supervised probe.",
-        "Monitor that non-partial blocker handling continues to stop without T005/debug dispatch until a corrected resume graph is available."
+        "Commit and push V2.181 Alchemy framework fix after state validation and diff hygiene checks.",
+        "Relaunch Billing Core through .alchemy\\billing_core_v274_20260624_012\\resume_v2_88_supervised_probe.ps1 so it consumes final_verification_repair_resume_057.md.",
+        "Monitor that the new attempt starts narrowed T004 in the inherited real_run_worktree_20260623232224162902 worktree and does not dispatch T005 until T004 completes."
     ],
     "tests_run": [
+        "V2.181: focused planner regressions for backend domain timeout, service timeout, and delivery artifact repair => 3 passed",
+        "V2.181: python -m pytest tests/test_document_to_plan.py => 68 passed",
+        "V2.181: focused full-roadmap final-verification resume regressions => 2 passed",
+        "V2.181: python -m compileall autodev planner tests -q => passed",
+        "V2.181: real helper probe => final_verification_repair_resume_057.md generated from run_attempt_055 with focused timeout T004 and previous _055 repair context preserved",
+        "V2.181: real graph probe using _057 => 64 nodes; T004 narrowed to exact domain/repository leftovers, T005/frontend/delivery repair chain preserved before final audit T061",
         "V2.180 follow-up: run_attempt_055 => T004 timed_out with non-partial B-T004-1; active_tasks=[], no T005/downstream dispatch",
         "V2.180: real graph probe using _055 => 64 nodes; T004/T005/frontend repairs and T060 delivery artifact repair pending before final audit T061",
         "V2.180: controlled Billing Core relaunch => run_attempt_055 active on T004 in inherited worktree using final_verification_repair_resume_055.md",
@@ -847,6 +854,7 @@
         "python -B -m pytest tests/test_full_roadmap_execution.py -q => 86 passed"
     ],
     "known_bugs": [
+        "Before V2.181, a focused final-verification T004 backend domain/repository timeout could regenerate the same broad backend/internal/domain/** and backend/internal/repository/** task, and the next resume could lose prior _055 delivery-artifact repair context.",
         "Billing Core run_attempt_055 T004 backend domain/repository repair exceeded the 900s worker timeout after the V2.180 relaunch; this is a current product/task-scope blocker, not a Codex launch or Go environment failure.",
         "Before V2.180, final audit repair resumes could preserve backend T005 despite AccountTypeUpstream/account_data.go audit evidence and could omit editable README/deploy/relay delivery artifact repair tasks.",
         "Before V2.178, focused T005 final backend service/handler/server timeouts rebuilt the same broad worker scope instead of narrowing or splitting, risking another long replay after a clean non-partial timeout.",
@@ -949,15 +957,13 @@
         "Before V2.136, final verification T006 `Repair final frontend API and i18n contracts` could time out after 900 seconds and the next resume would rebuild the same broad frontend API/i18n/constants/types worker instead of splitting it.",
         "Before V2.137, final verification T009 `Repair final frontend routes views and tests` could time out after 900 seconds and the next resume risked replaying the same broad route/view/test worker or drifting preserved T006-T008 split task IDs."
     ],
-    "blockers": [
-        "Billing Core final_verification/run_attempt_055 stopped at non-partial T004 timeout; T005 and downstream final repairs remain pending."
-    ],
+    "blockers": [],
     "done_criteria": [
         "Requested implementation work is complete",
         "Relevant tests or checks pass",
         "Progress and verification are recorded"
     ],
-    "last_verified_at": "2026-07-02T02:38:40.5691240+08:00",
+    "last_verified_at": "2026-07-02T02:54:39+08:00",
     "created_at": "2026-06-25T01:55:36+08:00",
     "updated_at": "2026-07-02T02:38:40.5691240+08:00",
     "known_issues": [

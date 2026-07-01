@@ -5977,3 +5977,29 @@
 - command: Billing Core `final_verification/run_attempt_055` status check
 - result: T004 timed out after 900 seconds and recorded non-partial blocker `B-T004-1`; `active_tasks=[]`, completed list unchanged, and T005/downstream tasks remain pending.
 - next verification command: generate a new repair resume from run_attempt_055 and verify whether T004 is narrowed or split before the next relaunch.
+
+## 2026-07-02T02:54:39+08:00 V2.181 final backend domain timeout narrowing
+
+- command: python -m pytest tests/test_document_to_plan.py -k "backend_domain_repository_timeout_is_narrowed or backend_service_handler_timeout_is_narrowed or final_audit_focus_adds_delivery_artifact_repair"
+- result: 3 passed
+- next verification command: full document-to-plan suite.
+
+- command: python -m pytest tests/test_document_to_plan.py
+- result: 68 passed
+- next verification command: focused full-roadmap resume regressions.
+
+- command: python -m pytest tests/test_full_roadmap_execution.py -k "final_verification_resume_preserves_supervisor_stopped_progress or final_verification_resume_uses_latest_non_stopped_failed_state"
+- result: 2 passed
+- next verification command: compileall.
+
+- command: python -m compileall autodev planner tests -q
+- result: passed
+- next verification command: real helper and graph probe.
+
+- command: real final_verification_resume_repair_documents probe after V2.181
+- result: generated `final_verification_repair_resume_057.md`; the resume includes primary failed T004, focused timeout T004, and previous `_055` context for backend AccountTypeUpstream/account_data, frontend route, and README/deploy/relay delivery repairs.
+- next verification command: real graph probe using `_057`.
+
+- command: real planner graph probe using `final_verification_repair_resume_057.md`
+- result: 64 nodes; T004 is narrowed to exact domain/repository leftovers, T005 and frontend repairs remain pending, T060 delivery artifact repair is preserved, and final audit waits at T061.
+- next verification command: state validation, diff hygiene, commit/push V2.181, then controlled Billing Core relaunch.
