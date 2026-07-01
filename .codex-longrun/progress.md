@@ -135,22 +135,22 @@
 - failed_command: `"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.2.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command 'codex --help'`
   exit_code: 1
   status: failed
-  output_tail: [0m[36;1m[31;1m[31;1m[36;1m | [31;1mProgram 'codex.exe' failed to run: An error occurred trying to start process 'C:\Program Files\WindowsApps\OpenAI.Codex_26.609.4994.0_x64__2p2nqsd0c76g0\app\resources\codex.exe' with working directory 'D:\AI\Alchemy Dev Agent System\alchemy-dev-agent'. 拒绝访问。At line:2 char:1[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m+ codex --help[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m+ ~~~~~~~~~~~~.[0m
+  output_tail: [0m[36;1m[31;1m[31;1m[36;1m | [31;1mProgram 'codex.exe' failed to run: An error occurred trying to start process 'C:\Program Files\WindowsApps\OpenAI.Codex_26.609.4994.0_x64__2p2nqsd0c76g0\app\resources\codex.exe' with working directory 'D:\AI\Alchemy Dev Agent System\alchemy-dev-agent'. 鎷掔粷璁块棶銆侫t line:2 char:1[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m+ codex --help[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m+ ~~~~~~~~~~~~.[0m
 
 - failed_command: `"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.2.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command 'python -m compileall runtime'`
   exit_code: 1
   status: failed
-  output_tail: 312.pyc.1574408265360' -> 'runtime\\__pycache__\\run_loop.cpython-312.pyc' Compiling 'runtime\\state_manager.py'... *** PermissionError: [WinError 5] 拒绝访问。: 'runtime\\__pycache__\\state_manager.cpython-312.pyc.1574408265360' -> 'runtime\\__pycache__\\state_manager.cpython-312.pyc' Compiling 'runtime\\task_graph_engine.py'... *** PermissionError: [WinError 5] 拒绝访问。: 'runtime\\__pycache__\\task_graph_engine.cpython-312.pyc.1574408265360' -> 'runtime\\__pycache__\\task_graph_engine.cpython-312.pyc'
+  output_tail: 312.pyc.1574408265360' -> 'runtime\\__pycache__\\run_loop.cpython-312.pyc' Compiling 'runtime\\state_manager.py'... *** PermissionError: [WinError 5] 鎷掔粷璁块棶銆? 'runtime\\__pycache__\\state_manager.cpython-312.pyc.1574408265360' -> 'runtime\\__pycache__\\state_manager.cpython-312.pyc' Compiling 'runtime\\task_graph_engine.py'... *** PermissionError: [WinError 5] 鎷掔粷璁块棶銆? 'runtime\\__pycache__\\task_graph_engine.cpython-312.pyc.1574408265360' -> 'runtime\\__pycache__\\task_graph_engine.cpython-312.pyc'
 
 - failed_command: `"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.2.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command '$env:PYTHONDONTWRITEBYTECODE='"'1'; python -B -m unittest discover -s tests"`
   exit_code: 1
   status: failed
-  output_tail:  _resetperms(path) File "C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\tempfile.py", line 286, in _resetperms _dont_follow_symlinks(_os.chmod, path, 0o700) File "C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\tempfile.py", line 277, in _dont_follow_symlinks func(path, *args) PermissionError: [WinError 5] 拒绝访问。: 'C:\\Users\\T14S\\AppData\\Local\\Temp\\tmpuwi_o1my' ---------------------------------------------------------------------- Ran 13 tests in 0.204s FAILED (errors=5)
+  output_tail:  _resetperms(path) File "C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\tempfile.py", line 286, in _resetperms _dont_follow_symlinks(_os.chmod, path, 0o700) File "C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\tempfile.py", line 277, in _dont_follow_symlinks func(path, *args) PermissionError: [WinError 5] 鎷掔粷璁块棶銆? 'C:\\Users\\T14S\\AppData\\Local\\Temp\\tmpuwi_o1my' ---------------------------------------------------------------------- Ran 13 tests in 0.204s FAILED (errors=5)
 
 - failed_command: `"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.2.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command '$env:PYTHONDONTWRITEBYTECODE='"'1'; python -B -m unittest discover -s tests"`
   exit_code: 1
   status: failed
-  output_tail: C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\tempfile.py", line 286, in _resetperms _dont_follow_symlinks(_os.chmod, path, 0o700) File "C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\tempfile.py", line 277, in _dont_follow_symlinks func(path, *args) PermissionError: [WinError 5] 拒绝访问。: 'D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\\.test-tmp\\tmpq2_9gnfh' ---------------------------------------------------------------------- Ran 13 tests in 0.211s FAILED (errors=5)
+  output_tail: C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\tempfile.py", line 286, in _resetperms _dont_follow_symlinks(_os.chmod, path, 0o700) File "C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\tempfile.py", line 277, in _dont_follow_symlinks func(path, *args) PermissionError: [WinError 5] 鎷掔粷璁块棶銆? 'D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent\\.test-tmp\\tmpq2_9gnfh' ---------------------------------------------------------------------- Ran 13 tests in 0.211s FAILED (errors=5)
 
 - failed_command: `"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.2.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command '$env:PYTHONDONTWRITEBYTECODE='"'1'; python -B - <<'PY'
 from pathlib import Path
@@ -354,7 +354,7 @@ PY"`
 ## 2026-06-19 V2.22 External Docs-Only Implementation And Real Game Delivery
 
 - Implemented document-dominant planning so parsed primary documents no longer fall through to generated one-line fallback.
-- Improved Chinese and outline-style requirement extraction for docs with guidance lines such as `本次提交包含：`, `该文档用于指导实现：`, and `建议下一阶段实现：`.
+- Improved Chinese and outline-style requirement extraction for docs with guidance lines such as `鏈鎻愪氦鍖呭惈锛歚, `璇ユ枃妗ｇ敤浜庢寚瀵煎疄鐜帮細`, and `寤鸿涓嬩竴闃舵瀹炵幇锛歚.
 - Added protected-term rewriting for planning contracts and hardened Codex worker prompts so generated files do not include protected commercial game terms, even in safety notes.
 - Added docs-only web game scaffold planning and grouped full scaffold delivery into one implementation task to avoid long serial worker chains.
 - Added deterministic static web artifact verification, explicit no-CI waiver evidence, local git commit identity fallback, and release-branch binding to the isolated worktree branch.
@@ -796,7 +796,7 @@ PY"`
 - Redesigned the browser console Delivery area with readiness badge, final gate tile, tabbed overview/artifacts/evidence-gate/raw JSON views, and a compact technical visual system.
 - Wired the Evidence Gate tab to existing /evidence/index, /evidence/package, and /evidence/readiness API endpoints.
 - Changed the default evidence roots to curated current-review artifacts instead of the whole historical .alchemy cache after smoke testing showed stale evidence can pollute readiness.
-- Added one-click EN/中文 switching for console chrome, controls, status labels, file-upload chrome, and evidence gate output without changing machine-readable JSON payloads.
+- Added one-click EN/涓枃 switching for console chrome, controls, status labels, file-upload chrome, and evidence gate output without changing machine-readable JSON payloads.
 - Verified English and Chinese Playwright visual smokes; both reached readiness=ready with zero console errors.
 
 - V2.55 master GitHub Actions CI passed on commit a135dc98f7a140d7a715cdc8a26609de8888ecb8 (run 27873272496).
@@ -1012,7 +1012,7 @@ PY"`
 
 ## 2026-06-24T06:20:00+08:00 Billing Core `_011` Phase 2 Monitor
 
-- `_011` Phase 0 and Phase 1 completed, and the parent roadmap entered `phase_003` / "Phase 2: 后端去中转站化" in the inherited cumulative worktree.
+- `_011` Phase 0 and Phase 1 completed, and the parent roadmap entered `phase_003` / "Phase 2: 鍚庣鍘讳腑杞珯鍖? in the inherited cumulative worktree.
 - Phase 1 passed the business checks (`go test ./...` and `go build ./...`) and recorded delivery evidence. The local Phase 1 state still displayed `Required tests are failing` because completed release dry-run evidence carried delivery-side `tests_failed` text.
 - Fixed the evaluator so completed `release` nodes do not convert dry-run GitHub/CI evidence notes into current business test failures, while real failed or blocked release tasks still gate through node status.
 - Current `_011` Phase 2 `T001` architecture worker is active under the same worktree; continue monitoring and only stop if it times out, stalls beyond its worker budget, or exposes another controller defect.
@@ -1044,7 +1044,7 @@ PY"`
 
 - 2026-06-24T15:30:09.390767+08:00: Diagnosed _012 phase_010 T001 result-lag/open-pipe risk, patched ManagedSubprocessRunner pipe-drain recovery, and verified focused worker lifecycle tests. Live run advanced to phase_010 T002; monitoring continues.
 
-- 2026-06-24T15:58:21.229272+08:00: Diagnosed _012 as terminally blocked, not live: Phase 7 "前端收口" was generated as a backend-only large_refactor task because the older repository index was saturated by generated Go cache/appdata files and did not expose frontend package/test evidence. Patched RepositoryIndexer to ignore generated cache/appdata/entc directories and patched large_refactor frontend phase planning to retain frontend/** as a phase hint. Real _012 graph regeneration now assigns T002 to frontend with frontend/** and npm/go verification commands. Next action: resume _012 from the same output directory.
+- 2026-06-24T15:58:21.229272+08:00: Diagnosed _012 as terminally blocked, not live: Phase 7 "鍓嶇鏀跺彛" was generated as a backend-only large_refactor task because the older repository index was saturated by generated Go cache/appdata files and did not expose frontend package/test evidence. Patched RepositoryIndexer to ignore generated cache/appdata/entc directories and patched large_refactor frontend phase planning to retain frontend/** as a phase hint. Real _012 graph regeneration now assigns T002 to frontend with frontend/** and npm/go verification commands. Next action: resume _012 from the same output directory.
 
 ## 2026-06-24T16:42:05.3943913+08:00 Phase 7 scratch-file boundary fix
 
@@ -1205,7 +1205,7 @@ PY"`
 - failed_command: `"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.3.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command "Get-Content 'C:/Users/T14S/.codex/skills/.system/long-running-task/SKILL.md'"`
   exit_code: 1
   status: failed
-  output_tail: [31;1mGet-Content: [0m [31;1m[36;1mLine |[0m [31;1m[36;1m[36;1m 2 | [0m [36;1mGet-Content 'C:/Users/T14S/.codex/skills/.system/long-running-task/SK[0m …[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m | [31;1mCannot find path 'C:\Users\T14S\.codex\skills\.system\long-running-task\SKILL.md' because it does not exist.[0m
+  output_tail: [31;1mGet-Content: [0m [31;1m[36;1mLine |[0m [31;1m[36;1m[36;1m 2 | [0m [36;1mGet-Content 'C:/Users/T14S/.codex/skills/.system/long-running-task/SK[0m 鈥?[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m [31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m | [31;1mCannot find path 'C:\Users\T14S\.codex\skills\.system\long-running-task\SKILL.md' because it does not exist.[0m
 
 ## Supervisor Run 20260626-043258-iter-001
 
@@ -1231,7 +1231,7 @@ PY"`
 - failed_command: `"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.3.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command "python 'C:\\Users\\T14S\\.codex\\skills\\long-running-task\\scripts\\init_longrun_state.py' --project 'D:\\AI\\SSH\\sub2api-billing-core' --objective 'Use the tagged Alchemy V2.74 checkpoint to resume and complete the unfinished Billing Core full-roadmap development, monitoring for Alchemy regressions and pausing to fix the controller if it misbehaves.' --force"`
   exit_code: 1
   status: failed
-  output_tail:  call last): File "C:\Users\T14S\.codex\skills\long-running-task\scripts\init_longrun_state.py", line 83, in <module> raise SystemExit(main()) ^^^^^^ File "C:\Users\T14S\.codex\skills\long-running-task\scripts\init_longrun_state.py", line 60, in main longrun.mkdir(parents=True, exist_ok=True) File "C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\pathlib.py", line 1311, in mkdir os.mkdir(self, mode) PermissionError: [WinError 5] 拒绝访问。: 'D:\\AI\\SSH\\sub2api-billing-core\\.codex-longrun'
+  output_tail:  call last): File "C:\Users\T14S\.codex\skills\long-running-task\scripts\init_longrun_state.py", line 83, in <module> raise SystemExit(main()) ^^^^^^ File "C:\Users\T14S\.codex\skills\long-running-task\scripts\init_longrun_state.py", line 60, in main longrun.mkdir(parents=True, exist_ok=True) File "C:\Users\T14S\AppData\Local\Programs\Python\Python312\Lib\pathlib.py", line 1311, in mkdir os.mkdir(self, mode) PermissionError: [WinError 5] 鎷掔粷璁块棶銆? 'D:\\AI\\SSH\\sub2api-billing-core\\.codex-longrun'
 
 ## 2026-06-26T16:59:25+08:00 Network Recovery Audit And Resume Readiness
 
@@ -1610,7 +1610,7 @@ PY"`
 - Relaunched Billing Core after V2.107. The run did not create a new run_attempt or worker; it revalidated existing `run_attempt_047` evidence and updated `phase_010/phase_record.json`.
 - Phase_010 is now `done` with promotion score `0.9607`, `can_promote=true`, and output_dir pointing at `run_attempt_047`.
 - `full_roadmap_report.json` is still blocked only because `--max-phases 1` stopped after this phase and phase_011/phase_012 remain pending. Phase records now show phase_001 through phase_010 done.
-- Remaining roadmap work: phase_011 `Schema 裁剪与构建`, then phase_012 `Demo Smoke Test`, followed by final audit/handoff.
+- Remaining roadmap work: phase_011 `Schema 瑁佸壀涓庢瀯寤篳, then phase_012 `Demo Smoke Test`, followed by final audit/handoff.
 - T027's 900-second timeout remains a real Alchemy optimization target for progress-aware worker heartbeat/checkpoint/grace, but it no longer blocks phase_010 because V2.107 reused the successful 047 evidence.
 
 ## 2026-06-28T04:05:00+08:00 V2.108 Schema/Build Timeout Split
@@ -2340,3 +2340,13 @@ PY"`
 - Implemented V2.178 in `planner/task_graph_builder.py`: focused T005 final backend service/handler/server timeouts now keep the T005 task ID but narrow the scope to service/domain/repository leftovers instead of replaying handler/server/cmd work.
 - Real graph probe using `_052` now produces T005 `Repair final backend service contract leftovers` with service/domain/repository files, then T054 frontend table/navigation composables and T060 audit.
 - Current total-project estimate is about 99.85%-99.9%. The next relaunch should run narrowed T005.
+
+## 2026-07-01T19:43:07+08:00 V2.179 Codex CLI Launch Recovery
+
+- Rechecked the interrupted V2.178 follow-up and confirmed `run_attempt_053` did not fail in Billing Core product code: both T005 and `T005-DEBUG-1` died before task execution because local `C:\Users\T14S\.codex\config.toml` contained `service_tier = "default"`, which the current CLI rejected.
+- Fixed the local Codex config in place with a timestamped backup, changing `service_tier` from `default` to `fast` without touching global Go settings or Billing Core product files.
+- Implemented V2.179 in `runtime/codex_worker.py` and `runtime/orchestrator.py`: unparseable CLI config-load failures now become environment blockers, and Windows permission failures on the WindowsApps `codex.exe` path automatically retry against the writable LocalAppData OpenAI Codex binary.
+- Added runtime regressions for config blocker classification and the Windows local executable fallback; `python -m pytest tests/test_runtime.py` now passes 150/150.
+- Real smoke verified the new path twice: the explicit LocalAppData executable returned `completed/OK`, then the default `CodexWorkerAdapter` path also returned `completed/OK` after automatic fallback.
+- Relaunched Billing Core through `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`; `final_verification/run_attempt_054` started in the inherited worktree and is actively running narrowed T005 `Repair final backend service contract leftovers` instead of failing on config or WinError 5 launch errors.
+- Current total-project estimate remains about 99.9%; the remaining work is now back in the real product tail rather than in local Codex launch failure loops.

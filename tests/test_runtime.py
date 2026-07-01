@@ -473,6 +473,55 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertIn("idle timeout waiting for SSE", result.summary)
         self.assertIn("connectivity failed", result.known_issues[0].lower())
 
+    def test_real_worker_reports_unparseable_config_failure_as_blocked(self) -> None:
+        raw_error = "Error loading config.toml: unknown variant `default`, expected `fast` or `flex`\nin `service_tier`\n\n"
+
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            return subprocess.CompletedProcess(args, 1, "", raw_error)
+
+        worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+        result = worker.execute(CodexWorkerInput(task_id="T011C", goal="do work", repository_path="."))
+
+        self.assertEqual(result.status, "blocked")
+        self.assertIn("configuration failed", result.summary.lower())
+        self.assertIn("service_tier", result.summary)
+        self.assertIn("configuration is invalid", result.known_issues[0].lower())
+
+    def test_real_worker_retries_with_local_windows_codex_after_permission_error(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_runner(args, *, cwd, input, capture_output, text, timeout, check):
+            calls.append(args)
+            if len(calls) == 1:
+                raise PermissionError(5, "Access is denied")
+            payload = {
+                "task_id": "T011W",
+                "status": "completed",
+                "summary": "OK",
+                "files_changed": [],
+                "commands_run": [],
+                "tests_passed": [],
+                "tests_failed": [],
+                "evidence": [],
+                "known_issues": [],
+                "follow_up_tasks": [],
+                "confidence": 1.0,
+            }
+            return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+
+        with temp_project_dir() as tmp_dir:
+            local_appdata = Path(tmp_dir) / "localappdata"
+            fallback = local_appdata / "OpenAI" / "Codex" / "bin" / "codex.exe"
+            fallback.parent.mkdir(parents=True, exist_ok=True)
+            fallback.write_text("", encoding="utf-8")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local_appdata)}, clear=False):
+                worker = CodexWorkerAdapter(dry_run=False, runner=fake_runner)
+                result = worker.execute(CodexWorkerInput(task_id="T011W", goal="do work", repository_path=tmp_dir))
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(calls[0][0], "codex")
+        self.assertEqual(calls[1][0], str(fallback))
+
     def test_build_codex_subprocess_env_redirects_home_to_writable_override_root(self) -> None:
         repo = Path.cwd()
         source_root = Path.home() / ".codex" / "memories" / f"codex-home-source-{time.time_ns()}"
@@ -3151,6 +3200,63 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(state.task_graph.nodes[0].status, "blocked")
         self.assertEqual(state.blockers[0]["type"], "environment")
         self.assertIn("connectivity", state.blockers[0]["description"].lower())
+        self.assertFalse(any(event["type"] == "debug_task_created" for event in state.iteration_history))
+
+    def test_worker_config_failure_blocks_without_debug_retry(self) -> None:
+        class ConfigFailureWorker:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def execute(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
+                self.calls.append(worker_input.task_id)
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="blocked",
+                    summary=(
+                        "Codex CLI configuration failed before structured worker output: "
+                        "Error loading config.toml: unknown variant `default`, expected `fast` or `flex` in `service_tier`"
+                    ),
+                    known_issues=[
+                        "Local Codex CLI configuration is invalid; fix the user config.toml before retrying workers.",
+                    ],
+                    raw_output=(
+                        "Error loading config.toml: unknown variant `default`, expected `fast` or `flex`\n"
+                        "in `service_tier`\n"
+                    ),
+                )
+
+        graph = TaskGraph(
+            graph_id="config-blocker",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Implement when Codex config is valid",
+                    description="Should block without spawning debug work.",
+                    type="frontend",
+                    assigned_agent="frontend",
+                    priority=90,
+                )
+            ],
+        )
+        worker = ConfigFailureWorker()
+
+        with temp_project_dir() as tmp_dir:
+            state = Orchestrator(
+                StateManager(Path(tmp_dir) / ".alchemy" / "state.json"),
+                worker=worker,  # type: ignore[arg-type]
+                repository_path=tmp_dir,
+            ).run(
+                "stop on config failure",
+                initial_state=RuntimeState(objective="stop on config failure", task_graph=graph),
+                max_iterations=3,
+            )
+
+        self.assertEqual(worker.calls, ["T001"])
+        self.assertEqual(len(state.task_graph.nodes), 1)
+        self.assertEqual(state.task_graph.nodes[0].status, "blocked")
+        self.assertEqual(state.blockers[0]["type"], "environment")
+        self.assertIn("local Codex", state.blockers[0]["description"])
         self.assertFalse(any(event["type"] == "debug_task_created" for event in state.iteration_history))
 
     def test_partial_audit_raw_stream_warning_does_not_become_environment_blocker(self) -> None:

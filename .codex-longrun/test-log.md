@@ -184,7 +184,7 @@
 
 ## 2026-06-18
 
-- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.demo_run --objective "我要生成一个超级玛丽第一关的游戏。关卡设计、人物和场景形象均完全模仿经典原始版的超级玛丽" --output .alchemy/generated/retro_platformer_test`
+- Command: `PYTHONDONTWRITEBYTECODE=1 python -B -m autodev.demo_run --objective "鎴戣鐢熸垚涓€涓秴绾х帥涓界涓€鍏崇殑娓告垙銆傚叧鍗¤璁°€佷汉鐗╁拰鍦烘櫙褰㈣薄鍧囧畬鍏ㄦā浠跨粡鍏稿師濮嬬増鐨勮秴绾х帥涓? --output .alchemy/generated/retro_platformer_test`
 - Result: passed
 - Summary: Demo returned `status=done`, generated `index.html` and `autodev_report.json`, and recorded architect/frontend/test/reviewer events. The request was converted into an original retro platformer for copyright safety.
 - Next verification command: browser rendering check.
@@ -1570,7 +1570,7 @@
 
 ## 2026-06-20 V2.38 Local Game Rerun Verification
 
-- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.demo_run --objective "我要生成一个超级玛丽第一关的游戏。关卡设计、人物和场景形象均完全模仿经典原始版的超级玛丽" --output .alchemy\generated\super_mario_rerun_v2_38_20260620`
+- Command: `$env:PYTHONDONTWRITEBYTECODE='1'; python -B -m autodev.demo_run --objective "鎴戣鐢熸垚涓€涓秴绾х帥涓界涓€鍏崇殑娓告垙銆傚叧鍗¤璁°€佷汉鐗╁拰鍦烘櫙褰㈣薄鍧囧畬鍏ㄦā浠跨粡鍏稿師濮嬬増鐨勮秴绾х帥涓? --output .alchemy\generated\super_mario_rerun_v2_38_20260620`
 - Result: passed; local agent chain returned status `done`, all four tasks completed, and `index.html` plus `autodev_report.json` were generated.
 - Command: `StaticWebArtifactVerifier().verify(...)` and `BrowserArtifactRunner().verify(..., profile_name='canvas_game')`
 - Result: passed; static profile `canvas_game`, no protected terms, browser screenshots recorded, 3549 changed pixels, no console errors, gameplay probe completed movement/jump/victory/restart checks.
@@ -5912,3 +5912,25 @@
 - command: python -m pytest tests/test_full_roadmap_execution.py
 - result: 100 passed
 - next verification command: state validation, diff hygiene, commit/push V2.178, then controlled Billing Core relaunch.
+
+## 2026-07-01T19:43:07+08:00 V2.179 codex cli launch recovery
+
+- command: python -m pytest tests/test_runtime.py -k "config_failure or connectivity_failure_blocks_without_debug_retry or local_windows_codex_after_permission_error"
+- result: 4 passed
+- next verification command: real worker smoke with default executable path.
+
+- command: real CodexWorkerAdapter smoke with explicit C:\Users\T14S\AppData\Local\OpenAI\Codex\bin\codex.exe
+- result: completed/OK, proving the local OpenAI CLI binary is launchable and can return structured worker JSON.
+- next verification command: default executable smoke through runtime fallback.
+
+- command: real CodexWorkerAdapter smoke with default executable codex
+- result: completed/OK after the new Windows local executable fallback, so the inaccessible WindowsApps CLI path no longer blocks worker startup.
+- next verification command: full runtime regression suite.
+
+- command: python -m pytest tests/test_runtime.py
+- result: 150 passed
+- next verification command: relaunch Billing Core final verification and confirm narrowed T005 starts in the inherited worktree.
+
+- command: Billing Core relaunch via .alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1
+- result: created final_verification/run_attempt_054; repository path remains the inherited isolated worktree, and worker lifecycle shows T005 running instead of dying on config or WinError 5 launch errors.
+- next verification command: monitor run_attempt_054 for the actual T005 product outcome.

@@ -35,6 +35,11 @@ CODEX_USAGE_LIMIT_MARKERS = (
     "usage limit reached",
     "purchase more credits",
 )
+CODEX_CONFIG_FAILURE_MARKERS = (
+    "error loading config.toml",
+    "unknown variant",
+    "in `service_tier`",
+)
 
 
 @dataclass(slots=True)
@@ -275,22 +280,22 @@ class CodexWorkerAdapter:
     def _execute_codex(self, worker_input: CodexWorkerInput) -> CodexWorkerResult:
         prompt = self.build_prompt(worker_input)
         repository_path = str(Path(worker_input.repository_path).resolve())
-        if not _is_codex_cli_executable(self.executable):
-            args = [self.executable, "exec", "--json", "--sandbox", self.sandbox]
-        elif _should_bypass_codex_cli_sandbox(self.sandbox):
-            args = [
-                self.executable,
-                "--disable",
-                "plugins",
-                "--dangerously-bypass-approvals-and-sandbox",
-                "exec",
-                "--json",
-                "--cd",
-                repository_path,
-            ]
-        else:
-            args = [
-                self.executable,
+        def _build_args(executable: str) -> list[str]:
+            if not _is_codex_cli_executable(executable):
+                return [executable, "exec", "--json", "--sandbox", self.sandbox]
+            if _should_bypass_codex_cli_sandbox(self.sandbox):
+                return [
+                    executable,
+                    "--disable",
+                    "plugins",
+                    "--dangerously-bypass-approvals-and-sandbox",
+                    "exec",
+                    "--json",
+                    "--cd",
+                    repository_path,
+                ]
+            return [
+                executable,
                 "--disable",
                 "plugins",
                 "-c",
@@ -306,6 +311,8 @@ class CodexWorkerAdapter:
                 "--cd",
                 repository_path,
             ]
+
+        args = _build_args(self.executable)
         codex_env = _build_codex_subprocess_env(worker_input.repository_path) if self.runner is subprocess.run else None
         _cleanup_codex_windows_scratch_files(worker_input.repository_path)
         before_snapshot = self._capture_worktree_snapshot(worker_input.repository_path)
@@ -340,9 +347,18 @@ class CodexWorkerAdapter:
                 self.lifecycle_recorder.fail(lifecycle_record, str(exc))
             return self._blocked(worker_input, f"Codex executable not found: {exc}", lifecycle_record)
         except PermissionError as exc:
-            if lifecycle_record is not None:
-                self.lifecycle_recorder.fail(lifecycle_record, str(exc))
-            return self._blocked(worker_input, f"Codex executable is not launchable: {exc}", lifecycle_record)
+            fallback_executable = _fallback_codex_executable(self.executable)
+            if not fallback_executable:
+                if lifecycle_record is not None:
+                    self.lifecycle_recorder.fail(lifecycle_record, str(exc))
+                return self._blocked(worker_input, f"Codex executable is not launchable: {exc}", lifecycle_record)
+            try:
+                args = _build_args(fallback_executable)
+                completed = runner(args, **kwargs)
+            except (FileNotFoundError, PermissionError) as retry_exc:
+                if lifecycle_record is not None:
+                    self.lifecycle_recorder.fail(lifecycle_record, str(retry_exc))
+                return self._blocked(worker_input, f"Codex executable is not launchable: {retry_exc}", lifecycle_record)
         except subprocess.TimeoutExpired as exc:
             self._rollback_task_changes(worker_input.repository_path, before_snapshot)
             lifecycle_payload = lifecycle_record.to_dict() if lifecycle_record is not None else {}
@@ -441,6 +457,28 @@ class CodexWorkerAdapter:
             )
         parsed = self._parse_worker_json(stdout) or self._parse_worker_json(raw_output)
         if parsed is None:
+            config_failure_message = _codex_config_failure_message(raw_output)
+            if config_failure_message:
+                return CodexWorkerResult(
+                    task_id=worker_input.task_id,
+                    status="blocked",
+                    summary=f"Codex CLI configuration failed before structured worker output: {config_failure_message}",
+                    commands_run=[
+                        CommandResult(
+                            command=" ".join(args),
+                            exit_code=completed.returncode,
+                            summary="Codex subprocess stopped before returning structured worker output because local CLI configuration is invalid.",
+                            stdout=stdout,
+                            stderr=stderr,
+                        )
+                    ],
+                    known_issues=[
+                        "Local Codex CLI configuration is invalid; fix the user config.toml before retrying workers.",
+                    ],
+                    confidence=0.0,
+                    raw_output=_truncate_raw_output(raw_output),
+                    worker_lifecycle=lifecycle_record.to_dict() if lifecycle_record is not None else {},
+                )
             connectivity_message = _codex_connectivity_failure_message(raw_output)
             if connectivity_message:
                 return CodexWorkerResult(
@@ -900,6 +938,39 @@ def _codex_usage_limit_message(output: str) -> str:
     return ""
 
 
+def _codex_config_failure_message(output: str) -> str:
+    plain_lines: list[str] = []
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        lower_line = line.lower()
+        if not line.startswith("{"):
+            plain_lines.append(line)
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        event_type = str(payload.get("type", "") or "")
+        message = ""
+        if event_type == "error":
+            message = str(payload.get("message", "") or "")
+        elif event_type in {"turn.failed", "response.failed"}:
+            error = payload.get("error")
+            if isinstance(error, dict):
+                message = str(error.get("message", "") or "")
+            message = message or str(payload.get("message", "") or "")
+        if message and any(marker in message.lower() for marker in CODEX_CONFIG_FAILURE_MARKERS):
+            return message.strip()
+    plain_message = " ".join(plain_lines)
+    if any(marker in plain_message.lower() for marker in CODEX_CONFIG_FAILURE_MARKERS):
+        return plain_message.strip()
+    return ""
+
+
 CODEX_CONNECTIVITY_FAILURE_MARKERS = (
     "stream disconnected",
     "idle timeout waiting for sse",
@@ -1071,6 +1142,31 @@ def _should_bypass_codex_cli_sandbox(sandbox: str) -> bool:
 def _is_codex_cli_executable(executable: str) -> bool:
     name = Path(str(executable)).name.lower()
     return name in {"codex", "codex.exe", "codex.cmd", "codex.bat"}
+
+
+def _fallback_codex_executable(executable: str) -> str:
+    if not _is_codex_cli_executable(executable) or os.name != "nt":
+        return ""
+    for candidate in _windows_local_codex_executable_candidates():
+        if candidate.is_file():
+            return str(candidate)
+    return ""
+
+
+def _windows_local_codex_executable_candidates() -> list[Path]:
+    local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
+    if not local_appdata:
+        return []
+    base = Path(local_appdata) / "OpenAI" / "Codex" / "bin"
+    candidates: list[Path] = [base / "codex.exe"]
+    if base.is_dir():
+        versioned = sorted(
+            (path / "codex.exe" for path in base.iterdir() if path.is_dir()),
+            key=lambda path: path.stat().st_mtime if path.exists() else 0.0,
+            reverse=True,
+        )
+        candidates.extend(versioned)
+    return candidates
 
 
 def _timeout_progress_grace_seconds(timeout_seconds: int | None) -> float:

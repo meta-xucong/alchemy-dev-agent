@@ -37,6 +37,9 @@ ENVIRONMENT_BLOCKER_PATTERNS = (
     "local codex cli connectivity failed",
     "stream disconnected",
     "idle timeout waiting for sse",
+    "codex cli configuration failed",
+    "local codex cli configuration is invalid",
+    "error loading config.toml",
 )
 CODEX_USAGE_LIMIT_ENVIRONMENT_PATTERNS = (
     "codex cli usage limit reached",
