@@ -124,12 +124,13 @@
                          ],
     "next_actions":  [
                          "Commit and push V2.180 after state validation and diff hygiene.",
-                         "Relaunch Billing Core through .alchemy\\billing_core_v274_20260624_012\\resume_v2_88_supervised_probe.ps1 and confirm the next final-verification attempt consumes final_verification_repair_resume_055.md.",
-                         "Monitor that the run starts in the inherited worktree, reopens backend T004/T005 repair work, includes frontend route/test repair, and reaches T060 delivery artifact repair before final audit T061.",
+                         "Monitor active Billing Core final_verification/run_attempt_055: T004 backend domain/repository repair is running in the inherited worktree from final_verification_repair_resume_055.md.",
+                         "If T004 completes, confirm T005 backend service/handler/server repair starts before frontend route/test repair and T060 delivery artifact repair.",
                          "If another non-partial blocker appears, stop at the boundary, capture evidence, and fix Alchemy only if the scheduler or resume graph misclassifies the product failure."
                      ],
     "tests_run":  [
                       "V2.180: real graph probe using _055 =\u003e 64 nodes; T004/T005/frontend repairs and T060 delivery artifact repair pending before final audit T061",
+                      "V2.180: controlled Billing Core relaunch =\u003e run_attempt_055 active on T004 in inherited worktree using final_verification_repair_resume_055.md",
                       "V2.180: real helper probe =\u003e final_verification_repair_resume_055.md generated from run_attempt_054 with T005 no longer preserved",
                       "V2.180: python -m compileall autodev planner tests -q =\u003e passed",
                       "V2.180: python -m pytest tests/test_full_roadmap_execution.py -k \"final_verification_resume_preserves_supervisor_stopped_progress or final_verification_resume_uses_latest_non_stopped_failed_state\" =\u003e 2 passed",
@@ -955,9 +956,9 @@
                           "Relevant tests or checks pass",
                           "Progress and verification are recorded"
                       ],
-    "last_verified_at":  "2026-07-02T01:36:06.5814617+08:00",
+    "last_verified_at":  "2026-07-02T01:46:20.0000000+08:00",
     "created_at":  "2026-06-25T01:55:36+08:00",
-    "updated_at":  "2026-07-02T01:36:06.5814617+08:00",
+    "updated_at":  "2026-07-02T01:46:20.0000000+08:00",
     "known_issues":  [
                          "Before V2.178, focused T005 final backend service/handler/server timeouts rebuilt the same broad worker scope instead of narrowing or splitting, risking another long replay after a clean non-partial timeout.",
                          "Before V2.177, supervisor-stopped final-verification attempts with useful completed-task progress could be filtered as operator noise, causing relaunches to reuse stale repair resumes and rerun completed tasks such as T009.",

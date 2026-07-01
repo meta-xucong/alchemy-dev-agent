@@ -5969,3 +5969,7 @@
 - command: real planner graph probe using `final_verification_repair_resume_055.md`
 - result: 64 nodes; T004/T005, T006/T009/T041/T058, and T060 delivery artifact repair are pending before final audit T061 and gates T062-T064.
 - next verification command: state validation, diff hygiene, commit/push V2.180, then controlled Billing Core relaunch.
+
+- command: Billing Core relaunch via `.alchemy\billing_core_v274_20260624_012\resume_v2_88_supervised_probe.ps1`
+- result: created `final_verification/run_attempt_055`; state references `final_verification_repair_resume_055.md`, repository path is the inherited `real_run_worktree_20260623232224162902`, and active task is T004 backend domain/repository repair.
+- next verification command: monitor T004 worker completion or timeout boundary, then confirm T005 starts before frontend/delivery repairs.
