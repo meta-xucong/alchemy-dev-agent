@@ -2412,3 +2412,9 @@ PY"`
 - `final_verification/run_attempt_059` consumed `final_verification_repair_resume_061.md`, started T006 `Repair final frontend payment usage API contract leaf`, and is running in the inherited isolated worktree. Three-minute monitor showed no blocker and no premature T009/T060/downstream dispatch.
 - Follow-up monitor showed T006 payment/usage API micro leaf still timed out after 900 seconds. Alchemy recorded non-partial `B-T006-1`, left `active_tasks=[]`, did not dispatch T009/T060/downstream tasks, and generated `final_verification_repair_resume_062.md`.
 - Current state is blocked for review rather than blindly continuing to single-file split loops. The correct execution chain is restored and clean; the remaining decision is whether to split T006 further into payment-only/usage-only leaves or adjust worker timeout/progress checkpointing.
+
+## 2026-07-02T11:48:33.8429868+08:00 V2.185 T006 Completed With 1800s Budget
+
+- Relaunched from _062 with the same correct supervised entry but a temporary 1800s worker budget for the already-narrow T006 payment/usage API leaf.
+- T006 completed in run_attempt_060 and Alchemy started T009 next; no T060/final-gate bypass observed.
+
