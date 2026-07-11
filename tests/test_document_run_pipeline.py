@@ -889,6 +889,35 @@ class DocumentRunPipelineTests(unittest.TestCase):
         self.assertEqual(status, "done")
         self.assertTrue(state.done)
 
+    def test_document_run_status_blocks_failed_canvas_browser_gate(self) -> None:
+        state = RuntimeState(
+            objective="deliver browser game",
+            task_graph=TaskGraph(
+                graph_id="canvas-browser-gate",
+                version=1,
+                nodes=[
+                    TaskNode(id="T001", title="Plan", description="", type="architecture", assigned_agent="architect", status="completed"),
+                    TaskNode(id="T002", title="Implement", description="", type="integration", assigned_agent="frontend", status="completed"),
+                    TaskNode(id="T003", title="Test", description="", type="test", assigned_agent="test", status="completed"),
+                    TaskNode(id="T004", title="Review", description="", type="review", assigned_agent="reviewer", status="completed"),
+                    TaskNode(id="T005", title="Release", description="", type="release", assigned_agent="reviewer", status="completed"),
+                ],
+            ),
+        )
+
+        status = document_run_status(
+            state,
+            requirement_coverage={"status": "passed"},
+            artifact_report={
+                "artifact_profile": {"name": "canvas_game"},
+                "static_verification": {"status": "completed"},
+                "browser_verification": {"status": "failed", "gameplay_probe": {"status": "failed"}},
+            },
+        )
+
+        self.assertEqual(status, "blocked")
+        self.assertFalse(state.done)
+
     def test_delivery_and_development_cycle_ignore_static_gate_for_unknown_profiles(self) -> None:
         artifact_report = {
             "artifact_profile": {"name": "unknown"},

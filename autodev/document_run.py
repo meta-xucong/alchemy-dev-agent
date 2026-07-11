@@ -1499,11 +1499,18 @@ def document_run_status(
         or not isinstance(static, dict)
         or str(static.get("status", "") or "") not in {"failed", "blocked"}
     )
-    if tasks_finished and coverage_ok and static_ok:
+    browser = artifact_report.get("browser_verification", {})
+    browser_ok = (
+        profile_name not in {"canvas_game", "static_web_app"}
+        or not isinstance(browser, dict)
+        or not browser
+        or str(browser.get("status", "") or "") not in {"failed", "blocked"}
+    )
+    if tasks_finished and coverage_ok and static_ok and browser_ok:
         if hasattr(state, "done"):
             setattr(state, "done", True)
         return "done"
-    if tasks_finished and (not coverage_ok or not static_ok):
+    if tasks_finished and (not coverage_ok or not static_ok or not browser_ok):
         return "blocked"
     return "in_progress"
 
