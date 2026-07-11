@@ -141,14 +141,19 @@ class ProjectService:
         # Imported lazily to keep the core local-project runtime usable without
         # Remote Codex installed or configured.
         from .remote_codex import RemoteCodexBridge
+        from .runtime_status import RuntimeStatusProbe
 
         self.remote_codex = RemoteCodexBridge(self.storage_root)
+        self.runtime_status_probe = RuntimeStatusProbe()
 
     def remote_codex_configuration(self) -> dict[str, object]:
         return self.remote_codex.configuration()
 
     def configure_remote_codex(self, payload: dict[str, Any]) -> dict[str, object]:
         return self.remote_codex.configure(payload)
+
+    def runtime_status(self) -> dict[str, object]:
+        return {"local": self.runtime_status_probe.local_status(), "remote": self.remote_codex.configuration()}
 
     def start_remote_codex_conversation(self, project_id: str, payload: dict[str, Any]) -> dict[str, object]:
         self.load_project(project_id)

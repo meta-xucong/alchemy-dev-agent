@@ -50,6 +50,10 @@ class WorkerWebTransport:
                 data = json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
+            if "authentication required" in detail.lower():
+                if path == "/ui/config":
+                    raise ApiError(409, "remote_codex_invalid_endpoint", "这个地址不是可用的 Remote Codex Worker Web。请检查端口，默认是 http://127.0.0.1:18766。") from exc
+                raise ApiError(409, "remote_codex_authentication_required", "Remote Codex 尚未登录。请先在 Remote Codex 中完成登录和设备绑定。") from exc
             raise ApiError(502, "remote_codex_rejected", f"Remote Codex rejected the request: {detail[:240]}") from exc
         except (URLError, TimeoutError, OSError) as exc:
             raise ApiError(503, "remote_codex_unavailable", f"Cannot reach Remote Codex: {exc}") from exc
@@ -69,19 +73,41 @@ class RemoteCodexBridge:
         value = self._read()
         base_url = str(value.get("base_url", ""))
         if not base_url:
-            return {"configured": False, "connected": False, "base_url": "", "message": "Connect Remote Codex when you need a remote conversation."}
+            return {
+                "configured": False,
+                "connected": False,
+                "base_url": "",
+                "auth_state": "not_configured",
+                "sync_state": "not_connected",
+                "model": "未上报",
+                "message": "Connect Remote Codex when you need a remote conversation.",
+            }
         try:
             config = self._transport(base_url).get_json("/ui/config")
         except ApiError as exc:
-            return {"configured": True, "connected": False, "base_url": base_url, "message": exc.message}
+            return {
+                "configured": True,
+                "connected": False,
+                "base_url": base_url,
+                "auth_state": "unavailable",
+                "sync_state": "offline",
+                "model": remote_model({}, base_url) or "未上报",
+                "message": exc.message,
+            }
         binding = config.get("binding", {}) if isinstance(config.get("binding"), dict) else {}
+        logged_in = bool(config.get("logged_in"))
+        bound = str(binding.get("state", "")) == "bound"
+        connected = logged_in and bound
         return {
             "configured": True,
-            "connected": bool(config.get("logged_in")) and str(binding.get("state", "")) == "bound",
+            "connected": connected,
             "base_url": base_url,
             "worker_name": str(config.get("display_name", "Remote Codex")),
             "binding_state": str(binding.get("state", "unknown")),
-            "message": "Remote Codex is ready for conversations." if bool(config.get("logged_in")) else "Remote Codex needs a local login first.",
+            "auth_state": "ready" if logged_in else "login_required",
+            "sync_state": "synced" if connected else ("needs_binding" if logged_in else "waiting_for_login"),
+            "model": remote_model(config, base_url) or "未上报",
+            "message": "Remote Codex is ready for conversations." if connected else remote_not_ready_message(logged_in, str(binding.get("state", "unknown"))),
         }
 
     def configure(self, payload: dict[str, Any]) -> dict[str, object]:
@@ -94,6 +120,10 @@ class RemoteCodexBridge:
         message = str(payload.get("message", "")).strip()
         if not message:
             raise ApiError(400, "remote_codex_message_required", "Please describe what you want to develop.")
+        readiness = self.configuration()
+        if not bool(readiness.get("connected")):
+            code = "remote_codex_authentication_required" if readiness.get("auth_state") == "login_required" else "remote_codex_not_ready"
+            raise ApiError(409, code, str(readiness.get("message", "Remote Codex 尚未准备好。")))
         base_url = self._configured_url()
         parent_task_id = str(payload.get("parent_task_id", "")).strip()
         remote_payload: dict[str, Any] = {"message": message}
@@ -136,3 +166,42 @@ def safe_task_id(value: str) -> str:
     if not clean or any(character in clean for character in "/\\?&#"):
         raise ApiError(400, "invalid_remote_codex_task", "Invalid Remote Codex task id.")
     return clean
+
+
+def remote_not_ready_message(logged_in: bool, binding_state: str) -> str:
+    if not logged_in:
+        return "Remote Codex 尚未登录。请先在 Remote Codex 中完成登录。"
+    if binding_state != "bound":
+        return "Remote Codex 尚未完成设备绑定。请先在 Remote Codex 中选择并绑定 Commander。"
+    return "Remote Codex 当前无法同步，请检查其连接状态。"
+
+
+def remote_model(config: dict[str, Any], base_url: str) -> str:
+    """Prefer an explicitly reported remote model, with a local-only compatibility fallback."""
+
+    for key in ("codex_model", "model"):
+        value = config.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    binding = config.get("binding") if isinstance(config.get("binding"), dict) else {}
+    commander_id = str(binding.get("commander_id", ""))
+    commanders = config.get("commanders") if isinstance(config.get("commanders"), list) else []
+    for commander in commanders:
+        if not isinstance(commander, dict) or str(commander.get("commander_id", "")) != commander_id:
+            continue
+        for key in ("codex_model", "model"):
+            value = commander.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        for capability in commander.get("capabilities", []):
+            if isinstance(capability, str) and capability.startswith("codex_model:"):
+                return capability.split(":", 1)[1].strip()
+    parsed = urlparse(base_url)
+    if parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
+        try:
+            from .runtime_status import read_toml_model
+
+            return read_toml_model(Path.home() / ".remote-codex" / "config.toml")
+        except OSError:
+            return ""
+    return ""

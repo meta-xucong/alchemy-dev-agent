@@ -200,6 +200,9 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method in {"POST", "PATCH"} and parts == ["integrations", "remote-codex"]:
         return service.configure_remote_codex(payload), HTTPStatus.OK
 
+    if method == "GET" and parts == ["runtime", "status"]:
+        return service.runtime_status(), HTTPStatus.OK
+
     if method == "POST" and parts == ["runs"]:
         result = service.run_unified_request(payload)
         return result, HTTPStatus.ACCEPTED if bool(result.get("async", True)) else HTTPStatus.CREATED

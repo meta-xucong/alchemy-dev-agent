@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from server.api import route_request
-from server.project_service import ProjectService
+from server.project_service import ApiError, ProjectService
 from server.remote_codex import RemoteCodexBridge
 
 
@@ -46,6 +46,22 @@ class RemoteCodexBridgeTests(unittest.TestCase):
             detail = bridge.task_detail("task_123")
             self.assertEqual(detail["progress"][0]["label"], "Codex is working")
 
+    def test_submission_stops_before_posting_when_remote_login_is_missing(self) -> None:
+        class NotLoggedInWorkerWeb(FakeWorkerWeb):
+            def get_json(self, path: str) -> dict[str, object]:
+                if path == "/ui/config":
+                    return {"logged_in": False, "binding": {"state": "not_logged_in"}}
+                return super().get_json(path)
+
+        with tempfile.TemporaryDirectory() as directory:
+            fake = NotLoggedInWorkerWeb()
+            bridge = RemoteCodexBridge(Path(directory), transport_factory=lambda _url: fake)
+            bridge.configure({"base_url": "http://127.0.0.1:8765"})
+            with self.assertRaises(ApiError) as raised:
+                bridge.submit_conversation({"project_id": "project_1", "message": "Build it"})
+            self.assertEqual(raised.exception.code, "remote_codex_authentication_required")
+            self.assertEqual(fake.posts, [])
+
     def test_api_routes_keep_remote_conversations_scoped_to_a_project(self) -> None:
         class FakeBridge:
             def configuration(self):
@@ -73,3 +89,7 @@ class RemoteCodexBridgeTests(unittest.TestCase):
             self.assertEqual(started["task"]["task_id"], "task_123")
             detail, _ = route_request(service, "GET", f"/projects/{project_id}/remote-codex/tasks/task_123", {})
             self.assertEqual(detail["task"]["task_id"], "task_123")
+
+            service.runtime_status_probe = type("Status", (), {"local_status": lambda self: {"codex_cli": {"connected": True}}})()
+            status, _ = route_request(service, "GET", "/runtime/status", {})
+            self.assertTrue(status["local"]["codex_cli"]["connected"])

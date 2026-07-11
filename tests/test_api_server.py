@@ -1982,11 +1982,11 @@ class ApiServerTests(unittest.TestCase):
             html = request_text(conn, "GET", "/", expected=200)
             css = request_text(conn, "GET", "/static/styles.css", expected=200)
             js = request_text(conn, "GET", "/static/app.js", expected=200)
-            for token in ("Alchemy Lab", "newProject", "projectList", "projectDialog", "remoteDialog", "connectionDialog", "progressCard"):
+            for token in ("Alchemy Lab", "newProject", "projectList", "projectDialog", "remoteDialog", "connectionDialog", "runtimeStatusDialog", "selectLocalMode", "selectRemoteMode", "progressCard"):
                 self.assertIn(token, html)
             for token in ("--sidebar", "--canvas", ".conversation-feed", ".project-card", ".sheet"):
                 self.assertIn(token, css)
-            for token in ("loadProjects", "openProject", "startAlchemy", "openRemote", "sendConversation", "startPolling", "/integrations/remote-codex", "/remote-codex/tasks"):
+            for token in ("loadProjects", "openProject", "setMode", "showRuntimeStatus", "startAlchemy", "openRemote", "sendConversation", "startPolling", "/runtime/status", "/integrations/remote-codex", "/remote-codex/tasks"):
                 self.assertIn(token, js)
         finally:
             conn.close()
