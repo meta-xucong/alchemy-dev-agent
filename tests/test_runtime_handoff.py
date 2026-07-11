@@ -12,6 +12,7 @@ from context import ContextBundleBuilder
 from intake import ProjectBriefBuilder
 from planner import TaskGraphBuilder
 from runtime import Orchestrator, RuntimeHandoff, StateManager
+from runtime.models import TaskGraph, TaskNode
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
@@ -78,6 +79,42 @@ class RuntimeHandoffTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         if TEST_TMP_ROOT.exists():
             shutil.rmtree(TEST_TMP_ROOT, ignore_errors=True)
+
+    def test_worker_package_expands_package_lockfile_boundaries(self) -> None:
+        graph = TaskGraph(
+            graph_id="package-lock-boundary",
+            version=1,
+            nodes=[
+                TaskNode(
+                    id="T001",
+                    title="Implement frontend package",
+                    description="Update the frontend package.",
+                    type="frontend",
+                    assigned_agent="frontend",
+                    relevant_files=["frontend/package.json"],
+                )
+            ]
+        )
+        state = RuntimeHandoff().build_state(
+            project_brief={"objective": "Update frontend package", "repository": {"local_path": "."}},
+            context_bundle={},
+            task_graph=graph,
+            repository_path=".",
+        )
+
+        worker_input = RuntimeHandoff().build_worker_inputs(state=state)[0]
+
+        self.assertEqual(
+            worker_input.allowed_files,
+            [
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+                "frontend/package-lock.json",
+                "frontend/npm-shrinkwrap.json",
+                "frontend/yarn.lock",
+                "frontend/bun.lockb",
+            ],
+        )
 
     def test_handoff_builds_runtime_state_and_worker_packages(self) -> None:
         with temp_handoff_dir() as root:

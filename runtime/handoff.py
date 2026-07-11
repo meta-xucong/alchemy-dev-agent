@@ -14,6 +14,14 @@ from .codex_worker import CodexWorkerInput
 from .models import Dependency, RuntimeState, TaskGraph, TaskNode
 from .task_packet import TaskPacket
 
+PACKAGE_LOCKFILE_COMPANIONS = (
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "yarn.lock",
+    "bun.lockb",
+)
+
 
 @dataclass(slots=True)
 class RuntimeHandoff:
@@ -135,10 +143,12 @@ def allowed_files_for_task(task: TaskNode) -> list[str]:
     if contract:
         if bool(contract.get("read_only")):
             return []
-        return _dedupe_paths([str(item) for item in contract.get("allowed_write_paths", [])])
+        return _expand_package_lockfile_boundaries(
+            _dedupe_paths([str(item) for item in contract.get("allowed_write_paths", [])])
+        )
     if task.type in {"architecture", "review", "test"}:
         return []
-    return _dedupe_paths(task.relevant_files)
+    return _expand_package_lockfile_boundaries(_dedupe_paths(task.relevant_files))
 
 
 def boundary_constraints_for_task(task: TaskNode) -> list[str]:
@@ -178,6 +188,27 @@ def _dedupe_paths(paths: list[str]) -> list[str]:
         if clean and clean not in seen:
             seen.add(clean)
             result.append(clean)
+    return result
+
+
+def _expand_package_lockfile_boundaries(paths: list[str]) -> list[str]:
+    result = list(paths)
+    seen = {path.lower() for path in result}
+    for path in paths:
+        if path == "package.json":
+            prefix = ""
+        elif path.endswith("/package.json"):
+            prefix = path.rsplit("/", 1)[0]
+        else:
+            continue
+
+        for companion in PACKAGE_LOCKFILE_COMPANIONS:
+            candidate = f"{prefix}/{companion}" if prefix else companion
+            normalized = candidate.lower()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            result.append(candidate)
     return result
 
 
