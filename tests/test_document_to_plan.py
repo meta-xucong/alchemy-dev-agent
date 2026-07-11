@@ -234,6 +234,34 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("src/main.js", implementation["relevant_files"])
         self.assertNotIn("backend/**", implementation["relevant_files"])
 
+    def test_generated_one_line_repair_uses_existing_canvas_game_planning(self) -> None:
+        bundle = ContextBundle(
+            project_id="generated-game-repair",
+            objective="Repair browser gameplay acceptance.",
+            requirements=[
+                Requirement(
+                    id="REQ-001",
+                    source_document_id="generated_one_line",
+                    text="Repair the browser gameplay hook so movement, jump, and restart are playable.",
+                )
+            ],
+            repository_files=[
+                RepositoryFile(path="index.html", kind="file"),
+                RepositoryFile(path="package.json", kind="file"),
+                RepositoryFile(path="src/main.js", kind="file"),
+                RepositoryFile(path="src/engine.js", kind="file"),
+                RepositoryFile(path="src/input.js", kind="file"),
+            ],
+            test_commands=["npm test", "npm run build"],
+        )
+
+        graph = TaskGraphBuilder().build(bundle).to_dict()
+        implementation = next(node for node in graph["nodes"] if node["id"] == "T002")
+
+        self.assertEqual(implementation["title"], "Implement complete web game delivery")
+        self.assertEqual(implementation["assigned_agent"], "frontend")
+        self.assertEqual(implementation["commands_to_run"], ["npm test", "npm run build", "static artifact inspection"])
+
     def test_partial_web_game_scaffold_signals_are_still_one_delivery(self) -> None:
         requirements = [
             Requirement(

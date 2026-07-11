@@ -594,7 +594,11 @@ class TaskGraphBuilder:
         return TaskGraph(graph_id=f"{context_bundle.project_id}-generated-app", version=1, nodes=nodes, dependencies=dependencies)
 
     def _is_generated_artifact_context(self, context_bundle: ContextBundle) -> bool:
-        return bool(context_bundle.requirements and context_bundle.requirements[0].source_document_id == "generated_one_line")
+        return bool(
+            context_bundle.requirements
+            and context_bundle.requirements[0].source_document_id == "generated_one_line"
+            and not is_existing_canvas_game_repository(context_bundle.repository_files)
+        )
 
     def _top_level_context_files(self, context_bundle: ContextBundle, scope_controls: dict[str, list[str]] | None = None) -> list[str]:
         document_files = [document.path for document in context_bundle.documents]
