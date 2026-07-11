@@ -918,6 +918,22 @@ class DocumentRunPipelineTests(unittest.TestCase):
         self.assertEqual(status, "blocked")
         self.assertFalse(state.done)
 
+    def test_document_run_status_blocks_completed_graph_rejected_by_final_gate(self) -> None:
+        state = RuntimeState(
+            objective="deliver browser game",
+            task_graph=TaskGraph(
+                graph_id="final-gate-rejection",
+                version=1,
+                nodes=[TaskNode(id="T001", title="Verify", description="", type="test", assigned_agent="test", status="completed")],
+            ),
+        )
+        state.evaluation_result = {"done": False, "final_gate_score": 0.75, "hard_failures": ["Required tests are failing."]}
+
+        status = document_run_status(state, requirement_coverage={"status": "passed"}, artifact_report={})
+
+        self.assertEqual(status, "blocked")
+        self.assertFalse(state.done)
+
     def test_delivery_and_development_cycle_ignore_static_gate_for_unknown_profiles(self) -> None:
         artifact_report = {
             "artifact_profile": {"name": "unknown"},

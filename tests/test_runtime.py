@@ -929,6 +929,20 @@ class CodexWorkerTests(unittest.TestCase):
         self.assertEqual(result.evidence, ["verified"])
         self.assertEqual(result.confidence, 0.8)
 
+    def test_worker_result_treats_numeric_zero_failed_test_count_as_empty(self) -> None:
+        result = CodexWorkerResult.from_dict(
+            {
+                "task_id": "T012C",
+                "status": "completed",
+                "summary": "verified",
+                "tests_passed": 20,
+                "tests_failed": 0,
+            }
+        )
+
+        self.assertEqual(result.tests_passed, ["20"])
+        self.assertEqual(result.tests_failed, [])
+
     def test_worker_result_treats_null_command_exit_code_as_zero(self) -> None:
         payload = {
             "task_id": "T063",
@@ -2430,6 +2444,19 @@ class EvaluatorTests(unittest.TestCase):
         self.assertTrue(result.done)
         self.assertNotIn("Required tests are failing.", result.hard_failures)
         self.assertEqual(result.dimension_scores["risk_quality"], 1.0)
+
+    def test_evaluator_ignores_legacy_zero_failed_test_count(self) -> None:
+        node = TaskNode(
+            id="T099",
+            title="Verify",
+            description="",
+            type="test",
+            assigned_agent="test",
+            status="completed",
+            evidence=[{"result": {"status": "completed", "tests_failed": ["0"]}}],
+        )
+
+        self.assertFalse(Evaluator()._node_has_failed_worker_result(node))
 
     def test_evaluator_does_not_apply_static_web_gate_to_unknown_artifact_profile(self) -> None:
         engine = TaskGraphEngine()

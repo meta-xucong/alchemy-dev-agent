@@ -1482,6 +1482,13 @@ def document_run_status(
     requirement_coverage: dict[str, object],
     artifact_report: dict[str, object],
 ) -> str:
+    evaluation = getattr(state, "evaluation_result", {})
+    if isinstance(evaluation, dict) and evaluation and evaluation.get("done") is False:
+        # The final evaluator is authoritative.  Do not present a completed
+        # task graph as delivered when its final gate has rejected it.
+        if hasattr(state, "done"):
+            setattr(state, "done", False)
+        return "blocked"
     if bool(getattr(state, "done", False)):
         return "done"
     blockers = getattr(state, "blockers", [])

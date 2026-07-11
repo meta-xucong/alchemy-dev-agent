@@ -870,6 +870,11 @@ def _coerce_list(value: Any) -> list[Any]:
 
 
 def _coerce_text_list(value: Any) -> list[str]:
+    # Some otherwise valid worker responses summarize a test outcome as a
+    # numeric count.  In particular, ``tests_failed: 0`` means that no tests
+    # failed; treating it as ["0"] poisons the final gate as a failure.
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return [] if value == 0 else [_truncate_text(str(value), limit=WORKER_TEXT_FIELD_LIMIT)]
     return [_truncate_text(str(item), limit=WORKER_TEXT_FIELD_LIMIT) for item in _coerce_list(value)]
 
 

@@ -262,7 +262,7 @@ class Evaluator:
             return False
         status = latest_result.get("status")
         tests_failed = latest_result.get("tests_failed", [])
-        return bool(status in {"failed", "blocked"} or tests_failed)
+        return bool(status in {"failed", "blocked"} or _contains_test_failure(tests_failed))
 
     def _latest_worker_result(self, node: TaskNode) -> dict | None:
         for evidence in reversed(node.evidence):
@@ -270,6 +270,14 @@ class Evaluator:
             if isinstance(result, dict):
                 return result
         return None
+
+
+def _contains_test_failure(value: object) -> bool:
+    """Accept legacy worker count fields without treating a zero as a failure."""
+
+    values = value if isinstance(value, (list, tuple, set)) else [value]
+    no_failure_markers = {"", "0", "0.0", "false", "none", "null", "[]", "{}"}
+    return any(str(item).strip().lower() not in no_failure_markers for item in values)
 
 
 def _artifact_hard_failures(artifact_report: dict) -> list[str]:
