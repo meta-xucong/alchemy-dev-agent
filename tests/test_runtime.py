@@ -15,7 +15,7 @@ from unittest.mock import patch
 from runtime.agent_router import AgentRouter
 from runtime.acceptance_scenarios import AcceptanceScenarioPlanner
 from runtime.artifact_profile import ArtifactProfileDetector
-from runtime.artifact_verifier import BrowserArtifactEvidenceVerifier, BrowserArtifactRunner, StaticWebArtifactVerifier
+from runtime.artifact_verifier import BrowserArtifactEvidenceVerifier, BrowserArtifactRunner, StaticWebArtifactVerifier, run_canvas_gameplay_probe
 from runtime.control import ControlDecision, MarkerFileExecutionController
 from runtime.codex_worker import (
     RAW_OUTPUT_LIMIT,
@@ -4557,6 +4557,35 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertIn("static artifact inspection", result.tests_passed)
         self.assertEqual(result.profile["name"], "canvas_game")
+
+    def test_canvas_gameplay_probe_restarts_title_screen_before_input_and_accepts_unpaused_state(self) -> None:
+        class FakePage:
+            def __init__(self) -> None:
+                self.scripts: list[str] = []
+
+            def evaluate(self, script: str) -> dict[str, object]:
+                self.scripts.append(script)
+                call = len(self.scripts)
+                if call == 1:
+                    return {"available": True, "snapshot": {"player_x": 3, "player_y": 11.25, "state": "falling", "paused": True}}
+                if call == 2:
+                    return {
+                        "before": {"player_x": 3, "player_y": 11.25, "state": "falling", "paused": False},
+                        "afterMove": {"player_x": 5, "player_y": 11.25, "state": "running", "paused": False},
+                        "afterJump": {"player_x": 5, "player_y": 9.5, "state": "jumping", "paused": False},
+                    }
+                if call == 3:
+                    return {"supported": True, "result": {"won": True}, "snapshot": {"won": True, "state": "won"}}
+                if call == 4:
+                    return {"supported": True, "snapshot": {"state": "falling", "paused": False}}
+                raise AssertionError(f"Unexpected evaluate call {call}")
+
+        page = FakePage()
+        result = run_canvas_gameplay_probe(page)
+
+        self.assertEqual(result["status"], "completed")
+        self.assertIn("api.restart()", page.scripts[1])
+        self.assertIn("Restart returns the game to a playable state.", result["tests_passed"])
 
     def test_static_artifact_verifier_rejects_canvas_game_without_gameplay_probe_hook(self) -> None:
         with temp_project_dir() as tmp_dir:

@@ -535,7 +535,11 @@ def run_canvas_gameplay_probe(page: object) -> dict[str, object]:
     movement = page.evaluate(
         """async () => {
             const api = window.__ALCHEMY_GAME_TEST__;
-            const before = api.snapshot();
+            // Canvas games commonly open on a title screen.  The public
+            // restart contract is the deterministic way to enter a playable
+            // state without guessing at app-specific title-screen controls.
+            const restarted = typeof api.restart === "function" ? api.restart() : null;
+            const before = restarted && typeof restarted === "object" ? restarted : api.snapshot();
             window.dispatchEvent(new KeyboardEvent("keydown", { code: "ArrowRight", key: "ArrowRight" }));
             for (let i = 0; i < 12; i += 1) {
               if (typeof api.step === "function") {
@@ -611,9 +615,9 @@ def run_canvas_gameplay_probe(page: object) -> dict[str, object]:
     if isinstance(restart, dict) and restart.get("supported"):
         snapshot = restart.get("snapshot", {}) if isinstance(restart.get("snapshot"), dict) else {}
         restart_state = str(snapshot.get("state", "") or "")
-        if restart_state in {"playing", "ready", "running"}:
+        if restart_state in {"playing", "ready", "running"} or snapshot.get("paused") is False:
             passed.append("Restart returns the game to a playable state.")
-            evidence.append(f"Restart state: {restart_state}.")
+            evidence.append(f"Restart state: {restart_state or 'state-reported'}.")
         else:
             failures.append("restart() did not return to a playable state.")
     else:
