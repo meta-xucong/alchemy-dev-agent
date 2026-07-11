@@ -59,9 +59,9 @@ class ArtifactProfileDetector:
         combined = "\n".join([objective, *list(requirements or []), text]).lower()
         evidence: list[str] = []
 
-        if _has_file(repo, "package.json"):
+        has_package_json = _has_file(repo, "package.json")
+        if has_package_json:
             evidence.append("package.json detected.")
-            return ArtifactProfile("node_project", "high", evidence)
 
         if _has_any(repo, ["pyproject.toml", "requirements.txt", "setup.py"]):
             evidence.append("Python project marker detected.")
@@ -75,7 +75,10 @@ class ArtifactProfileDetector:
             evidence.append("Only documentation files are selected.")
             return ArtifactProfile("documentation_only", "high", evidence)
 
-        has_html = any(path.endswith(".html") for path in selected) or _has_file(repo, "index.html")
+        has_html = any(
+            path.endswith(".html") and (repo / path).is_file()
+            for path in selected
+        ) or _has_file(repo, "index.html")
         if has_html and _has_canvas_game_context(combined):
             evidence.append("HTML target and game-specific markers detected.")
             return ArtifactProfile("canvas_game", "medium", evidence)
@@ -90,6 +93,9 @@ class ArtifactProfileDetector:
         if has_html:
             evidence.append("HTML entrypoint detected.")
             return ArtifactProfile("static_web_app", "medium", evidence)
+
+        if has_package_json:
+            return ArtifactProfile("node_project", "high", evidence)
 
         return ArtifactProfile("unknown", "low", ["No known artifact profile markers were detected."])
 

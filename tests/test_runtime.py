@@ -4527,6 +4527,7 @@ class OrchestratorTests(unittest.TestCase):
     def test_static_artifact_verifier_accepts_original_canvas_platformer(self) -> None:
         with temp_project_dir() as tmp_dir:
             repo = Path(tmp_dir)
+            (repo / "package.json").write_text('{"scripts":{"test":"node tests/static_checks.js"}}\n', encoding="utf-8")
             (repo / "index.html").write_text(
                 """
                 <!doctype html>
