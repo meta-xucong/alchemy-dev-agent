@@ -162,6 +162,10 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("index.html", implementation["relevant_files"])
         self.assertIn("src/engine.js", implementation["relevant_files"])
         self.assertIn("tests/static_checks.js", implementation["relevant_files"])
+        self.assertEqual(
+            implementation["commands_to_run"],
+            ["npm test", "npm run build", "static artifact inspection"],
+        )
         verifier = next(node for node in graph["nodes"] if node["title"] == "Verify implementation against project checks")
         self.assertEqual(verifier["dependencies"], [implementation["id"]])
 

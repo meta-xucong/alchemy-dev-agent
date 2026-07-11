@@ -522,7 +522,14 @@ class TaskGraphBuilder:
                     dependencies=["T001"],
                     completion_criteria=dedupe([criterion for item in grouped_requirements for criterion in item.acceptance_criteria]),
                     relevant_files=relevant_files,
-                    commands_to_run=commands_for_task_type(task_type, test_commands),
+                    # A greenfield Vite game must prove both its deterministic
+                    # contracts and a production build; static inspection alone
+                    # is too easy for a visually weak implementation to satisfy.
+                    commands_to_run=(
+                        ["npm test", "npm run build", "static artifact inspection"]
+                        if is_web_game_delivery
+                        else commands_for_task_type(task_type, test_commands)
+                    ),
                     priority=max(priority_for_requirement(item) for item in grouped_requirements),
                     boundary_mode="strict",
                 )
