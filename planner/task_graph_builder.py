@@ -21,6 +21,14 @@ WEB_GAME_SCAFFOLD_FILES = {
     "tests/static_checks.js",
 }
 
+WEB_GAME_DELIVERY_FILES = {
+    *WEB_GAME_SCAFFOLD_FILES,
+    "package.json",
+    "tsconfig.json",
+    "vite.config.ts",
+    "docs/reference-register.md",
+}
+
 
 class TaskGraphBuilder:
     """Create deterministic task graphs from context bundles."""
@@ -462,18 +470,42 @@ class TaskGraphBuilder:
                 requirement_task_ids[item.id] = task_id
                 item.related_files = scoped_files(item.related_files, scope_controls, fallback=relevant_files)
             return nodes, requirement_task_ids
-        for index, grouped_requirements in enumerate(group_implementation_requirements(requirements), start=2):
+        grouped_delivery = group_implementation_requirements(requirements)
+        is_web_game_delivery = len(grouped_delivery) == 1 and should_group_as_single_web_game_delivery(requirements)
+        for index, grouped_requirements in enumerate(grouped_delivery, start=2):
             requirement = grouped_requirements[0]
-            task_type, agent = classify_grouped_requirement_task(grouped_requirements)
+            task_type, agent = (
+                ("integration", "frontend")
+                if is_web_game_delivery
+                else classify_grouped_requirement_task(grouped_requirements)
+            )
             task_id = f"T{index:03d}"
-            title = task_title(requirement, task_type) if len(grouped_requirements) == 1 else grouped_task_title(grouped_requirements, task_type)
+            title = (
+                "Implement complete web game delivery"
+                if is_web_game_delivery
+                else task_title(requirement, task_type)
+                if len(grouped_requirements) == 1
+                else grouped_task_title(grouped_requirements, task_type)
+            )
             description = (
-                f"Implement requirement {requirement.id}: {requirement.text}"
+                "Implement the complete browser-game delivery, including its runtime scaffold, gameplay systems, "
+                "tests, and required reference records. Do not run final artifact verification until this task has "
+                "created every required artifact."
+                if is_web_game_delivery
+                else f"Implement requirement {requirement.id}: {requirement.text}"
                 if len(grouped_requirements) == 1
                 else "Implement requirements "
                 + ", ".join(item.id for item in grouped_requirements)
                 + ": "
                 + " ".join(item.text for item in grouped_requirements)
+            )
+            relevant_files = (
+                sorted(WEB_GAME_DELIVERY_FILES)
+                if is_web_game_delivery
+                else scoped_files(
+                    dedupe([file for item in grouped_requirements for file in item.related_files]),
+                    scope_controls,
+                )
             )
             nodes.append(
                 TaskNode(
@@ -484,10 +516,7 @@ class TaskGraphBuilder:
                     assigned_agent=agent,
                     dependencies=["T001"],
                     completion_criteria=dedupe([criterion for item in grouped_requirements for criterion in item.acceptance_criteria]),
-                    relevant_files=scoped_files(
-                        dedupe([file for item in grouped_requirements for file in item.related_files]),
-                        scope_controls,
-                    ),
+                    relevant_files=relevant_files,
                     commands_to_run=commands_for_task_type(task_type, test_commands),
                     priority=max(priority_for_requirement(item) for item in grouped_requirements),
                     boundary_mode="strict",
@@ -9627,11 +9656,18 @@ def should_group_as_single_web_game_delivery(requirements: list[Requirement]) ->
     if len(requirements) < 5:
         return False
     related = {file for requirement in requirements for file in requirement.related_files}
-    if not WEB_GAME_SCAFFOLD_FILES.issubset(related):
-        return False
     text = "\n".join(requirement.text for requirement in requirements).lower()
-    game_markers = ("game", "platformer", "tilemap", "canvas", "level", "游戏", "关卡", "玩家", "敌人")
-    return any(marker in text for marker in game_markers)
+    game_markers = ("game", "platformer", "tilemap", "canvas", "webgl", "vite", "level", "游戏", "关卡", "玩家", "敌人")
+    has_game_intent = any(marker in text for marker in game_markers)
+    scaffold_signals = len(related & WEB_GAME_SCAFFOLD_FILES)
+    if not has_game_intent and scaffold_signals < 4:
+        return False
+    # Existing projects frequently name every scaffold file in their requirements.
+    # New document-only game repositories cannot: those files do not exist yet.
+    # Both are one integrated delivery, not independent per-requirement artifacts.
+    return scaffold_signals >= 4 or any(
+        marker in text for marker in ("canvas", "webgl", "platformer", "tilemap", "vite", "横版")
+    )
 
 
 def priority_for_requirement(requirement: Requirement) -> int:

@@ -14,7 +14,7 @@ from context.requirement_extractor import explicit_paths_from_text, extract_scop
 from intake import ProjectBriefBuilder
 from intake.schema_validation import validate_context_bundle_contract
 from planner import TaskGraphBuilder
-from planner.task_graph_builder import focused_timeout_repair_for_task
+from planner.task_graph_builder import focused_timeout_repair_for_task, should_group_as_single_web_game_delivery
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
@@ -121,6 +121,65 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("npm run build", nodes["T005"]["commands_to_run"])
         self.assertIn("npm run lint", nodes["T005"]["commands_to_run"])
         self.assertEqual(requirements[0]["planned_task_ids"], ["T002", "T005", "T006"])
+
+    def test_new_canvas_game_documents_create_one_bootstrap_delivery_before_static_verification(self) -> None:
+        with temp_plan_dir() as root:
+            repo = root / "repo"
+            repo.mkdir()
+            spec = root / "game_spec.md"
+            spec.write_text(
+                "\n".join(
+                    [
+                        "# Canvas Platformer",
+                        "## Requirements",
+                        "- Build a Vite browser canvas platformer game.",
+                        "- Implement player running, jumping, and deterministic physics.",
+                        "- Implement tilemap collision, enemies, coins, and a flag goal.",
+                        "- Implement keyboard and gamepad controls with accessibility settings.",
+                        "- Add original visual effects and sound feedback.",
+                        "- Add automated game verification and a browser gameplay probe.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            brief = ProjectBriefBuilder().build(
+                objective="Build a modern browser platformer game.",
+                documents=[spec],
+                repository_path=repo,
+                created_at="2026-07-11T00:00:00+00:00",
+            )
+            graph = TaskGraphBuilder().build(ContextBundleBuilder().build(brief)).to_dict()
+
+        implementation_nodes = [
+            node
+            for node in graph["nodes"]
+            if node["type"] not in {"architecture", "test", "review", "release"}
+        ]
+        self.assertEqual(len(implementation_nodes), 1)
+        implementation = implementation_nodes[0]
+        self.assertEqual(implementation["title"], "Implement complete web game delivery")
+        self.assertEqual(implementation["assigned_agent"], "frontend")
+        self.assertIn("index.html", implementation["relevant_files"])
+        self.assertIn("src/engine.js", implementation["relevant_files"])
+        self.assertIn("tests/static_checks.js", implementation["relevant_files"])
+        verifier = next(node for node in graph["nodes"] if node["title"] == "Verify implementation against project checks")
+        self.assertEqual(verifier["dependencies"], [implementation["id"]])
+
+    def test_partial_web_game_scaffold_signals_are_still_one_delivery(self) -> None:
+        requirements = [
+            Requirement(
+                id=f"REQ-{index:03d}",
+                source_document_id="spec",
+                text="Implement the documented game requirement.",
+                related_files=[path],
+            )
+            for index, path in enumerate(
+                ["index.html", "src/input.js", "src/physics.js", "src/engine.js", "tests/static_checks.js"],
+                start=1,
+            )
+        ]
+
+        self.assertTrue(should_group_as_single_web_game_delivery(requirements))
 
     def test_explicit_path_extraction_keeps_paths_with_sentence_punctuation(self) -> None:
         text = "Must update src/api/workspaces.ts. Should render src/pages/dashboard.tsx, and tests/workspaces.test.ts."
