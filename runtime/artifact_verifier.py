@@ -175,7 +175,7 @@ class StaticWebArtifactVerifier:
                 failures.append("Canvas game does not expose window.__ALCHEMY_GAME_TEST__ gameplay probe hook.")
             else:
                 evidence.append("Canvas game exposes window.__ALCHEMY_GAME_TEST__ gameplay probe hook.")
-            for hook_name in ("snapshot", "advanceToVictory", "restart"):
+            for hook_name in ("snapshot", "advanceToVictory", "restart", "runTraversalProbe"):
                 if hook_name not in combined:
                     failures.append(f"Canvas game gameplay probe is missing {hook_name}().")
                 else:
@@ -627,6 +627,32 @@ def run_canvas_gameplay_probe(page: object) -> dict[str, object]:
     else:
         failures.append("Gameplay probe is missing restart().")
 
+    traversal = page.evaluate(
+        """() => {
+            const api = window.__ALCHEMY_GAME_TEST__;
+            if (typeof api.runTraversalProbe !== "function") {
+              return { supported: false };
+            }
+            const result = api.runTraversalProbe();
+            return { supported: true, result: result || {} };
+        }"""
+    )
+    if isinstance(traversal, dict) and traversal.get("supported"):
+        result = traversal.get("result", {}) if isinstance(traversal.get("result"), dict) else {}
+        scenarios = result.get("scenarios", []) if isinstance(result.get("scenarios"), list) else []
+        completed = [scenario for scenario in scenarios if isinstance(scenario, dict) and scenario.get("passed") is True]
+        has_vertical_clearance = any(
+            str(scenario.get("kind", "")).lower() in {"vertical_clearance", "vertical", "high_obstacle", "height"}
+            for scenario in completed
+        )
+        if result.get("passed") is True and completed and has_vertical_clearance:
+            passed.append("Traversal probe proves required vertical clearance.")
+            evidence.append(f"Traversal probe passed {len(completed)} scenario(s), including vertical clearance.")
+        else:
+            failures.append("Traversal probe did not prove required vertical obstacle clearance.")
+    else:
+        failures.append("Gameplay probe is missing runTraversalProbe().")
+
     return {
         "status": "failed" if failures else "completed",
         "summary": "Canvas gameplay probe passed." if not failures else "Canvas gameplay probe failed.",
@@ -636,8 +662,9 @@ def run_canvas_gameplay_probe(page: object) -> dict[str, object]:
         "snapshots": {
             "initial": initial,
             "after_move": after_move,
-            "after_jump": after_jump,
-        },
+                "after_jump": after_jump,
+                "traversal": traversal,
+            },
     }
 
 

@@ -4543,7 +4543,8 @@ class OrchestratorTests(unittest.TestCase):
                   snapshot() { return { player_x: 0, player_y: 0, state: "playing", won: false }; },
                   step(dt) {},
                   advanceToVictory() { return { won: true }; },
-                  restart() {}
+                  restart() {},
+                  runTraversalProbe() { return { passed: true, scenarios: [{ id: 'tall-step', kind: 'vertical_clearance', passed: true }] }; }
                 };
                 function frame() { requestAnimationFrame(frame); }
                 frame();
@@ -4578,6 +4579,8 @@ class OrchestratorTests(unittest.TestCase):
                     return {"supported": True, "result": {"won": True}, "snapshot": {"won": True, "state": "won"}}
                 if call == 4:
                     return {"supported": True, "snapshot": {"state": "falling", "paused": False}}
+                if call == 5:
+                    return {"supported": True, "result": {"passed": True, "scenarios": [{"id": "tall-step", "kind": "vertical_clearance", "passed": True}]}}
                 raise AssertionError(f"Unexpected evaluate call {call}")
 
         page = FakePage()
@@ -4586,6 +4589,7 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertIn("api.restart()", page.scripts[1])
         self.assertIn("Restart returns the game to a playable state.", result["tests_passed"])
+        self.assertIn("Traversal probe proves required vertical clearance.", result["tests_passed"])
 
     def test_static_artifact_verifier_rejects_canvas_game_without_gameplay_probe_hook(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -4609,6 +4613,29 @@ class OrchestratorTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
         self.assertIn("__ALCHEMY_GAME_TEST__", "\n".join(result.tests_failed))
+
+    def test_static_artifact_verifier_requires_canvas_traversal_probe(self) -> None:
+        with temp_project_dir() as tmp_dir:
+            repo = Path(tmp_dir)
+            (repo / "index.html").write_text(
+                """
+                <!doctype html><canvas id="game"></canvas><script>
+                const level = { tile: [], player: {}, enemy: {}, coin: {}, flag: {} }; let score = 0, timer = 300;
+                function physics() {} function collision() {} addEventListener("keydown", () => {});
+                window.__ALCHEMY_GAME_TEST__ = {
+                  snapshot() { return { player_x: 0, player_y: 0, state: "playing", won: false }; },
+                  step() {}, advanceToVictory() { return { won: true }; }, restart() {}
+                };
+                requestAnimationFrame(function frame(){ requestAnimationFrame(frame); });
+                </script>
+                """,
+                encoding="utf-8",
+            )
+
+            result = StaticWebArtifactVerifier().verify(repo, ["index.html"])
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("runTraversalProbe", "\n".join(result.tests_failed))
 
     def test_static_artifact_verifier_skips_non_web_project_profiles(self) -> None:
         with temp_project_dir() as tmp_dir:
@@ -5126,7 +5153,8 @@ class OrchestratorTests(unittest.TestCase):
                   snapshot() { return { player_x: 0, player_y: 0, state: "playing", won: false }; },
                   step(dt) {},
                   advanceToVictory() { return { won: true }; },
-                  restart() {}
+                  restart() {},
+                  runTraversalProbe() { return { passed: true, scenarios: [{ id: 'tall-step', kind: 'vertical_clearance', passed: true }] }; }
                 };
                 requestAnimationFrame(function frame(){ requestAnimationFrame(frame); });
                 </script>
