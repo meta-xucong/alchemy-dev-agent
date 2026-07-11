@@ -16,7 +16,7 @@ from intake.schema_validation import validate_json_subset
 from planner.convergence_graph_builder import ConvergenceGraphBuilder, goal_locked_graph_errors
 from planner.transformation_manifest import TransformationManifest, build_transformation_manifest
 from runtime.accepted_checkpoint import AcceptedCheckpoint
-from runtime.delivery_ledger import DeliveryLedger, validate_delivery_ledger
+from runtime.delivery_ledger import DeliveryLedger, git_identity, validate_delivery_ledger
 from runtime.convergence_controller import diagnose_convergence
 from runtime.independent_verifier import IndependentVerifier, repository_fingerprint
 from runtime.progress_model import proof_based_progress
@@ -282,6 +282,26 @@ class GoalLockedRunCoordinator:
         target = Path(repository_path).resolve()
         fingerprint = repository_fingerprint(target)
         signals = _result_signals(phase_record.get("result", {}))
+        independent_changed_files = _dedupe(
+            _normalize_relative_path(path) for path in phase_record.get("independent_changed_files", [])
+        )
+        independent_commands = [
+            dict(item)
+            for item in phase_record.get("independent_command_results", [])
+            if isinstance(item, dict)
+            and item.get("source") == "alchemy_controller"
+            and item.get("executed") is True
+        ]
+        independently_validated = bool(independent_commands) and all(
+            _exit_code(item.get("exit_code", 1)) == 0 for item in independent_commands
+        )
+        signals["changed_files"] = independent_changed_files
+        signals["commands_passed"] = independently_validated
+        signals["tests_passed"] = [
+            str(item.get("command", "independent validation"))
+            for item in independent_commands
+            if _exit_code(item.get("exit_code", 1)) == 0
+        ]
         file_fingerprints = {
             path: _changed_file_fingerprint(target, path)
             for path in signals["changed_files"]
@@ -307,6 +327,8 @@ class GoalLockedRunCoordinator:
         verified_existing = bool(existing_signals and signals["commands_passed"] and signals["tests_passed"])
         if action in EDIT_ACTIONS and not signals["changed_files"] and not verified_existing:
             proof_gaps.append(f"{phase.phase_id} edit phase reported no changed-file evidence.")
+        if action in EDIT_ACTIONS and not phase_record.get("independent_snapshot"):
+            proof_gaps.append(f"{phase.phase_id} lacks an independent before/after repository snapshot.")
         if phase.verification.get("strategy_required") and not signals["decision_recorded"]:
             proof_gaps.append(f"{phase.phase_id} lacks the required DECISION_RECORD evidence.")
         if "decision_record_references_source" in proof_obligations:
@@ -407,12 +429,15 @@ class GoalLockedRunCoordinator:
             waivers=list(waivers),
         )
         checkpoints = [_checkpoint_from_proof(item) for item in proofs if item.get("status") == "done"]
+        identity = git_identity(target)
         ledger = DeliveryLedger(
             baseline=bootstrap.baseline.target.head,
             target_worktree=str(target),
             final_fingerprint=final_fingerprint,
             verification_matrix_revision=matrix.revision,
             verification_repository_fingerprint=matrix.repository_fingerprint,
+            branch=identity.get("branch", ""),
+            commit=identity.get("commit", ""),
             checkpoints=checkpoints,
             waivers=list(waivers),
             handoff_decision="approved" if not matrix.hard_failures else "blocked",
@@ -477,7 +502,9 @@ class GoalLockedRunCoordinator:
 
 
 def goal_locked_enabled(run_payload: dict[str, Any]) -> bool:
-    return bool(run_payload.get("goal_locked_convergence", False))
+    if run_payload.get("legacy_unlocked") is True or run_payload.get("explicit_legacy_unlocked") is True:
+        return False
+    return True
 
 
 def reference_paths_from_payload(run_payload: dict[str, Any]) -> list[str]:
@@ -503,9 +530,26 @@ def _verification_evidence(
             by_requirement.setdefault(str(requirement_id), []).append(proof)
     final_signals = _result_signals(final_worker)
     final_markers = "\n".join(final_signals["evidence"]).upper()
+    independent_results = [
+        dict(item)
+        for item in final_worker.get("independent_command_results", [])
+        if isinstance(item, dict)
+        and item.get("source") == "alchemy_controller"
+        and item.get("executed") is True
+    ]
+    independent_tests_passed = [
+        str(item.get("command", "independent test"))
+        for item in independent_results
+        if str(item.get("kind", "")) in {"test", "build"}
+        and _exit_code(item.get("exit_code", 1)) == 0
+    ]
     broad_final_pass = (
         str(final_worker.get("status", "")).lower() == "passed"
-        and final_signals["commands_passed"]
+        and final_worker.get("independent_verification") is True
+        and final_worker.get("independent_verification_source") == "alchemy_controller"
+        and bool(independent_results)
+        and bool(independent_tests_passed)
+        and all(_exit_code(item.get("exit_code", 1)) == 0 for item in independent_results)
         and all(
             marker in final_markers
             for marker in ("FINAL_AUDIT_STATUS: PASS", "SIMULATION_TEST_STATUS: PASS", "REAL_TEST_STATUS: PASS")
@@ -729,6 +773,13 @@ def _failure_kind(payload: dict[str, Any]) -> str:
 
 def _normalize_relative_path(value: str) -> str:
     return value.replace("\\", "/").strip().lstrip("./")
+
+
+def _exit_code(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 1
 
 
 def _dedupe(values) -> list[str]:

@@ -238,6 +238,8 @@ docs/
                               V2.186 hard-prune governance for copy-and-cut projects.
   195_v2_187_goal_locked_autonomous_development.md
                               V2.187 goal-locked autonomous development loop.
+  197_v2_188_evidence_bound_autonomous_development.md
+                              V2.188 evidence-bound autonomous development hardening.
   100_v2_91_usage_limit_false_positive.md
                               V2.91 usage-limit false positive guard.
   101_v2_92_frontend_api_caller_repair_scope.md

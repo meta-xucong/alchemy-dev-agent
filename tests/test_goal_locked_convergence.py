@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 import time
 import unittest
 import json
 from pathlib import Path
 
 from autodev.full_roadmap_executor import FullRoadmapExecutor
+from autodev.goal_locked_run import _verification_evidence, goal_locked_enabled
+from autodev.unified_request import AutoDevRunRequest
 from context.objective_compiler import ObjectiveCompiler
 from context.builder import goal_lock_from_constraints
 from context.reference_baseline import assert_write_allowed, build_reference_baseline
@@ -18,7 +21,7 @@ from runtime.accepted_checkpoint import AcceptedCheckpoint
 from runtime.convergence_controller import diagnose_convergence
 from runtime.delivery_ledger import DeliveryLedger, validate_delivery_ledger
 from runtime.evaluator import Evaluator
-from runtime.independent_verifier import IndependentVerifier
+from runtime.independent_verifier import IndependentVerifier, independent_checks_passed, run_independent_repository_checks
 from runtime.models import RuntimeState, TaskGraph, TaskNode
 from runtime.progress_model import proof_based_progress
 from runtime.independent_verifier import repository_fingerprint
@@ -49,6 +52,11 @@ class GoalLockedConvergenceTests(unittest.TestCase):
             "export const rpmCapacity = true\n",
             encoding="utf-8",
         )
+        subprocess.run(["git", "init", "-b", "main"], cwd=self.target, check=False, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "alchemy@example.test"], cwd=self.target, check=False)
+        subprocess.run(["git", "config", "user.name", "Alchemy Test"], cwd=self.target, check=False)
+        subprocess.run(["git", "add", "."], cwd=self.target, check=False)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=self.target, check=False, capture_output=True, text=True)
         self.spec = self.root / "billing_core.md"
         self.spec.write_text(
             "\n".join(
@@ -197,7 +205,20 @@ class GoalLockedConvergenceTests(unittest.TestCase):
             ],
         )
 
-        self.assertEqual(validate_delivery_ledger(ledger), ["Accepted checkpoints reference more than one worktree."])
+        errors = validate_delivery_ledger(ledger)
+        self.assertIn("Accepted checkpoints reference more than one worktree.", errors)
+
+    def test_delivery_ledger_requires_branch_and_commit_for_approved_handoff(self) -> None:
+        ledger = DeliveryLedger(
+            baseline="base",
+            target_worktree=str(self.target),
+            final_fingerprint="sha256:final",
+            verification_matrix_revision="sha256:matrix",
+            verification_repository_fingerprint="sha256:final",
+            handoff_decision="approved",
+        )
+
+        self.assertIn("Approved delivery lacks coherent Git branch and commit identity.", validate_delivery_ledger(ledger))
 
     def test_chinese_negative_reference_and_verification_requirements_are_compiled_with_source_spans(self) -> None:
         document = self.root / "开发文档.md"
@@ -249,6 +270,53 @@ class GoalLockedConvergenceTests(unittest.TestCase):
         self.assertEqual(payload["objective_contract_revision"], "sha256:contract")
         self.assertFalse(payload["legacy_unlocked"])
 
+    def test_goal_locked_mode_is_fail_safe_without_explicit_legacy_opt_out(self) -> None:
+        self.assertTrue(goal_locked_enabled({}))
+        self.assertTrue(goal_locked_enabled({"goal_locked_convergence": False}))
+        self.assertFalse(goal_locked_enabled({"legacy_unlocked": True, "goal_locked_convergence": False}))
+        request = AutoDevRunRequest.from_mapping({"execution": {"goal_locked_convergence": False}})
+        self.assertTrue(request.goal_locked_convergence)
+        legacy = AutoDevRunRequest.from_mapping({"execution": {"legacy_unlocked": True}})
+        self.assertFalse(legacy.goal_locked_convergence)
+        self.assertTrue(legacy.legacy_unlocked)
+
+    def test_document_request_defaults_to_full_goal_locked_roadmap(self) -> None:
+        request = AutoDevRunRequest.from_mapping(
+            {
+                "documents": [str(self.spec)],
+                "repository_path": str(self.target),
+                "execution": {"full_roadmap": False, "goal_locked_convergence": False},
+            }
+        )
+
+        self.assertTrue(request.full_roadmap)
+        self.assertTrue(request.goal_locked_convergence)
+        legacy = AutoDevRunRequest.from_mapping(
+            {
+                "documents": [str(self.spec)],
+                "repository_path": str(self.target),
+                "execution": {"legacy_unlocked": True},
+            }
+        )
+        self.assertFalse(legacy.full_roadmap)
+        self.assertFalse(legacy.goal_locked_convergence)
+
+    def test_independent_check_uses_real_exit_code_instead_of_worker_claim(self) -> None:
+        tests_dir = self.target / "tests"
+        tests_dir.mkdir(parents=True)
+        (tests_dir / "test_failure.py").write_text(
+            "import unittest\n\nclass FailingTest(unittest.TestCase):\n    def test_failure(self):\n        self.fail('controller must observe this failure')\n",
+            encoding="utf-8",
+        )
+
+        checks = run_independent_repository_checks(self.target, timeout_seconds=30)
+
+        self.assertTrue(checks)
+        self.assertEqual(checks[0]["source"], "alchemy_controller")
+        self.assertTrue(checks[0]["executed"])
+        self.assertNotEqual(checks[0]["exit_code"], 0)
+        self.assertFalse(independent_checks_passed(checks))
+
     def test_stale_evidence_cannot_prove_a_changed_repository(self) -> None:
         document = self.root / "verify.md"
         document.write_text("# Requirements\n- Must verify backend behavior.\n", encoding="utf-8")
@@ -275,6 +343,62 @@ class GoalLockedConvergenceTests(unittest.TestCase):
         self.assertEqual(matrix.items[0].status, "stale")
         self.assertIn("is stale", matrix.hard_failures[0])
 
+    def test_expired_or_requirement_level_waiver_does_not_bypass_obligation(self) -> None:
+        document = self.root / "waiver.md"
+        document.write_text("# Requirements\n- Must verify backend behavior.\n", encoding="utf-8")
+        contract = ObjectiveCompiler().compile("Verify", [document])
+        inventory = SemanticInventoryBuilder().build(self.target, contract)
+
+        matrix = IndependentVerifier().verify(
+            self.target,
+            contract,
+            inventory,
+            waivers=[
+                {
+                    "authorized": True,
+                    "requirement_id": "REQ-001",
+                    "authority": "owner",
+                    "reason": "too broad",
+                    "expires_at": "2099-01-01T00:00:00Z",
+                },
+                {
+                    "authorized": True,
+                    "requirement_id": "REQ-001",
+                    "obligation": "named_verification_passes",
+                    "authority": "owner",
+                    "reason": "expired",
+                    "expires_at": "2000-01-01T00:00:00Z",
+                },
+            ],
+        )
+
+        self.assertEqual(matrix.items[0].status, "unproven")
+        self.assertTrue(matrix.hard_failures)
+
+    def test_obligation_scoped_current_waiver_only_waives_matching_obligation(self) -> None:
+        document = self.root / "waiver-current.md"
+        document.write_text("# Requirements\n- Must verify backend and frontend behavior.\n", encoding="utf-8")
+        contract = ObjectiveCompiler().compile("Verify", [document])
+        inventory = SemanticInventoryBuilder().build(self.target, contract)
+
+        matrix = IndependentVerifier().verify(
+            self.target,
+            contract,
+            inventory,
+            waivers=[
+                {
+                    "authorized": True,
+                    "requirement_id": "REQ-001",
+                    "obligation": "named_verification_passes",
+                    "authority": "owner",
+                    "reason": "temporary external verifier outage",
+                    "expires_at": "2099-01-01T00:00:00Z",
+                }
+            ],
+        )
+
+        self.assertEqual(matrix.items[0].status, "waived")
+
     def test_goal_locked_executor_emits_artifacts_and_reaches_proof_based_done(self) -> None:
         forbidden = self.target / "backend" / "rpm_capacity.go"
         forbidden.parent.mkdir(parents=True, exist_ok=True)
@@ -289,6 +413,12 @@ class GoalLockedConvergenceTests(unittest.TestCase):
                     "- Must verify backend, frontend, build, startup, and smoke evidence.",
                 ]
             ),
+            encoding="utf-8",
+        )
+        tests_dir = self.target / "tests"
+        tests_dir.mkdir(parents=True, exist_ok=True)
+        (tests_dir / "test_smoke.py").write_text(
+            "import unittest\n\nclass SmokeTest(unittest.TestCase):\n    def test_smoke(self):\n        self.assertTrue(True)\n",
             encoding="utf-8",
         )
 
@@ -373,6 +503,78 @@ class GoalLockedConvergenceTests(unittest.TestCase):
 
         self.assertEqual(result.status, "blocked")
         self.assertIn("reported no changed-file evidence", "\n".join(result.blockers))
+
+    def test_fake_worker_files_tests_and_pass_markers_cannot_reach_full_progress(self) -> None:
+        document = self.root / "fake.md"
+        document.write_text(
+            "# Requirements\n- Must implement wallet settlement behavior.\n- Must verify backend behavior.\n",
+            encoding="utf-8",
+        )
+
+        def fake_runner(**kwargs):
+            return GoalLockedFakeResult(
+                "fake",
+                files_changed=["backend/wallet.go"],
+                evidence=[
+                    "FINAL_AUDIT_STATUS: PASS",
+                    "SIMULATION_TEST_STATUS: PASS",
+                    "REAL_TEST_STATUS: PASS",
+                    "DECISION_RECORD: fabricated",
+                ],
+                commands=[{"command": "fake test", "exit_code": 0}],
+                tests=["fake test"],
+            )
+
+        result = FullRoadmapExecutor(document_runner=fake_runner).run(
+            objective="Implement wallet settlement.",
+            documents=[document],
+            repository_path=self.target,
+            output_dir=self.root / "fake-run",
+            run_payload={"goal_locked_convergence": True},
+        )
+
+        self.assertEqual(result.status, "blocked")
+        self.assertLess(result.goal_locked.get("progress", 0), 1.0)
+        self.assertIn("reported no changed-file evidence", "\n".join(result.blockers))
+
+    def test_worker_cannot_self_assert_independent_verification(self) -> None:
+        document = self.root / "self-asserted.md"
+        document.write_text("# Requirements\n- Must verify backend behavior.\n", encoding="utf-8")
+        contract = ObjectiveCompiler().compile("Verify", [document])
+        final_worker = {
+            "status": "passed",
+            "independent_verification": True,
+            "commands_run": [{"command": "fake test", "exit_code": 0}],
+            "tests_passed": ["fake test"],
+            "evidence": [
+                "FINAL_AUDIT_STATUS: PASS",
+                "SIMULATION_TEST_STATUS: PASS",
+                "REAL_TEST_STATUS: PASS",
+            ],
+        }
+
+        evidence = _verification_evidence(
+            contract,
+            [],
+            final_worker,
+            target=self.target,
+            final_fingerprint=repository_fingerprint(self.target),
+        )
+
+        self.assertEqual(evidence, {})
+
+    def test_semantic_inventory_scans_large_generated_delivery_surface_chunks(self) -> None:
+        large = self.target / "dist" / "delivery-report.txt"
+        large.parent.mkdir(parents=True, exist_ok=True)
+        large.write_text(("safe\n" * 140000) + "rpm capacity\n", encoding="utf-8")
+        document = self.root / "large.md"
+        document.write_text("# Requirements\n- Must remove forbidden RPM capacity from source.\n", encoding="utf-8")
+
+        contract = ObjectiveCompiler().compile("Remove forbidden domain", [document])
+        inventory = SemanticInventoryBuilder().build(self.target, contract)
+
+        self.assertTrue(any(hit.path == "dist/delivery-report.txt" for hit in inventory.hits))
+        self.assertTrue(any(hit.surface_class == "build_artifact" for hit in inventory.hits))
 
 
 class GoalLockedFakeResult:

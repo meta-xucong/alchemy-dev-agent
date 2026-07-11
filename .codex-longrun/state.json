@@ -1,76 +1,60 @@
 {
-  "objective": "Implement and fully audit the V2.187 Goal-Locked Autonomous Development Loop defined in docs/195_v2_187_goal_locked_autonomous_development.md, including V2.186 hard-prune integration, objective compilation, governed reference repositories, semantic inventory, transformation manifests, requirement-locked planning, independent verification, strategy-aware convergence recovery, proof-based progress, coherent delivery ledger, comprehensive tests, documentation, and Billing Core regression fixtures. Integrate and preserve the current dirty Alchemy framework changes, do not modify any Billing Core product repository, and continue until every implementable V2.187 acceptance criterion passes with fresh audit evidence or a genuine external blocker is proven.",
-  "current_phase": "V2.187 final regression and delivery audit",
+  "objective": "Implement V2.188 Evidence-Bound Autonomous Development for Alchemy Dev Agent only.\n\nScope is strictly D:\\AI\\Alchemy Dev Agent System\\alchemy-dev-agent. Do not open, modify, run, or resume Billing Core or any other business repository. Do not use Billing Core as a writable target; it may appear only as historical context in existing Alchemy documents.\n\nCreate a detailed V2.188 design document based on the latest audit and implement it with tests. V2.188 must close these verified V2.187 gaps: (1) worker-reported changed_files, exit_code, tests_passed, and final PASS markers can be fabricated; derive phase changes from independent before/after repository snapshots or VCS diff and execute/validate required commands independently; (2) expired waivers are accepted and requirement-level waivers over-bypass obligations; enforce obligation-scoped, time-valid, authority-bound waivers; (3) delivery ledgers omit branch and commit identity; capture and validate coherent Git/worktree identity; (4) direct full-roadmap and unified document-driven entrypoints can still default to legacy/unlocked mode; make goal-locked mode fail-safe by default with explicit legacy opt-out; (5) semantic inventory skips large files and delivered/generated surfaces and is too backend-specific; scan in chunks and add configurable stack-neutral schema/build/delivery surface coverage; (6) add adversarial regression tests proving fake worker evidence cannot reach 100 percent.\n\nPreserve existing Alchemy changes and unrelated dirty state. Do not force-reset or rewrite history. Completion requires fresh targeted tests, full unittest discovery, static/schema audit, and a real read-only Codex smoke where applicable. Do not claim 100 percent if any V2.188 proof is unproven.",
+  "current_phase": "V2.188 Evidence-Bound Autonomous Development implementation and verification",
   "phase_status": "done",
   "completed_phases": [
-    "Discover project structure",
-    "Implement V2.187 objective/reference/inventory/manifest/verifier scaffold",
-    "Activate goal-locked convergence in real full-roadmap execution",
-    "Harden Windows Codex discovery and worker configuration",
-    "Repair compatibility planner resume evidence binding",
-    "Complete documentation, real CLI smoke, and full regression audit"
+    "V2.188 design document drafted",
+    "Evidence-bound phase snapshot and proof gating implemented",
+    "Obligation-scoped waiver validation implemented",
+    "Delivery ledger Git branch/commit identity gate implemented",
+    "Fail-safe goal-locked default and explicit legacy opt-out implemented",
+    "Large-file chunked semantic inventory and build/delivery surfaces implemented",
+    "Adversarial V2.188 regression tests added"
   ],
   "next_actions": [],
   "tests_run": [
     {
-      "command": "python -m py_compile context\\objective_models.py context\\objective_compiler.py context\\reference_baseline.py context\\semantic_inventory.py planner\\transformation_manifest.py planner\\convergence_graph_builder.py planner\\task_contract_validator.py runtime\\independent_verifier.py runtime\\verification_matrix.py runtime\\progress_model.py runtime\\convergence_controller.py runtime\\failure_fingerprint.py runtime\\decision_record.py runtime\\task_packet.py runtime\\accepted_checkpoint.py runtime\\delivery_ledger.py runtime\\evaluator.py tests\\test_goal_locked_convergence.py",
-      "result": "not run: python command is unavailable in this worker shell"
+      "command": "C:\\Users\\T14S\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest tests.test_goal_locked_convergence",
+      "result": "passed: 21 tests in 79.194 seconds"
     },
     {
-      "command": "python -m unittest tests.test_goal_locked_convergence",
-      "result": "not run: python command is unavailable in this worker shell"
+      "command": "C:\\Users\\T14S\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest discover -s tests",
+      "result": "passed: 618 tests in 504.082 seconds"
     },
     {
-      "command": "where.exe python; where.exe py; where.exe uv",
-      "result": "no Python launcher found on PATH"
+      "command": "C:\\Users\\T14S\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m compileall -q autodev context planner runtime server tests",
+      "result": "passed"
     },
     {
-      "command": "python -m py_compile context\\objective_models.py context\\objective_compiler.py context\\reference_baseline.py context\\semantic_inventory.py planner\\transformation_manifest.py planner\\convergence_graph_builder.py planner\\task_contract_validator.py runtime\\independent_verifier.py runtime\\verification_matrix.py runtime\\progress_model.py runtime\\convergence_controller.py runtime\\failure_fingerprint.py runtime\\decision_record.py runtime\\task_packet.py runtime\\accepted_checkpoint.py runtime\\delivery_ledger.py runtime\\evaluator.py tests\\test_goal_locked_convergence.py",
-      "result": "passed from the controlling shell with Python 3.12"
+      "command": "parse specs/*.json with Python JSON parser",
+      "result": "passed: 17 schemas"
     },
     {
-      "command": "python -m unittest tests.test_goal_locked_convergence",
-      "result": "passed: 6 tests"
+      "command": "git diff --check -- ':!.codex-longrun/**'",
+      "result": "passed"
     },
     {
-      "command": "python -m unittest tests.test_document_to_plan",
-      "result": "passed: 97 tests"
+      "command": "codex.cmd exec --ephemeral --sandbox read-only --model gpt-5.5",
+      "result": "passed: ALCHEMY_V2188_SMOKE_OK"
     },
     {
-      "command": "python -m unittest tests.test_document_run_pipeline tests.test_api_server tests.test_goal_locked_convergence",
-      "result": "passed: 83 tests"
-    },
-    {
-      "command": "python -m unittest tests.test_full_roadmap_execution tests.test_unified_run",
-      "result": "passed: 146 tests"
-    },
-    {
-      "command": "python -m unittest tests.test_runtime",
-      "result": "passed: 158 tests"
-    },
-    {
-      "command": "python -m compileall -q autodev context planner runtime server tests; validate specs/*.json; git diff --check",
-      "result": "passed: Python compilation, 17 JSON schemas, and whitespace audit"
-    },
-    {
-      "command": "resolved Codex Desktop CLI read-only smoke with model gpt-5.5",
-      "result": "passed: codex-cli 0.144.0-alpha.4 returned ALCHEMY_V2187_SMOKE_OK and did not change the worktree"
-    },
-    {
-      "command": "python -m unittest discover -s tests",
-      "result": "passed: 610 tests"
+      "command": "notify_serverchan.py --status done",
+      "result": "passed: pushid 45168716"
     }
   ],
   "known_bugs": [],
   "blockers": [],
   "done_criteria": [
-    "Goal-locked mode is the default for new full-roadmap runs",
-    "Objective, reference, inventory, transformation, proof, convergence, and delivery contracts are executable",
-    "False completion, stale evidence, missing references, forbidden inventory, and incoherent delivery are hard failures",
-    "Windows Codex discovery and model propagation pass real smoke verification",
-    "Full repository regression and static audits pass without modifying any business project"
+    "Detailed V2.188 design document exists and maps audit gaps to controls",
+    "Worker-reported files/tests/exit codes/PASS markers cannot independently prove completion",
+    "Waivers are obligation-scoped, time-valid, and authority-bound",
+    "Delivery ledger captures and validates coherent branch and commit identity",
+    "Goal-locked mode is fail-safe by default with explicit legacy opt-out",
+    "Semantic inventory scans large files and stack-neutral build/delivery surfaces",
+    "Adversarial regressions prove fake worker evidence cannot reach 100 percent",
+    "Fresh focused tests, full unittest discovery, static/schema audit, and applicable read-only Codex smoke pass"
   ],
-  "last_verified_at": "2026-07-11T01:02:52+08:00",
-  "created_at": "2026-07-10T23:35:59+08:00",
-  "updated_at": "2026-07-11T01:02:52+08:00"
+  "last_verified_at": "2026-07-11T12:21:44+08:00",
+  "created_at": "2026-07-11T11:32:33+08:00",
+  "updated_at": "2026-07-11T12:21:44+08:00"
 }

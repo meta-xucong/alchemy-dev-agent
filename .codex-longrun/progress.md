@@ -2559,3 +2559,95 @@ PY"`
 - Updated README and V2.187 implementation notes with the default activation command, artifact contract, legacy fallback, reference rules, and hard completion gates.
 - Full audit passed: 610 repository tests, Python compilation, 17 JSON schema parses, whitespace checks, default activation assertion, generic-core vocabulary scan, and residual-process check.
 - Remaining blockers: none. External PowerShell shell-snapshot and ServerChan skill encoding warnings are outside this repository and did not affect execution.
+## Supervisor Run 20260711-113128-iter-001
+
+- returncode: 1
+- timed_out: False
+- stdout: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260711-113128-iter-001.jsonl`
+- stderr: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260711-113128-iter-001.stderr.txt`
+- last_message: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260711-113128-iter-001.last-message.md`
+- event_summary: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260711-113128-iter-001.summary.json`
+
+### Event Summary
+
+- total_events: 4
+- malformed_lines: 2
+- thread_id: 019f4f3a-ebc4-70e2-b27f-3a2dd516b680
+- agent_messages: 0
+- command_executions: 0
+- command_failures: 0
+- file_changes: 0
+- file_change_failures: 0
+- last_event_type: turn.failed
+
+## 2026-07-11T11:43:13+08:00 V2.188 Evidence-Bound Autonomous Development Slice
+
+- Kept scope to `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent`; no Billing Core or other business repository was opened for development or used as a writable target.
+- Added `docs/197_v2_188_evidence_bound_autonomous_development.md` and indexed it from `README.md`.
+- Hardened goal-locked proof collection so worker-reported `files_changed`, `tests_passed`, command `exit_code`, and final PASS markers are not proof by themselves. Phase proof now uses Alchemy before/after repository snapshots and independent command records.
+- Hardened waivers in `runtime/independent_verifier.py`: valid waivers must be obligation-scoped, authorized, reasoned, authority-bound, and unexpired.
+- Hardened `runtime/delivery_ledger.py` and `specs/delivery_ledger_schema.json` so approved handoff requires branch and commit identity.
+- Made goal locking fail-safe by default in `autodev/goal_locked_run.py` and `autodev/unified_request.py`; legacy unlocked mode now requires explicit `legacy_unlocked` / CLI `--legacy-unlocked` intent.
+- Expanded `context/semantic_inventory.py` to chunk-scan large files and include stack-neutral build and delivery surfaces.
+- Added adversarial regression coverage in `tests/test_goal_locked_convergence.py` for fake worker evidence, waiver scope/expiry, ledger identity, fail-safe goal locking, and large build-surface inventory.
+- Static checks passed: `git diff --check -- ':!.codex-longrun/**'` and Node JSON parsing of every `specs/*.json`.
+- Required Python verification is blocked in this worker shell because `python`, `py`, `where python`, and `where py` are unavailable. Python binaries under unrelated project checkouts were not used because this run is scoped strictly to Alchemy Dev Agent.
+- Mandatory ServerChan review notification was attempted with the configured SendKey source, but all three attempts failed with `Unable to connect to the remote server`.
+- Current status: implementation slice is present, but V2.188 is not proven complete and must not be reported as 100 percent until focused tests, full unittest discovery, Python compile/static audit, and applicable read-only Codex smoke pass.
+
+## Supervisor Run 20260711-113236-iter-001
+
+- returncode: 0
+- timed_out: False
+- stdout: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260711-113236-iter-001.jsonl`
+- stderr: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260711-113236-iter-001.stderr.txt`
+- last_message: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260711-113236-iter-001.last-message.md`
+- event_summary: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260711-113236-iter-001.summary.json`
+
+### Event Summary
+
+- total_events: 251
+- malformed_lines: 2
+- thread_id: 019f4f3b-f6cf-7a63-b168-b81228e9bfcb
+- agent_messages: 42
+- command_executions: 71
+- command_failures: 10
+- file_changes: 32
+- file_change_failures: 0
+- last_event_type: turn.completed
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m unittest tests.test_goal_locked_convergence'`
+  exit_code: 1
+  status: failed
+  output_tail: python : 无法将“python”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。请检查名称的拼写，如果包括路径，请确保路径正确，然后再试一次。 所在位置 行:2 字符: 1 + python -m unittest tests.test_goal_locked_convergence + ~~~~~~ + CategoryInfo : ObjectNotFound: (python:String) [], CommandNotFoundException + FullyQualifiedErrorId : CommandNotFoundException
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -LiteralPath 'C:\\Users\\T14S\\AppData\\Local\\Programs\\Python' -Recurse -Filter python.exe -ErrorAction SilentlyContinue | Select-Object -First 5 -ExpandProperty FullName"`
+  exit_code: 1
+  status: failed
+  output_tail: n/a
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Command uv -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source'`
+  exit_code: 1
+  status: failed
+  output_tail: n/a
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Command py -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source'`
+  exit_code: 1
+  status: failed
+  output_tail: n/a
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -LiteralPath 'D:\\AI' -Recurse -Filter python.exe -ErrorAction SilentlyContinue | Select-Object -First 10 -ExpandProperty FullName"`
+  exit_code: 124
+  status: failed
+  output_tail: D:\AI\Alchemy Dev Agent System\_worktrees\alchemy-media-agent-full-v3-1782102044\custom_media_agent_2_0\.venv\Scripts\python.exe D:\AI\AlchemyOS\custom_media_agent_2_0\.venv\Scripts\python.exe D:\AI\Codex forker\.venv\Scripts\python.exe D:\AI\omniauto\.venv\Scripts\python.exe
+
+## 2026-07-11T12:21:44+08:00 V2.188 Completed Verification
+
+- Scope remained strictly `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent`; no Billing Core files or processes were used.
+- Replaced fabricated independent command success with controller-executed native Python/Go/Node test checks and real exit-code records.
+- Unified document-driven requests now select full roadmap and goal lock by default; `legacy_unlocked` is explicit and propagated through CLI and delivery harnesses.
+- Added final-worker controller provenance checks, worker self-assertion adversarial coverage, and compatibility opt-outs for legacy benchmark fixtures.
+- Passed 21 focused tests, 618 full tests, 153 affected-route tests, 3 benchmark tests, compileall, 17-schema parse, diff check, and read-only Codex smoke.
+- Remaining action: validate long-run state, commit and push V2.188, then send completion notification.
+- Long-run state validation passed and mandatory ServerChan completion notification passed with push id `45168716`.
+

@@ -254,6 +254,8 @@ def build_unified_run_command(request: AutoDevRunRequest) -> list[str]:
         command.append("--real-codex")
     if request.real_github:
         command.append("--real-github")
+    if request.legacy_unlocked:
+        command.append("--legacy-unlocked")
     if not request.github_collect_ci:
         command.append("--no-github-ci")
     if not request.isolate_real_run:
@@ -511,6 +513,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-iterations", type=int, default=50)
     parser.add_argument("--real-codex", action="store_true")
     parser.add_argument("--real-github", action="store_true")
+    parser.add_argument("--legacy-unlocked", action="store_true")
     parser.add_argument("--codex-executable", default="codex")
     parser.add_argument("--max-worker-seconds", type=int, default=1800)
     parser.add_argument("--no-github-ci", action="store_true")
@@ -551,6 +554,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "max_iterations": args.max_iterations,
         "real_codex": args.real_codex,
         "real_github": args.real_github,
+        "legacy_unlocked": args.legacy_unlocked,
         "codex_executable": args.codex_executable,
         "max_worker_seconds": args.max_worker_seconds,
         "github_collect_ci": not args.no_github_ci,

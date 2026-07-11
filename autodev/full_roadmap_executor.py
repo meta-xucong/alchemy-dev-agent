@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import json
 import re
 from dataclasses import dataclass, field
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any, Callable, Sequence
 
 from runtime.evaluator import Evaluator
+from runtime.independent_verifier import independent_checks_passed, run_independent_repository_checks
 from runtime.models import RuntimeState
 from runtime.worker_lifecycle import process_exists
 
@@ -363,6 +365,10 @@ class FullRoadmapExecutor:
             phase_payload: dict[str, object] = {}
             promotion: dict[str, object] = {}
             record_status = "blocked"
+            before_snapshot: dict[str, str] = {}
+            after_snapshot: dict[str, str] = {}
+            independent_changed_files: list[str] = []
+            independent_command_results: list[dict[str, object]] = []
             while True:
                 attempt_index = len(attempt_records) + 1
                 interrupted_resume = interrupted_phase_resume_source(phase_dir)
@@ -387,6 +393,7 @@ class FullRoadmapExecutor:
                     phase_records,
                     run_payload=run_payload,
                 )
+                before_snapshot = repository_file_snapshot(effective_repository_path)
                 phase_result = self._run_phase(
                     objective=phase_objective(objective, phase),
                     documents=[phase_document, *repair_documents],
@@ -403,6 +410,12 @@ class FullRoadmapExecutor:
                     ),
                 )
                 phase_payload = phase_result.to_dict() if hasattr(phase_result, "to_dict") else dict(phase_result)
+                after_snapshot = repository_file_snapshot(effective_repository_path)
+                independent_changed_files = snapshot_changed_files(before_snapshot, after_snapshot)
+                independent_command_results = run_independent_repository_checks(
+                    effective_repository_path,
+                    timeout_seconds=int(run_payload.get("independent_check_timeout_seconds", 120) or 120),
+                )
                 promotion = phase_promotion_decision(phase, phase_payload)
                 attempt_record = {
                     "attempt": attempt_index,
@@ -486,6 +499,13 @@ class FullRoadmapExecutor:
                     "auto_repair_documents": list(repair_documents),
                 },
             )
+            record_payload = record.to_dict()
+            record_payload["independent_snapshot"] = {
+                "before_count": len(before_snapshot),
+                "after_count": len(after_snapshot),
+            }
+            record_payload["independent_changed_files"] = independent_changed_files
+            record_payload["independent_command_results"] = independent_command_results
             phase_records.append(record)
             if goal_coordinator and goal_bootstrap and record_status == "done":
                 proof_repository_path = phase_repository_path(
@@ -495,7 +515,7 @@ class FullRoadmapExecutor:
                 )
                 phase_proof = goal_coordinator.record_phase(
                     phase=phase,
-                    phase_record=record.to_dict(),
+                    phase_record=record_payload,
                     repository_path=proof_repository_path,
                 )
                 record.promotion["goal_locked_proof"] = {
@@ -504,6 +524,7 @@ class FullRoadmapExecutor:
                     "transformation_ids": phase_proof["transformation_ids"],
                     "changed_files": phase_proof["changed_files"],
                 }
+                record_payload["promotion"] = record.promotion
                 phase_proof_blockers = [
                     *[str(item) for item in phase_proof.get("reference_drift", [])],
                     *[str(item) for item in phase_proof.get("proof_gaps", [])],
@@ -513,7 +534,8 @@ class FullRoadmapExecutor:
                     record.status = "blocked"
                     phase.status = "blocked"
                     blockers.extend(phase_proof_blockers)
-            write_json(phase_dir / "phase_record.json", record.to_dict())
+                    record_payload["status"] = "blocked"
+            write_json(phase_dir / "phase_record.json", record_payload)
             write_json(output / "roadmap_execution_plan.json", plan.to_dict())
             write_running_report(
                 output / "full_roadmap_report.json",
@@ -705,6 +727,7 @@ class FullRoadmapExecutor:
         )
         attempts: list[dict[str, object]] = []
         repair_documents: list[str] = final_verification_resume_repair_documents(output_dir)
+        independent_command_results: list[dict[str, Any]] = []
         max_attempts = max(1, int(run_payload.get("max_final_verification_attempts", 2) or 2))
         payload: dict[str, object] = {}
         promotion: dict[str, object] = {}
@@ -769,6 +792,10 @@ class FullRoadmapExecutor:
                 run_payload=final_run_payload,
             )
             payload = payload_result.to_dict() if hasattr(payload_result, "to_dict") else dict(payload_result)
+            independent_command_results = run_independent_repository_checks(
+                effective_repository_path,
+                timeout_seconds=int(run_payload.get("independent_check_timeout_seconds", 120) or 120),
+            )
             promotion = phase_promotion_decision(final_phase, payload)
             non_partial_stop = phase_has_non_partial_stop_boundary(payload)
             attempt_record = {
@@ -807,6 +834,9 @@ class FullRoadmapExecutor:
             "result": payload,
             "required_actions": [str(item) for item in promotion.get("reasons", []) or []],
             "blockers": [str(item) for item in payload.get("blockers", [])] if isinstance(payload.get("blockers", []), list) else [],
+            "independent_command_results": independent_command_results,
+            "independent_verification": independent_checks_passed(independent_command_results),
+            "independent_verification_source": "alchemy_controller",
         }
         write_json(output_dir / "final_verification_worker_report.json", worker_report)
         return worker_report
@@ -3625,6 +3655,39 @@ def int_or_zero(value: object) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def repository_file_snapshot(repository_path: str | Path | None) -> dict[str, str]:
+    if not repository_path:
+        return {}
+    root = Path(repository_path)
+    if not root.is_dir():
+        return {}
+    skip = {".git", ".alchemy", ".codex-longrun", ".test-tmp", "node_modules", "vendor", "__pycache__"}
+    snapshot: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        try:
+            relative = path.relative_to(root)
+        except ValueError:
+            continue
+        if any(part in skip for part in relative.parts):
+            continue
+        try:
+            if not path.is_file() or path.is_symlink():
+                continue
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                while chunk := stream.read(64 * 1024):
+                    digest.update(chunk)
+            snapshot[relative.as_posix()] = "sha256:" + digest.hexdigest()
+        except OSError:
+            continue
+    return snapshot
+
+
+def snapshot_changed_files(before: dict[str, str], after: dict[str, str]) -> list[str]:
+    paths = sorted(set(before) | set(after))
+    return [path for path in paths if before.get(path) != after.get(path)]
 
 
 def dedupe_strings(values: Sequence[str]) -> list[str]:

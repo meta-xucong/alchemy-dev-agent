@@ -4,6 +4,7 @@ import os
 import shutil
 import time
 import unittest
+from unittest.mock import patch
 import json
 from pathlib import Path
 
@@ -136,6 +137,17 @@ class FakePhaseResult:
 
 
 class FullRoadmapExecutionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # These legacy executor fixtures predate V2.188 and intentionally test
+        # phase mechanics without a target repository. New default-routing and
+        # evidence-bound behavior is covered by test_goal_locked_convergence.
+        self._legacy_goal_lock = patch(
+            "autodev.full_roadmap_executor.goal_locked_enabled",
+            return_value=False,
+        )
+        self._legacy_goal_lock.start()
+        self.addCleanup(self._legacy_goal_lock.stop)
+
     @classmethod
     def tearDownClass(cls) -> None:
         if TEST_TMP_ROOT.exists():

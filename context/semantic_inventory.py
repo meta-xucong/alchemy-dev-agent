@@ -13,6 +13,8 @@ from .objective_models import ObjectiveContract, ObjectiveRequirement
 
 SURFACE_BY_PATH = (
     ("generated", ("generated/", "gen/", ".generated.", "_generated.")),
+    ("build_artifact", ("dist/", "build/", ".next/", "out/", "target/", "coverage/")),
+    ("delivery_surface", (".github/workflows/", "release", "delivery", "handoff", "pr_body", "dockerfile")),
     ("schema", ("backend/ent/", "schema/", "migrations/")),
     ("runtime_route", ("route", "router", "server")),
     ("frontend_public_contract", ("frontend/", "src/api/", "src/views/", "src/router/", "i18n")),
@@ -29,10 +31,14 @@ SKIP_DIRECTORIES = {
     ".venv",
     "node_modules",
     "vendor",
-    "dist",
-    "build",
-    "coverage",
     "__pycache__",
+}
+
+DEFAULT_INVENTORY_CONFIG: dict[str, Any] = {
+    "chunk_size_bytes": 128 * 1024,
+    "include_build_surfaces": True,
+    "include_delivery_surfaces": True,
+    "extra_surface_markers": {},
 }
 
 
@@ -81,6 +87,9 @@ class RepositoryInventory:
 
 
 class SemanticInventoryBuilder:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        self.config = {**DEFAULT_INVENTORY_CONFIG, **(config or {})}
+
     def build(self, root: Path | str, objective_contract: ObjectiveContract) -> RepositoryInventory:
         root_path = Path(root).resolve()
         file_paths = list(_inventory_files(root_path))
@@ -94,31 +103,28 @@ class SemanticInventoryBuilder:
                 relative = path.relative_to(root_path).as_posix()
                 if _is_allowed_exception(relative, requirement.allowed_exceptions):
                     continue
-                surface = classify_surface(relative)
+                surface = classify_surface_with_config(relative, self.config)
                 if not _surface_applies(requirement.class_name, surface):
                     continue
                 if not _path_in_scope(relative, requirement.scope):
                     continue
-                text = _safe_read(path)
-                haystack = f"{relative}\n{text}".lower()
-                for seed in seeds:
-                    if seed and _contains_seed(haystack, seed):
-                        relevance = classify_relevance(relative)
-                        hits.append(
-                            InventoryHit(
-                                requirement_id=requirement.id,
-                                domain=requirement.domain,
-                                subject=seed,
-                                path=relative,
-                                surface_class=surface,
-                                production_relevance=relevance,
-                                generated=is_generated(relative),
-                                status="active" if relevance == "production" else "test_or_archive",
-                                proposed_action="delete" if relevance == "production" else "waive_or_delete",
-                                evidence_fingerprint=_file_fingerprint(path),
-                            )
+                matched_seed = _first_matching_seed(path, relative, seeds, self.config)
+                if matched_seed:
+                    relevance = classify_relevance(relative)
+                    hits.append(
+                        InventoryHit(
+                            requirement_id=requirement.id,
+                            domain=requirement.domain,
+                            subject=matched_seed,
+                            path=relative,
+                            surface_class=surface,
+                            production_relevance=relevance,
+                            generated=is_generated(relative),
+                            status="active" if relevance == "production" else "test_or_archive",
+                            proposed_action="delete" if relevance == "production" else "waive_or_delete",
+                            evidence_fingerprint=_file_fingerprint(path),
                         )
-                        break
+                    )
         positive_requirements = [
             requirement
             for requirement in objective_contract.requirements
@@ -130,9 +136,7 @@ class SemanticInventoryBuilder:
                 relative = path.relative_to(root_path).as_posix()
                 if classify_relevance(relative) != "production" or not _path_in_scope(relative, requirement.scope):
                     continue
-                text = _safe_read(path)
-                haystack = f"{relative}\n{text}".lower()
-                matched = next((seed for seed in seeds if _contains_seed(haystack, seed)), "")
+                matched = _first_matching_seed(path, relative, seeds, self.config)
                 if not matched:
                     continue
                 hits.append(
@@ -141,7 +145,7 @@ class SemanticInventoryBuilder:
                         domain=requirement.domain,
                         subject=matched,
                         path=relative,
-                        surface_class=classify_surface(relative),
+                        surface_class=classify_surface_with_config(relative, self.config),
                         production_relevance="production",
                         generated=is_generated(relative),
                         status="present_signal",
@@ -159,6 +163,21 @@ def classify_surface(path: str) -> str:
         if any(marker in lowered for marker in markers):
             return surface
     return "source"
+
+
+def classify_surface_with_config(path: str, config: dict[str, Any]) -> str:
+    lowered = path.lower()
+    extra = config.get("extra_surface_markers", {})
+    if isinstance(extra, dict):
+        for surface, markers in extra.items():
+            if isinstance(markers, (list, tuple)) and any(str(marker).lower() in lowered for marker in markers):
+                return str(surface)
+    surface = classify_surface(path)
+    if surface == "build_artifact" and not config.get("include_build_surfaces", True):
+        return "source"
+    if surface == "delivery_surface" and not config.get("include_delivery_surfaces", True):
+        return "source"
+    return surface
 
 
 def classify_relevance(path: str) -> str:
@@ -200,6 +219,28 @@ def _safe_read(path: Path) -> str:
         if path.stat().st_size > 512_000:
             return ""
         return path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
+def _first_matching_seed(path: Path, relative: str, seeds: list[str], config: dict[str, Any]) -> str:
+    path_haystack = relative.lower()
+    for seed in seeds:
+        if _contains_seed(path_haystack, seed):
+            return seed
+    chunk_size = max(4096, int(config.get("chunk_size_bytes", 128 * 1024) or 128 * 1024))
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as stream:
+            carry = ""
+            while True:
+                chunk = stream.read(chunk_size)
+                if not chunk:
+                    return ""
+                haystack = (carry + chunk).lower()
+                for seed in seeds:
+                    if _contains_seed(haystack, seed):
+                        return seed
+                carry = haystack[-256:]
     except OSError:
         return ""
 

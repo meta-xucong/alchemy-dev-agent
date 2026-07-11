@@ -53,6 +53,7 @@ class AutoDevRunRequest:
     auto_merge: bool = False
     full_roadmap: bool = False
     goal_locked_convergence: bool = True
+    legacy_unlocked: bool = False
     reference_repository_paths: tuple[str, ...] = ()
     max_phases: int = 50
     boundary_mode: str = "auto"
@@ -105,6 +106,7 @@ class AutoDevRunRequest:
         boundary_mode = str(payload.get("boundary_mode", execution.get("boundary_mode", "auto")) or "auto")
         acceptance = _string_tuple(payload.get("acceptance_criteria", payload.get("acceptance", ())))
         files = tuple(item for item in payload.get("files", ()) if isinstance(item, dict))
+        legacy_unlocked = _bool(payload.get("legacy_unlocked", execution.get("legacy_unlocked")), False)
 
         request = cls(
             objective=str(payload.get("objective", "") or DEFAULT_ONE_LINE_OBJECTIVE).strip() or DEFAULT_ONE_LINE_OBJECTIVE,
@@ -146,10 +148,8 @@ class AutoDevRunRequest:
             write_native_ui_tests=_bool(payload.get("write_native_ui_tests", verification.get("write_native_ui_tests")), False),
             auto_merge=_bool(payload.get("auto_merge", delivery.get("auto_merge")), False),
             full_roadmap=_bool(payload.get("full_roadmap", execution.get("full_roadmap")), False),
-            goal_locked_convergence=_bool(
-                payload.get("goal_locked_convergence", execution.get("goal_locked_convergence")),
-                True,
-            ),
+            goal_locked_convergence=not legacy_unlocked,
+            legacy_unlocked=legacy_unlocked,
             reference_repository_paths=reference_repository_paths,
             max_phases=_int(payload.get("max_phases", execution.get("max_phases")), 50),
             boundary_mode=boundary_mode,
@@ -168,6 +168,9 @@ class AutoDevRunRequest:
             source_mode = self.inferred_source_mode()
         if delivery_mode == "report_only" and self.real_github:
             delivery_mode = "github_pr"
+        # Detailed inputs must use the complete evidence-bound roadmap unless
+        # the caller explicitly opts into the legacy unlocked route.
+        full_roadmap = self.full_roadmap or (self.route == "document_run" and not self.legacy_unlocked)
         return AutoDevRunRequest(
             objective=self.objective,
             documents=self.documents,
@@ -201,8 +204,9 @@ class AutoDevRunRequest:
             generate_static_ci=self.generate_static_ci,
             write_native_ui_tests=self.write_native_ui_tests,
             auto_merge=self.auto_merge,
-            full_roadmap=self.full_roadmap,
+            full_roadmap=full_roadmap,
             goal_locked_convergence=self.goal_locked_convergence,
+            legacy_unlocked=self.legacy_unlocked,
             reference_repository_paths=self.reference_repository_paths,
             max_phases=self.max_phases,
             boundary_mode=boundary_mode,
@@ -305,6 +309,7 @@ class AutoDevRunRequest:
             "auto_merge": self.auto_merge,
             "full_roadmap": self.full_roadmap,
             "goal_locked_convergence": self.goal_locked_convergence,
+            "legacy_unlocked": self.legacy_unlocked,
             "reference_repository_paths": list(self.reference_repository_paths),
             "max_phases": self.max_phases,
             "boundary_mode": self.boundary_mode,
@@ -381,6 +386,7 @@ class AutoDevRunRequest:
             "auto_merge": self.auto_merge,
             "full_roadmap": self.full_roadmap,
             "goal_locked_convergence": self.goal_locked_convergence,
+            "legacy_unlocked": self.legacy_unlocked,
             "reference_repository_paths": list(self.reference_repository_paths),
             "max_phases": self.max_phases,
             "boundary_mode": self.boundary_mode,

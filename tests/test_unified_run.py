@@ -143,6 +143,7 @@ class UnifiedRunTests(unittest.TestCase):
                     str(spec),
                     "--repository-path",
                     str(repo),
+                    "--legacy-unlocked",
                     "--output",
                     str(output),
                 ],
@@ -178,6 +179,7 @@ class UnifiedRunTests(unittest.TestCase):
                     "Build the app from this development document",
                     "--document",
                     str(spec),
+                    "--legacy-unlocked",
                     "--output",
                     str(output),
                 ],
@@ -401,6 +403,7 @@ class UnifiedRunTests(unittest.TestCase):
                     "objective": "Add workspace support",
                     "documents": [str(spec)],
                     "repository_path": str(repo),
+                    "legacy_unlocked": True,
                     "async": False,
                 }
             )
@@ -426,6 +429,7 @@ class UnifiedRunTests(unittest.TestCase):
                 {
                     "objective": "Build a small playable platform game",
                     "expand_one_line": True,
+                    "legacy_unlocked": True,
                     "async": False,
                 }
             )
@@ -440,6 +444,7 @@ class UnifiedRunTests(unittest.TestCase):
                 {
                     "objective": "Build a small playable platform game",
                     "expand_one_line": True,
+                    "legacy_unlocked": True,
                     "async": False,
                 }
             )
@@ -467,6 +472,7 @@ class UnifiedRunTests(unittest.TestCase):
                     "objective": "Add workspace support",
                     "documents": [str(spec)],
                     "repository_path": str(repo),
+                    "legacy_unlocked": True,
                     "async": False,
                 },
             )
@@ -573,6 +579,7 @@ class UnifiedRunTests(unittest.TestCase):
                         "expand_one_line": True,
                         "real_codex": True,
                         "isolate_real_run": True,
+                        "legacy_unlocked": True,
                         "async": False,
                     }
                 )
@@ -611,6 +618,7 @@ class UnifiedRunTests(unittest.TestCase):
                         "documents": [str(spec)],
                         "repository_path": str(repo),
                         "boundary_mode": "large_refactor",
+                        "legacy_unlocked": True,
                         "async": False,
                     }
                 )
@@ -629,6 +637,7 @@ class UnifiedRunTests(unittest.TestCase):
                     "objective": "Add workspace support",
                     "documents": [str(spec)],
                     "repository_path": str(repo),
+                    "legacy_unlocked": True,
                     "async": True,
                 }
             )
@@ -654,6 +663,7 @@ class UnifiedRunTests(unittest.TestCase):
                     "objective": "Add workspace support",
                     "documents": [str(spec)],
                     "repository_path": str(repo),
+                    "legacy_unlocked": True,
                     "async": False,
                 }
             )

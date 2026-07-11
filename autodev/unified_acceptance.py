@@ -97,6 +97,7 @@ class UnifiedAcceptanceHarness:
             "objective": "Build from the primary development document",
             "documents": [str(spec)],
             "output_dir": str(output / "document_only_run"),
+            "legacy_unlocked": True,
             "async": False,
         }
         preflight = service.preflight_unified_request(payload)
@@ -122,6 +123,7 @@ class UnifiedAcceptanceHarness:
             "documents": [str(spec)],
             "repository_path": str(repo),
             "output_dir": str(output / "local_repo_run"),
+            "legacy_unlocked": True,
             "async": True,
         }
         preflight = service.preflight_unified_request(payload)

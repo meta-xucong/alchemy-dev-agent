@@ -6336,3 +6336,60 @@
   - Result: passed, 610 tests in 239.830 seconds.
 - Command: generic-core business vocabulary scan and Alchemy process audit
   - Result: no Billing Core-specific terms in the new goal-locked core; no residual Alchemy worker processes.
+
+## 2026-07-11T11:43:13+08:00 V2.188 Evidence-Bound Verification Attempt
+
+- Command: `python -m unittest tests.test_goal_locked_convergence`
+  - Result: blocked before test execution.
+  - Relevant error summary: PowerShell reports `python` is not recognized as a cmdlet, function, script file, or executable.
+  - Fix attempted: probed `py`, `uv`, `cmd /c where python`, and `cmd /c where py`; none are available in this worker shell.
+  - Next verification command: rerun `python -m unittest tests.test_goal_locked_convergence` with an in-scope Python 3.11+ executable.
+
+- Command: `git diff --check -- ':!.codex-longrun/**'`
+  - Result: passed.
+  - Next verification command: focused Python regression suite.
+
+- Command: `node -e "const fs=require('fs'); for (const f of fs.readdirSync('specs').filter(f=>f.endsWith('.json'))) JSON.parse(fs.readFileSync('specs/'+f,'utf8')); console.log('parsed specs json')"`
+  - Result: passed; every JSON schema in `specs/` parsed.
+  - Next verification command: Python compile/static import audit after an in-scope Python runtime is available.
+
+- Command: `python -m unittest discover -s tests`
+  - Result: not run because no in-scope Python executable is available in this worker shell.
+  - Next verification command: full unittest discovery after focused V2.188 tests pass.
+
+- Command: real read-only Codex smoke
+  - Result: not run in this slice because required Python verification is already blocked and the task cannot be marked complete.
+  - Next verification command: run the applicable read-only Codex smoke after Python tests pass.
+
+- Command: PowerShell ServerChan notification via configured SendKey source
+  - Result: failed after 3 attempts.
+  - Relevant error summary: `Unable to connect to the remote server`.
+  - Next verification command: rerun the bundled `notify_serverchan.py` helper or PowerShell equivalent when network access to ServerChan is available.
+
+## 2026-07-11T12:xx:xx+08:00 V2.188 Controller Verification
+
+- Command: `C:\Users\T14S\AppData\Local\Programs\Python\Python312\python.exe -m unittest tests.test_goal_locked_convergence`
+  - Result: passed, 20 tests in 45.087 seconds.
+  - Coverage includes real controller exit-code capture, fail-safe document routing, expired/requirement-level waiver rejection, large-file inventory, and adversarial fake-worker evidence.
+- Next verification: run the full unittest suite and static/schema/read-only smoke audits.
+
+## 2026-07-11T12:21:44+08:00 V2.188 Final Controller Verification
+
+- Command: `C:\Users\T14S\AppData\Local\Programs\Python\Python312\python.exe -m unittest tests.test_full_roadmap_execution tests.test_unified_run tests.test_real_unified_delivery tests.test_unified_acceptance`
+  - Result: passed, 153 tests in 46.519 seconds.
+- Command: `C:\Users\T14S\AppData\Local\Programs\Python\Python312\python.exe -m unittest tests.test_benchmark_suite`
+  - Result: passed, 3 tests in 6.736 seconds.
+- Command: `C:\Users\T14S\AppData\Local\Programs\Python\Python312\python.exe -m unittest tests.test_goal_locked_convergence`
+  - Result: passed, 21 tests in 79.194 seconds.
+- Command: `C:\Users\T14S\AppData\Local\Programs\Python\Python312\python.exe -m unittest discover -s tests`
+  - Result: passed, 618 tests in 504.082 seconds.
+- Command: `C:\Users\T14S\AppData\Local\Programs\Python\Python312\python.exe -m compileall -q autodev context planner runtime server tests`
+  - Result: passed.
+- Command: parse every `specs/*.json` document with Python JSON parser
+  - Result: passed, 17 schemas.
+- Command: `git diff --check -- ':!.codex-longrun/**'`
+  - Result: passed.
+- Command: read-only Codex smoke with `codex-cli 0.144.1`, model `gpt-5.5`, sandbox `read-only`
+  - Result: passed; returned `ALCHEMY_V2188_SMOKE_OK`; no files were edited.
+- Command: `notify_serverchan.py --status done`
+  - Result: passed; ServerChan push id `45168716`.

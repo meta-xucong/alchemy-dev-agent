@@ -103,6 +103,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "auto_merge": args.auto_merge,
             "full_roadmap": args.full_roadmap,
             "goal_locked_convergence": not args.legacy_unlocked,
+            "legacy_unlocked": args.legacy_unlocked,
             "reference_repository_paths": args.reference_repository_paths,
             "max_phases": args.max_phases,
             "boundary_mode": args.boundary_mode,

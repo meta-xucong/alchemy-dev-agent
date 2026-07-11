@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "V2.187 Delivery Ledger",
+  "title": "V2.188 Delivery Ledger",
   "type": "object",
-  "required": ["schema_version", "baseline", "target_worktree", "final_fingerprint", "verification_matrix_revision"],
+  "required": ["schema_version", "baseline", "target_worktree", "final_fingerprint", "verification_matrix_revision", "branch", "commit"],
   "properties": {
-    "schema_version": { "const": "2.187" },
+    "schema_version": { "const": "2.188" },
     "baseline": { "type": "string" },
     "target_worktree": { "type": "string" },
     "final_fingerprint": { "type": "string" },
