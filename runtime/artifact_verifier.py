@@ -568,7 +568,11 @@ def run_canvas_gameplay_probe(page: object) -> dict[str, object]:
     moved_x = _number(after_move.get("player_x"))
     before_y = _number(before.get("player_y"))
     jumped_y = _number(after_jump.get("player_y"))
-    if before_x is not None and moved_x is not None and moved_x > before_x + 1:
+    # Twelve fixed 60 Hz samples are intentionally short: a responsive game
+    # should show directional progress, but it need not travel a full world
+    # unit while acceleration ramps up.  Require observable positive motion
+    # instead of imposing arbitrary level-scale units on every canvas game.
+    if before_x is not None and moved_x is not None and moved_x > before_x + 0.01:
         passed.append("Right movement changes player_x.")
         evidence.append(f"player_x moved from {before_x:.2f} to {moved_x:.2f}.")
     else:

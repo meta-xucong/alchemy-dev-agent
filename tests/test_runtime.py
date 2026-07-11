@@ -4571,8 +4571,8 @@ class OrchestratorTests(unittest.TestCase):
                 if call == 2:
                     return {
                         "before": {"player_x": 3, "player_y": 11.25, "state": "falling", "paused": False},
-                        "afterMove": {"player_x": 5, "player_y": 11.25, "state": "running", "paused": False},
-                        "afterJump": {"player_x": 5, "player_y": 9.5, "state": "jumping", "paused": False},
+                        "afterMove": {"player_x": 3.4, "player_y": 11.25, "state": "running", "paused": False},
+                        "afterJump": {"player_x": 3.4, "player_y": 9.5, "state": "jumping", "paused": False},
                     }
                 if call == 3:
                     return {"supported": True, "result": {"won": True}, "snapshot": {"won": True, "state": "won"}}
