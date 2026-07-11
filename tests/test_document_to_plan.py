@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Iterator
 
 from context import ContextBundleBuilder, RepositoryIndexer
-from context.models import ContextBundle, Requirement
+from context.models import ContextBundle, RepositoryFile, Requirement
 from context.requirement_extractor import explicit_paths_from_text, extract_scope_controls
 from intake import ProjectBriefBuilder
 from intake.schema_validation import validate_context_bundle_contract
@@ -199,6 +199,38 @@ class DocumentToPlanTests(unittest.TestCase):
 
         self.assertEqual(implementation["title"], "Implement complete web game delivery")
         self.assertEqual(implementation["assigned_agent"], "frontend")
+        self.assertIn("src/main.js", implementation["relevant_files"])
+        self.assertNotIn("backend/**", implementation["relevant_files"])
+
+    def test_large_refactor_repair_of_existing_canvas_game_stays_frontend(self) -> None:
+        bundle = ContextBundle(
+            project_id="game-repair",
+            objective="Repair browser gameplay acceptance.",
+            requirements=[
+                Requirement(
+                    id="REQ-001",
+                    source_document_id="repair",
+                    text="Repair the browser gameplay hook so movement, jump, and restart are playable.",
+                )
+            ],
+            repository_files=[
+                RepositoryFile(path="index.html", kind="file"),
+                RepositoryFile(path="package.json", kind="file"),
+                RepositoryFile(path="src/main.js", kind="file"),
+                RepositoryFile(path="src/engine.js", kind="file"),
+                RepositoryFile(path="src/input.js", kind="file"),
+                RepositoryFile(path="tests/static_checks.js", kind="file"),
+            ],
+            test_commands=["npm test", "npm run build"],
+            scope_controls={"boundary_mode": ["large_refactor"]},
+        )
+
+        graph = TaskGraphBuilder().build(bundle).to_dict()
+        implementation = next(node for node in graph["nodes"] if node["id"] == "T002")
+
+        self.assertEqual(implementation["title"], "Implement complete web game delivery")
+        self.assertEqual(implementation["assigned_agent"], "frontend")
+        self.assertEqual(implementation["commands_to_run"], ["npm test", "npm run build", "static artifact inspection"])
         self.assertIn("src/main.js", implementation["relevant_files"])
         self.assertNotIn("backend/**", implementation["relevant_files"])
 

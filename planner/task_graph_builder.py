@@ -374,7 +374,9 @@ class TaskGraphBuilder:
             return nodes, requirement_task_ids
         scoped_targets = scoped_target_files(scope_controls)
         docs_only_scope = is_docs_only_scope(scoped_targets)
-        is_web_game_delivery = should_group_as_single_web_game_delivery(requirements)
+        is_web_game_delivery = should_group_as_single_web_game_delivery(requirements) or is_existing_canvas_game_repository(
+            repository_files or []
+        )
         if scoped_targets and (docs_only_scope or boundary_mode(scope_controls) != "large_refactor"):
             task_id = "T002"
             task_type = "documentation" if docs_only_scope else "integration"
@@ -9680,6 +9682,23 @@ def should_group_as_single_web_game_delivery(requirements: list[Requirement]) ->
     return scaffold_signals >= 4 or any(
         marker in text for marker in ("canvas", "webgl", "platformer", "tilemap", "vite", "横版")
     )
+
+
+def is_existing_canvas_game_repository(repository_files: list[RepositoryFile]) -> bool:
+    """Keep repair runs for an existing canvas game on the frontend game path.
+
+    A focused repair brief may contain fewer than five game requirements, so the
+    document-only grouping heuristic alone cannot recognize it.  Repository
+    evidence is stronger in that case: an HTML entrypoint plus a Vite-style
+    game source layout must never be routed through the generic backend
+    large-refactor planner.
+    """
+
+    paths = {normalize_repo_path(file.path) for file in repository_files}
+    has_entrypoint = "index.html" in paths
+    has_package = "package.json" in paths
+    game_modules = len(paths & WEB_GAME_SCAFFOLD_FILES)
+    return has_entrypoint and has_package and game_modules >= 3
 
 
 def priority_for_requirement(requirement: Requirement) -> int:
