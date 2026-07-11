@@ -374,6 +374,7 @@ class TaskGraphBuilder:
             return nodes, requirement_task_ids
         scoped_targets = scoped_target_files(scope_controls)
         docs_only_scope = is_docs_only_scope(scoped_targets)
+        is_web_game_delivery = should_group_as_single_web_game_delivery(requirements)
         if scoped_targets and (docs_only_scope or boundary_mode(scope_controls) != "large_refactor"):
             task_id = "T002"
             task_type = "documentation" if docs_only_scope else "integration"
@@ -405,7 +406,11 @@ class TaskGraphBuilder:
                 requirement_task_ids[item.id] = task_id
                 item.related_files = scoped_files(item.related_files, scope_controls, fallback=scoped_targets)
             return nodes, requirement_task_ids
-        if boundary_mode(scope_controls) == "large_refactor":
+        # A greenfield browser game is one coherent delivery even when callers
+        # request a large-refactor boundary.  The generic large-refactor path
+        # defaults to a backend owner and inferred backend/** files, which
+        # misroutes a document-only game into an unrelated subproject.
+        if boundary_mode(scope_controls) == "large_refactor" and not is_web_game_delivery:
             relevant_files = large_refactor_relevant_files(
                 repository_files or [],
                 package_files=package_files or [],
@@ -471,7 +476,7 @@ class TaskGraphBuilder:
                 item.related_files = scoped_files(item.related_files, scope_controls, fallback=relevant_files)
             return nodes, requirement_task_ids
         grouped_delivery = group_implementation_requirements(requirements)
-        is_web_game_delivery = len(grouped_delivery) == 1 and should_group_as_single_web_game_delivery(requirements)
+        is_web_game_delivery = len(grouped_delivery) == 1 and is_web_game_delivery
         for index, grouped_requirements in enumerate(grouped_delivery, start=2):
             requirement = grouped_requirements[0]
             task_type, agent = (

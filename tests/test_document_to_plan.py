@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Iterator
 
 from context import ContextBundleBuilder, RepositoryIndexer
-from context.models import Requirement
+from context.models import ContextBundle, Requirement
 from context.requirement_extractor import explicit_paths_from_text, extract_scope_controls
 from intake import ProjectBriefBuilder
 from intake.schema_validation import validate_context_bundle_contract
@@ -164,6 +164,39 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertIn("tests/static_checks.js", implementation["relevant_files"])
         verifier = next(node for node in graph["nodes"] if node["title"] == "Verify implementation against project checks")
         self.assertEqual(verifier["dependencies"], [implementation["id"]])
+
+    def test_large_refactor_boundary_keeps_greenfield_game_in_frontend_delivery(self) -> None:
+        requirements = [
+            Requirement(
+                id=f"REQ-{index:03d}",
+                source_document_id="spec",
+                text=text,
+            )
+            for index, text in enumerate(
+                [
+                    "Build a Vite browser canvas platformer game.",
+                    "Implement player movement and jumping physics.",
+                    "Implement tilemap collision and enemies.",
+                    "Implement accessible keyboard and gamepad controls.",
+                    "Add automated browser gameplay verification.",
+                ],
+                start=1,
+            )
+        ]
+        bundle = ContextBundle(
+            project_id="game",
+            objective="Build a browser platformer game.",
+            requirements=requirements,
+            scope_controls={"boundary_mode": ["large_refactor"]},
+        )
+
+        graph = TaskGraphBuilder().build(bundle).to_dict()
+        implementation = next(node for node in graph["nodes"] if node["id"] == "T002")
+
+        self.assertEqual(implementation["title"], "Implement complete web game delivery")
+        self.assertEqual(implementation["assigned_agent"], "frontend")
+        self.assertIn("src/main.js", implementation["relevant_files"])
+        self.assertNotIn("backend/**", implementation["relevant_files"])
 
     def test_partial_web_game_scaffold_signals_are_still_one_delivery(self) -> None:
         requirements = [
