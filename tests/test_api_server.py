@@ -1737,6 +1737,7 @@ class ApiServerTests(unittest.TestCase):
             thread.join(timeout=10)
             server.server_close()
 
+    @unittest.skip("Superseded by the beginner-first project workspace contract.")
     def test_http_api_serves_console_static_assets(self) -> None:
         root = temp_root()
         service = ProjectService(storage_root=root / "server")
@@ -1963,6 +1964,30 @@ class ApiServerTests(unittest.TestCase):
             self.assertIn("modelConfig", css)
             self.assertIn("modelSummary", css)
             self.assertIn("advancedModelSettings", css)
+        finally:
+            conn.close()
+            server.shutdown()
+            thread.join(timeout=10)
+            server.server_close()
+
+    def test_http_api_serves_beginner_project_lab_assets(self) -> None:
+        root = temp_root()
+        service = ProjectService(storage_root=root / "server")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address
+        conn = http.client.HTTPConnection(host, port, timeout=30)
+        try:
+            html = request_text(conn, "GET", "/", expected=200)
+            css = request_text(conn, "GET", "/static/styles.css", expected=200)
+            js = request_text(conn, "GET", "/static/app.js", expected=200)
+            for token in ("Alchemy Lab", "newProject", "projectList", "projectDialog", "remoteDialog", "connectionDialog", "progressCard"):
+                self.assertIn(token, html)
+            for token in ("--sidebar", "--canvas", ".conversation-feed", ".project-card", ".sheet"):
+                self.assertIn(token, css)
+            for token in ("loadProjects", "openProject", "startAlchemy", "openRemote", "sendConversation", "startPolling", "/integrations/remote-codex", "/remote-codex/tasks"):
+                self.assertIn(token, js)
         finally:
             conn.close()
             server.shutdown()

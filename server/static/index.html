@@ -1,356 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Alchemy Dev Agent Console</title>
+    <title>Alchemy Dev Lab</title>
     <link rel="stylesheet" href="/static/styles.css">
   </head>
   <body>
-    <main class="shell">
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">A</span><div><strong>Alchemy Lab</strong><small>把想法变成项目</small></div></div>
+        <button id="newProject" class="primary-button" type="button">＋ 新建项目</button>
+        <div class="sidebar-heading"><span>你的项目</span><button id="refreshProjects" class="text-button" type="button">刷新</button></div>
+        <div id="projectList" class="project-list" aria-label="项目列表"></div>
+        <div class="sidebar-footer"><span id="remoteStatus" class="connection-chip">Remote Codex 未连接</span><button id="connectRemote" class="text-button" type="button">连接</button></div>
+      </aside>
+
       <section class="workspace">
-        <header class="topbar">
-          <div>
-            <h1>Alchemy Dev Agent</h1>
-            <p data-i18n="app.subtitle">Document-driven autonomous development console</p>
-          </div>
-          <div class="topbarActions">
-            <div class="languageSwitch" role="group" aria-label="Language">
-              <button id="languageEn" type="button" class="languageOption active" data-lang="en">EN</button>
-              <button id="languageZh" type="button" class="languageOption" data-lang="zh">中文</button>
-            </div>
-            <button id="advancedToggle" type="button" class="advancedToggle" aria-pressed="false" data-i18n="advanced.show">Advanced details</button>
-            <span id="apiStatus" class="status" data-i18n="api.checking">Checking API</span>
-          </div>
-        </header>
-
-        <div class="layout">
-          <section class="panel projectWorkspacePanel" aria-label="Project workspace">
-            <header class="panelHeader">
-              <div>
-                <h2 data-i18n="workspace.title">Project Workspace</h2>
-                <p data-i18n="workspace.simple_help">Start a new project or reopen a previous generated result.</p>
-              </div>
-              <span id="workspaceBadge" class="readinessBadge status-ready" data-i18n="workspace.new_ready">New project</span>
-            </header>
-            <div class="workspaceActions">
-              <button id="newProject" type="button" data-i18n="button.new_project">New Project</button>
-              <button id="refreshProjectHistory" type="button" class="secondaryButton" data-i18n="button.refresh_history">Refresh History</button>
-            </div>
-            <div id="activeProjectSummary" class="activeProjectSummary"></div>
-            <div id="projectHistory" class="projectHistory" aria-label="Project history"></div>
-          </section>
-
-          <section class="panel configPanel" aria-label="Configuration">
-            <header class="panelHeader">
-              <div>
-                <h2 data-i18n="config.title">Configuration</h2>
-              </div>
-              <span id="environmentBadge" class="readinessBadge status-unknown" data-i18n="config.not_checked">Not checked</span>
-            </header>
-            <p class="simpleHint" data-i18n="config.simple_help">First check whether this computer is ready. Most users do not need to edit advanced settings.</p>
-            <details id="advancedConfigDetails" class="advancedConfigDetails">
-              <summary data-i18n="advanced.config">Advanced configuration</summary>
-              <div class="advancedConfigBody">
-                <label>
-                  <span data-i18n="controls.codex_executable">Codex CLI executable</span>
-                  <input id="codexExecutable" type="text" value="codex" placeholder="D:\AI\Tools\CodexCLI\bin\codex.exe">
-                </label>
-                <section class="modelConfig" aria-label="Model access">
-                  <div class="modelHeader">
-                    <div>
-                      <h3 data-i18n="config.models">Model Access</h3>
-                      <p data-i18n="config.model_help">Recommended mode uses your logged-in Codex CLI. No API key is needed.</p>
-                    </div>
-                    <span id="modelModeBadge" class="readinessBadge status-ready" data-i18n="config.recommended">Recommended</span>
-                  </div>
-                  <label>
-                    <span data-i18n="config.model_mode">Model mode</span>
-                    <select id="modelProvider">
-                      <option value="codex_cli" data-i18n="config.provider_codex">Recommended: Codex CLI login</option>
-                      <option value="openai" data-i18n="config.provider_openai">Advanced: OpenAI API key</option>
-                      <option value="anthropic" data-i18n="config.provider_anthropic">Advanced: Anthropic API key</option>
-                      <option value="custom" data-i18n="config.provider_custom">Advanced: Custom endpoint</option>
-                    </select>
-                  </label>
-                  <div id="modelSummary" class="modelSummary"></div>
-                  <details id="advancedModelSettings" class="advancedModelSettings">
-                    <summary data-i18n="config.advanced_model">Advanced model settings</summary>
-                    <div class="configGrid">
-                      <label>
-                        <span data-i18n="config.orchestrator_model">Orchestrator model</span>
-                        <input id="orchestratorModel" type="text" value="codex-cli">
-                      </label>
-                      <label>
-                        <span data-i18n="config.expansion_model">Document expansion model</span>
-                        <input id="documentExpansionModel" type="text" value="codex-cli">
-                      </label>
-                      <label>
-                        <span data-i18n="config.reviewer_model">Reviewer model</span>
-                        <input id="reviewerModel" type="text" value="codex-cli">
-                      </label>
-                      <label>
-                        <span data-i18n="config.api_key_env">API key environment variable</span>
-                        <input id="modelApiKeyEnv" type="text" placeholder="OPENAI_API_KEY">
-                      </label>
-                    </div>
-                    <label>
-                      <span data-i18n="config.base_url">Base URL</span>
-                      <input id="modelBaseUrl" type="url" placeholder="https://api.openai.com/v1">
-                    </label>
-                  </details>
-                </section>
-                <div class="configGrid">
-                  <label>
-                    <span data-i18n="controls.ci_wait">CI wait seconds</span>
-                    <input id="githubCiWaitSeconds" type="number" min="0" step="1" value="120">
-                  </label>
-                  <label>
-                    <span data-i18n="controls.ci_poll">CI poll seconds</span>
-                    <input id="githubCiPollSeconds" type="number" min="1" step="1" value="10">
-                  </label>
-                </div>
-                <div class="configChecks">
-                  <label class="check">
-                    <input id="autoBrowserVerify" type="checkbox">
-                    <span data-i18n="controls.auto_browser">Auto browser verify</span>
-                  </label>
-                  <label class="check">
-                    <input id="prepareRepository" type="checkbox">
-                    <span data-i18n="controls.prepare_repository">Prepare GitHub source</span>
-                  </label>
-                  <label class="check">
-                    <input id="realCodex" type="checkbox" checked>
-                    <span data-i18n="controls.real_codex">Real Codex worker</span>
-                  </label>
-                  <label class="check">
-                    <input id="realGithub" type="checkbox">
-                    <span data-i18n="controls.real_github">Real GitHub flow</span>
-                  </label>
-                  <label class="check">
-                    <input id="githubCollectCi" type="checkbox" checked>
-                    <span data-i18n="controls.collect_ci">Collect GitHub CI</span>
-                  </label>
-                  <label class="check">
-                    <input id="isolateRealRun" type="checkbox" checked>
-                    <span data-i18n="controls.isolated_worktree">Isolated worktree</span>
-                  </label>
-                  <label class="check">
-                    <input id="keepWorktree" type="checkbox" checked>
-                    <span data-i18n="controls.keep_worktree">Keep worktree</span>
-                  </label>
-                  <label class="check">
-                    <input id="generateStaticCi" type="checkbox" checked>
-                    <span data-i18n="controls.static_ci">Generate static CI</span>
-                  </label>
-                  <label class="check">
-                    <input id="writeNativeUiTests" type="checkbox">
-                    <span data-i18n="controls.native_ui_tests">Write native UI tests</span>
-                  </label>
-                  <label class="check">
-                    <input id="autoMerge" type="checkbox">
-                    <span data-i18n="controls.auto_merge">Auto merge after checks</span>
-                  </label>
-                </div>
-              </div>
-            </details>
-            <div class="buttonRow">
-              <button id="checkEnvironment" data-i18n="button.check_env">Check Env</button>
-            </div>
-            <div id="environmentSummary" class="environmentSummary" aria-label="Environment checks"></div>
-          </section>
-
-          <section class="panel sourcePanel devPanel locked" aria-label="Development source">
-            <header class="panelHeader">
-              <div>
-                <h2 data-i18n="source.title">Development Source</h2>
-                <p data-i18n="source.simple_help">Pick one way to tell Alchemy what to build.</p>
-              </div>
-              <span id="developmentLockBadge" class="readinessBadge status-blocked" data-i18n="source.locked">Locked</span>
-            </header>
-            <div id="sourceCards" class="sourceCards">
-              <label class="sourceCard" data-source-card="idea">
-                <input class="sourceRadio" type="radio" name="sourceType" value="idea">
-                <strong data-i18n="source.idea.title">Idea prompt</strong>
-                <span data-i18n="source.idea.subtitle">Expand one paragraph into a full development document.</span>
-                <textarea id="objective" rows="5" spellcheck="false" data-i18n-placeholder="source.idea.placeholder" placeholder="Describe what you want to build."></textarea>
-              </label>
-              <label class="sourceCard" data-source-card="documents">
-                <input class="sourceRadio" type="radio" name="sourceType" value="documents">
-                <strong data-i18n="source.documents.title">Local documents</strong>
-                <span data-i18n="source.documents.subtitle">Upload one or more development documents from this computer.</span>
-                <input id="documentObjective" type="text" data-i18n-placeholder="source.documents.objective_placeholder" placeholder="Optional delivery goal">
-                <span class="filePicker">
-                  <span class="filePickerButton" data-i18n="button.choose_files">Choose files</span>
-                  <input id="uploadFiles" type="file" multiple>
-                </span>
-                <span id="fileSelection" class="fileSelection" data-i18n="file.no_file">No file selected</span>
-              </label>
-              <label class="sourceCard" data-source-card="github">
-                <input class="sourceRadio" type="radio" name="sourceType" value="github">
-                <strong data-i18n="source.github.title">GitHub repository</strong>
-                <span data-i18n="source.github.subtitle">Use a GitHub repository URL after GitHub login is verified.</span>
-                <input id="githubObjective" type="text" data-i18n-placeholder="source.github.objective_placeholder" placeholder="Optional delivery goal">
-                <input id="repository" type="url" placeholder="https://github.com/org/repo">
-              </label>
-            </div>
-            <div class="sourceActions">
-              <button id="resetSourceChoice" class="secondaryButton" disabled data-i18n="button.change_source">Change Source</button>
-              <button id="preflightUnifiedRun" class="secondaryButton" disabled data-i18n="button.preflight">Preflight</button>
-              <button id="startUnifiedRun" disabled data-i18n="button.start_development">Start Development</button>
-            </div>
-            <details id="advancedRunControls" class="advancedRunControls">
-              <summary data-i18n="advanced.run_controls">Advanced run controls</summary>
-              <div class="buttonRow secondary runControls">
-                <button id="buildPlan" disabled data-i18n="button.plan">Plan</button>
-                <button id="reopenFeedback" disabled data-i18n="button.feedback_reopen">Feedback Reopen</button>
-                <button id="startRun" disabled data-i18n="button.run">Run</button>
-              </div>
-              <div class="buttonRow secondary runControls">
-                <button id="pauseRun" disabled data-i18n="button.pause">Pause</button>
-                <button id="resumeRun" disabled data-i18n="button.resume">Resume</button>
-                <button id="stopRun" disabled data-i18n="button.stop">Stop</button>
-              </div>
-            </details>
-          </section>
-
-          <section class="panel summary" aria-label="Project summary">
-            <h2 data-i18n="progress.title">Development Progress</h2>
-            <dl>
-              <dt data-i18n="project.project_id">Project ID</dt>
-              <dd id="projectId">-</dd>
-              <dt data-i18n="project.status">Status</dt>
-              <dd id="projectStatus">-</dd>
-              <dt data-i18n="project.run_id">Run ID</dt>
-              <dd id="runId">-</dd>
-              <dt data-i18n="project.run_status">Run Status</dt>
-              <dd id="runStatus">-</dd>
-            </dl>
-            <div id="runProgressPanel" class="runProgressPanel idle" aria-label="Development progress">
-              <div class="progressHeader">
-                <strong id="progressTitle" data-i18n="progress.waiting">Waiting to start</strong>
-                <span id="progressPercent">0%</span>
-              </div>
-              <div class="progressTrack" aria-hidden="true">
-                <span id="progressFill" style="width: 0%"></span>
-              </div>
-              <p id="progressSummary" data-i18n="progress.choose_source">Choose a source and start development.</p>
-              <div id="roadmapProgress" class="roadmapProgress" hidden></div>
-              <div id="centralReviewProgress" class="centralReviewProgress"></div>
-              <div class="progressMeta">
-                <span id="progressTasks">-</span>
-                <span id="progressActivity">-</span>
-              </div>
-              <div class="progressActions">
-                <button id="progressStopRun" type="button" class="secondaryButton" hidden disabled data-i18n="button.stop_development">Stop Development</button>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel output briefPanel">
-            <h2 data-i18n="panel.intake">Intake</h2>
-            <pre id="briefOutput">{}</pre>
-          </section>
-
-          <section class="panel output graphPanel">
-            <h2 data-i18n="panel.task_graph">Task Graph</h2>
-            <div id="graphViz" class="graphViz" aria-label="Task graph visualization"></div>
-            <pre id="graphOutput">{}</pre>
-          </section>
-
-          <section class="panel output eventPanel">
-            <h2 data-i18n="panel.events">Events</h2>
-            <pre id="eventOutput">[]</pre>
-          </section>
-
-          <section class="panel output deliveryPanel">
-            <header class="panelHeader deliveryHeader">
-              <div>
-                <h2 data-i18n="delivery.title">Delivery Command</h2>
-                <p data-i18n="delivery.simple_help">Open the result, inspect it, and review the final gate.</p>
-              </div>
-              <span id="readinessBadge" class="readinessBadge status-unknown" data-i18n="delivery.no_delivery">No delivery</span>
-            </header>
-            <div class="deliveryCommand">
-              <div class="gateScoreCard">
-                <strong id="gateScore">-</strong>
-                <span data-i18n="delivery.final_gate">Final gate</span>
-              </div>
-              <div id="deliverySummary" class="deliverySummary"></div>
-            </div>
-            <div id="scoreExplanation" class="scoreExplanation"></div>
-            <div id="centralReviewCard" class="centralReviewCard"></div>
-            <div class="deliveryTabs" role="tablist" aria-label="Delivery views">
-              <button type="button" class="deliveryTab active" data-delivery-tab="overview" aria-selected="true" data-i18n="tab.overview">Overview</button>
-              <button type="button" class="deliveryTab" data-delivery-tab="artifacts" aria-selected="false" data-i18n="tab.artifacts">Artifacts</button>
-              <button type="button" class="deliveryTab" data-delivery-tab="readiness" aria-selected="false" data-i18n="tab.evidence_gate">Evidence Gate</button>
-              <button type="button" class="deliveryTab" data-delivery-tab="raw" aria-selected="false" data-i18n="tab.raw_json">Raw JSON</button>
-            </div>
-            <section class="deliveryView active" data-delivery-view="overview" aria-label="Delivery overview">
-              <div id="deliveryActions" class="deliveryActions" aria-label="Delivery review actions"></div>
-              <div id="deliveryActionFeedback" class="deliveryActionFeedback"></div>
-              <div id="evidenceCards" class="evidenceCards" aria-label="Delivery evidence cards"></div>
-              <div id="evidenceDetails" class="evidenceDetails" aria-label="Delivery evidence details"></div>
-            </section>
-            <section class="deliveryView" data-delivery-view="artifacts" aria-label="Delivery artifacts">
-              <div id="coverageViz" class="coverageViz" aria-label="Requirement coverage visualization"></div>
-              <div id="artifactPreviews" class="artifactPreviews" aria-label="Delivery artifact previews"></div>
-            </section>
-            <section class="deliveryView" data-delivery-view="readiness" aria-label="Evidence readiness gate">
-              <div class="evidenceWorkbench">
-                <div class="workbenchHeader">
-                  <div>
-                    <h3 data-i18n="gate.title">Evidence Gate</h3>
-                  </div>
-                </div>
-                <div class="evidenceToolGrid">
-                  <label>
-                    <span data-i18n="gate.roots">Evidence roots</span>
-                    <textarea id="evidenceRoot" rows="3" spellcheck="false" placeholder=".alchemy/run_a&#10;.alchemy/run_b" data-i18n-placeholder="placeholder.evidence_roots">.alchemy/v2_47_real_unified_delivery
-.alchemy/v2_48_pr_lifecycle_inspect
-.alchemy/v2_50_benchmark_suite
-.alchemy/v2_52_benchmark_regression</textarea>
-                  </label>
-                  <label>
-                    <span data-i18n="gate.index_output">Index output</span>
-                    <input id="evidenceIndexOutput" type="text" value=".alchemy/ui_evidence_index.json">
-                  </label>
-                  <label>
-                    <span data-i18n="gate.package_output">Package output</span>
-                    <input id="evidencePackageOutput" type="text" value=".alchemy/ui_evidence_package">
-                  </label>
-                  <label>
-                    <span data-i18n="gate.readiness_output">Readiness output</span>
-                    <input id="evidenceReadinessOutput" type="text" value=".alchemy/ui_evidence_readiness">
-                  </label>
-                  <label>
-                    <span data-i18n="gate.index_report">Evidence index report</span>
-                    <input id="evidenceIndexPath" type="text" value=".alchemy/ui_evidence_index.json">
-                  </label>
-                  <label>
-                    <span data-i18n="gate.package_manifest">Evidence package manifest</span>
-                    <input id="evidencePackagePath" type="text" value=".alchemy/ui_evidence_package/evidence_package_manifest.json">
-                  </label>
-                  <label>
-                    <span data-i18n="gate.benchmark_report">Benchmark regression report</span>
-                    <input id="benchmarkRegressionPath" type="text" value=".alchemy/v2_52_benchmark_regression/benchmark_regression_report.json">
-                  </label>
-                </div>
-                <div class="buttonRow evidenceActions">
-                  <button id="runEvidenceIndex" type="button" data-i18n="button.index">Index</button>
-                  <button id="runEvidencePackage" type="button" data-i18n="button.package">Package</button>
-                  <button id="runEvidenceReadiness" type="button" data-i18n="button.readiness">Readiness</button>
-                </div>
-              </div>
-              <div id="readinessOutput" class="readinessOutput" aria-label="Evidence readiness output"></div>
-            </section>
-            <section class="deliveryView" data-delivery-view="raw" aria-label="Raw delivery JSON">
-              <pre id="deliveryOutput">{}</pre>
-            </section>
-          </section>
-        </div>
+        <header class="topbar"><div><p class="eyebrow">PROJECT WORKSPACE</p><h1 id="workspaceTitle">选择一个项目</h1></div><button id="workspaceMenu" class="icon-button" type="button" aria-label="项目选项">•••</button></header>
+        <section id="emptyState" class="empty-state"><div class="empty-orb">✦</div><h2>从一个想法开始</h2><p>写下你想做的事。Alchemy 会帮你组织项目、启动开发，并把进度讲清楚。</p><button id="emptyNewProject" class="primary-button" type="button">创建第一个项目</button></section>
+        <section id="projectHome" class="project-home" hidden>
+          <article class="hero-card"><span id="projectStatus" class="status-chip">准备中</span><h2 id="projectObjective">-</h2><p id="projectHint">先选择一种开始方式。</p><div class="hero-actions"><button id="startAlchemy" class="primary-button" type="button">用 Alchemy 开发</button><button id="openConversation" class="secondary-button" type="button">和 Remote Codex 对话</button></div></article>
+          <section class="section-heading"><div><h2>开发进度</h2><p>只显示你需要知道的下一步。</p></div><span id="progressStatus" class="quiet-status">尚未开始</span></section>
+          <article id="progressCard" class="progress-card"><div class="progress-row"><span id="progressDot" class="progress-dot"></span><strong id="progressTitle">等待开始</strong></div><p id="progressMessage">创建开发任务后，这里会实时告诉你正在发生什么。</p><ol id="progressSteps" class="progress-steps"></ol></article>
+          <section class="section-heading"><div><h2>最近成果</h2><p>完成后可以在这里打开和查看交付结果。</p></div></section>
+          <div id="deliveryCard" class="delivery-card">还没有交付结果。</div>
+        </section>
       </section>
     </main>
+
+    <dialog id="projectDialog" class="sheet"><form id="projectForm" method="dialog" class="sheet-card"><button class="close-button" value="cancel" aria-label="关闭">×</button><p class="eyebrow">NEW PROJECT</p><h2>你想做什么？</h2><p>不用写需求文档。用自己的话描述目标就好。</p><label>项目名称<input id="projectName" required placeholder="例如：我的预约小程序"></label><label>想做的事情<textarea id="projectObjectiveInput" required rows="6" placeholder="例如：做一个给客户预约服务的小程序，需要日历、提醒和管理后台。"></textarea></label><button class="primary-button" value="default" type="submit">创建项目</button></form></dialog>
+
+    <dialog id="projectQuickDialog" class="sheet"><section class="sheet-card"><button id="closeProjectQuick" class="close-button" type="button" aria-label="关闭">×</button><p class="eyebrow">PROJECT</p><h2 id="quickProjectTitle">项目</h2><p id="quickProjectHint">在这里继续开发，或直接把新想法发给 Remote Codex。</p><div class="hero-actions"><button id="quickOpenWorkspace" class="primary-button" type="button">进入项目</button><button id="quickOpenConversation" class="secondary-button" type="button">继续对话</button></div></section></dialog>
+
+    <dialog id="remoteDialog" class="sheet"><div class="sheet-card conversation-card"><button id="closeRemote" class="close-button" type="button" aria-label="关闭">×</button><p class="eyebrow">REMOTE CODEX</p><h2 id="conversationTitle">继续开发</h2><p id="conversationHelp">把需求、反馈或修改想法直接发给 Remote Codex。</p><div id="conversationFeed" class="conversation-feed"></div><form id="conversationForm" class="composer"><textarea id="conversationMessage" rows="3" placeholder="例如：把首页的按钮改得更醒目，并告诉我修改进度。"></textarea><button class="primary-button" type="submit">发送</button></form></div></dialog>
+
+    <dialog id="connectionDialog" class="sheet"><form id="connectionForm" method="dialog" class="sheet-card"><button class="close-button" value="cancel" aria-label="关闭">×</button><p class="eyebrow">CONNECT</p><h2>连接 Remote Codex</h2><p>填入 Remote Codex Worker Web 地址。登录信息只保留在 Remote Codex 本机。</p><label>Worker Web 地址<input id="remoteUrl" type="url" required placeholder="http://127.0.0.1:8765"></label><p id="connectionMessage" class="form-note"></p><button class="primary-button" type="submit">保存并检查连接</button></form></dialog>
     <script src="/static/app.js"></script>
   </body>
 </html>

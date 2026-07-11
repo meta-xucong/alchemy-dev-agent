@@ -138,6 +138,24 @@ class ProjectService:
         self.folder_opener = folder_opener or open_folder_with_os
         self.projects_root = self.storage_root / "projects"
         self.projects_root.mkdir(parents=True, exist_ok=True)
+        # Imported lazily to keep the core local-project runtime usable without
+        # Remote Codex installed or configured.
+        from .remote_codex import RemoteCodexBridge
+
+        self.remote_codex = RemoteCodexBridge(self.storage_root)
+
+    def remote_codex_configuration(self) -> dict[str, object]:
+        return self.remote_codex.configuration()
+
+    def configure_remote_codex(self, payload: dict[str, Any]) -> dict[str, object]:
+        return self.remote_codex.configure(payload)
+
+    def start_remote_codex_conversation(self, project_id: str, payload: dict[str, Any]) -> dict[str, object]:
+        self.load_project(project_id)
+        return self.remote_codex.submit_conversation({**payload, "project_id": project_id})
+
+    def get_remote_codex_task(self, task_id: str) -> dict[str, object]:
+        return self.remote_codex.task_detail(task_id)
 
     def create_project(self, payload: dict[str, Any]) -> dict[str, object]:
         normalized = normalize_project_payload(payload)

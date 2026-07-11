@@ -194,6 +194,12 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
     if method == "POST" and parts == ["environment", "check"]:
         return service.check_environment(payload), HTTPStatus.OK
 
+    if method == "GET" and parts == ["integrations", "remote-codex"]:
+        return service.remote_codex_configuration(), HTTPStatus.OK
+
+    if method in {"POST", "PATCH"} and parts == ["integrations", "remote-codex"]:
+        return service.configure_remote_codex(payload), HTTPStatus.OK
+
     if method == "POST" and parts == ["runs"]:
         result = service.run_unified_request(payload)
         return result, HTTPStatus.ACCEPTED if bool(result.get("async", True)) else HTTPStatus.CREATED
@@ -239,6 +245,10 @@ def route_request(service: ProjectService, method: str, raw_path: str, payload: 
         if "uploads" in payload:
             return service.upload_files(project_id, payload.get("uploads", []), payload.get("fields", {})), HTTPStatus.OK
         return service.add_files(project_id, payload), HTTPStatus.OK
+    if method == "POST" and tail == ["remote-codex", "tasks"]:
+        return service.start_remote_codex_conversation(project_id, payload), HTTPStatus.CREATED
+    if method == "GET" and len(tail) == 3 and tail[0] == "remote-codex" and tail[1] == "tasks":
+        return service.get_remote_codex_task(tail[2]), HTTPStatus.OK
     if method == "GET" and tail == ["files"]:
         return service.list_files(project_id), HTTPStatus.OK
     if method == "PATCH" and len(tail) == 2 and tail[0] == "files":
