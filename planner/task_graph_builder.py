@@ -186,6 +186,10 @@ class TaskGraphBuilder:
             }
         )
         repair_specs = final_verification_repair_task_specs(context_bundle)
+        repair_specs = final_verification_repair_specs_for_target_files(
+            context_bundle,
+            repair_specs,
+        )
         test_commands = context_bundle.test_commands or ["static artifact inspection"]
         verification_commands = scoped_verification_commands(
             scope_controls,
@@ -241,7 +245,11 @@ class TaskGraphBuilder:
                     description=(
                         "Challenge the completed roadmap against the source documents, phase records, "
                         "known risks, scope boundaries, and delivery evidence. Apply only small concrete "
-                        "repairs when the audit identifies a specific defect."
+                        "repairs when the audit identifies a specific defect. Do not fail this audit "
+                        "solely because downstream final-verification gates are still pending; T010/T011/T012/T013 "
+                        "must report their own simulation, real-check, review, and delivery status after this audit. "
+                        "Treat historical blocked phase records as superseded when the current final-verification "
+                        "repair graph provides direct evidence that the underlying defect was repaired."
                     ),
                     type="test",
                     assigned_agent="test",
@@ -321,6 +329,21 @@ class TaskGraphBuilder:
                 Dependency(source=real_id, target=review_id, type="requires_review"),
             ]
         )
+        preserved_task_ids = final_verification_preserved_task_ids_with_matching_repair_title(
+            context_bundle,
+            nodes,
+            preserved_task_ids,
+        )
+        preserved_task_ids = final_verification_preserved_task_ids_without_new_target_file_tasks(
+            context_bundle,
+            nodes,
+            preserved_task_ids,
+        )
+        if final_verification_gate_rerun_required(context_bundle):
+            preserved_task_ids = final_verification_preserved_task_ids_without_gate_tasks(
+                nodes,
+                preserved_task_ids,
+            )
         mark_preserved_completed_tasks(nodes, preserved_task_ids)
         if repair_specs:
             repair_task_ids = [f"T{index:03d}" for index in range(2, len(repair_specs) + 2)]
@@ -557,6 +580,7 @@ def is_final_verification_audit_context(context_bundle: ContextBundle) -> bool:
     chunks = [context_bundle.objective]
     for document in context_bundle.documents:
         chunks.extend([document.path, document.summary, *document.key_requirements])
+        chunks.extend(final_verification_repair_document_text_fragments(document.path))
     chunks.extend(requirement.text for requirement in context_bundle.requirements)
     text = "\n".join(chunks).lower()
     final_audit_signal = "final_verification" in text or "final full-system audit" in text
@@ -568,11 +592,14 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
     chunks = [context_bundle.objective]
     for document in context_bundle.documents:
         chunks.extend([document.path, document.summary, *document.key_requirements])
+        chunks.extend(final_verification_repair_document_text_fragments(document.path))
     chunks.extend(requirement.text for requirement in context_bundle.requirements)
-    text = "\n".join(chunks).lower()
+    full_text = "\n".join(chunks).lower()
+    text = final_verification_active_repair_text(context_bundle) or full_text
     if not any(token in text for token in ["source-boundary", "allowed_files", "retry repair", "repair final"]):
         return []
     specs: list[dict[str, object]] = []
+    preserve_deep_final_frontend_tail = False
     if any(token in text for token in ["migration", "schema", "ent", "backend", "table", "domain"]):
         specs.append(
             {
@@ -740,9 +767,15 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             )
     if any(token in text for token in ["frontend", "i18n", "router", "view", "api module", "reachable views"]):
         preserve_deep_final_frontend_tail = should_preserve_final_frontend_deep_tail_split(text)
+        split_routes_views = should_split_final_frontend_routes_views_timeout(text)
         split_api_i18n = should_split_final_frontend_api_i18n_timeout(
             text
         ) or should_preserve_final_frontend_api_i18n_split(text)
+        # A resumed downstream route repair must keep the already-established
+        # API/i18n task IDs stable instead of collapsing them into one task.
+        split_api_i18n = split_api_i18n or split_routes_views
+        split_i18n_locale_leaf = should_narrow_final_frontend_i18n_locale_timeout(text)
+        split_api_i18n = split_api_i18n or split_i18n_locale_leaf
         split_admin_user_create_edit = should_split_final_frontend_admin_user_create_edit_timeout(
             text
         ) or should_preserve_final_frontend_admin_user_create_edit_split(text)
@@ -812,6 +845,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
         split_frontend_test_fixtures = should_split_final_frontend_test_fixture_timeout(
             text
         ) or should_preserve_final_frontend_test_fixture_split(text)
+        split_component_composable_tests = should_split_final_frontend_component_composable_test_timeout(text)
         split_composable_contracts = split_composable_contracts or split_metering_entitlement_composables
         split_state_composable_utility = split_state_composable_utility or split_composable_contracts
         split_admin_usage_payment = should_split_final_frontend_admin_usage_payment_timeout(
@@ -842,6 +876,15 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             or split_admin_components
             or split_view_pages
         )
+        if (
+            split_frontend_view_components
+            or split_state_composable_utility
+            or split_composable_contracts
+            or split_frontend_test_fixtures
+        ):
+            # Preserve stable upstream task IDs when a downstream frontend repair
+            # is split again; otherwise every resume renumbers the failed leaf.
+            split_api_i18n = True
         if preserve_deep_final_frontend_tail:
             split_api_i18n = True
             split_admin_user_create_edit = True
@@ -869,12 +912,13 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
             final_frontend_api_i18n_repair_task_specs(
                 split=split_api_i18n,
                 split_api_module_leaf=should_narrow_final_frontend_api_module_leaf_timeout(text),
+                split_i18n_locale_leaf=split_i18n_locale_leaf,
             )
         )
         specs.extend(
             final_frontend_routes_views_repair_task_specs(
                 split=(
-                    should_split_final_frontend_routes_views_timeout(text)
+                    split_routes_views
                     or split_frontend_view_components
                     or split_state_composable_utility
                     or narrow_route_app_shell
@@ -901,6 +945,7 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 split_composable_contracts=split_composable_contracts,
                 split_metering_entitlement_composables=split_metering_entitlement_composables,
                 split_frontend_test_fixtures=split_frontend_test_fixtures,
+                split_component_composable_tests=split_component_composable_tests,
             )
         )
     if should_repair_final_delivery_artifacts(text):
@@ -929,7 +974,1002 @@ def final_verification_repair_task_specs(context_bundle: ContextBundle) -> list[
                 "priority": 87,
             }
         )
+    if should_repair_final_embedded_runtime_assets(text):
+        specs.append(
+            {
+                "title": "Repair final embedded runtime asset contracts",
+                "description": (
+                    "Repair embedded runtime HTML and Veyra portal assets so delivered static/runtime surfaces "
+                    "no longer expose retired API gateway, sub2api console, provider channel, or model-channel "
+                    "identity."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
+                    "backend/internal/web/embed_on.go",
+                    "backend/internal/web/embed_test.go",
+                    "backend/internal/veyra/portal_dist/index.html",
+                    "backend/internal/veyra/portal_dist/mobile.html",
+                    "backend/internal/veyra/portal_dist/app.js",
+                    "extensions/veyra/portal/**",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                ],
+                "completion_criteria": [
+                    "Embedded runtime HTML titles and routes use CRM Billing Core identity instead of AI API Gateway or sub2api console copy.",
+                    "Veyra portal source and bundled dist assets no longer expose retired gateway/provider/channel identity.",
+                    "Embedded asset coverage rejects the obsolete gateway title and portal copy before final gates rerun.",
+                ],
+                "priority": 86,
+            }
+        )
+    if should_repair_final_veyra_portal_branding(text):
+        specs.append(
+            {
+                "title": "Repair final Veyra portal branding contracts",
+                "description": (
+                    "Align Veyra portal middleware tests and bundled portal HTML with the intended delivered "
+                    "Billing Core branding."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
+                    "backend/internal/veyra/portal_test.go",
+                    "backend/internal/veyra/portal_dist/index.html",
+                    "backend/internal/veyra/portal_dist/mobile.html",
+                    "extensions/veyra/portal/**",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                ],
+                "completion_criteria": [
+                    "Portal middleware tests assert the intended Veyra Billing Portal branding.",
+                    "Bundled portal HTML and source portal branding are aligned.",
+                    "Focused internal/veyra portal middleware tests pass.",
+                ],
+                "priority": 88,
+            }
+        )
+    if should_repair_final_backend_startup_contract(text):
+        specs.append(
+            {
+                "title": "Repair final backend startup contract wiring",
+                "description": (
+                    "Repair generated server startup wiring so fresh database contract enforcement runs after "
+                    "SQL database initialization."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
+                    "backend/cmd/server/wire.go",
+                    "backend/cmd/server/wire_gen.go",
+                    "backend/cmd/server/database_contract.go",
+                    "backend/cmd/server/database_contract_test.go",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                ],
+                "completion_criteria": [
+                    "Generated startup wiring calls enforceFreshDatabaseContract after SQL database initialization.",
+                    "The focused cmd/server fresh database startup contract test passes.",
+                    "No broad backend service or handler cleanup is bundled into this repair.",
+                ],
+                "priority": 88,
+            }
+        )
+    if should_repair_final_backend_account_repository_predicates(text):
+        specs.append(
+            {
+                "title": "Repair final backend account repository predicate contracts",
+                "description": (
+                    "Repair account repository callers that still reference removed Ent account-group predicates "
+                    "after the CRM schema rename."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
+                    "backend/internal/repository/account_repo.go",
+                    "backend/internal/repository/account_repo*_test.go",
+                    "backend/ent/account/where.go",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                ],
+                "completion_criteria": [
+                    "Account repository callers use the CRM-renamed Ent predicates.",
+                    "The focused cmd/server compile or account repository checks no longer fail on removed predicates.",
+                    "No broad Ent schema or repository sweep is bundled unless the focused compile proves it is necessary.",
+                ],
+                "priority": 88,
+            }
+        )
+    if should_repair_final_frontend_locale_component_surfaces(text):
+        specs.append(
+            {
+                "title": "Repair final frontend locale component boundary contracts",
+                "description": (
+                    "Repair remaining user-facing locale and reachable component copy that still exposes "
+                    "model-provider, gateway, client, or service-account-pool identity."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/i18n/locales/en.ts",
+                    "frontend/src/i18n/locales/zh.ts",
+                    "frontend/src/views/admin/SettingsView.vue",
+                    "frontend/src/components/payment/SubscriptionPlanCard.vue",
+                    "frontend/src/components/user/PlatformUsageBreakdown.vue",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Locale copy and reachable component labels use CRM billing, wallet, usage, and account language.",
+                    "Retired model/provider/client/gateway identity is removed from the named frontend surfaces.",
+                    "Focused frontend semantic probes or component tests are updated or run before final gates rerun.",
+                ],
+                "priority": 87,
+            }
+        )
+    if should_repair_final_frontend_locale_settings_surfaces(text):
+        specs.append(
+            {
+                "title": "Repair final frontend locale settings boundary contracts",
+                "description": (
+                    "Repair the remaining frontend locale and admin settings copy that still exposes "
+                    "provider, channel, proxy, gateway, or OpenAI-style identity."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/i18n/locales/en.ts",
+                    "frontend/src/i18n/locales/zh.ts",
+                    "frontend/src/views/admin/SettingsView.vue",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "The named locale/settings surfaces have zero user-facing old provider/channel/proxy/gateway/OpenAI-style hits.",
+                    "Focused source-boundary probes for the three files pass before final gates rerun.",
+                    "No unrelated frontend component work is bundled into this repair.",
+                ],
+                "priority": 88,
+            }
+        )
+    if should_repair_final_frontend_admin_api_build_lint(text):
+        specs.append(
+            {
+                "title": "Repair final frontend admin API build lint contracts",
+                "description": (
+                    "Repair frontend typecheck/build and lint failures reported by the final real repository checks."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/api/admin/settings.ts",
+                    "frontend/src/api/admin/usage.ts",
+                    "frontend/src/api/admin/users.ts",
+                    "frontend/src/views/admin/ops/components/__tests__/OpsSettingsDialog.spec.ts",
+                    "frontend/src/views/admin/ops/components/__tests__/OpsSystemLogTable.spec.ts",
+                    "frontend/src/api/__tests__/admin.users.spec.ts",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Frontend typecheck/build no longer fails in admin settings, usage, or users API modules.",
+                    "Frontend lint:check no longer fails in the named ops/admin users specs.",
+                    "Focused frontend build/lint checks are rerun before final gates.",
+                ],
+                "priority": 88,
+            }
+        )
+    if should_repair_final_frontend_forbidden_admin_surface(text):
+        specs.append(
+            {
+                "title": "Repair final frontend forbidden admin route surface contracts",
+                "description": (
+                    "Repair active frontend routes, sidebar entries, stores, APIs, views, and stale tests that still "
+                    "expose backend-forbidden admin groups, announcements, or retired ops endpoints."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/router/index.ts",
+                    "frontend/src/components/layout/AppSidebar.vue",
+                    "frontend/src/App.vue",
+                    "frontend/src/stores/**",
+                    "frontend/src/api/admin/groups.ts",
+                    "frontend/src/api/admin/announcements.ts",
+                    "frontend/src/api/announcements.ts",
+                    "frontend/src/api/__tests__/admin.ops.spec.ts",
+                    "frontend/src/views/admin/__tests__/legacyAdminRoutes.spec.ts",
+                    "frontend/src/components/admin/announcements/**",
+                    "frontend/src/views/admin/announcements/**",
+                    "frontend/src/views/admin/UsersView.vue",
+                    "frontend/src/views/admin/SettingsView.vue",
+                    "frontend/src/views/admin/UsageView.vue",
+                    "frontend/src/views/admin/ops/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Active frontend navigation and direct-route surfaces no longer expose backend-forbidden admin groups, announcements, or retired ops endpoints.",
+                    "Admin groups and announcement API usage is removed, renamed, or rebound to allowed CRM access-policy, audit, analytics, or observability contracts.",
+                    "Stale tests assert the new allowed CRM endpoints instead of /admin/ops, /admin/groups, /announcements, or /admin/announcements.",
+                    "Focused frontend source-boundary probes and affected vitest specs pass before final gates rerun.",
+                ],
+                "priority": 89,
+            }
+        )
+    if should_repair_final_frontend_route_sidebar_contract(text):
+        specs.append(
+            {
+                "title": "Repair final frontend route/sidebar contract leftovers",
+                "description": (
+                    "Repair the final frontend route and sidebar contract mismatch around the CRM admin surface, "
+                    "including the AdminAnnouncements expectation and unused AppSidebar icon build blocker."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/router/index.ts",
+                    "frontend/src/router/__tests__/crm-route-surface.spec.ts",
+                    "frontend/src/components/layout/AppSidebar.vue",
+                    "frontend/src/components/layout/__tests__/AppSidebar.spec.ts",
+                    "frontend/src/views/admin/announcements/**",
+                    "frontend/src/components/admin/announcements/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Frontend router and AppSidebar agree on the final CRM admin route surface.",
+                    "AdminAnnouncements is either restored consistently or removed from tests and navigation contracts consistently.",
+                    "AppSidebar.vue no longer declares an unused BellIcon and frontend build/test failures are resolved by focused checks.",
+                ],
+                "priority": 90,
+            }
+        )
+    if should_split_final_admin_settings_legacy_timeout(text):
+        specs.extend(final_admin_settings_legacy_timeout_split_task_specs())
+    elif should_repair_final_admin_settings_legacy_surface(text):
+        specs.append(
+            {
+                "title": "Repair final admin settings legacy surface contracts",
+                "description": (
+                    "Repair reachable admin settings API/UI contracts that still expose legacy OpenAI, gateway, "
+                    "channel, or subscription-era settings."
+                ),
+                "assigned_agent": "integration",
+                "relevant_files": [
+                    "backend/internal/handler/admin/**/*settings*",
+                    "backend/internal/service/**/*settings*",
+                    "backend/internal/model/**/*settings*",
+                    "backend/internal/dto/**/*settings*",
+                    "backend/internal/config/**",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                    "frontend/src/api/admin/settings.ts",
+                    "frontend/src/views/admin/SettingsView.vue",
+                    "frontend/src/i18n/locales/en.ts",
+                    "frontend/src/i18n/locales/zh.ts",
+                    "frontend/src/api/__tests__/**/*settings*",
+                    "frontend/src/views/admin/**/*settings*",
+                    "frontend/src/views/admin/__tests__/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Reachable admin settings API/UI no longer exposes OpenAI, gateway, channel, or subscription-era settings as CRM product behavior.",
+                    "Legacy-compatible settings are removed, renamed, or strictly fenced away from delivered admin UI contracts.",
+                    "Focused backend/frontend settings tests, frontend typecheck, and settings source-boundary probes pass before final gates rerun.",
+                ],
+                "priority": 89,
+            }
+        )
+    if should_repair_final_frontend_dependency_audit(text):
+        specs.append(
+            {
+                "title": "Repair final frontend dependency audit contracts",
+                "description": (
+                    "Repair frontend dependency audit findings that block final handoff, especially stale high-severity "
+                    "xlsx advisories recorded in frontend audit evidence."
+                ),
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                    "frontend/audit.json",
+                ],
+                "completion_criteria": [
+                    "Frontend package manifests no longer pin the vulnerable xlsx dependency reported by the audit evidence.",
+                    "Frontend dependency audit evidence is regenerated or documented as clean enough for final handoff.",
+                    "Package lockfile changes are limited to the dependency audit repair.",
+                ],
+                "priority": 86,
+            }
+        )
+    if should_repair_final_frontend_admin_ops_audit_surface(text):
+        specs.append(
+            {
+                "title": "Repair final frontend admin ops audit surface contracts",
+                "description": (
+                    "Repair the reachable AdminAudit/ops route and API surface so frontend CRM audit, "
+                    "analytics, and observability calls are congruent with registered backend admin routes "
+                    "and no retired /admin/ops relay-era endpoints remain reachable."
+                ),
+                "assigned_agent": "integration",
+                "relevant_files": [
+                    "backend/internal/server/routes/admin.go",
+                    "backend/internal/server/**",
+                    "backend/internal/handler/admin/**",
+                    "backend/internal/service/**",
+                    "backend/internal/repository/**",
+                    "backend/cmd/server/**",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                    "frontend/src/router/index.ts",
+                    "frontend/src/components/layout/AppSidebar.vue",
+                    "frontend/src/api/admin/ops.ts",
+                    "frontend/src/views/admin/ops/**",
+                    "frontend/src/views/admin/UsageView.vue",
+                    "frontend/src/router/__tests__/**",
+                    "frontend/src/api/__tests__/**",
+                    "frontend/src/views/admin/__tests__/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Reachable AdminAudit/admin ops surfaces are renamed, removed, or backed by registered CRM audit/analytics/observability backend admin routes.",
+                    "A targeted route/API congruence check covers active frontend admin API bases versus backend registered route groups.",
+                    "Source-boundary probes find zero reachable /admin/ops/** calls.",
+                    "Focused frontend route/API tests and backend route/handler checks for the affected admin surfaces pass or record precise follow-ups.",
+                ],
+                "priority": 88,
+            }
+        )
+    if should_repair_final_admin_dashboard_access_policy_congruence(text):
+        specs.append(
+            {
+                "title": "Repair final admin dashboard access policy route contracts",
+                "description": (
+                    "Repair active AdminDashboard and access-policy frontend/backend contract mismatches so "
+                    "/admin/dashboard and /admin/access-policies calls are either backed by registered CRM admin "
+                    "routes or retargeted to registered analytics/access-policy contracts."
+                ),
+                "assigned_agent": "integration",
+                "relevant_files": [
+                    "backend/internal/server/routes/admin.go",
+                    "backend/internal/server/**",
+                    "backend/internal/handler/admin/dashboard_handler.go",
+                    "backend/internal/handler/admin/dashboard_handler_*_test.go",
+                    "backend/internal/handler/admin/*group*",
+                    "backend/internal/service/**",
+                    "backend/internal/repository/**",
+                    "backend/cmd/server/**",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                    "frontend/src/api/admin/dashboard.ts",
+                    "frontend/src/api/admin/groups.ts",
+                    "frontend/src/views/admin/DashboardView.vue",
+                    "frontend/src/views/admin/UsersView.vue",
+                    "frontend/src/views/admin/SettingsView.vue",
+                    "frontend/src/components/admin/user/**",
+                    "frontend/src/components/charts/**",
+                    "frontend/src/api/__tests__/**",
+                    "frontend/src/views/admin/__tests__/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Active frontend /admin/dashboard calls are backed by registered backend admin dashboard routes or retargeted to registered analytics dashboard routes.",
+                    "Active frontend /admin/access-policies usage is backed by registered backend routes or removed/retargeted to the final CRM access-policy contract.",
+                    "A focused route/API congruence check covers dashboard and access-policy frontend bases versus backend registered route groups.",
+                    "Focused backend route/handler checks and frontend dashboard/group API tests pass or leave only precise follow-ups.",
+                ],
+                "priority": 89,
+            }
+        )
+    if should_repair_final_admin_user_group_quota_surface(text):
+        specs.append(
+            {
+                "title": "Repair final admin user group quota surface contracts",
+                "description": (
+                    "Repair active admin user replace-group and platform-quota surfaces that final audit marks "
+                    "as forbidden relay-era user group/quota APIs."
+                ),
+                "assigned_agent": "integration",
+                "relevant_files": [
+                    "backend/internal/server/routes/admin.go",
+                    "backend/internal/handler/admin/user_handler.go",
+                    "backend/internal/handler/admin/*user*_test.go",
+                    "backend/internal/service/user_service.go",
+                    "backend/internal/service/user_service_test.go",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                    "frontend/src/api/admin/users.ts",
+                    "frontend/src/api/__tests__/admin.users.spec.ts",
+                    "frontend/src/views/admin/UsersView.vue",
+                    "frontend/src/views/admin/__tests__/UsersView.spec.ts",
+                    "frontend/src/components/admin/user/GroupReplaceModal.vue",
+                    "frontend/src/components/admin/user/UserAllowedGroupsModal.vue",
+                    "frontend/src/components/admin/user/UserApiKeysModal.vue",
+                    "frontend/src/components/admin/user/**",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Frontend admin user API and reachable UI no longer expose forbidden replace-group or platform-quota relay-era surfaces.",
+                    "Any retained user group/quota behavior is renamed or proved as final CRM access-policy behavior and is registered/tested consistently.",
+                    "Focused admin user API/view tests and backend route checks pass or record precise residual follow-ups.",
+                ],
+                "priority": 88,
+            }
+        )
+    if should_repair_final_rpm_override_route_contract_leftovers(text):
+        specs.append(final_rpm_override_route_contract_leftover_task_spec())
+    if should_repair_final_settings_advanced_scheduler_contract(text):
+        specs.append(final_settings_advanced_scheduler_contract_task_spec())
+    if should_repair_final_settings_api_contract_test(text):
+        specs.append(final_settings_api_contract_test_task_spec())
+    if should_repair_final_frontend_user_quota_typecheck_import(text):
+        specs.append(final_frontend_user_quota_typecheck_import_task_spec())
+    if should_repair_final_simulation_suite_failures(text):
+        specs.extend(final_simulation_suite_failure_task_specs())
+    elif should_repair_final_platform_rpm_capacity_surface(text):
+        if should_split_final_backend_admin_rpm_capacity_timeout(text):
+            specs.extend(final_backend_admin_rpm_capacity_split_task_specs())
+        elif should_split_final_admin_settings_rpm_capacity_timeout(text):
+            specs.extend(final_admin_settings_rpm_capacity_split_task_specs())
+        elif should_split_final_platform_rpm_capacity_timeout(text):
+            specs.extend(final_platform_rpm_capacity_split_task_specs())
+        else:
+            specs.append(
+                {
+                    "title": "Repair final platform RPM capacity surface contracts",
+                    "description": (
+                        "Repair active /user/platform-quotas and admin platform/RPM quota settings that final audit "
+                        "marks as forbidden or frontend/backend-incongruent, reframing any retained behavior as final "
+                        "CRM account-capacity contracts."
+                    ),
+                    "assigned_agent": "integration",
+                    "relevant_files": [
+                        "backend/internal/server/routes/admin.go",
+                        "backend/internal/server/routes/user.go",
+                        "backend/internal/server/**",
+                        "backend/internal/handler/user_handler.go",
+                        "backend/internal/handler/user_platform_quotas_handler_test.go",
+                        "backend/internal/handler/admin/setting_handler.go",
+                        "backend/internal/handler/admin/user_handler.go",
+                        "backend/internal/handler/admin/user_platform_quota_admin_test.go",
+                        "backend/internal/service/**",
+                        "backend/internal/service/user_service.go",
+                        "backend/internal/config/**",
+                        "backend/go.mod",
+                        "backend/go.sum",
+                        "frontend/src/api/user.ts",
+                        "frontend/src/api/admin/settings.ts",
+                        "frontend/src/api/admin/groups.ts",
+                        "frontend/src/views/admin/SettingsView.vue",
+                        "frontend/src/views/admin/__tests__/SettingsView.spec.ts",
+                        "frontend/src/api/__tests__/**",
+                        "frontend/src/i18n/locales/en.ts",
+                        "frontend/src/i18n/locales/zh.ts",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "/user/platform-quotas is removed or replaced by a registered CRM account-capacity frontend/backend contract.",
+                        "Admin platform-quota and RPM quota settings/API controls are removed or reframed as source-approved generic capacity semantics.",
+                        "Focused route/API congruence, admin settings, and user API tests cover the final capacity surface.",
+                    ],
+                    "priority": 90,
+                }
+            )
+    if should_repair_final_backend_active_migration_model_routing(text):
+        specs.append(
+            {
+                "title": "Repair final backend active migration model routing contracts",
+                "description": (
+                    "Repair active root migration files that still add model-routing/upstream/gateway-era columns "
+                    "to the fresh Billing Core schema."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
+                    "backend/migrations/040_add_group_model_routing.sql",
+                    "backend/migrations/041_add_model_routing_enabled.sql",
+                    "backend/cmd/server/database_contract.go",
+                    "backend/cmd/server/database_contract_test.go",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                ],
+                "completion_criteria": [
+                    "Active root migrations no longer add model-routing, upstream, or gateway-era schema fields to fresh Billing Core installs.",
+                    "Fresh database contract checks reject the retired migration surfaces.",
+                    "Focused migration/source-boundary probes and cmd/server database contract checks pass.",
+                ],
+                "priority": 88,
+            }
+        )
+    if should_repair_final_backend_sub2api_protocol_identity(text):
+        specs.append(
+            {
+                "title": "Repair final backend runtime protocol identity contracts",
+                "description": (
+                    "Repair backend runtime protocol and portal intent identifiers that still expose sub2api "
+                    "identity after the CRM Billing Core rebrand."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
+                    "backend/internal/veyra/intent.go",
+                    "backend/internal/veyra/ticket_test.go",
+                    "backend/internal/server/middleware/admin_auth.go",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                ],
+                "completion_criteria": [
+                    "Backend runtime protocol and portal intent names no longer expose sub2api as user-facing identity.",
+                    "Related backend tests assert CRM Billing Core protocol/intent naming.",
+                    "Focused backend checks for the touched packages pass before final gates rerun.",
+                ],
+                "priority": 87,
+            }
+        )
+    if should_repair_final_backend_production_identity_strings(text):
+        specs.append(
+            {
+                "title": "Repair final backend production identity string leftovers",
+                "description": (
+                    "Repair residual backend production sub2api/new-api/middle-station identity strings found by "
+                    "final simulation static probes while preserving CRM-compatible infrastructure behavior."
+                ),
+                "assigned_agent": "backend",
+                "relevant_files": [
+                    "backend/cmd/server/**",
+                    "backend/internal/config/**",
+                    "backend/internal/handler/**",
+                    "backend/internal/service/**",
+                    "backend/internal/repository/**",
+                    "backend/internal/pkg/logger/**",
+                    "backend/internal/repository/dashboard_cache.go",
+                    "backend/internal/pkg/logger/options.go",
+                    "backend/internal/pkg/logger/options_test.go",
+                    "backend/internal/pkg/sysutil/restart.go",
+                    "backend/internal/handler/admin/ops_ws_handler.go",
+                    "backend/internal/service/update_service.go",
+                    "backend/go.mod",
+                    "backend/go.sum",
+                ],
+                "completion_criteria": [
+                    "Backend production files no longer expose sub2api, new-api, or middle-station identity strings.",
+                    "Retired gateway, proxy, subscription, provider, and account-relay capability code is removed from the production Billing Core server build or isolated as non-product compatibility infrastructure.",
+                    "Cache prefixes, log defaults, websocket protocol names, restart/update text, wire generation, and related tests use CRM Billing Core identity.",
+                    "Focused backend static identity/capability probes and affected Go tests pass before final gates rerun.",
+                ],
+                "priority": 89,
+            }
+        )
+    if should_repair_final_source_boundary_sweep(text):
+        specs.extend(
+            [
+                {
+                    "title": "Repair final backend migration source-boundary leftovers",
+                    "description": (
+                        "Repair final migration-source boundary failures so fresh Billing Core installs no longer "
+                        "create or alter retired relay-era tables."
+                    ),
+                    "assigned_agent": "backend",
+                    "relevant_files": [
+                        "backend/migrations/**",
+                        "backend/cmd/server/database_contract.go",
+                        "backend/cmd/server/database_contract_test.go",
+                        "backend/internal/server/billing_core_routes_test.go",
+                        "backend/go.mod",
+                        "backend/go.sum",
+                    ],
+                    "completion_criteria": [
+                        "Fresh-install migrations no longer create or alter retired account, proxy, upstream, channel, channel-monitor, model-routing, or subscription-plan tables.",
+                        "Legacy upgrade SQL is removed, renamed, or isolated away from the fresh Billing Core migration path.",
+                        "Focused migration static probes and fresh database contract checks are attempted before final gates rerun.",
+                    ],
+                    "priority": 91,
+                },
+                {
+                    "title": "Repair final backend production source-boundary leftovers",
+                    "description": (
+                        "Repair remaining backend production source, config, and wiring that still exposes retired "
+                        "gateway, proxy, upstream, account-relay, model-provider, or subscription behavior."
+                    ),
+                    "assigned_agent": "backend",
+                    "relevant_files": [
+                        "backend/cmd/server/**",
+                        "backend/internal/config/**",
+                        "backend/internal/domain/**",
+                        "backend/internal/repository/**",
+                        "backend/internal/service/**",
+                        "backend/internal/handler/**",
+                        "backend/internal/server/**",
+                        "backend/internal/pkg/logger/**",
+                        "backend/internal/pkg/sysutil/**",
+                        "backend/go.mod",
+                        "backend/go.sum",
+                    ],
+                    "completion_criteria": [
+                        "Production backend source and generated wiring no longer expose retired gateway, proxy, upstream, channel-monitor, model-routing, account-relay, or subscription-plan product surfaces.",
+                        "Reusable infrastructure is either reframed under CRM billing semantics or isolated from the delivered production build.",
+                        "Focused backend source-boundary probes and affected package tests are attempted before final gates rerun.",
+                    ],
+                    "priority": 90,
+                },
+                *(
+                    final_frontend_retired_source_boundary_split_task_specs()
+                    if should_split_final_frontend_retired_source_boundary_timeout(text)
+                    else [
+                        {
+                            "title": "Repair final frontend retired source-boundary leftovers",
+                            "description": (
+                                "Repair remaining frontend API, composable, type, store, and copy surfaces that still expose "
+                                "retired relay-era product concepts."
+                            ),
+                            "assigned_agent": "frontend",
+                            "relevant_files": [
+                                "frontend/src/api/**",
+                                "frontend/src/composables/**",
+                                "frontend/src/stores/**",
+                                "frontend/src/types/**",
+                                "frontend/src/constants/**",
+                                "frontend/src/i18n/**",
+                                "frontend/src/router/**",
+                                "frontend/src/views/**",
+                                "frontend/src/components/**",
+                                "frontend/package.json",
+                                "frontend/pnpm-lock.yaml",
+                            ],
+                            "completion_criteria": [
+                                "Frontend source probes no longer find retired API/composable/type/store surfaces for upstream account, proxy, channel-monitor, model-routing, token-log, or subscription-plan behavior.",
+                                "Retired compatibility facades are removed, renamed, or quarantined outside delivered public/frontend contracts.",
+                                "Focused frontend source-boundary probes and affected vitest specs are attempted before final gates rerun.",
+                            ],
+                            "priority": 89,
+                        }
+                    ]
+                ),
+            ]
+        )
+    unfiltered_specs = list(specs)
+    if should_repair_final_remaining_source_boundary_after_split(text):
+        specs.extend(
+            [
+                *(
+                    [
+                        *final_backend_provider_proxy_ops_service_quarantine_split_task_specs(),
+                        final_backend_legacy_quarantine_split_task_specs()[2],
+                    ]
+                    if should_split_final_backend_provider_proxy_ops_service_quarantine_timeout(text)
+                    else
+                    [
+                        *final_backend_service_repository_quarantine_exact_task_specs(),
+                        final_backend_legacy_quarantine_split_task_specs()[2],
+                    ]
+                    if should_split_final_backend_service_repository_quarantine_timeout(text)
+                    else
+                    [
+                        *final_backend_handler_server_quarantine_exact_task_specs(),
+                        *final_backend_legacy_quarantine_split_task_specs()[1:],
+                    ]
+                    if should_split_final_backend_handler_server_quarantine_timeout(text)
+                    else final_backend_legacy_quarantine_split_task_specs()
+                    if should_split_final_backend_legacy_quarantine_timeout(text)
+                    else [
+                        {
+                            "title": "Repair final backend legacy production quarantine leftovers",
+                            "description": (
+                                "Repair the final audit's remaining backend production/delivery source-boundary findings by "
+                                "removing, quarantining, or CRM-renaming retired relay-era handlers, services, repositories, "
+                                "config, and server wiring."
+                            ),
+                            "assigned_agent": "backend",
+                            "relevant_files": [
+                                "backend/internal/handler/**",
+                                "backend/internal/service/**",
+                                "backend/internal/repository/**",
+                                "backend/internal/config/**",
+                                "backend/internal/server/**",
+                                "backend/cmd/server/**",
+                                "backend/internal/pkg/**",
+                                "backend/go.mod",
+                                "backend/go.sum",
+                            ],
+                            "completion_criteria": [
+                                "Backend production/delivery source no longer exposes retired gateway, OpenAI gateway, proxy, channel-monitor, upstream-account, or subscription-plan product surfaces.",
+                                "Retired implementation files are removed, build-tag quarantined, or reframed under CRM billing/service-integration semantics without reintroducing forbidden routes.",
+                                "Focused backend source-boundary probes and affected Go package checks are attempted before final gates rerun.",
+                            ],
+                            "priority": 91,
+                        }
+                    ]
+                ),
+                {
+                    "title": "Repair final frontend API settings typecheck leftovers",
+                    "description": (
+                        "Repair frontend API, settings, ops, payment resume, types, and locale surfaces that still "
+                        "block source-boundary and vue-tsc checks after API/composable cleanup."
+                    ),
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/api/**",
+                        "frontend/src/types/**",
+                        "frontend/src/i18n/**",
+                        "frontend/src/utils/paymentWechatResume.ts",
+                        "frontend/src/utils/**",
+                        "frontend/src/views/admin/ops/**",
+                        "frontend/src/views/admin/SettingsView.vue",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Frontend API/settings/ops/payment resume code no longer exposes retired subscription, upstream, proxy, ops facade, or gateway product symbols.",
+                        "Type contracts and locale labels use CRM billing, wallet, service integration, audit, and observability terms.",
+                        "Focused vue-tsc or API/settings/ops checks are attempted before final gates rerun.",
+                    ],
+                    "priority": 90,
+                },
+                {
+                    "title": "Repair final frontend view component typecheck leftovers",
+                    "description": (
+                        "Repair remaining frontend view and component consumers that still import removed retired "
+                        "compatibility names or expose retired labels."
+                    ),
+                    "assigned_agent": "frontend",
+                    "relevant_files": [
+                        "frontend/src/components/common/SubscriptionProgressMini.vue",
+                        "frontend/src/components/payment/SubscriptionPlanCard.vue",
+                        "frontend/src/components/user/dashboard/UserDashboardCharts.vue",
+                        "frontend/src/components/**",
+                        "frontend/src/views/user/UsageView.vue",
+                        "frontend/src/views/admin/UsageView.vue",
+                        "frontend/src/views/**",
+                        "frontend/src/i18n/**",
+                        "frontend/package.json",
+                        "frontend/pnpm-lock.yaml",
+                    ],
+                    "completion_criteria": [
+                        "Frontend views/components consume the current CRM billing helper exports and constants instead of removed retired compatibility names.",
+                        "User-facing labels no longer expose retired subscription/upstream/proxy/ops product vocabulary.",
+                        "Focused component/view vitest specs and vue-tsc checks are attempted before final gates rerun.",
+                    ],
+                    "priority": 89,
+                },
+            ]
+        )
+    if should_repair_final_remaining_source_boundary_after_split(text):
+        if should_split_final_backend_provider_proxy_ops_service_quarantine_timeout(text):
+            backend_quarantine_titles = [
+                "Repair final backend account OAuth service quarantine exact files",
+                "Repair final backend channel monitor service quarantine exact files",
+                "Repair final backend proxy upstream service quarantine exact files",
+                "Repair final backend ops settings service quarantine exact files",
+                "Repair final backend config runtime quarantine leftovers",
+            ]
+        elif should_split_final_backend_service_repository_quarantine_timeout(text):
+            backend_quarantine_titles = [
+                "Repair final backend repository domain quarantine exact files",
+                "Repair final backend gateway OpenAI service quarantine exact files",
+                "Repair final backend provider proxy ops service quarantine exact files",
+                "Repair final backend config runtime quarantine leftovers",
+            ]
+        elif should_split_final_backend_handler_server_quarantine_timeout(text):
+            backend_quarantine_titles = [
+                "Repair final backend admin handler quarantine exact files",
+                "Repair final backend gateway protocol handler exact files",
+                "Repair final backend server middleware quarantine exact files",
+                "Repair final backend service repository quarantine leftovers",
+                "Repair final backend config runtime quarantine leftovers",
+            ]
+        elif should_split_final_backend_legacy_quarantine_timeout(text):
+            backend_quarantine_titles = [
+                "Repair final backend handler server quarantine leftovers",
+                "Repair final backend service repository quarantine leftovers",
+                "Repair final backend config runtime quarantine leftovers",
+            ]
+        else:
+            backend_quarantine_titles = ["Repair final backend legacy production quarantine leftovers"]
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            [
+                *backend_quarantine_titles,
+                "Repair final frontend API settings typecheck leftovers",
+                "Repair final frontend view component typecheck leftovers",
+                "Repair final frontend locale settings boundary contracts",
+            ],
+        )
+    elif should_repair_final_source_boundary_sweep(text):
+        frontend_source_boundary_titles = (
+            [
+                "Repair final frontend retired API type source-boundary leftovers",
+                "Repair final frontend retired composable store source-boundary leftovers",
+                "Repair final frontend retired view component source-boundary leftovers",
+            ]
+            if should_split_final_frontend_retired_source_boundary_timeout(text)
+            else ["Repair final frontend retired source-boundary leftovers"]
+        )
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            [
+                "Repair final backend migration source-boundary leftovers",
+                "Repair final backend production source-boundary leftovers",
+                *frontend_source_boundary_titles,
+            ],
+        )
+    elif should_repair_final_backend_production_identity_strings(text):
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            ["Repair final backend production identity string leftovers"],
+        )
+    elif should_repair_final_frontend_user_quota_typecheck_import(text):
+        simulation_titles = [
+            "Repair final backend settings advanced scheduler contract",
+            "Repair final backend settings API contract test",
+            "Repair final frontend user quota typecheck import",
+        ]
+        if should_repair_final_rpm_override_route_contract_leftovers(text):
+            simulation_titles.insert(0, "Repair final RPM override route contract leftovers")
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            simulation_titles,
+        )
+    elif should_repair_final_settings_api_contract_test(text):
+        simulation_titles = [
+            "Repair final backend settings advanced scheduler contract",
+            "Repair final backend settings API contract test",
+        ]
+        if should_repair_final_rpm_override_route_contract_leftovers(text):
+            simulation_titles.insert(0, "Repair final RPM override route contract leftovers")
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            simulation_titles,
+        )
+    elif should_repair_final_settings_advanced_scheduler_contract(text):
+        simulation_titles = ["Repair final backend settings advanced scheduler contract"]
+        if should_repair_final_rpm_override_route_contract_leftovers(text):
+            simulation_titles.insert(0, "Repair final RPM override route contract leftovers")
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            simulation_titles,
+        )
+    elif should_repair_final_simulation_suite_failures(text):
+        simulation_titles = [
+            "Repair final frontend UsageTable simulation contracts",
+            "Repair final backend admin simulation contracts",
+            "Repair final backend DTO usage simulation contracts",
+        ]
+        if should_repair_final_rpm_override_route_contract_leftovers(text):
+            simulation_titles.insert(0, "Repair final RPM override route contract leftovers")
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            simulation_titles,
+        )
+    elif should_repair_final_rpm_override_route_contract_leftovers(text):
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            ["Repair final RPM override route contract leftovers"],
+        )
+    elif should_repair_final_platform_rpm_capacity_surface(text):
+        if should_split_final_backend_admin_rpm_capacity_timeout(text):
+            specs = repair_specs_matching_titles_in_order(
+                specs,
+                [
+                    "Repair final backend admin RPM route settings contracts",
+                    "Repair final backend admin user capacity handler contracts",
+                ],
+            )
+        elif should_split_final_admin_settings_rpm_capacity_timeout(text):
+            specs = repair_specs_matching_titles_in_order(
+                specs,
+                [
+                    "Repair final backend admin RPM capacity contracts",
+                    "Repair final frontend admin RPM capacity settings contracts",
+                ],
+            )
+        elif should_split_final_platform_rpm_capacity_timeout(text):
+            specs = repair_specs_matching_titles_in_order(
+                specs,
+                [
+                    "Repair final user platform capacity API contracts",
+                    "Repair final admin settings RPM capacity contracts",
+                ],
+            )
+        else:
+            specs = repair_specs_matching_titles_in_order(
+                specs,
+                ["Repair final platform RPM capacity surface contracts"],
+            )
+    elif should_repair_final_frontend_route_sidebar_contract(text):
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            ["Repair final frontend route/sidebar contract leftovers"],
+        )
+    elif should_repair_final_frontend_forbidden_admin_surface(text):
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            ["Repair final frontend forbidden admin route surface contracts"],
+        )
+    elif should_repair_final_admin_dashboard_access_policy_congruence(
+        text
+    ) or should_repair_final_admin_user_group_quota_surface(text):
+        titles = []
+        if should_repair_final_admin_dashboard_access_policy_congruence(text):
+            titles.append("Repair final admin dashboard access policy route contracts")
+        if should_repair_final_admin_user_group_quota_surface(text):
+            titles.append("Repair final admin user group quota surface contracts")
+        specs = repair_specs_matching_titles_in_order(specs, titles)
+    elif should_repair_final_frontend_admin_ops_audit_surface(text) or should_repair_final_backend_active_migration_model_routing(text):
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            [
+                "Repair final frontend admin ops audit surface contracts",
+                "Repair final backend active migration model routing contracts",
+            ],
+        )
+    elif should_split_final_admin_settings_legacy_timeout(text):
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            [
+                "Repair final backend admin settings legacy contracts",
+                "Repair final frontend admin settings legacy contracts",
+            ],
+        )
+    elif should_resume_final_admin_settings_boundary_expansion(text):
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            ["Repair final admin settings legacy surface contracts"],
+        )
+    elif should_resume_final_supervisor_stopped_repair_order(text) or should_resume_final_frontend_dependency_audit_timeout(text):
+        specs = repair_specs_matching_titles_in_order(
+            specs,
+            [
+                "Repair final frontend forbidden admin route surface contracts",
+                "Repair final frontend dependency audit contracts",
+                "Repair final backend migration contracts",
+                "Repair final backend service contract leftovers",
+                "Repair final backend service handler server contracts",
+                "Repair final frontend locale settings boundary contracts",
+            ],
+        )
+    if preserve_deep_final_frontend_tail:
+        specs = [
+            spec
+            for spec in unfiltered_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final frontend admin ops audit surface contracts",
+                "Repair final frontend forbidden admin route surface contracts",
+            }
+        ]
     return specs
+
+
+def final_verification_active_repair_text(context_bundle: ContextBundle) -> str:
+    """Return only the current repair window, excluding historical failure JSON."""
+    fragments: list[str] = []
+    for document in context_bundle.documents:
+        path = Path(document.path)
+        if "final_verification_repair" not in path.name.lower():
+            continue
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        active = False
+        has_focus = False
+        selected: list[str] = []
+        for line in lines:
+            lowered = line.strip().lower()
+            if lowered.startswith("## previous final verification failure") or lowered.startswith("## previous repair context"):
+                active = False
+                break
+            if (
+                lowered.startswith("## requirements")
+                or lowered.startswith("## failing verification issues")
+                or lowered.startswith("## focused repair scope")
+                or lowered.startswith("## previous graph titles")
+            ):
+                active = True
+                has_focus = True
+            elif lowered.startswith("## "):
+                active = False
+            if active or lowered.startswith("repair attempt:"):
+                selected.append(line)
+        focused = "\n".join(selected).strip()
+        if focused and has_focus:
+            fragments.append(focused)
+    return "\n".join(fragments).lower()
 
 
 def should_repair_final_delivery_artifacts(text: str) -> bool:
@@ -947,6 +1987,1471 @@ def should_repair_final_delivery_artifacts(text: str) -> bool:
             "static delivery audit",
         ]
     )
+
+
+def final_verification_repair_document_text_fragments(path: str) -> list[str]:
+    if "final_verification_repair_resume_" not in str(path).lower():
+        return []
+    try:
+        return [Path(path).read_text(encoding="utf-8", errors="replace")[:24000]]
+    except OSError:
+        return []
+
+
+def should_repair_final_embedded_runtime_assets(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "embed_on.go",
+            "backend/internal/web",
+            "portal_dist",
+            "portal_dist/app.js",
+            "sub2api-console",
+            "veyra portal",
+            "embedded runtime assets",
+        )
+    )
+
+
+def should_repair_final_frontend_locale_component_surfaces(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "frontend locale/component surfaces",
+            "frontend/src/i18n/locales/en.ts",
+            "frontend/src/i18n/locales/zh.ts",
+            "subscriptionplancard.vue",
+            "platformusagebreakdown.vue",
+            "service account pool",
+            "claude code client restriction",
+        )
+    )
+
+
+def should_repair_final_frontend_locale_settings_surfaces(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "frontend locale/settings surfaces",
+            "repair final frontend locale settings boundary contracts",
+            "source-boundary probe for frontend locales/settings",
+            "frontend/src/views/admin/settingsview.vue=121",
+            "static_source_boundary_status=fail",
+            "provider/v1 locale strings",
+            "frontend user-facing strings",
+            "remaining frontend i18n/source-boundary cleanup",
+            "residual source-boundary terms remain",
+            "/v1/chat/completions",
+            "/v1/responses",
+            "/v1/messages",
+            "openai, gemini",
+        )
+    )
+
+
+def should_repair_final_backend_old_domain_surface(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "backend sub2api relay/gateway code",
+            "backend relay/gateway/provider service",
+            "old-domain migration table creation",
+            "fresh migration sources still create",
+            "sub2api/openai gateway references",
+            "denied old-domain tables",
+        )
+    )
+
+
+def should_repair_final_frontend_dependency_audit(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "frontend/audit.json",
+            "repair final frontend dependency audit contracts",
+            "xlsx advisories",
+            "xlsx 0.18.5",
+            "high-severity xlsx",
+        )
+    )
+
+
+def should_repair_final_veyra_portal_branding(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "testportalmiddlewareserves",
+            "veyra agent",
+            "veyra billing portal",
+            "backend/internal/veyra/portal_test.go",
+        )
+    )
+
+
+def should_repair_final_frontend_admin_api_build_lint(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "frontend/src/api/admin/settings.ts",
+            "frontend/src/api/admin/usage.ts",
+            "frontend/src/api/admin/users.ts",
+            "admin.users.spec.ts",
+            "vue-tsc errors",
+            "lint:check",
+        )
+    )
+
+
+def should_repair_final_frontend_admin_ops_audit_surface(text: str) -> bool:
+    explicit = any(
+        marker in text
+        for marker in (
+            "adminaudit",
+            "/admin/audit",
+            "/admin/analytics",
+            "/admin/observability",
+            "backend admin route wiring",
+            "route/api congruence",
+            "frontend/src/api/admin/ops.ts",
+        )
+    )
+    semantic_ops_route = "/admin/ops" in text and bool(
+        re.search(r"\b(route|reachable|expose|exposure|calls?|api surface)\b", text)
+    )
+    return explicit or semantic_ops_route
+
+
+def should_repair_final_admin_dashboard_access_policy_congruence(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "active frontend admindashboard calls /admin/dashboard",
+            "/admin/dashboard/* endpoints",
+            "backend admin route registration does not register /admin/dashboard",
+            "active frontend users/settings/user components call /admin/access-policies",
+            "backend admin route registration does not register /admin/access-policies",
+            "choose one contract for admindashboard",
+            "choose one contract for access policies",
+            "frontend/src/api/admin/dashboard.ts",
+            "frontend/src/api/admin/groups.ts",
+        )
+    )
+
+
+def should_repair_final_admin_user_group_quota_surface(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "replace-group",
+            "platform-quota",
+            "platform-quotas",
+            "source plan forbids replace-group",
+            "admin user apis",
+        )
+    )
+
+
+def should_repair_final_platform_rpm_capacity_surface(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "/user/platform-quotas",
+            "getmyplatformquotas",
+            "default_platform_quotas",
+            "platform_quotas",
+            "rpm quota",
+            "platform-quota/rpm quota",
+            "platform/rpm quota",
+            "remove rpm quota endpoints",
+            "repair final backend admin rpm capacity contracts",
+        )
+    )
+
+
+def should_repair_final_rpm_override_route_contract_leftovers(text: str) -> bool:
+    if "source-boundary drift" in text and (
+        "default_platform_quotas" in text or "platform quotas" in text or "platform_quotas" in text
+    ):
+        return False
+    if "repair final rpm override route contract leftovers" in text:
+        return True
+    return (
+        "rpm-overrides" in text
+        and "frontend/src/api/admin/groups.ts" in text
+        and "admin_dashboard_access_policy_routes_test.go" in text
+    ) or (
+        "retired rpm override frontend api surface" in text
+        and "backend route-contract test" in text
+    )
+
+
+def final_rpm_override_route_contract_leftover_task_spec() -> dict[str, object]:
+    return {
+        "title": "Repair final RPM override route contract leftovers",
+        "description": (
+            "Repair the last retired RPM override API/test leftovers without reopening the completed backend "
+            "admin capacity leaf tasks."
+        ),
+        "assigned_agent": "integration",
+        "relevant_files": [
+            "frontend/src/api/admin/groups.ts",
+            "frontend/src/api/__tests__/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+            "backend/internal/server/admin_dashboard_access_policy_routes_test.go",
+            "backend/internal/server/routes/admin.go",
+            "backend/go.mod",
+            "backend/go.sum",
+        ],
+        "completion_criteria": [
+            "Frontend admin groups/access-policy API no longer exposes the retired rpm-overrides endpoint.",
+            "Backend admin route contract tests no longer require the retired /admin/access-policies/:id/rpm-overrides route.",
+            "Focused frontend API and backend route contract checks pass or record precise residual follow-ups.",
+        ],
+        "priority": 91,
+    }
+
+
+def should_repair_final_simulation_suite_failures(text: str) -> bool:
+    if "source-boundary drift" in text and (
+        "default_platform_quotas" in text or "platform quotas" in text or "platform_quotas" in text
+    ):
+        return False
+    if not any(
+        marker in text
+        for marker in (
+            "simulation_test_status=fail",
+            "simulation_test_status: fail",
+            "simulation_test_status is failed",
+        )
+    ):
+        return False
+    return any(
+        marker in text
+        for marker in (
+            "usagetable.spec.ts",
+            "backend/internal/handler/admin",
+            "backend/internal/handler/dto",
+            "full frontend and backend suites fail",
+            "14 backend tests failed across admin and dto packages",
+        )
+    )
+
+
+def should_repair_final_settings_advanced_scheduler_contract(text: str) -> bool:
+    if not any(
+        marker in text
+        for marker in (
+            "simulation_test_status=fail",
+            "simulation_test_status: fail",
+            "simulation_test_status is failed",
+        )
+    ):
+        return False
+    return any(
+        marker in text
+        for marker in (
+            "testsettinghandler_updatesettings_persistspaymentvisiblemethodsandadvancedscheduler",
+            "openai_advanced_scheduler_enabled",
+            "advanced_credential_scheduler_enabled",
+        )
+    )
+
+
+def final_settings_advanced_scheduler_contract_task_spec() -> dict[str, object]:
+    return {
+        "title": "Repair final backend settings advanced scheduler contract",
+        "description": (
+            "Repair the final simulation failure where the admin settings update path does not persist "
+            "the OpenAI advanced scheduler flag from the request payload."
+        ),
+        "assigned_agent": "backend",
+        "relevant_files": [
+            "backend/internal/handler/admin/setting_handler.go",
+            "backend/internal/handler/admin/setting_handler_auth_source_defaults_test.go",
+            "backend/internal/handler/dto/settings.go",
+            "backend/internal/service/setting_service.go",
+            "backend/internal/service/setting_service_update_test.go",
+            "backend/go.mod",
+            "backend/go.sum",
+        ],
+        "completion_criteria": [
+            "The admin settings update handler accepts the final API payload key for OpenAIAdvancedSchedulerEnabled.",
+            "The setting key openai_advanced_scheduler_enabled persists true/false through the tested admin update path.",
+            "Focused backend admin settings tests pass or report precise remaining blockers.",
+        ],
+        "priority": 92,
+    }
+
+
+def should_repair_final_settings_api_contract_test(text: str) -> bool:
+    if "backend/internal/server/api_contract_test.go" not in text:
+        return False
+    if "testapicontracts" not in text and "api contract" not in text:
+        return False
+    return "openai_advanced_scheduler_enabled" in text and "advanced_credential_scheduler_enabled" in text
+
+
+def final_settings_api_contract_test_task_spec() -> dict[str, object]:
+    return {
+        "title": "Repair final backend settings API contract test",
+        "description": (
+            "Align the backend server API contract test with the final OpenAI advanced scheduler settings key."
+        ),
+        "assigned_agent": "backend",
+        "relevant_files": [
+            "backend/internal/server/api_contract_test.go",
+            "backend/internal/handler/dto/settings.go",
+            "backend/internal/handler/admin/setting_handler.go",
+            "backend/go.mod",
+            "backend/go.sum",
+        ],
+        "completion_criteria": [
+            "The admin settings API contract expects openai_advanced_scheduler_enabled.",
+            "The old advanced_credential_scheduler_enabled key is no longer classified as required or retired for the current response contract.",
+            "go test -tags unit ./internal/server -run ^TestAPIContracts$ -count=1 passes or reports precise residual blockers.",
+        ],
+        "priority": 91,
+    }
+
+
+def should_repair_final_frontend_user_quota_typecheck_import(text: str) -> bool:
+    if "source-boundary drift" in text and (
+        "default_platform_quotas" in text or "platform quotas" in text or "platform_quotas" in text
+    ):
+        return False
+    if "userplatformquotacell.vue" not in text:
+        return False
+    if "platformquotaitem" not in text or "platformquotaplatform" not in text:
+        return False
+    return "typecheck" in text or "vue-tsc" in text or "ts2614" in text
+
+
+def final_frontend_user_quota_typecheck_import_task_spec() -> dict[str, object]:
+    return {
+        "title": "Repair final frontend user quota typecheck import",
+        "description": (
+            "Repair the frontend typecheck failure in UserPlatformQuotaCell by aligning type-only imports "
+            "with the current shared type exports."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/components/user/UserPlatformQuotaCell.vue",
+            "frontend/src/types/index.ts",
+            "frontend/src/api/admin/users.ts",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "UserPlatformQuotaCell imports PlatformQuotaItem and PlatformQuotaPlatform from the module that exports them.",
+            "pnpm --dir frontend run typecheck passes or reports precise remaining blockers.",
+            "Focused frontend tests related to user platform quotas pass or are explicitly justified as unchanged.",
+        ],
+        "priority": 90,
+    }
+
+
+def final_simulation_suite_failure_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final frontend UsageTable simulation contracts",
+            "description": (
+                "Repair the failing final simulation frontend UsageTable image metering tooltip contract."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/components/admin/usage/UsageTable.vue",
+                "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts",
+                "frontend/src/types/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "UsageTable image metering tooltip renders Image count, Billing size, and Size source metadata expected by final simulation tests.",
+                "Focused UsageTable Vitest spec passes.",
+                "No backend or unrelated frontend surfaces are modified by this task.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final backend admin simulation contracts",
+            "description": (
+                "Repair final simulation failures in backend admin import/export, account mixed-channel, "
+                "proxy import, upstream model sync, and settings persistence contracts."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/handler/admin/account_codex_import_test.go",
+                "backend/internal/handler/admin/account_data.go",
+                "backend/internal/handler/admin/account_data_handler_test.go",
+                "backend/internal/handler/admin/account_handler.go",
+                "backend/internal/handler/admin/account_handler_available_models_test.go",
+                "backend/internal/handler/admin/account_handler_mixed_channel_test.go",
+                "backend/internal/handler/admin/data_management_handler.go",
+                "backend/internal/handler/admin/data_management_handler_test.go",
+                "backend/internal/handler/admin/proxy_data_handler.go",
+                "backend/internal/handler/admin/proxy_data_handler_test.go",
+                "backend/internal/handler/admin/setting_handler.go",
+                "backend/internal/handler/admin/setting_handler_platform_quota_test.go",
+                "backend/internal/service/**",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Focused backend admin tests listed by the final simulation failure pass or leave only DTO-specific follow-ups.",
+                "Admin import/export, mixed-channel, proxy import, upstream model sync, and settings persistence behavior is congruent with final CRM contracts.",
+                "Broad `go test ./...` remains reserved for final real repository checks.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final backend DTO usage simulation contracts",
+            "description": "Repair the backend DTO usage mapper failure found by final simulation.",
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/handler/dto/mappers.go",
+                "backend/internal/handler/dto/mappers_usage_test.go",
+                "backend/internal/handler/dto/types.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Usage DTO serialization matches final CRM visibility rules for requested/upstream model fields.",
+                "Focused backend DTO usage mapper test passes.",
+                "No admin handler repair is reopened by this task.",
+            ],
+            "priority": 88,
+        },
+    ]
+
+
+def should_split_final_platform_rpm_capacity_timeout(text: str) -> bool:
+    return (
+        "repair final platform rpm capacity surface contracts" in text
+        and ("timed out after 900 seconds" in text or "focused timeout task titles" in text)
+    )
+
+
+def should_split_final_admin_settings_rpm_capacity_timeout(text: str) -> bool:
+    return (
+        "repair final admin settings rpm capacity contracts" in text
+        and ("timed out after 900 seconds" in text or "focused timeout task titles" in text)
+    )
+
+
+def should_split_final_backend_admin_rpm_capacity_timeout(text: str) -> bool:
+    return (
+        "repair final backend admin rpm capacity contracts" in text
+        and ("timed out after 900 seconds" in text or "focused timeout task titles" in text)
+    )
+
+
+def final_platform_rpm_capacity_split_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final user platform capacity API contracts",
+            "description": (
+                "Split the timed-out platform/RPM capacity repair to the user-facing platform capacity API first."
+            ),
+            "assigned_agent": "integration",
+            "relevant_files": [
+                "backend/internal/server/routes/user.go",
+                "backend/internal/handler/user_handler.go",
+                "backend/internal/handler/user_platform_quotas_handler_test.go",
+                "backend/go.mod",
+                "backend/go.sum",
+                "frontend/src/api/user.ts",
+                "frontend/src/api/__tests__/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "/user/platform-quotas is removed or replaced by a registered CRM account-capacity contract.",
+                "Frontend user API and backend user route registration are congruent for the retained capacity surface.",
+                "Focused user API/route tests pass or record only admin settings follow-ups.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final admin settings RPM capacity contracts",
+            "description": (
+                "Split the timed-out platform/RPM capacity repair to admin settings, groups API, and backend admin route surfaces."
+            ),
+            "assigned_agent": "integration",
+            "relevant_files": [
+                "backend/internal/server/routes/admin.go",
+                "backend/internal/handler/admin/setting_handler.go",
+                "backend/internal/handler/admin/user_handler.go",
+                "backend/internal/handler/admin/user_platform_quota_admin_test.go",
+                "backend/internal/service/**",
+                "backend/internal/config/**",
+                "backend/go.mod",
+                "backend/go.sum",
+                "frontend/src/api/admin/settings.ts",
+                "frontend/src/api/admin/groups.ts",
+                "frontend/src/views/admin/SettingsView.vue",
+                "frontend/src/views/admin/__tests__/SettingsView.spec.ts",
+                "frontend/src/api/__tests__/**",
+                "frontend/src/i18n/locales/en.ts",
+                "frontend/src/i18n/locales/zh.ts",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Admin platform-quota and RPM quota settings/API controls are removed or reframed as source-approved account-capacity semantics.",
+                "Backend admin route registration and frontend admin settings/groups API are congruent for retained capacity behavior.",
+                "Focused admin settings/API tests pass and do not reopen the user platform capacity repair.",
+            ],
+            "priority": 89,
+        },
+    ]
+
+
+def final_admin_settings_rpm_capacity_split_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final backend admin RPM capacity contracts",
+            "description": (
+                "Split the timed-out admin settings RPM capacity repair to backend admin route, handler, service, and config surfaces."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/server/routes/admin.go",
+                "backend/internal/handler/admin/setting_handler.go",
+                "backend/internal/handler/admin/user_handler.go",
+                "backend/internal/handler/admin/user_platform_quota_admin_test.go",
+                "backend/internal/service/**",
+                "backend/internal/config/**",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Backend admin platform/RPM quota route and handler surfaces are removed or reframed as CRM account-capacity contracts.",
+                "Backend admin route registration remains congruent with the final frontend settings/API contract.",
+                "Focused backend admin route/handler tests pass or leave only frontend settings follow-ups.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final frontend admin RPM capacity settings contracts",
+            "description": (
+                "Split the timed-out admin settings RPM capacity repair to frontend settings, groups API, i18n, and focused tests."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/api/admin/settings.ts",
+                "frontend/src/api/admin/groups.ts",
+                "frontend/src/views/admin/SettingsView.vue",
+                "frontend/src/views/admin/__tests__/SettingsView.spec.ts",
+                "frontend/src/api/__tests__/**",
+                "frontend/src/i18n/locales/en.ts",
+                "frontend/src/i18n/locales/zh.ts",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Frontend admin settings/groups API no longer exposes platform-quota or RPM quota controls except as final account-capacity semantics.",
+                "Settings UI and locale copy use final CRM capacity language and stay congruent with backend admin routes.",
+                "Focused frontend settings/API tests pass and do not reopen backend admin capacity repair.",
+            ],
+            "priority": 89,
+        },
+    ]
+
+
+def final_backend_admin_rpm_capacity_split_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final backend admin RPM route settings contracts",
+            "description": (
+                "Split the timed-out backend admin RPM capacity repair to admin route registration, settings handler, service, and config."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/server/routes/admin.go",
+                "backend/internal/handler/admin/setting_handler.go",
+                "backend/internal/service/**",
+                "backend/internal/config/**",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Backend admin settings routes no longer expose forbidden RPM quota controls except as approved account-capacity semantics.",
+                "Settings handler/service/config contracts are congruent with final CRM capacity settings.",
+                "Focused backend settings route/handler checks pass or leave only user-capacity handler follow-ups.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final backend admin user capacity handler contracts",
+            "description": (
+                "Split the timed-out backend admin RPM capacity repair to admin user capacity handler and tests."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/server/routes/admin.go",
+                "backend/internal/handler/admin/user_handler.go",
+                "backend/internal/handler/admin/user_platform_quota_admin_test.go",
+                "backend/internal/service/user_service.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Admin user capacity handler routes use final CRM account-capacity terminology and avoid forbidden platform-quota/RPM quota surfaces.",
+                "Backend admin route registration and admin user handler tests are congruent.",
+                "Focused admin user capacity handler checks pass without reopening settings route repair.",
+            ],
+            "priority": 89,
+        },
+    ]
+
+
+def should_repair_final_backend_active_migration_model_routing(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "active embedded migrations still add model-routing",
+            "backend/migrations/040_add_group_model_routing.sql",
+            "backend/migrations/041_add_model_routing_enabled.sql",
+            "active migration files",
+            "fresh migration source contract",
+        )
+    ) and "model-routing" in text
+
+
+def should_repair_final_frontend_forbidden_admin_surface(text: str) -> bool:
+    explicit_surface = any(
+        marker in text
+        for marker in (
+            "frontend/src/api/admin/groups.ts",
+            "frontend/src/api/admin/announcements.ts",
+            "frontend/src/api/announcements.ts",
+            "announcement surface",
+            "announcement store",
+            "announcementbell",
+            "admin groups api",
+            "backend-forbidden routes",
+            "repair final frontend forbidden admin route surface contracts",
+            "frontend route repair",
+        )
+    )
+    route_signal = bool(re.search(r"\b(route|reachable|registered|navigation)\b", text))
+    explicit_route = route_signal and any(
+        marker in text for marker in ("/admin/groups", "/announcements", "/admin/announcements")
+    )
+    return explicit_surface or explicit_route
+
+
+def should_repair_final_frontend_route_sidebar_contract(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "route/sidebar contract",
+            "crm-route-surface",
+            "appsidebar.spec.ts",
+            "unused bellicon",
+            "bellicon is declared but its value is never read",
+            "adminannouncements at /admin/announcements",
+            "appsidebar expected /admin/announcements",
+        )
+    )
+
+
+def should_repair_final_admin_settings_legacy_surface(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "admin settings api/ui",
+            "registered admin settings api/ui",
+            "openai_codex_user_agent",
+            "openai_advanced_scheduler_enabled",
+            "channel_monitor_enabled",
+            "available_channels_enabled",
+            "default_subscriptions",
+            "default_platform_quotas",
+            "legacy openai/gateway/channel/subscription settings",
+            "backend admin settings dto",
+            "repair final admin settings legacy surface contracts",
+        )
+    )
+
+
+def should_split_final_admin_settings_legacy_timeout(text: str) -> bool:
+    return should_repair_final_admin_settings_legacy_surface(text) and all(
+        marker in text
+        for marker in (
+            "repair final admin settings legacy surface contracts",
+            "timeout",
+        )
+    )
+
+
+def final_admin_settings_legacy_timeout_split_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final backend admin settings legacy contracts",
+            "description": (
+                "Narrow the timed-out admin settings legacy repair to backend handler/service/model/dto/config "
+                "contracts that still expose OpenAI, gateway, channel, or subscription-era settings."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/handler/admin/**/*settings*",
+                "backend/internal/service/**/*settings*",
+                "backend/internal/model/**/*settings*",
+                "backend/internal/dto/**/*settings*",
+                "backend/internal/config/**",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Reachable backend admin settings contracts no longer expose OpenAI, gateway, channel, or subscription-era settings as CRM product behavior.",
+                "Legacy-compatible backend settings are removed, renamed, or strictly fenced away from delivered admin contracts.",
+                "Focused backend settings checks are attempted without taking over final full-suite verification.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final frontend admin settings legacy contracts",
+            "description": (
+                "Narrow the timed-out admin settings legacy repair to frontend admin settings API, view, i18n, "
+                "and tests that still expose OpenAI, gateway, channel, or subscription-era settings."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/api/admin/settings.ts",
+                "frontend/src/views/admin/SettingsView.vue",
+                "frontend/src/i18n/locales/en.ts",
+                "frontend/src/i18n/locales/zh.ts",
+                "frontend/src/api/__tests__/**/*settings*",
+                "frontend/src/views/admin/**/*settings*",
+                "frontend/src/views/admin/__tests__/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Reachable frontend admin settings API/UI no longer exposes OpenAI, gateway, channel, or subscription-era settings as CRM product behavior.",
+                "Legacy-compatible frontend settings are removed, renamed, or strictly fenced away from delivered admin UI contracts.",
+                "Focused frontend settings tests, typecheck, and source-boundary probes are attempted before final gates rerun.",
+            ],
+            "priority": 88,
+        },
+    ]
+
+
+def should_resume_final_admin_settings_boundary_expansion(text: str) -> bool:
+    return all(
+        marker in text
+        for marker in (
+            "must continue focused task",
+            "repair final admin settings legacy surface contracts",
+            "out-of-scope files changed: frontend/src/views/admin/__tests__/settingsview.spec.ts",
+        )
+    )
+
+
+def should_resume_final_frontend_dependency_audit_timeout(text: str) -> bool:
+    return all(
+        marker in text
+        for marker in (
+            "focused timeout task titles:",
+            "repair final frontend dependency audit contracts",
+        )
+    )
+
+
+def should_resume_final_supervisor_stopped_repair_order(text: str) -> bool:
+    return all(
+        marker in text
+        for marker in (
+            "previous supervisor-stopped progress",
+            "continue from the next incomplete repair task",
+            "repair final frontend dependency audit contracts",
+            "repair final backend migration contracts",
+            "repair final backend service handler server contracts",
+            "repair final frontend locale settings boundary contracts",
+        )
+    )
+
+
+def repair_specs_matching_titles(
+    specs: list[dict[str, object]],
+    titles: set[str],
+) -> list[dict[str, object]]:
+    return [spec for spec in specs if str(spec.get("title", "")) in titles]
+
+
+def repair_specs_matching_titles_in_order(
+    specs: list[dict[str, object]],
+    titles: list[str],
+) -> list[dict[str, object]]:
+    by_title = {str(spec.get("title", "")): spec for spec in specs}
+    return [by_title[title] for title in titles if title in by_title]
+
+
+def should_repair_final_backend_startup_contract(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "testgeneratedstartupenforcesfreshdatabasecontract",
+            "enforcefreshdatabasecontract",
+            "backend/cmd/server/wire.go",
+            "backend/cmd/server/wire_gen.go",
+            "fresh-database startup contract",
+            "fresh database startup contract",
+        )
+    )
+
+
+def should_repair_final_backend_account_repository_predicates(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "backend/internal/repository/account_repo.go",
+            "hasaccountgroups",
+            "hasaccountgroupswith",
+            "removed ent predicates",
+            "crm-renamed predicates",
+        )
+    )
+
+
+def should_repair_final_backend_sub2api_protocol_identity(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "backend sub2api protocol",
+            "backend/internal/veyra/intent.go",
+            "portalintentsub2api",
+            "sub2api-admin",
+            "sec-websocket-protocol",
+        )
+    )
+
+
+def should_repair_final_backend_production_identity_strings(text: str) -> bool:
+    return any(
+        marker in text
+        for marker in (
+            "backend production static identity probe",
+            "backend production static probe found",
+            "backend production legacy identity",
+            "residual backend production legacy identity",
+            "production files containing residual sub2api",
+            "backend/internal/repository/dashboard_cache.go",
+            "backend/internal/pkg/logger/options.go",
+            "backend/internal/pkg/sysutil/restart.go",
+            "backend/internal/handler/admin/ops_ws_handler.go",
+            "backend/internal/service/update_service.go",
+        )
+    )
+
+
+def should_repair_final_source_boundary_sweep(text: str) -> bool:
+    has_final_source_boundary_failure = (
+        "final_audit_status=fail" in text
+        and "source-boundary" in text
+        and (
+            "production source still contains retired" in text
+            or "production source and wiring still retain retired capabilities" in text
+            or "source-boundary violations remain" in text
+        )
+    )
+    has_backend_static_probe = (
+        "backend production static probe found" in text
+        and any(marker in text for marker in ("gateway/proxy", "upstream", "channel-monitor", "capability terms"))
+    )
+    has_migration_probe = "backend migrations still contain forbidden" in text or "fresh migration safety is incomplete" in text
+    has_frontend_probe = "frontend source probe found" in text and (
+        "retired api/composable" in text or "retired concepts" in text
+    )
+    has_empty_allowed_files_blocker = "allowed_files is empty" in text or "allowed files is empty" in text
+    return (
+        has_final_source_boundary_failure
+        and has_backend_static_probe
+        and has_migration_probe
+        and has_frontend_probe
+        and has_empty_allowed_files_blocker
+    )
+
+
+def should_split_final_frontend_retired_source_boundary_timeout(text: str) -> bool:
+    has_timeout = any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+            "codex worker timed out after 900 seconds",
+        )
+    )
+    has_frontend_retired_scope = "repair final frontend retired source-boundary leftovers" in text or (
+        "frontend retired source-boundary" in text and "frontend/src/api" in text and "frontend/src/composables" in text
+    )
+    return has_timeout and has_frontend_retired_scope
+
+
+def final_frontend_retired_source_boundary_split_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final frontend retired API type source-boundary leftovers",
+            "description": (
+                "Split the timed-out frontend source-boundary repair to API modules, shared constants, types, "
+                "and package metadata first."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/api/**",
+                "frontend/src/types/**",
+                "frontend/src/constants/**",
+                "frontend/src/utils/**",
+                "frontend/src/api/__tests__/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Frontend API modules, constants, and shared types no longer expose retired upstream-account, proxy, channel-monitor, model-routing, token-log, or subscription-plan product surfaces.",
+                "Retired API compatibility facades are removed, renamed, or quarantined outside delivered frontend contracts.",
+                "Focused API/type source-boundary probes and affected API tests are attempted before final gates rerun.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final frontend retired composable store source-boundary leftovers",
+            "description": (
+                "Split the timed-out frontend source-boundary repair to composables, stores, and state utilities."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/composables/**",
+                "frontend/src/stores/**",
+                "frontend/src/utils/**",
+                "frontend/src/composables/__tests__/**",
+                "frontend/src/stores/__tests__/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Frontend composables and stores no longer expose retired relay, upstream-account, provider-channel, proxy, model-routing, token-log, or subscription-plan product behavior.",
+                "State helpers are CRM-neutral or CRM billing scoped rather than relay-era compatibility surfaces.",
+                "Focused composable/store source-boundary probes and affected vitest specs are attempted before final gates rerun.",
+            ],
+            "priority": 88,
+        },
+        {
+            "title": "Repair final frontend retired view component source-boundary leftovers",
+            "description": (
+                "Split the timed-out frontend source-boundary repair to reachable views, components, router, and locale copy."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/router/**",
+                "frontend/src/views/**",
+                "frontend/src/components/**",
+                "frontend/src/i18n/**",
+                "frontend/src/styles/**",
+                "frontend/src/router/__tests__/**",
+                "frontend/src/views/**/__tests__/**",
+                "frontend/src/components/**/__tests__/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Reachable frontend routes, views, components, and locale copy no longer expose retired upstream-account, proxy, channel-monitor, model-routing, token-log, or subscription-plan product concepts.",
+                "User-facing copy uses CRM identity, billing, wallet, metering, entitlement, audit, and admin semantics.",
+                "Focused route/view/component source-boundary probes and affected vitest specs are attempted before final gates rerun.",
+            ],
+            "priority": 87,
+        },
+    ]
+
+
+def should_repair_final_remaining_source_boundary_after_split(text: str) -> bool:
+    if should_split_final_backend_provider_proxy_ops_service_quarantine_timeout(text):
+        return True
+    if should_split_final_backend_handler_server_quarantine_timeout(text):
+        return True
+    has_final_audit_failure = "final_audit_status" in text and "fail" in text
+    has_semantic_probe_failure = (
+        "static semantic probes found" in text
+        and "production/delivery files" in text
+        and "non-test frontend files" in text
+    )
+    has_backend_residuals = all(
+        marker in text
+        for marker in (
+            "backend production code still contains",
+            "gateway",
+            "proxy",
+            "channel monitor",
+            "upstream account",
+        )
+    )
+    has_frontend_typecheck_failure = "vue-tsc --noemit" in text or "vue-tsc --noemit exited 2" in text
+    has_frontend_consumers = (
+        "frontend typecheck fails" in text
+        and any(
+            marker in text
+            for marker in (
+                "subscriptionprogressmini.vue",
+                "subscriptionplancard.vue",
+                "userdashboardcharts.vue",
+                "paymentwechatresume.ts",
+            )
+        )
+    )
+    has_edit_scope_blocker = "allowed_files is empty" in text or "allowed files is empty" in text
+    return (
+        has_final_audit_failure
+        and has_semantic_probe_failure
+        and has_backend_residuals
+        and has_frontend_typecheck_failure
+        and has_frontend_consumers
+        and has_edit_scope_blocker
+    )
+
+
+def should_split_final_backend_legacy_quarantine_timeout(text: str) -> bool:
+    has_timeout = any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "codex worker timed out after 900 seconds",
+        )
+    )
+    has_backend_quarantine_scope = "repair final backend legacy production quarantine leftovers" in text or (
+        "backend legacy production quarantine" in text
+        and "backend/internal/handler" in text
+        and "backend/internal/service" in text
+    )
+    return has_timeout and has_backend_quarantine_scope
+
+
+def final_backend_legacy_quarantine_split_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final backend handler server quarantine leftovers",
+            "description": (
+                "Split the timed-out backend legacy quarantine repair to handler and server route surfaces first."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/handler/**",
+                "backend/internal/server/**",
+                "backend/internal/middleware/**",
+                "backend/cmd/server/**",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Backend handlers and server route/middleware code no longer expose retired gateway, OpenAI gateway, proxy, channel-monitor, upstream-account, or subscription-plan product surfaces.",
+                "Retired handler entrypoints are removed, build-tag quarantined, or renamed under CRM billing/service-integration semantics without re-registering forbidden routes.",
+                "Focused handler/server source-boundary probes and affected Go checks are attempted before final gates rerun.",
+            ],
+            "priority": 91,
+        },
+        {
+            "title": "Repair final backend service repository quarantine leftovers",
+            "description": (
+                "Split the timed-out backend legacy quarantine repair to service, repository, and domain implementation surfaces."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/service/**",
+                "backend/internal/repository/**",
+                "backend/internal/domain/**",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Backend services and repositories no longer expose retired proxy, channel-monitor, upstream-account, model-routing, token-log, or subscription-plan product behavior.",
+                "Reusable persistence/service infrastructure is either CRM-renamed or isolated from delivered production behavior.",
+                "Focused service/repository source-boundary probes and package checks are attempted before final gates rerun.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final backend config runtime quarantine leftovers",
+            "description": (
+                "Split the timed-out backend legacy quarantine repair to config, runtime helper, package, and command wiring surfaces."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/config/**",
+                "backend/internal/pkg/**",
+                "backend/internal/runtime/**",
+                "backend/cmd/server/**",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Backend config and runtime helper surfaces no longer expose retired gateway/proxy/upstream/channel-monitor/subscription settings as CRM product behavior.",
+                "Command wiring uses CRM billing/runtime names and does not reintroduce retired provider-channel or relay-era entrypoints.",
+                "Focused config/runtime source-boundary probes and affected Go checks are attempted before final gates rerun.",
+            ],
+            "priority": 89,
+        },
+    ]
+
+
+def should_split_final_backend_handler_server_quarantine_timeout(text: str) -> bool:
+    has_timeout = any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "codex worker timed out after 900 seconds",
+        )
+    )
+    return has_timeout and "repair final backend handler server quarantine leftovers" in text
+
+
+def final_backend_handler_server_quarantine_exact_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final backend admin handler quarantine exact files",
+            "description": (
+                "Repair exact admin handler files that still expose retired account/proxy/upstream/provider/channel "
+                "surfaces after the final backend handler/server quarantine timeout."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/handler/admin/account_codex_import.go",
+                "backend/internal/handler/admin/account_data.go",
+                "backend/internal/handler/admin/account_handler.go",
+                "backend/internal/handler/admin/antigravity_oauth_handler.go",
+                "backend/internal/handler/admin/gemini_oauth_handler.go",
+                "backend/internal/handler/admin/openai_oauth_handler.go",
+                "backend/internal/handler/admin/ops_alerts_handler.go",
+                "backend/internal/handler/admin/ops_handler.go",
+                "backend/internal/handler/admin/ops_ws_handler.go",
+                "backend/internal/handler/admin/proxy_data.go",
+                "backend/internal/handler/admin/proxy_handler.go",
+                "backend/internal/handler/admin/setting_handler.go",
+                "backend/internal/handler/dto/mappers.go",
+                "backend/internal/handler/dto/settings.go",
+                "backend/internal/handler/dto/types.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Admin handler and DTO source no longer exposes retired upstream account, proxy, provider-channel, OpenAI/Gemini/Antigravity, or subscription-plan product surfaces.",
+                "Retired admin compatibility is removed, CRM-renamed, or quarantined away from delivered production behavior.",
+                "Focused admin handler source-boundary probes and affected Go checks are attempted before final gates rerun.",
+            ],
+            "priority": 91,
+        },
+        {
+            "title": "Repair final backend gateway protocol handler exact files",
+            "description": (
+                "Repair exact gateway/protocol handler files that still expose retired relay, OpenAI gateway, "
+                "streaming, failover, or model/provider surfaces."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/handler/content_moderation_helper.go",
+                "backend/internal/handler/endpoint.go",
+                "backend/internal/handler/failover_loop.go",
+                "backend/internal/handler/gateway_handler.go",
+                "backend/internal/handler/gateway_handler_chat_completions.go",
+                "backend/internal/handler/gateway_handler_responses.go",
+                "backend/internal/handler/gateway_helper.go",
+                "backend/internal/handler/gemini_v1beta_handler.go",
+                "backend/internal/handler/openai_chat_completions.go",
+                "backend/internal/handler/openai_embeddings.go",
+                "backend/internal/handler/openai_gateway_handler.go",
+                "backend/internal/handler/openai_images.go",
+                "backend/internal/handler/ops_error_logger.go",
+                "backend/internal/handler/stream_error_event.go",
+                "backend/internal/handler/user_msg_queue_helper.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Gateway/protocol handler source no longer exposes retired API gateway, OpenAI gateway, proxy, model-routing, provider-channel, or token-relay product surfaces.",
+                "Reusable protocol helpers are CRM service-integration or billing runtime infrastructure, or are quarantined outside delivered production behavior.",
+                "Focused gateway/protocol handler source-boundary probes and affected Go checks are attempted before final gates rerun.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final backend server middleware quarantine exact files",
+            "description": (
+                "Repair exact server, middleware, and startup contract files that still expose retired route or runtime surfaces."
+            ),
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/cmd/server/database_contract_test.go",
+                "backend/internal/server/api_contract_test.go",
+                "backend/internal/server/http.go",
+                "backend/internal/server/middleware/api_key_auth_test.go",
+                "backend/internal/server/middleware/middleware.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Server and middleware source no longer exposes retired gateway, proxy, upstream-account, provider-channel, or subscription-plan route/runtime surfaces.",
+                "Startup and route contract tests assert CRM Billing Core behavior without retaining relay-era product contracts.",
+                "Focused server/middleware source-boundary probes and Go checks are attempted before final gates rerun.",
+            ],
+            "priority": 89,
+        },
+    ]
+
+
+def should_split_final_backend_service_repository_quarantine_timeout(text: str) -> bool:
+    has_timeout = any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "codex worker timed out after 900 seconds",
+        )
+    )
+    return has_timeout and "repair final backend service repository quarantine leftovers" in text
+
+
+def final_backend_service_repository_quarantine_exact_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final backend repository domain quarantine exact files",
+            "description": "Repair exact repository/domain files retaining retired relay-era source-boundary terms.",
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/domain/table_contract.go",
+                "backend/internal/domain/table_contract_test.go",
+                "backend/internal/repository/account_repo.go",
+                "backend/internal/repository/claude_oauth_service.go",
+                "backend/internal/repository/claude_usage_service.go",
+                "backend/internal/repository/gateway_cache.go",
+                "backend/internal/repository/gemini_oauth_client.go",
+                "backend/internal/repository/geminicli_codeassist_client.go",
+                "backend/internal/repository/github_release_service.go",
+                "backend/internal/repository/http_upstream.go",
+                "backend/internal/repository/openai_oauth_service.go",
+                "backend/internal/repository/pricing_service.go",
+                "backend/internal/repository/proxy_latency_cache.go",
+                "backend/internal/repository/proxy_probe_service.go",
+                "backend/internal/repository/proxy_repo.go",
+                "backend/internal/repository/req_client_pool.go",
+                "backend/internal/repository/wire.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Repository/domain source no longer exposes retired upstream-account, gateway, proxy, provider-channel, or subscription-plan product surfaces.",
+                "Repository compatibility helpers are CRM-renamed or quarantined away from delivered production behavior.",
+                "Focused repository/domain source-boundary probes and package checks are attempted before final gates rerun.",
+            ],
+            "priority": 90,
+        },
+        {
+            "title": "Repair final backend gateway OpenAI service quarantine exact files",
+            "description": "Repair exact gateway/OpenAI/Gemini compatibility service files retaining retired product terms.",
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/service/gateway_forward_as_chat_completions.go",
+                "backend/internal/service/gateway_forward_as_responses.go",
+                "backend/internal/service/gateway_messages_cache.go",
+                "backend/internal/service/gateway_record_usage_test.go",
+                "backend/internal/service/gateway_request.go",
+                "backend/internal/service/gateway_service.go",
+                "backend/internal/service/gateway_websearch_emulation.go",
+                "backend/internal/service/gemini_chat_completions_compat_service.go",
+                "backend/internal/service/gemini_messages_compat_service.go",
+                "backend/internal/service/openai_gateway_chat_completions.go",
+                "backend/internal/service/openai_gateway_chat_completions_raw.go",
+                "backend/internal/service/openai_gateway_messages.go",
+                "backend/internal/service/openai_gateway_responses_chat_fallback.go",
+                "backend/internal/service/openai_gateway_service.go",
+                "backend/internal/service/openai_images.go",
+                "backend/internal/service/openai_images_responses.go",
+                "backend/internal/service/openai_embeddings.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Gateway/OpenAI/Gemini service source no longer exposes retired API gateway, OpenAI gateway, model-routing, provider-channel, or token-relay product surfaces.",
+                "Reusable compatibility services are CRM service-integration or billing runtime infrastructure, or are quarantined from delivered product behavior.",
+                "Focused gateway/OpenAI service source-boundary probes and affected package checks are attempted before final gates rerun.",
+            ],
+            "priority": 89,
+        },
+        {
+            "title": "Repair final backend provider proxy ops service quarantine exact files",
+            "description": "Repair exact provider/proxy/channel-monitor/ops service files retaining retired product terms.",
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/service/account.go",
+                "backend/internal/service/account_service.go",
+                "backend/internal/service/account_usage_service.go",
+                "backend/internal/service/admin_service.go",
+                "backend/internal/service/antigravity_gateway_service.go",
+                "backend/internal/service/antigravity_oauth_service.go",
+                "backend/internal/service/antigravity_token_provider.go",
+                "backend/internal/service/api_key_auth_cache.go",
+                "backend/internal/service/billing_cache_service.go",
+                "backend/internal/service/channel_monitor_aggregator.go",
+                "backend/internal/service/channel_monitor_const.go",
+                "backend/internal/service/channel_monitor_runner.go",
+                "backend/internal/service/channel_monitor_service.go",
+                "backend/internal/service/channel_monitor_ssrf.go",
+                "backend/internal/service/channel_monitor_validate.go",
+                "backend/internal/service/channel_service.go",
+                "backend/internal/service/domain_constants.go",
+                "backend/internal/service/gemini_oauth.go",
+                "backend/internal/service/gemini_oauth_service.go",
+                "backend/internal/service/gemini_token_provider.go",
+                "backend/internal/service/oauth_service.go",
+                "backend/internal/service/openai_account_scheduler.go",
+                "backend/internal/service/openai_oauth_service.go",
+                "backend/internal/service/ops_models.go",
+                "backend/internal/service/ops_service.go",
+                "backend/internal/service/ops_upstream_context.go",
+                "backend/internal/service/proxy.go",
+                "backend/internal/service/proxy_expiry_service.go",
+                "backend/internal/service/proxy_fallback.go",
+                "backend/internal/service/proxy_latency_cache.go",
+                "backend/internal/service/proxy_service.go",
+                "backend/internal/service/quota_fetcher.go",
+                "backend/internal/service/setting_service.go",
+                "backend/internal/service/token_refresh_service.go",
+                "backend/internal/service/upstream_models.go",
+                "backend/internal/service/upstream_response_limit.go",
+                "backend/internal/service/usage_record_worker_pool.go",
+                "backend/internal/service/wire.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Provider/proxy/channel-monitor/ops service source no longer exposes retired upstream-account, proxy, provider-channel, channel-monitor, token-refresh, or subscription-plan product surfaces.",
+                "Remaining reusable services are CRM billing, service-health, connector, wallet, metering, or observability scoped.",
+                "Focused provider/proxy/ops service source-boundary probes and package checks are attempted before final gates rerun.",
+            ],
+            "priority": 88,
+        },
+    ]
+
+
+def should_split_final_backend_provider_proxy_ops_service_quarantine_timeout(text: str) -> bool:
+    has_timeout = any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "codex worker timed out after 900 seconds",
+        )
+    )
+    return has_timeout and "repair final backend provider proxy ops service quarantine exact files" in text
+
+
+def final_backend_provider_proxy_ops_service_quarantine_split_task_specs() -> list[dict[str, object]]:
+    return [
+        {
+            "title": "Repair final backend account OAuth service quarantine exact files",
+            "description": "Repair exact account/OAuth/connector service files retaining retired product terms.",
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/service/account.go",
+                "backend/internal/service/account_service.go",
+                "backend/internal/service/account_usage_service.go",
+                "backend/internal/service/admin_service.go",
+                "backend/internal/service/antigravity_gateway_service.go",
+                "backend/internal/service/antigravity_oauth_service.go",
+                "backend/internal/service/antigravity_token_provider.go",
+                "backend/internal/service/gemini_oauth.go",
+                "backend/internal/service/gemini_oauth_service.go",
+                "backend/internal/service/gemini_token_provider.go",
+                "backend/internal/service/oauth_service.go",
+                "backend/internal/service/openai_account_scheduler.go",
+                "backend/internal/service/openai_oauth_service.go",
+                "backend/internal/service/token_refresh_service.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Account/OAuth connector service source no longer exposes retired upstream-account, provider-channel, token-refresh, or token-relay product surfaces.",
+                "Reusable connector/auth helpers are CRM account identity or service-integration scoped.",
+                "Focused account/OAuth service source-boundary probes and package checks are attempted before final gates rerun.",
+            ],
+            "priority": 88,
+        },
+        {
+            "title": "Repair final backend channel monitor service quarantine exact files",
+            "description": "Repair exact service-health/channel-monitor service files retaining retired product terms.",
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/service/channel_monitor_aggregator.go",
+                "backend/internal/service/channel_monitor_const.go",
+                "backend/internal/service/channel_monitor_runner.go",
+                "backend/internal/service/channel_monitor_service.go",
+                "backend/internal/service/channel_monitor_ssrf.go",
+                "backend/internal/service/channel_monitor_validate.go",
+                "backend/internal/service/channel_service.go",
+                "backend/internal/service/quota_fetcher.go",
+                "backend/internal/service/usage_record_worker_pool.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Service-health/channel-monitor source no longer exposes retired channel-monitor, provider-channel, upstream-account, or subscription-plan product surfaces.",
+                "Remaining monitoring behavior is CRM service-health, metering, or observability scoped.",
+                "Focused service-health source-boundary probes and package checks are attempted before final gates rerun.",
+            ],
+            "priority": 87,
+        },
+        {
+            "title": "Repair final backend proxy upstream service quarantine exact files",
+            "description": "Repair exact proxy/upstream service files retaining retired product terms.",
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/service/proxy.go",
+                "backend/internal/service/proxy_expiry_service.go",
+                "backend/internal/service/proxy_fallback.go",
+                "backend/internal/service/proxy_latency_cache.go",
+                "backend/internal/service/proxy_service.go",
+                "backend/internal/service/upstream_models.go",
+                "backend/internal/service/upstream_response_limit.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Proxy/upstream source no longer exposes retired proxy, upstream-account, model-routing, or provider-channel product surfaces.",
+                "Remaining connector/network behavior is CRM integration infrastructure rather than delivered relay product behavior.",
+                "Focused proxy/upstream source-boundary probes and package checks are attempted before final gates rerun.",
+            ],
+            "priority": 86,
+        },
+        {
+            "title": "Repair final backend ops settings service quarantine exact files",
+            "description": "Repair exact ops/settings/wire service files retaining retired product terms.",
+            "assigned_agent": "backend",
+            "relevant_files": [
+                "backend/internal/service/api_key_auth_cache.go",
+                "backend/internal/service/billing_cache_service.go",
+                "backend/internal/service/domain_constants.go",
+                "backend/internal/service/ops_models.go",
+                "backend/internal/service/ops_service.go",
+                "backend/internal/service/ops_upstream_context.go",
+                "backend/internal/service/setting_service.go",
+                "backend/internal/service/wire.go",
+                "backend/go.mod",
+                "backend/go.sum",
+            ],
+            "completion_criteria": [
+                "Ops/settings service source no longer exposes retired upstream-account, proxy, provider-channel, token-refresh, or subscription-plan product surfaces.",
+                "Remaining settings and observability behavior is CRM billing/runtime scoped.",
+                "Focused ops/settings source-boundary probes and package checks are attempted before final gates rerun.",
+            ],
+            "priority": 85,
+        },
+    ]
 
 
 def should_split_final_frontend_api_i18n_timeout(text: str) -> bool:
@@ -983,6 +3488,22 @@ def should_narrow_final_frontend_api_module_leaf_timeout(text: str) -> bool | st
     if "repair final frontend admin billing api contract leaf" in text:
         return "payment_usage"
     return "repair final frontend api module contracts" in text
+
+
+def should_narrow_final_frontend_i18n_locale_timeout(text: str) -> bool:
+    if "primary failed task ids: t007" not in text:
+        return False
+    if "repair final frontend i18n locale contracts" not in text:
+        return False
+    return any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+        )
+    )
 
 
 def should_narrow_final_backend_service_handler_timeout(text: str) -> bool:
@@ -1031,7 +3552,7 @@ def should_narrow_final_backend_domain_repository_leaf_timeout(text: str) -> boo
 
 
 def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
-    split_titles_present = all(
+    return all(
         marker in text
         for marker in (
             "repair final frontend api module contracts",
@@ -1039,21 +3560,12 @@ def should_preserve_final_frontend_api_i18n_split(text: str) -> bool:
             "repair final frontend constants and shared types contracts",
         )
     )
-    if split_titles_present:
-        return True
-    return all(
-        marker in text
-        for marker in (
-            "completed tasks to preserve:",
-            "t006",
-            "t007",
-            "t008",
-        )
-    ) and _has_primary_failed_task_id_in_range(text, 9, 55)
 
 
 def should_preserve_final_frontend_deep_tail_split(text: str) -> bool:
     if "preserve final frontend split tail graph shape:" in text:
+        return True
+    if _primary_failed_task_has_title(text, "repair final frontend test and fixture contracts"):
         return True
     if "completed tasks to preserve:" not in text or not _has_primary_failed_task_id_in_range(text, 50, 90):
         return False
@@ -1062,8 +3574,6 @@ def should_preserve_final_frontend_deep_tail_split(text: str) -> bool:
     return any(
         marker in text
         for marker in (
-            "repair final frontend test and fixture contracts",
-            "repair final frontend utility constant type contracts",
             "repair final frontend table navigation composables",
             "repair final frontend channel monitor format composable",
             "repair final frontend onboarding quota composables",
@@ -1090,6 +3600,25 @@ def should_split_final_frontend_test_fixture_timeout(text: str) -> bool:
             "frontend/src/**/*.spec.ts",
             "frontend/tests/**",
         )
+    )
+
+
+def should_split_final_frontend_component_composable_test_timeout(text: str) -> bool:
+    if not any(
+        marker in text
+        for marker in (
+            "worker timeout",
+            "timed out",
+            "exceeded the codex worker timeout",
+            "timeout note",
+            "timeout split required",
+        )
+    ):
+        return False
+    return (
+        "repair final frontend component and composable test contracts" in text
+        and "frontend/src/components" in text
+        and "frontend/src/composables" in text
     )
 
 
@@ -1126,7 +3655,7 @@ def completed_preserve_line_contains_all(text: str, *task_ids: str) -> bool:
 
 
 def final_frontend_api_i18n_repair_task_specs(
-    *, split: bool, split_api_module_leaf: bool | str = False
+    *, split: bool, split_api_module_leaf: bool | str = False, split_i18n_locale_leaf: bool = False
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -1152,24 +3681,7 @@ def final_frontend_api_i18n_repair_task_specs(
         ]
     return [
         final_frontend_api_module_repair_spec(split_leaf=split_api_module_leaf),
-        {
-            "title": "Repair final frontend i18n locale contracts",
-            "description": (
-                "Replace frontend locale copy that still presents upstream account, proxy, channel, channel-monitor, "
-                "model-routing, or subscription-plan behavior as delivered CRM product behavior."
-            ),
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/i18n/**",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Frontend locale copy uses CRM identity, wallet, metering, charging, reconciliation, analytics, audit, and admin language.",
-                "Residual relay-era wording is removed or clearly reframed as internal compatibility language.",
-            ],
-            "priority": 93,
-        },
+        final_frontend_i18n_locale_repair_spec(split_leaf=split_i18n_locale_leaf),
         {
             "title": "Repair final frontend constants and shared types contracts",
             "description": (
@@ -1189,6 +3701,49 @@ def final_frontend_api_i18n_repair_task_specs(
             "priority": 92,
         },
     ]
+
+
+def final_frontend_i18n_locale_repair_spec(*, split_leaf: bool) -> dict[str, object]:
+    if split_leaf:
+        return {
+            "title": "Repair final frontend i18n locale contracts",
+            "description": (
+                "The final frontend i18n locale repair timed out. Keep task ID T007 stable and narrow the retry "
+                "to locale dictionaries, the i18n entrypoint, and focused i18n specs."
+            ),
+            "assigned_agent": "frontend",
+            "relevant_files": [
+                "frontend/src/i18n/index.ts",
+                "frontend/src/i18n/locales/en.ts",
+                "frontend/src/i18n/locales/zh.ts",
+                "frontend/src/i18n/__tests__/**",
+                "frontend/package.json",
+                "frontend/pnpm-lock.yaml",
+            ],
+            "completion_criteria": [
+                "Frontend locale copy uses CRM identity, wallet, metering, charging, reconciliation, analytics, audit, and admin language.",
+                "Residual relay-era wording is removed or clearly reframed as internal compatibility language.",
+            ],
+            "priority": 93,
+        }
+    return {
+        "title": "Repair final frontend i18n locale contracts",
+        "description": (
+            "Replace frontend locale copy that still presents upstream account, proxy, channel, channel-monitor, "
+            "model-routing, or subscription-plan behavior as delivered CRM product behavior."
+        ),
+        "assigned_agent": "frontend",
+        "relevant_files": [
+            "frontend/src/i18n/**",
+            "frontend/package.json",
+            "frontend/pnpm-lock.yaml",
+        ],
+        "completion_criteria": [
+            "Frontend locale copy uses CRM identity, wallet, metering, charging, reconciliation, analytics, audit, and admin language.",
+            "Residual relay-era wording is removed or clearly reframed as internal compatibility language.",
+        ],
+        "priority": 93,
+    }
 
 
 def final_frontend_api_module_repair_spec(*, split_leaf: bool | str) -> dict[str, object]:
@@ -1541,13 +4096,16 @@ def should_preserve_final_frontend_auth_public_setup_split(text: str) -> bool:
 
 
 def should_split_final_frontend_setup_not_found_timeout(text: str) -> bool:
-    focused_setup_scope = _has_primary_failed_task_id_in_range(text, 31, 60) and any(
+    focused_setup_scope = (
+        _has_primary_failed_task_id_in_range(text, 31, 60)
+        and "repair final frontend setup and not-found view contracts" in text
+        and any(
         marker in text
         for marker in (
-            "repair final frontend setup and not-found view contracts",
             "frontend/src/views/setup",
             "frontend/src/views/notfoundview.vue",
             "not-found view",
+        )
         )
     )
     if focused_setup_scope:
@@ -1603,15 +4161,9 @@ def should_split_final_frontend_state_composable_utility_timeout(text: str) -> b
         )
     ):
         return False
-    return _has_primary_failed_task_id_in_range(text, 32, 65) and any(
-        marker in text
-        for marker in (
-            "repair final frontend state composable utility contracts",
-            "frontend/src/stores",
-            "frontend/src/composables",
-            "frontend/src/utils",
-            "state composable utility",
-        )
+    return _primary_failed_task_has_title(
+        text,
+        "repair final frontend state composable utility contracts",
     )
 
 
@@ -1648,13 +4200,9 @@ def should_split_final_frontend_composable_contracts_timeout(text: str) -> bool:
         )
     ):
         return False
-    return _has_primary_failed_task_id_in_range(text, 48, 65) and any(
-        marker in text
-        for marker in (
-            "repair final frontend composable contracts",
-            "frontend/src/composables",
-            "composable contracts",
-        )
+    return _primary_failed_task_has_title(
+        text,
+        "repair final frontend composable contracts",
     )
 
 
@@ -1691,15 +4239,9 @@ def should_split_final_frontend_metering_entitlement_composables_timeout(text: s
         )
     ):
         return False
-    return _has_primary_failed_task_id_in_range(text, 50, 70) and any(
-        marker in text
-        for marker in (
-            "repair final frontend metering entitlement composables",
-            "usechannelmonitorformat",
-            "usemodelwhitelist",
-            "useonboardingtour",
-            "usequotanotifystate",
-        )
+    return _primary_failed_task_has_title(
+        text,
+        "repair final frontend metering entitlement composables",
     )
 
 
@@ -2346,6 +4888,26 @@ def _has_primary_failed_task_id_in_range(text: str, start: int, end: int) -> boo
     return any(f"primary failed task ids: t{index:03d}" in text for index in range(start, end + 1))
 
 
+def _primary_failed_task_has_title(text: str, title: str) -> bool:
+    """Match a title to the current failed task, never to history-only titles."""
+
+    for match in PRIMARY_FAILED_TASK_IDS_PATTERN.finditer(text):
+        for task_id in TASK_ID_PATTERN.findall(match.group(1)):
+            normalized_id = re.escape(task_id.lower())
+            normalized_title = re.escape(title.lower())
+            if re.search(
+                rf"(?m)^###\s+task\s+{normalized_id}\s+-\s+{normalized_title}\s*$",
+                text,
+            ):
+                return True
+            if re.search(
+                rf"(?m)^\s*-\s*must continue focused task\s+{normalized_id}\s*:\s*{normalized_title}\.?\s*$",
+                text,
+            ):
+                return True
+    return False
+
+
 def final_frontend_routes_views_repair_task_specs(
     *,
     split: bool,
@@ -2371,6 +4933,7 @@ def final_frontend_routes_views_repair_task_specs(
     split_composable_contracts: bool = False,
     split_metering_entitlement_composables: bool = False,
     split_frontend_test_fixtures: bool = False,
+    split_component_composable_tests: bool = False,
 ) -> list[dict[str, object]]:
     if not split:
         return [
@@ -2656,6 +5219,65 @@ def final_frontend_routes_views_repair_task_specs(
         ],
         "priority": 90,
     }
+    component_composable_test_tasks = (
+        [
+            {
+                "title": "Repair final frontend component test contracts",
+                "description": "Update component specs to match the final CRM frontend contracts.",
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/components/**/__tests__/**",
+                    "frontend/src/components/**/*.spec.ts",
+                    "frontend/src/components/**/*.spec.tsx",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Component specs use CRM account, wallet, metering, connector, entitlement, and audit language.",
+                    "Component tests no longer depend on retired provider-channel, proxy, relay, model-routing, or token-log product contracts.",
+                ],
+                "priority": 89,
+            },
+            {
+                "title": "Repair final frontend composable test contracts",
+                "description": "Update composable specs to match the final CRM frontend contracts.",
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/composables/__tests__/**",
+                    "frontend/src/composables/**/*.spec.ts",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Composable specs use CRM account, wallet, metering, connector, entitlement, and audit language.",
+                    "Composable tests no longer depend on retired provider-channel, proxy, relay, model-routing, or token-log product contracts.",
+                ],
+                "priority": 88,
+            },
+        ]
+        if split_component_composable_tests
+        else [
+            {
+                "title": "Repair final frontend component and composable test contracts",
+                "description": "Update component and composable specs to match the final CRM frontend contracts.",
+                "assigned_agent": "frontend",
+                "relevant_files": [
+                    "frontend/src/components/**/__tests__/**",
+                    "frontend/src/components/**/*.spec.ts",
+                    "frontend/src/components/**/*.spec.tsx",
+                    "frontend/src/composables/__tests__/**",
+                    "frontend/src/composables/**/*.spec.ts",
+                    "frontend/package.json",
+                    "frontend/pnpm-lock.yaml",
+                ],
+                "completion_criteria": [
+                    "Component and composable specs use CRM account, wallet, metering, connector, entitlement, and audit language.",
+                    "Component/composable tests no longer depend on retired provider-channel, proxy, relay, model-routing, or token-log product contracts.",
+                ],
+                "priority": 89,
+            }
+        ]
+    )
     test_split_tasks = [
         {
             "title": "Repair final frontend API and integration test contracts",
@@ -2675,25 +5297,7 @@ def final_frontend_routes_views_repair_task_specs(
             ],
             "priority": 90,
         },
-        {
-            "title": "Repair final frontend component and composable test contracts",
-            "description": "Update component and composable specs to match the final CRM frontend contracts.",
-            "assigned_agent": "frontend",
-            "relevant_files": [
-                "frontend/src/components/**/__tests__/**",
-                "frontend/src/components/**/*.spec.ts",
-                "frontend/src/components/**/*.spec.tsx",
-                "frontend/src/composables/__tests__/**",
-                "frontend/src/composables/**/*.spec.ts",
-                "frontend/package.json",
-                "frontend/pnpm-lock.yaml",
-            ],
-            "completion_criteria": [
-                "Component and composable specs use CRM account, wallet, metering, connector, entitlement, and audit language.",
-                "Component/composable tests no longer depend on retired provider-channel, proxy, relay, model-routing, or token-log product contracts.",
-            ],
-            "priority": 89,
-        },
+        *component_composable_test_tasks,
         {
             "title": "Repair final frontend view router i18n utility test contracts",
             "description": "Update view, router, i18n, and utility specs after the final CRM frontend contract repair.",
@@ -5412,6 +8016,607 @@ def mark_preserved_completed_tasks(nodes: list[TaskNode], task_ids: list[str]) -
                 "summary": "Task preserved as completed from focused repair brief evidence.",
             }
         )
+
+
+FINAL_VERIFICATION_GATE_TITLE_PREFIXES = (
+    "audit final requirements",
+    "run final simulation probes",
+    "run final real repository checks",
+    "review final handoff markers",
+)
+
+
+def final_verification_gate_rerun_required(context_bundle: ContextBundle) -> bool:
+    chunks = [context_bundle.objective]
+    for document in context_bundle.documents:
+        chunks.extend([document.path, document.summary, *document.key_requirements])
+    chunks.extend(requirement.text for requirement in context_bundle.requirements)
+    text = "\n".join(chunks).lower()
+    return (
+        "final verification gate tasks must rerun after repair" in text
+        or "gate tasks must rerun after repair" in text
+        or "not be preserved as completed" in text and "final verification gate" in text
+        or "final_audit_status is failed" in text
+        or "simulation_test_status is failed" in text
+        or "real_test_status is failed" in text
+        or "final_audit_status=fail" in text
+        or "simulation_test_status=fail" in text
+        or "real_test_status=fail" in text
+        or "final_audit_status: fail" in text
+        or "simulation_test_status: fail" in text
+        or "real_test_status: fail" in text
+    )
+
+
+def final_verification_preserved_task_ids_without_gate_tasks(
+    nodes: list[TaskNode],
+    preserved_task_ids: list[str],
+) -> list[str]:
+    gate_ids = {
+        node.id.upper()
+        for node in nodes
+        if any(node.title.lower().startswith(prefix) for prefix in FINAL_VERIFICATION_GATE_TITLE_PREFIXES)
+    }
+    if not gate_ids:
+        return preserved_task_ids
+    return [task_id for task_id in preserved_task_ids if task_id.upper() not in gate_ids]
+
+
+def final_verification_preserved_task_ids_with_matching_repair_title(
+    context_bundle: ContextBundle,
+    nodes: list[TaskNode],
+    preserved_task_ids: list[str],
+) -> list[str]:
+    if not preserved_task_ids:
+        return preserved_task_ids
+    context_text = final_verification_context_text(context_bundle)
+    nodes_by_id = {node.id.upper(): node for node in nodes}
+    result: list[str] = []
+    for task_id in preserved_task_ids:
+        normalized_id = task_id.upper()
+        node = nodes_by_id.get(normalized_id)
+        if node is None:
+            continue
+        if node.type in {"architecture", "test", "review", "release"}:
+            result.append(task_id)
+            continue
+        declared_titles = [
+            match.group(1).strip().rstrip(".")
+            for match in re.finditer(
+                rf"(?:task\s+)?{re.escape(normalized_id.lower())}\s*[-:]\s*([^\n]+)",
+                context_text,
+            )
+        ]
+        if not declared_titles or any(node.title.lower() in declared for declared in declared_titles):
+            result.append(task_id)
+    return result
+
+
+def final_verification_preserved_task_ids_without_new_target_file_tasks(
+    context_bundle: ContextBundle,
+    nodes: list[TaskNode],
+    preserved_task_ids: list[str],
+) -> list[str]:
+    target_files = final_verification_new_target_files(context_bundle)
+    if not target_files:
+        return preserved_task_ids
+    reopen_ids = {
+        node.id.upper()
+        for node in nodes
+        if node.type not in {"architecture", "test", "review", "release"}
+        and task_relevant_files_match_targets(node.relevant_files, target_files)
+    }
+    if not reopen_ids:
+        return preserved_task_ids
+    return [task_id for task_id in preserved_task_ids if task_id.upper() not in reopen_ids]
+
+
+def final_verification_repair_specs_for_target_files(
+    context_bundle: ContextBundle,
+    repair_specs: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    context_text = final_verification_active_repair_text(context_bundle) or final_verification_context_text(context_bundle)
+    target_files = final_verification_new_target_files(context_bundle)
+    if not target_files:
+        return repair_specs
+    matching_specs = [
+        spec
+        for spec in repair_specs
+        if task_relevant_files_match_targets(
+            [str(item) for item in spec.get("relevant_files", []) or []],
+            target_files,
+        )
+    ]
+    if not matching_specs:
+        return repair_specs
+    matching_titles = {str(spec.get("title", "")) for spec in matching_specs}
+    if "Repair final frontend locale component boundary contracts" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final frontend API and i18n contracts",
+                "Repair final frontend i18n locale contracts",
+                "Repair final frontend routes views and tests",
+            }
+        ]
+    if "Repair final frontend locale settings boundary contracts" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", "")) != "Repair final frontend locale component boundary contracts"
+        ]
+    if (
+        "Repair final backend runtime protocol identity contracts" in matching_titles
+        or "Repair final backend startup contract wiring" in matching_titles
+    ):
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", "")) != "Repair final backend service handler server contracts"
+        ]
+    if "Repair final backend account repository predicate contracts" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final backend Ent schema contracts",
+                "Repair final backend domain and repository contracts",
+            }
+        ]
+    if "Repair final Veyra portal branding contracts" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final embedded runtime asset contracts",
+                "Repair final backend Ent schema contracts",
+                "Repair final backend service handler server contracts",
+            }
+        ]
+    if "Repair final frontend admin API build lint contracts" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final frontend API and i18n contracts",
+                "Repair final frontend routes views and tests",
+                "Repair final delivery artifact contracts",
+            }
+        ]
+    if "Repair final frontend dependency audit contracts" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final backend Ent schema contracts",
+                "Repair final backend domain and repository contracts",
+                "Repair final frontend API and i18n contracts",
+                "Repair final frontend routes views and tests",
+                "Repair final frontend admin ops audit surface contracts",
+                "Repair final delivery artifact contracts",
+            }
+        ]
+    if "Repair final frontend admin ops audit surface contracts" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final backend service handler server contracts",
+                "Repair final frontend API and i18n contracts",
+                "Repair final frontend routes views and tests",
+                "Repair final delivery artifact contracts",
+            }
+        ]
+    if (
+        "Repair final platform RPM capacity surface contracts" in matching_titles
+        or "Repair final user platform capacity API contracts" in matching_titles
+        or "Repair final admin settings RPM capacity contracts" in matching_titles
+        or "Repair final backend admin RPM capacity contracts" in matching_titles
+        or "Repair final frontend admin RPM capacity settings contracts" in matching_titles
+        or "Repair final backend admin RPM route settings contracts" in matching_titles
+        or "Repair final backend admin user capacity handler contracts" in matching_titles
+        or "Repair final RPM override route contract leftovers" in matching_titles
+        or "Repair final admin dashboard access policy route contracts" in matching_titles
+        or "Repair final admin user group quota surface contracts" in matching_titles
+    ):
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final backend service handler server contracts",
+                "Repair final frontend API and i18n contracts",
+                "Repair final frontend routes views and tests",
+                "Repair final frontend admin ops audit surface contracts",
+                "Repair final frontend forbidden admin route surface contracts",
+                "Repair final delivery artifact contracts",
+            }
+        ]
+    if "Repair final frontend forbidden admin route surface contracts" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final backend service handler server contracts",
+                "Repair final frontend API and i18n contracts",
+                "Repair final frontend routes views and tests",
+                "Repair final frontend admin ops audit surface contracts",
+                "Repair final delivery artifact contracts",
+            }
+        ]
+    if "Repair final frontend route/sidebar contract leftovers" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final backend service handler server contracts",
+                "Repair final frontend API and i18n contracts",
+                "Repair final frontend routes views and tests",
+                "Repair final frontend forbidden admin route surface contracts",
+                "Repair final delivery artifact contracts",
+            }
+        ]
+    if "Repair final backend production identity string leftovers" in matching_titles:
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", ""))
+            not in {
+                "Repair final backend service handler server contracts",
+                "Repair final backend runtime protocol identity contracts",
+                "Repair final frontend routes views and tests",
+                "Repair final frontend route/sidebar contract leftovers",
+                "Repair final delivery artifact contracts",
+            }
+        ]
+    if "Repair final embedded runtime asset contracts" in matching_titles and final_verification_embedded_targets_resolved(
+        context_bundle
+    ):
+        matching_specs = [
+            spec
+            for spec in matching_specs
+            if str(spec.get("title", "")) != "Repair final embedded runtime asset contracts"
+        ]
+    if should_split_final_admin_settings_legacy_timeout(context_text):
+        split_titles = {
+            "Repair final backend admin settings legacy contracts",
+            "Repair final frontend admin settings legacy contracts",
+        }
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            split_titles,
+        )
+        matching_specs = [spec for spec in matching_specs if str(spec.get("title", "")) in split_titles]
+    if should_repair_final_backend_old_domain_surface(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {
+                "Repair final backend migration contracts",
+                "Repair final backend service handler server contracts",
+            },
+        )
+    if should_repair_final_frontend_locale_settings_surfaces(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final frontend locale settings boundary contracts"},
+        )
+    if should_repair_final_frontend_dependency_audit(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final frontend dependency audit contracts"},
+        )
+    if should_repair_final_frontend_route_sidebar_contract(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final frontend route/sidebar contract leftovers"},
+        )
+    if should_repair_final_rpm_override_route_contract_leftovers(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final RPM override route contract leftovers"},
+        )
+    frontend_user_quota_typecheck_import = should_repair_final_frontend_user_quota_typecheck_import(context_text)
+    if frontend_user_quota_typecheck_import:
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final frontend user quota typecheck import"},
+        )
+    settings_api_contract_test = should_repair_final_settings_api_contract_test(context_text)
+    if settings_api_contract_test:
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final backend settings API contract test"},
+        )
+    settings_advanced_scheduler_contract = should_repair_final_settings_advanced_scheduler_contract(context_text)
+    if settings_advanced_scheduler_contract:
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final backend settings advanced scheduler contract"},
+        )
+    if (
+        not frontend_user_quota_typecheck_import
+        and not settings_api_contract_test
+        and not settings_advanced_scheduler_contract
+        and should_repair_final_simulation_suite_failures(context_text)
+    ):
+        simulation_titles = {
+            "Repair final frontend UsageTable simulation contracts",
+            "Repair final backend admin simulation contracts",
+            "Repair final backend DTO usage simulation contracts",
+        }
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            simulation_titles,
+        )
+    elif should_repair_final_platform_rpm_capacity_surface(context_text):
+        if should_split_final_backend_admin_rpm_capacity_timeout(context_text):
+            capacity_titles = {
+                "Repair final backend admin RPM route settings contracts",
+                "Repair final backend admin user capacity handler contracts",
+            }
+        elif should_split_final_admin_settings_rpm_capacity_timeout(context_text):
+            capacity_titles = {
+                "Repair final backend admin RPM capacity contracts",
+                "Repair final frontend admin RPM capacity settings contracts",
+            }
+        elif should_split_final_platform_rpm_capacity_timeout(context_text):
+            capacity_titles = {
+                "Repair final user platform capacity API contracts",
+                "Repair final admin settings RPM capacity contracts",
+            }
+        else:
+            capacity_titles = {"Repair final platform RPM capacity surface contracts"}
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            capacity_titles,
+        )
+    if should_repair_final_admin_dashboard_access_policy_congruence(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final admin dashboard access policy route contracts"},
+        )
+    if should_repair_final_admin_user_group_quota_surface(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final admin user group quota surface contracts"},
+        )
+    if should_repair_final_backend_production_identity_strings(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final backend production identity string leftovers"},
+        )
+    if should_repair_final_source_boundary_sweep(context_text):
+        sweep_titles = (
+            {
+                "Repair final backend migration source-boundary leftovers",
+                "Repair final backend production source-boundary leftovers",
+                "Repair final frontend retired API type source-boundary leftovers",
+                "Repair final frontend retired composable store source-boundary leftovers",
+                "Repair final frontend retired view component source-boundary leftovers",
+            }
+            if should_split_final_frontend_retired_source_boundary_timeout(context_text)
+            else {
+                "Repair final backend migration source-boundary leftovers",
+                "Repair final backend production source-boundary leftovers",
+                "Repair final frontend retired source-boundary leftovers",
+            }
+        )
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            sweep_titles,
+        )
+        matching_specs = [spec for spec in matching_specs if str(spec.get("title", "")) in sweep_titles]
+    if should_repair_final_remaining_source_boundary_after_split(context_text):
+        remaining_titles = (
+            {
+                "Repair final backend account OAuth service quarantine exact files",
+                "Repair final backend channel monitor service quarantine exact files",
+                "Repair final backend proxy upstream service quarantine exact files",
+                "Repair final backend ops settings service quarantine exact files",
+                "Repair final backend config runtime quarantine leftovers",
+                "Repair final frontend locale settings boundary contracts",
+                "Repair final frontend API settings typecheck leftovers",
+                "Repair final frontend view component typecheck leftovers",
+            }
+            if should_split_final_backend_provider_proxy_ops_service_quarantine_timeout(context_text)
+            else {
+                "Repair final backend repository domain quarantine exact files",
+                "Repair final backend gateway OpenAI service quarantine exact files",
+                "Repair final backend provider proxy ops service quarantine exact files",
+                "Repair final backend config runtime quarantine leftovers",
+                "Repair final frontend locale settings boundary contracts",
+                "Repair final frontend API settings typecheck leftovers",
+                "Repair final frontend view component typecheck leftovers",
+            }
+            if should_split_final_backend_service_repository_quarantine_timeout(context_text)
+            else {
+                "Repair final backend admin handler quarantine exact files",
+                "Repair final backend gateway protocol handler exact files",
+                "Repair final backend server middleware quarantine exact files",
+                "Repair final backend service repository quarantine leftovers",
+                "Repair final backend config runtime quarantine leftovers",
+                "Repair final frontend locale settings boundary contracts",
+                "Repair final frontend API settings typecheck leftovers",
+                "Repair final frontend view component typecheck leftovers",
+            }
+            if should_split_final_backend_handler_server_quarantine_timeout(context_text)
+            else {
+                "Repair final backend handler server quarantine leftovers",
+                "Repair final backend service repository quarantine leftovers",
+                "Repair final backend config runtime quarantine leftovers",
+                "Repair final frontend locale settings boundary contracts",
+                "Repair final frontend API settings typecheck leftovers",
+                "Repair final frontend view component typecheck leftovers",
+            }
+            if should_split_final_backend_legacy_quarantine_timeout(context_text)
+            else {
+                "Repair final backend legacy production quarantine leftovers",
+                "Repair final frontend locale settings boundary contracts",
+                "Repair final frontend API settings typecheck leftovers",
+                "Repair final frontend view component typecheck leftovers",
+            }
+        )
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            remaining_titles,
+        )
+        matching_specs = [spec for spec in matching_specs if str(spec.get("title", "")) in remaining_titles]
+    if should_repair_final_admin_settings_legacy_surface(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final admin settings legacy surface contracts"},
+        )
+    if should_repair_final_frontend_forbidden_admin_surface(context_text):
+        matching_specs = append_repair_specs_by_title(
+            matching_specs,
+            repair_specs,
+            {"Repair final frontend forbidden admin route surface contracts"},
+        )
+    return sort_repair_specs_by_original_order(matching_specs, repair_specs)
+
+
+def final_verification_context_text(context_bundle: ContextBundle) -> str:
+    chunks = [context_bundle.objective]
+    for document in context_bundle.documents:
+        chunks.extend([document.path, document.summary, *document.key_requirements])
+    chunks.extend(requirement.text for requirement in context_bundle.requirements)
+    return "\n".join(chunks).lower()
+
+
+def append_repair_specs_by_title(
+    selected_specs: list[dict[str, object]],
+    all_specs: list[dict[str, object]],
+    titles: set[str],
+) -> list[dict[str, object]]:
+    selected_titles = {str(spec.get("title", "")) for spec in selected_specs}
+    result = list(selected_specs)
+    for spec in all_specs:
+        title = str(spec.get("title", ""))
+        if title in titles and title not in selected_titles:
+            result.append(spec)
+            selected_titles.add(title)
+    return result
+
+
+def sort_repair_specs_by_original_order(
+    selected_specs: list[dict[str, object]],
+    all_specs: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    order = {str(spec.get("title", "")): index for index, spec in enumerate(all_specs)}
+    return sorted(selected_specs, key=lambda spec: order.get(str(spec.get("title", "")), len(order)))
+
+
+def final_verification_embedded_targets_resolved(context_bundle: ContextBundle) -> bool:
+    chunks = [context_bundle.objective]
+    for document in context_bundle.documents:
+        chunks.extend([document.path, document.summary, *document.key_requirements])
+    chunks.extend(requirement.text for requirement in context_bundle.requirements)
+    text = "\n".join(chunks).lower()
+    return any(
+        marker in text
+        for marker in (
+            "previous embedded runtime blocker appears repaired",
+            "previous embedded portal_dist/app.js blocker now pass",
+            "stale route-key issue is resolved",
+            "0 hits for sub2api-console",
+        )
+    )
+
+
+def final_verification_new_target_files(context_bundle: ContextBundle) -> list[str]:
+    chunks = [context_bundle.objective]
+    for document in context_bundle.documents:
+        chunks.extend([document.path, document.summary, *document.key_requirements])
+    chunks.extend(requirement.text for requirement in context_bundle.requirements)
+    files: list[str] = []
+    for line in "\n".join(chunks).splitlines():
+        if "target files:" not in line.lower():
+            continue
+        _, value = line.split(":", 1)
+        for item in re.split(r"[,;]", value):
+            normalized = normalize_repo_path(item)
+            if (
+                normalized
+                and "/" in normalized
+                and ":" not in normalized
+                and not final_verification_non_reopen_target_file(normalized)
+            ):
+                files.append(normalized)
+    return dedupe(files)
+
+
+def final_verification_non_reopen_target_file(path: str) -> bool:
+    normalized = normalize_repo_path(path).lower()
+    if not normalized:
+        return True
+    basename = normalized.rsplit("/", 1)[-1]
+    if basename in {
+        "package.json",
+        "pnpm-lock.yaml",
+        "package-lock.json",
+        "yarn.lock",
+        "go.mod",
+        "go.sum",
+        "phase_record.json",
+    }:
+        return True
+    if basename.startswith("attempt_") and basename.endswith(".json"):
+        return True
+    return normalized.startswith(
+        (
+            "final_verification_",
+            ".alchemy/",
+            "docs/billing_core_dev_plan.md",
+        )
+    )
+
+
+def task_relevant_files_match_targets(relevant_files: list[str], target_files: list[str]) -> bool:
+    return any(
+        path_pattern_matches_target(relevant_file, target_file)
+        for relevant_file in relevant_files
+        for target_file in target_files
+    )
+
+
+def path_pattern_matches_target(pattern: str, target: str) -> bool:
+    normalized_pattern = normalize_repo_path(pattern)
+    normalized_target = normalize_repo_path(target)
+    if not normalized_pattern or not normalized_target:
+        return False
+    if normalized_pattern.endswith("/**"):
+        prefix = normalized_pattern[:-3].rstrip("/")
+        return normalized_target == prefix or normalized_target.startswith(prefix + "/")
+    if "*" in normalized_pattern:
+        regex = re.escape(normalized_pattern).replace(r"\*\*", ".*").replace(r"\*", "[^/]*")
+        return re.fullmatch(regex, normalized_target) is not None
+    return normalized_pattern == normalized_target
 
 
 def enforce_reopened_repair_order(nodes: list[TaskNode], task_ids: list[str]) -> None:

@@ -1396,6 +1396,8 @@ class ProjectService:
     ) -> dict[str, object]:
         output_dir = self.project_dir(record.project_id) / "runs" / run_id
         if bool(run_payload.get("full_roadmap", False)):
+            run_payload = dict(run_payload)
+            run_payload.setdefault("goal_locked_convergence", True)
             result = FullRoadmapExecutor().run(
                 objective=record.objective,
                 documents=record.documents,
@@ -1436,6 +1438,7 @@ class ProjectService:
             real_codex=bool(run_payload.get("real_codex", False)),
             real_github=bool(run_payload.get("real_github", False)),
             codex_executable=str(run_payload.get("codex_executable", "codex")),
+            codex_model=str(run_payload.get("codex_model", "")),
             max_worker_seconds=int(run_payload.get("max_worker_seconds", 0) or 0),
             github_collect_ci=bool(run_payload.get("github_collect_ci", True)),
             github_ci_wait_seconds=float(run_payload.get("github_ci_wait_seconds", 120)),

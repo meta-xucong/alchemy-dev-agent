@@ -60,11 +60,25 @@ class RuntimeRecovery:
         selected = {str(task_id) for task_id in task_ids if str(task_id)}
         operator_stop = any(str(blocker.get("id", "")) == "B-RUN-STOPPED" for blocker in state.blockers)
         reset_task_ids: list[str] = []
+        reconciled_task_ids: list[str] = []
         skipped_task_ids: list[str] = []
         blockers: list[str] = []
 
+        terminal_records = self._terminal_lifecycle_by_task(state)
+
         for task in state.task_graph.nodes:
             if selected and task.id not in selected:
+                continue
+            terminal_record = terminal_records.get(task.id) or {}
+            if (
+                task.status == "active"
+                and str(terminal_record.get("status", "")).lower() == "completed"
+                and bool(terminal_record.get("recovered_from_worker_file", False))
+            ):
+                task.status = "completed"
+                if task.id not in state.completed_tasks:
+                    state.completed_tasks.append(task.id)
+                reconciled_task_ids.append(task.id)
                 continue
             if task.id in state.failed_tasks and task.status in {"pending", "ready"} and self._can_retry(task):
                 task.status = "pending"
@@ -93,16 +107,19 @@ class RuntimeRecovery:
             missing = sorted(selected - {task.id for task in state.task_graph.nodes})
             blockers.extend(f"Unknown resume task id: {task_id}" for task_id in missing)
 
-        if not reset_task_ids and not blockers and not operator_stop:
+        if not reset_task_ids and not reconciled_task_ids and not blockers and not operator_stop:
             blockers.append("No retryable failed, blocked, or active tasks were found to resume.")
 
         reset_set = set(reset_task_ids)
+        reconciled_set = set(reconciled_task_ids)
         state.active_tasks = [task_id for task_id in state.active_tasks if task_id not in reset_set]
+        state.active_tasks = [task_id for task_id in state.active_tasks if task_id not in reconciled_set]
         state.failed_tasks = [task_id for task_id in state.failed_tasks if task_id not in reset_set]
+        state.failed_tasks = [task_id for task_id in state.failed_tasks if task_id not in reconciled_set]
         state.done = False
         cleared_blockers = self._clear_recoverable_blockers(
             state,
-            reset_set=reset_set,
+            reset_set=reset_set | reconciled_set,
             clear_operator_stop=clear_operator_stop,
         )
 
@@ -113,6 +130,7 @@ class RuntimeRecovery:
             "project_id": source.project_id,
             "mode": "retry_failed_blocked_active",
             "reset_task_ids": reset_task_ids,
+            "reconciled_completed_task_ids": reconciled_task_ids,
             "continued_task_ids": [
                 task.id
                 for task in state.task_graph.nodes
@@ -144,7 +162,9 @@ class RuntimeRecovery:
         if report_path.exists():
             return self._source_from_report(_read_json(report_path), str(report_path))
         if state_path.exists():
-            return RecoverySource(state=RuntimeState.from_dict(_read_json(state_path)), source_path=str(state_path))
+            state = RuntimeState.from_dict(_read_json(state_path))
+            self._merge_worker_lifecycle_directory(state, path / "workers")
+            return RecoverySource(state=state, source_path=str(state_path))
         raise FileNotFoundError(f"No resumable state found under {path}")
 
     def _source_from_report(self, payload: dict[str, Any], source_path: str) -> RecoverySource:
@@ -184,6 +204,33 @@ class RuntimeRecovery:
                 }
             )
         return evidence
+
+    def _merge_worker_lifecycle_directory(self, state: RuntimeState, workers_dir: Path) -> None:
+        if not workers_dir.exists():
+            return
+        records_by_task = {str(record.get("task_id", "")): dict(record) for record in state.worker_lifecycle if isinstance(record, dict)}
+        for path in sorted(workers_dir.glob("*.json")):
+            try:
+                payload = _read_json(path)
+            except (OSError, json.JSONDecodeError):
+                continue
+            task_id = str(payload.get("task_id", "") or path.stem)
+            if not task_id:
+                continue
+            payload["recovered_from_worker_file"] = True
+            records_by_task[task_id] = payload
+        state.worker_lifecycle = [records_by_task[task_id] for task_id in sorted(records_by_task)]
+
+    def _terminal_lifecycle_by_task(self, state: RuntimeState) -> dict[str, dict[str, Any]]:
+        terminal: dict[str, dict[str, Any]] = {}
+        for record in state.worker_lifecycle:
+            if not isinstance(record, dict):
+                continue
+            task_id = str(record.get("task_id", ""))
+            status = str(record.get("status", "")).lower()
+            if task_id and status in {"completed", "failed", "timed_out", "cancelled"}:
+                terminal[task_id] = dict(record)
+        return terminal
 
     def _clear_recoverable_blockers(
         self,

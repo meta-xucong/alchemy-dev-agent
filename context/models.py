@@ -137,6 +137,7 @@ class ContextBundle:
     root_path: str = ""
     code_summaries: list[CodeSummary] = field(default_factory=list)
     scope_controls: dict[str, object] = field(default_factory=dict)
+    goal_lock: dict[str, object] = field(default_factory=dict)
     created_at: str = field(default_factory=utc_now_iso)
 
     def to_dict(self) -> dict[str, object]:
@@ -170,5 +171,6 @@ class ContextBundle:
             },
             "blockers": [blocker.to_dict() for blocker in self.blockers],
             "scope_controls": normalize_scope_controls(self.scope_controls),
+            "goal_lock": dict(self.goal_lock),
             "created_at": self.created_at,
         }

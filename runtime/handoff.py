@@ -12,6 +12,7 @@ from intake.models import ProjectBrief
 from .agent_router import AgentRouter
 from .codex_worker import CodexWorkerInput
 from .models import Dependency, RuntimeState, TaskGraph, TaskNode
+from .task_packet import TaskPacket
 
 
 @dataclass(slots=True)
@@ -43,6 +44,7 @@ class RuntimeHandoff:
                 "path": resolved_repository_path,
                 "source": repository if isinstance(repository, dict) else {},
                 "project_id": str(brief_payload.get("project_id", context_payload.get("project_id", ""))),
+                "goal_lock": dict(context_payload.get("goal_lock", {})) if isinstance(context_payload.get("goal_lock"), dict) else {},
             },
             done_criteria=[
                 "Required graph nodes are completed.",
@@ -64,13 +66,29 @@ class RuntimeHandoff:
         constraints: list[str] | None = None,
     ) -> CodexWorkerInput:
         upstream = [dependency.source for dependency in state.task_graph.dependencies if dependency.target == task.id]
+        contract = task_contract(task)
+        resolved_repository_path = str(repository_path or state.repository.get("path") or ".")
+        packet = (
+            TaskPacket(
+                task_id=task.id,
+                target_root=str(Path(resolved_repository_path).resolve()),
+                allowed_write_paths=[str(item) for item in contract.get("allowed_write_paths", [])],
+                reference_roots=[str(item) for item in contract.get("reference_roots", [])],
+                requirement_ids=[str(item) for item in contract.get("requirement_ids", [])],
+                transformation_ids=[str(item) for item in contract.get("transformation_ids", [])],
+                objective_slice=[{"objective": state.objective, "expected_final_state": contract.get("expected_final_state", {})}],
+                required_strategy_decision=str(contract.get("required_strategy_decision", "")),
+            )
+            if contract
+            else None
+        )
         return CodexWorkerInput(
             task_id=task.id,
             goal=self.router.build_worker_goal(task),
             objective=state.objective,
             task_description=task.description,
             acceptance_criteria=list(task.completion_criteria),
-            repository_path=str(repository_path or state.repository.get("path") or "."),
+            repository_path=resolved_repository_path,
             branch=task.branch or default_branch_for_task(task),
             agent_context={
                 "assigned_agent": self.router.route(task),
@@ -83,6 +101,7 @@ class RuntimeHandoff:
             constraints=[*boundary_constraints_for_task(task), *list(constraints or [])],
             commands_to_run=list(task.commands_to_run),
             boundary_mode=task.boundary_mode,
+            task_packet=packet.to_dict() if packet else {},
         )
 
     def build_worker_inputs(
@@ -112,6 +131,11 @@ def default_branch_for_task(task: TaskNode) -> str:
 
 
 def allowed_files_for_task(task: TaskNode) -> list[str]:
+    contract = task_contract(task)
+    if contract:
+        if bool(contract.get("read_only")):
+            return []
+        return _dedupe_paths([str(item) for item in contract.get("allowed_write_paths", [])])
     if task.type in {"architecture", "review", "test"}:
         return []
     return _dedupe_paths(task.relevant_files)
@@ -126,9 +150,24 @@ def boundary_constraints_for_task(task: TaskNode) -> list[str]:
         constraints.append(
             "This is a large_refactor integration task: implement cross-module changes within allowed_files as one coherent product migration."
         )
+    if task_contract(task):
+        constraints.append(
+            "Goal-locked task: preserve requirement/transformation IDs and emit required DECISION_RECORD/REFERENCE_FILES evidence."
+        )
     if not allowed_files_for_task(task):
         constraints.append("Return partial or blocked if the task requires repository edits.")
     return constraints
+
+
+def task_contract(task: TaskNode) -> dict[str, Any]:
+    return next(
+        (
+            item
+            for item in task.evidence
+            if isinstance(item, dict) and item.get("type") == "task_contract"
+        ),
+        {},
+    )
 
 
 def _dedupe_paths(paths: list[str]) -> list[str]:

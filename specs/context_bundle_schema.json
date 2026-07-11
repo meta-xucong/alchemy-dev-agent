@@ -170,6 +170,16 @@
     "scope_controls": {
       "$ref": "#/$defs/scope_controls"
     },
+    "goal_lock": {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string" },
+        "objective_contract_revision": { "type": "string" },
+        "artifact_dir": { "type": "string" },
+        "legacy_unlocked": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"

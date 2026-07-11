@@ -234,6 +234,10 @@ docs/
                               V2.89 repair scope handoff and frontend large-refactor recovery.
   99_v2_90_codex_usage_limit_blocker.md
                               V2.90 local Codex usage-limit blocker classification.
+  194_v2_186_hard_prune_governance.md
+                              V2.186 hard-prune governance for copy-and-cut projects.
+  195_v2_187_goal_locked_autonomous_development.md
+                              V2.187 goal-locked autonomous development loop.
   100_v2_91_usage_limit_false_positive.md
                               V2.91 usage-limit false positive guard.
   101_v2_92_frontend_api_caller_repair_scope.md
@@ -1769,6 +1773,60 @@ by the final audit evidence. This prevents the backend migration repair worker
 from spending its full budget scanning the whole migration directory.
 
 See `docs/140_v2_131_final_migration_repair_scope.md`.
+
+## V2.186 Hard-Prune Governance
+
+V2.186 records the Billing Core copy-and-cut failure case and upgrades the design
+contract for projects where the source document requires legacy domains to be
+removed. Alchemy must extract negative requirements, build a forbidden
+inventory, plan delete-first work, and hard-fail final delivery while unwaived
+forbidden routes, schemas, migrations, services, frontend API modules, router
+entries, public contracts, or product copy remain.
+
+For these projects, passing route tests or hiding navigation is not enough.
+Source/schema absence is separate evidence, progress percentages are capped
+until the forbidden inventory is clean, and generic "contract leftovers" repair
+tasks must not replace concrete delete/rewrite tasks.
+
+See `docs/194_v2_186_hard_prune_governance.md`.
+
+## V2.187 Goal-Locked Autonomous Development
+
+V2.187 turns the Billing Core failure analysis into a general architecture for
+whole-project autonomous development. Development documents are compiled into
+an immutable objective contract; target and read-only reference repositories
+have explicit roles; semantic inventory and a transformation manifest drive
+requirement-locked tasks; and independent verification proves the requested
+final state rather than trusting task completion or inherited tests.
+
+The convergence controller detects semantic loops, escalates from repair to
+re-indexing, replanning, and reference-based strategy backtracking, and reports
+progress from fresh requirement evidence. One hundred percent is reserved for
+a single coherent target state whose source, schema, contract, behavior,
+operations, and delivery gates all pass.
+
+Goal locking is the default for new full-roadmap runs. Declare every required
+reference repository explicitly; Alchemy fingerprints it and treats it as
+read-only for the complete run:
+
+```bash
+python -m autodev.run \
+  --full-roadmap \
+  --real-codex \
+  --repository-path /path/to/target \
+  --document /path/to/development-plan.md \
+  --reference-repository-path /path/to/reference \
+  --codex-model gpt-5.5 \
+  --output .alchemy/project-run
+```
+
+The run writes the immutable objective contract, reference baseline, semantic
+inventories, transformation manifest, convergence graph, phase proofs,
+verification matrix, and delivery ledger under `<output>/goal_locked/`. Use
+`--legacy-unlocked` only to inspect or resume a legacy compatibility workflow;
+it is not equivalent evidence for a new goal-locked delivery.
+
+See `docs/195_v2_187_goal_locked_autonomous_development.md`.
 
 Run a smoke execution:
 

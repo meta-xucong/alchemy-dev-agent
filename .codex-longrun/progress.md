@@ -2418,3 +2418,144 @@ PY"`
 - Relaunched from _062 with the same correct supervised entry but a temporary 1800s worker budget for the already-narrow T006 payment/usage API leaf.
 - T006 completed in run_attempt_060 and Alchemy started T009 next; no T060/final-gate bypass observed.
 
+
+- 2026-07-02T09:26:39.091801+00:00 Paused on user request. run_attempt_072 had completed T061/T062 and was active on T063 in the correct inherited worktree. Added supervisor_stop marker and stopped only the Billing Core Alchemy worker processes.
+
+## 2026-07-05T02:00:00+08:00 Final Source-Boundary Sweep Resume
+
+- Monitored `final_verification/run_attempt_144`: phase evidence and real test suites pass, but final audit remains blocked by source-boundary findings.
+- Confirmed the next generated graph was wrong before repair: it selected only `Repair final backend startup contract wiring` even though the latest blocker requires backend migration cleanup, backend production source/wiring cleanup, and frontend retired API/composable cleanup.
+- Implemented an Alchemy planner fix so this blocker pattern splits into `Repair final backend migration source-boundary leftovers`, `Repair final backend production source-boundary leftovers`, and `Repair final frontend retired source-boundary leftovers`.
+- Real graph probe now produces T002/T003/T004 for those three scopes, followed by final audit, simulation, real checks, and handoff review.
+- Relaunched `run_attempt_145`; T002 migration source-boundary completed and T003 backend production source-boundary completed in the inherited worktree.
+- T004 frontend retired source-boundary timed out at the 900s stop boundary. Scheduler behavior stayed correct: non-partial blocker, no T005 dispatch, no same-scope debug.
+- Implemented a follow-up Alchemy split so the timed-out frontend source-boundary task becomes API/type, composable/store, and view/component/i18n repair tasks.
+- Fixed final-verification resume generation to include completed task titles, preventing T002/T003 from being rerun while still guarding against task-ID drift.
+- Relaunched `run_attempt_146`; T004 API/type, T005 composable/store, and T006 view/component frontend source-boundary repairs completed.
+- T007 audit still failed: backend has remaining production/delivery relay-era surfaces, frontend has remaining retired consumers, and `pnpm exec vue-tsc --noEmit` fails.
+- Implemented Alchemy follow-up specs for backend legacy production quarantine, frontend API/settings typecheck leftovers, and frontend view/component typecheck leftovers.
+- Hardened final gate rerun detection for `FINAL_AUDIT_STATUS: FAIL` / `SIMULATION_TEST_STATUS: FAIL` / `REAL_TEST_STATUS: FAIL` marker format so failed gates are not preserved as completed.
+- Relaunched `run_attempt_147`; T002 backend legacy production quarantine timed out after 900s and stopped correctly with no downstream dispatch.
+- Implemented backend legacy quarantine timeout split into handler/server, service/repository, and config/runtime backend repair tasks.
+- `run_attempt_148` showed handler/server quarantine was still too broad and timed out. Switched the next recovery to exact-file backend handler groups: admin handler files, gateway/protocol handler files, and server/middleware files, followed by service/repository, config/runtime, frontend typecheck leftovers, and final gates.
+
+## 2026-07-05T10:35:00+08:00 Final RPM Override Leftover Narrowing
+
+- Verified latest disk state is `final_verification/run_attempt_160`: T002/T003 backend account-capacity leaf repairs completed, T004 final audit failed, T005-T008 remained pending, and the non-partial blocker stopped dispatch correctly.
+- Preflighted `final_verification_repair_resume_138.md` and found the old planner would reopen completed backend capacity tasks instead of targeting the remaining `rpm-overrides` frontend API/test contract leftovers.
+- Implemented an Alchemy planner fix so this blocker produces one exact integration task, `Repair final RPM override route contract leftovers`, scoped to `frontend/src/api/admin/groups.ts` and `backend/internal/server/admin_dashboard_access_policy_routes_test.go`, then reruns final audit/simulation/real gates.
+- No Billing Core product files were edited directly by this supervisor thread.
+- Relaunched `run_attempt_161`; T002 completed, T003 final audit completed, and T004 simulation probes found remaining frontend `UsageTable.spec.ts` tooltip failures plus backend admin/dto suite failures.
+- Fixed Alchemy final-verification recovery so `SIMULATION_TEST_STATUS=FAIL` writes a new repair resume instead of stopping at an empty allowed-files blocker.
+- Added planner mapping for the new simulation failure: preserve completed T002, then open narrow T003 UsageTable, T004 backend admin, and T005 backend DTO repair tasks before final gates.
+- `run_attempt_162` completed T003 UsageTable repair, then T004 backend admin repair hit a false boundary violation because Go wrote `backend/.gobuildcache/**` cache files inside the worktree; Alchemy rolled the worker back and stopped correctly.
+- Fixed Alchemy worker environment/boundary handling: default `GOCACHE` now prefers a CODEX_HOME/tmp or host cache outside the repository, and boundary audit ignores `.gobuildcache` alongside existing Go/cache artifacts.
+- Preflighted `final_verification_repair_resume_140.md`: T002/T003 are preserved completed, T004 backend admin and T005 DTO repairs remain pending before final gates.
+
+## 2026-07-05T13:24:00+08:00 Final Admin RPM Split Stop
+
+- User requested a hard 30 minute outcome check because the run appeared to be looping.
+- Confirmed `run_attempt_168` was not the old `_167` broad retry: `_168` completed T002 `Repair final user platform capacity API contracts`, then T003 `Repair final admin settings RPM capacity contracts` timed out after 900 seconds and stopped with non-partial blocker `B-T003-1`; no T004/downstream dispatch occurred.
+- Generated `final_verification_repair_resume_146.md`; dry-run graph split the failed T003 into backend admin RPM and frontend admin RPM settings tasks.
+- Relaunched once with `_146` and a shortened 600 second worker budget to respect the 30 minute limit. `run_attempt_169` started in the correct inherited worktree, but T002 `Repair final backend admin RPM capacity contracts` timed out after 600 seconds and stopped with non-partial blocker `B-T002-1`; no T003/T004/downstream dispatch occurred.
+- Generated `final_verification_repair_resume_147.md`; dry-run graph now splits the remaining backend admin RPM work into `Repair final backend admin RPM route settings contracts` and `Repair final backend admin user capacity handler contracts`, followed by final audit, simulation, real checks, and review.
+- Current status: not 100% complete. The correct execution chain is restored, but the backend/admin RPM repair still exceeds the allowed worker budget and must be continued only from `_147` or stopped for manual review.
+## Supervisor Run 20260710-233602-iter-001
+
+- returncode: 1
+- timed_out: False
+- stdout: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260710-233602-iter-001.jsonl`
+- stderr: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260710-233602-iter-001.stderr.txt`
+- last_message: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260710-233602-iter-001.last-message.md`
+- event_summary: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260710-233602-iter-001.summary.json`
+
+### Event Summary
+
+- total_events: 0
+- malformed_lines: 0
+- thread_id: unknown
+- agent_messages: 0
+- command_executions: 0
+- command_failures: 0
+- file_changes: 0
+- file_change_failures: 0
+- last_event_type: unknown
+
+## 2026-07-10T23:50:10+08:00 V2.187 Goal-Locked Contract Scaffold
+
+- Resumed the V2.187 objective from the existing longrun state; the state file still showed initial discovery, but the progress/test logs showed prior Billing Core/V2.186 repair work in the dirty tree.
+- Added deterministic V2.187 objective compilation in `context/objective_models.py` and `context/objective_compiler.py`: requirement classes, source spans, quote hashes, domain/subject/scope inference, proof obligations, revision hashing, and validation for missing proof, negative scope/subjects, references, and conflicts.
+- Added repository role governance in `context/reference_baseline.py`: explicit target/reference/orchestrator/artifact roles, read-only references, overlap validation, fingerprints, and write-boundary enforcement.
+- Added semantic forbidden-domain inventory in `context/semantic_inventory.py` across source, schema, runtime route, frontend public contract, config/deploy, generated, archived, and test surfaces.
+- Added transformation and requirement-locked planning scaffolding in `planner/transformation_manifest.py`, `planner/convergence_graph_builder.py`, and `planner/task_contract_validator.py`. Delete transformations require zero final inventory; goal-locked Billing Core planning emits delete tasks rather than `Repair final backend admin RPM capacity contracts`.
+- Added independent verification, proof-based progress, semantic-loop recovery, worker decision/task/checkpoint records, and coherent delivery ledger modules under `runtime/`.
+- Updated `runtime/evaluator.py` to consume `state.repository["verification_matrix"]` and hard-fail delivery if any objective proof item is failed, stale, unproven, or blocked.
+- Added V2.187 schema artifacts under `specs/` and documentation in `docs/196_v2_187_goal_locked_implementation_notes.md`.
+- Added focused Billing Core regression coverage in `tests/test_goal_locked_convergence.py` for objective compilation, reference enforcement, semantic inventory, manifest/graph shape, independent verifier hard failures, semantic-loop backtracking, evaluator matrix hard gates, and delivery ledger worktree coherence.
+- Attempted focused verification, but this worker shell cannot resolve `python`, `py`, or `uv`; the implementation is therefore not freshly test-audited in this run. Next action is to rerun the recorded commands when a Python 3.11+ launcher is available, then wire executor artifact emission behind a feature flag.
+- Mandatory ServerChan review notification was attempted through PowerShell because the bundled Python helper cannot run without Python. All three attempts failed with `Unable to connect to the remote server`, so delivery notification remains a recorded blocker.
+
+## Supervisor Run 20260710-234245-iter-001
+
+- returncode: 0
+- timed_out: False
+- stdout: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260710-234245-iter-001.jsonl`
+- stderr: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260710-234245-iter-001.stderr.txt`
+- last_message: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260710-234245-iter-001.last-message.md`
+- event_summary: `D:\AI\Alchemy Dev Agent System\alchemy-dev-agent\.codex-longrun\logs\20260710-234245-iter-001.summary.json`
+
+### Event Summary
+
+- total_events: 114
+- malformed_lines: 0
+- thread_id: 019f4cb2-0e2d-7660-92b7-0a10046b3aba
+- agent_messages: 23
+- command_executions: 35
+- command_failures: 10
+- file_changes: 9
+- file_change_failures: 0
+- last_event_type: turn.completed
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg "goal_locked|objective_contract|verification_matrix|delivery_ledger|transformation_manifest|reference_baseline|semantic inventory|decision record|hard-prune|hard_prune" -n'`
+  exit_code: 1
+  status: failed
+  output_tail: n/a
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -m py_compile context\\objective_models.py context\\objective_compiler.py context\\reference_baseline.py context\\semantic_inventory.py planner\\transformation_manifest.py planner\\convergence_graph_builder.py planner\\task_contract_validator.py runtime\\independent_verifier.py runtime\\verification_matrix.py runtime\\progress_model.py runtime\\convergence_controller.py runtime\\failure_fingerprint.py runtime\\decision_record.py runtime\\task_packet.py runtime\\accepted_checkpoint.py runtime\\delivery_ledger.py runtime\\evaluator.py tests\\test_goal_locked_convergence.py"`
+  exit_code: 1
+  status: failed
+  output_tail: python : 无法将“python”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。请检查名称的拼写，如果包括路径，请确保路径正确，然后再试一次。 所在位置 行:2 字符: 1 + python -m py_compile context\objective_models.py context\objective_co ... + ~~~~~~ + CategoryInfo : ObjectNotFound: (python:String) [], CommandNotFoundException + FullyQualifiedErrorId : CommandNotFoundException
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m unittest tests.test_goal_locked_convergence'`
+  exit_code: 1
+  status: failed
+  output_tail: python : 无法将“python”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。请检查名称的拼写，如果包括路径，请确保路径正确，然后再试一次。 所在位置 行:2 字符: 1 + python -m unittest tests.test_goal_locked_convergence + ~~~~~~ + CategoryInfo : ObjectNotFound: (python:String) [], CommandNotFoundException + FullyQualifiedErrorId : CommandNotFoundException
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Command py -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source'`
+  exit_code: 1
+  status: failed
+  output_tail: n/a
+
+- failed_command: `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Recurse -Filter python.exe -ErrorAction SilentlyContinue | Select-Object -First 10 -ExpandProperty FullName'`
+  exit_code: 1
+  status: failed
+  output_tail: n/a
+
+## 2026-07-10T23:57:00+08:00 V2.187 Controller Verification
+
+- Confirmed the first goal-locked implementation slice only changed Alchemy Dev Agent files.
+- Re-ran the worker's blocked checks from the controlling shell with Python 3.12.
+- All new V2.187 modules compiled and the focused convergence suite passed 6 tests.
+- Cleared the worker-shell Python and ServerChan blockers: the outer launcher delivered ServerChan successfully, and the controlling shell provides fresh Python verification evidence.
+- Resuming implementation for full-roadmap activation, artifact emission, Billing Core read-only fixture coverage, and broader regression audit.
+
+## 2026-07-11T01:02:52+08:00 V2.187 Completed
+
+- Locked the scope to Alchemy Dev Agent only. No Billing Core or other business repository was opened for development or modified.
+- Activated goal-locked convergence as the default for new full-roadmap CLI, API, and project-service runs; legacy unlocked planning now requires an explicit opt-out.
+- Integrated immutable objective contracts, governed read-only references, semantic inventory, transformation manifests, executable convergence task contracts, independent verification, strategy-aware recovery, proof-based progress, and coherent delivery ledgers.
+- Hardened Windows Codex Desktop discovery, explicit model propagation, copied worker config repair, and safe sandbox defaults. A real read-only `gpt-5.5` smoke returned the expected response without changing the worktree.
+- Fixed compatibility recovery loops by binding split decisions to the current primary failed task instead of historical graph titles, preserving stable upstream task IDs, and stopping broad forbidden-route predicates from overriding precise failures.
+- Updated README and V2.187 implementation notes with the default activation command, artifact contract, legacy fallback, reference rules, and hard completion gates.
+- Full audit passed: 610 repository tests, Python compilation, 17 JSON schema parses, whitespace checks, default activation assertion, generic-core vocabulary scan, and residual-process check.
+- Remaining blockers: none. External PowerShell shell-snapshot and ServerChan skill encoding warnings are outside this repository and did not affect execution.

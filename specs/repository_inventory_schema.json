@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "V2.187 Repository Inventory",
+  "type": "object",
+  "required": ["schema_version", "root_path", "hits", "summary"],
+  "properties": {
+    "schema_version": { "const": "2.187" },
+    "root_path": { "type": "string" },
+    "hits": { "type": "array" },
+    "summary": { "type": "object" }
+  }
+}

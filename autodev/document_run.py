@@ -99,6 +99,7 @@ class DocumentRunPipeline:
         real_codex: bool = False,
         real_github: bool = False,
         codex_executable: str = "codex",
+        codex_model: str = "",
         max_worker_seconds: int = 1800,
         github_collect_ci: bool = True,
         github_ci_wait_seconds: float = 120,
@@ -139,6 +140,7 @@ class DocumentRunPipeline:
                 real_codex=real_codex,
                 real_github=real_github,
                 codex_executable=codex_executable,
+                codex_model=codex_model,
                 max_worker_seconds=max_worker_seconds,
                 github_collect_ci=github_collect_ci,
                 github_ci_wait_seconds=github_ci_wait_seconds,
@@ -298,6 +300,7 @@ class DocumentRunPipeline:
         else:
             worker = CodexWorkerAdapter(
                 executable=codex_executable,
+                model=codex_model,
                 dry_run=not real_codex,
                 timeout_seconds=max_worker_seconds,
                 lifecycle_recorder=WorkerLifecycleRecorder(output / "workers") if real_codex else None,
@@ -423,6 +426,7 @@ class DocumentRunPipeline:
         real_codex: bool,
         real_github: bool,
         codex_executable: str,
+        codex_model: str,
         max_worker_seconds: int,
         github_collect_ci: bool,
         github_ci_wait_seconds: float,
@@ -504,6 +508,7 @@ class DocumentRunPipeline:
         else:
             worker = CodexWorkerAdapter(
                 executable=codex_executable,
+                model=codex_model,
                 dry_run=not real_codex,
                 timeout_seconds=max_worker_seconds,
                 lifecycle_recorder=WorkerLifecycleRecorder(output / "workers") if real_codex else None,

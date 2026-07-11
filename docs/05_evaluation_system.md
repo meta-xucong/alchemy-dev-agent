@@ -140,6 +140,44 @@ The final gate must fail regardless of numeric score if any condition is true:
 - The implementation violates a critical requirement.
 - Security or data loss risk is unresolved.
 - The system cannot produce evidence for key acceptance criteria.
+- A negative requirement says that a route, table, schema, source module,
+  frontend page, API module, product concept, or public contract must be absent
+  and the final forbidden-inventory probe still finds unwaived hits.
+- A copy-and-cut project proves only that a forbidden legacy capability is not
+  registered or not visible, while the source document also requires its source,
+  schema, migration, router, API service, or public-copy surface to be removed.
+
+## Negative Requirement Gates
+
+Some projects are defined as much by what must be removed as by what must be
+added. This is common when a repository is copied from a larger legacy system
+and the target product is a smaller, different product.
+
+For these projects, Alchemy must treat absence requirements as first-class
+delivery criteria:
+
+- `must_absent_runtime`: forbidden routes, commands, menus, pages, or processes
+  are not reachable.
+- `must_absent_source`: forbidden schemas, services, repositories, frontend API
+  modules, pages, components, tests, or copy do not remain in production source.
+- `must_absent_fresh_schema`: forbidden tables, columns, indexes, enums, seeds,
+  or migrations are not created by a fresh install.
+- `must_absent_public_contract`: forbidden DTOs, SDK types, docs, i18n strings,
+  examples, or payload fields do not appear in public contracts.
+
+If the requirements document says a legacy domain must be removed, route
+allowlist tests or hidden navigation are not enough. The evaluator needs explicit
+absence evidence for every applicable class. A waiver can only pass when the
+source document allows compatibility or the user explicitly approves a reviewed
+waiver with a clear expiry.
+
+For the detailed hard-prune governance model and the Billing Core failure case,
+see `docs/194_v2_186_hard_prune_governance.md`.
+
+For the parent architecture that compiles complete development documents into
+immutable objective contracts, independent proof matrices, strategy-aware
+recovery, and proof-based delivery progress, see
+`docs/195_v2_187_goal_locked_autonomous_development.md`.
 
 ## Evaluation Output
 

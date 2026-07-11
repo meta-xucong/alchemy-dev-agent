@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from typing import Any
 
 from .roadmap_models import RoadmapExecutionPlan, RoadmapPhase
@@ -21,6 +23,7 @@ def phase_promotion_decision(phase: RoadmapPhase, result: dict[str, Any]) -> dic
         score = max(score, required_score)
     reasons: list[str] = []
     preserved_gate_tasks = final_verification_preserved_gate_tasks(phase, runtime_state)
+    marker_failures = final_verification_gate_marker_failures(phase, runtime_state)
     if status != "done":
         reasons.append(f"Phase run status is {status or 'unknown'}.")
     if blockers:
@@ -33,7 +36,14 @@ def phase_promotion_decision(phase: RoadmapPhase, result: dict[str, Any]) -> dic
             + ", ".join(preserved_gate_tasks)
             + "."
         )
-    can_promote = status == "done" and not blockers and not preserved_gate_tasks and (score == 0.0 or score >= required_score)
+    reasons.extend(marker_failures)
+    can_promote = (
+        status == "done"
+        and not blockers
+        and not preserved_gate_tasks
+        and not marker_failures
+        and (score == 0.0 or score >= required_score)
+    )
     return {
         "status": "passed" if can_promote else "blocked",
         "can_promote": can_promote,
@@ -49,24 +59,81 @@ def final_verification_preserved_gate_tasks(phase: RoadmapPhase, runtime_state: 
         return []
     task_graph = runtime_state.get("task_graph", {}) if isinstance(runtime_state, dict) else {}
     nodes = task_graph.get("nodes", []) if isinstance(task_graph, dict) else []
+    preserved: list[str] = []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if not final_verification_gate_task_node(node):
+            continue
+        evidence = node.get("evidence", [])
+        latest = evidence[-1] if isinstance(evidence, list) and evidence else {}
+        if isinstance(latest, dict) and latest.get("type") == "focused_repair_preserved_task":
+            preserved.append(str(node.get("id", "") or node.get("title", "")))
+    return preserved
+
+
+def final_verification_gate_task_node(node: dict[str, Any]) -> bool:
+    title = str(node.get("title", "") or "").lower()
     gate_title_markers = (
         "audit final requirements",
         "run final simulation probes",
         "run final real repository checks",
         "review final handoff markers",
     )
-    preserved: list[str] = []
+    return any(marker in title for marker in gate_title_markers)
+
+
+def final_verification_gate_marker_failures(phase: RoadmapPhase, runtime_state: dict[str, Any]) -> list[str]:
+    if phase.phase_id != "final_verification":
+        return []
+    task_graph = runtime_state.get("task_graph", {}) if isinstance(runtime_state, dict) else {}
+    nodes = task_graph.get("nodes", []) if isinstance(task_graph, dict) else []
+    failures: list[str] = []
     for node in nodes:
         if not isinstance(node, dict):
             continue
-        title = str(node.get("title", "") or "").lower()
-        if not any(marker in title for marker in gate_title_markers):
+        marker_label = final_verification_gate_marker_label(node)
+        if not marker_label:
             continue
-        evidence = node.get("evidence", [])
-        latest = evidence[-1] if isinstance(evidence, list) and evidence else {}
-        if isinstance(latest, dict) and latest.get("type") == "focused_repair_preserved_task":
-            preserved.append(str(node.get("id", "") or title))
-    return preserved
+        status = latest_gate_marker_status(node, marker_label)
+        if status in {"failed", "blocked"}:
+            failures.append(f"{marker_label} is {status}.")
+    return failures
+
+
+def final_verification_gate_marker_label(node: dict[str, Any]) -> str:
+    title = str(node.get("title", "") or "").lower()
+    if "audit final requirements" in title:
+        return "FINAL_AUDIT_STATUS"
+    if "run final simulation probes" in title:
+        return "SIMULATION_TEST_STATUS"
+    if "run final real repository checks" in title:
+        return "REAL_TEST_STATUS"
+    return ""
+
+
+def latest_gate_marker_status(node: dict[str, Any], marker_label: str) -> str:
+    evidence = node.get("evidence", [])
+    latest = evidence[-1] if isinstance(evidence, list) and evidence else {}
+    result = latest.get("result", latest) if isinstance(latest, dict) else latest
+    text = json.dumps(result, ensure_ascii=False)
+    label = re.escape(marker_label).replace("_", r"[_\s-]?")
+    pattern = rf"['\"]?{label}['\"]?\s*[:=]\s*['\"]?(pass|passed|fail|failed|block|blocked)"
+    match = re.search(pattern, text, flags=re.IGNORECASE)
+    if not match:
+        return ""
+    return normalize_gate_marker_status(match.group(1))
+
+
+def normalize_gate_marker_status(value: object) -> str:
+    text = str(value).strip().lower()
+    if text in {"pass", "passed", "ok", "success", "successful"}:
+        return "passed"
+    if text in {"block", "blocked"}:
+        return "blocked"
+    if text in {"fail", "failed", "failure"}:
+        return "failed"
+    return text
 
 
 def final_handoff_allowed(plan: RoadmapExecutionPlan) -> dict[str, object]:

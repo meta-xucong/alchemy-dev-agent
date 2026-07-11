@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "V2.187 Convergence Decision",
+  "type": "object",
+  "required": ["action", "reason", "fingerprint"],
+  "properties": {
+    "action": { "enum": ["continue", "refresh_inventory_and_replan", "strategy_backtrack"] },
+    "reason": { "type": "string" },
+    "fingerprint": { "type": "string" }
+  }
+}

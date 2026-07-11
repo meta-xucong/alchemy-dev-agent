@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "V2.187 Objective Contract",
+  "type": "object",
+  "required": ["schema_version", "objective", "revision", "requirements"],
+  "properties": {
+    "schema_version": { "const": "2.187" },
+    "objective": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string", "minLength": 1 },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source", "statement", "strength", "class", "proof_obligations"],
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "type": "object" },
+          "statement": { "type": "string" },
+          "strength": { "enum": ["must", "may"] },
+          "class": {
+            "enum": [
+              "must_implement",
+              "must_preserve",
+              "must_absent_runtime",
+              "must_absent_source",
+              "must_absent_fresh_schema",
+              "must_absent_public_contract",
+              "must_reference",
+              "must_verify",
+              "must_decide",
+              "may_reframe",
+              "may_waive"
+            ]
+          },
+          "proof_obligations": { "type": "array", "minItems": 1 }
+        }
+      }
+    }
+  }
+}

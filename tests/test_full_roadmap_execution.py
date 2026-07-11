@@ -15,16 +15,22 @@ from autodev.full_roadmap_executor import (
     blockers_are_auto_repairable,
     bootstrap_phase_repair_documents,
     final_verification_resume_repair_documents,
+    final_verification_latest_failed_attempt_state_report,
+    final_verification_report_attempt_index,
+    final_verification_report_is_stale_live_worker_guard,
+    final_verification_state_is_operator_stop_noise,
     interrupted_phase_resume_source,
     latest_verification_issue_context_document,
     next_phase_repair_path,
     next_phase_run_dir,
     phase_has_worker_timeout_stop_boundary,
+    phase_focused_repair_lines,
     phase_repository_path,
     phase_run_payload,
     read_json,
     repair_completed_task_ids,
     repair_path_matches_pattern,
+    sanitize_final_verification_previous_repair_context_text,
     should_auto_repair_phase,
     write_json,
     write_phase_document,
@@ -637,6 +643,41 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(promotion["status"], "blocked")
         self.assertIn("Final verification gate tasks must rerun", " ".join(promotion["reasons"]))
 
+    def test_final_verification_promotion_blocks_failed_gate_markers(self) -> None:
+        phase = RoadmapPhase(
+            phase_id="final_verification",
+            title="Final Full-System Audit And Testing",
+            requirements=["Run final checks."],
+            promotion_gate={"required_score": 0.85},
+        )
+        result = {
+            "status": "done",
+            "blockers": [],
+            "delivery_report": {"final_gate": {"score": 1.0}},
+            "runtime_state": {
+                "task_graph": {
+                    "nodes": [
+                        {
+                            "id": "T062",
+                            "title": "Run final simulation probes",
+                            "status": "completed",
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {"evidence": ["SIMULATION_TEST_STATUS=FAIL"]},
+                                }
+                            ],
+                        }
+                    ]
+                }
+            },
+        }
+
+        promotion = phase_promotion_decision(phase, result)
+
+        self.assertFalse(promotion["can_promote"])
+        self.assertIn("SIMULATION_TEST_STATUS is failed.", promotion["reasons"])
+
     def test_interrupted_phase_attempt_uses_new_run_directory(self) -> None:
         root = temp_root()
         phase_dir = root / "phases" / "phase_002"
@@ -693,7 +734,7 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertEqual(resume.active_run_dir, active_run)
         self.assertEqual(resume.blockers, [])
 
-    def test_terminal_active_phase_attempt_is_not_resumed(self) -> None:
+    def test_timed_out_terminal_active_phase_attempt_is_not_resumed(self) -> None:
         root = temp_root()
         phase_dir = root / "phases" / "phase_010"
         stale_active = phase_dir / "run_attempt_019"
@@ -725,6 +766,33 @@ class FullRoadmapExecutionTests(unittest.TestCase):
 
         self.assertIsNone(resume.resume_from)
         self.assertIsNone(resume.active_run_dir)
+        self.assertEqual(resume.blockers, [])
+
+    def test_completed_terminal_active_phase_attempt_is_resumed_for_reconciliation(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phases" / "phase_010"
+        stale_active = phase_dir / "run_attempt_019"
+        (stale_active / "workers").mkdir(parents=True)
+        write_json(
+            stale_active / "state.json",
+            {
+                "active_tasks": ["T002"],
+                "task_graph": {"nodes": [{"id": "T002", "status": "active"}]},
+            },
+        )
+        write_json(
+            stale_active / "workers" / "T002.json",
+            {
+                "task_id": "T002",
+                "status": "completed",
+                "worker_pid": 99999999,
+            },
+        )
+
+        resume = interrupted_phase_resume_source(phase_dir)
+
+        self.assertEqual(resume.resume_from, stale_active)
+        self.assertEqual(resume.active_run_dir, stale_active)
         self.assertEqual(resume.blockers, [])
 
     def test_dead_debug_active_phase_attempt_is_not_resumed(self) -> None:
@@ -786,6 +854,37 @@ class FullRoadmapExecutionTests(unittest.TestCase):
 
         self.assertIsNone(resume.resume_from)
         self.assertIsNone(resume.active_run_dir)
+        self.assertEqual(resume.blockers, [])
+
+    def test_interrupted_resume_skips_newer_supervisor_stopped_attempt(self) -> None:
+        root = temp_root()
+        phase_dir = root / "phases" / "phase_010"
+        completed_active = phase_dir / "run_attempt_024"
+        stopped_active = phase_dir / "run_attempt_025"
+        (completed_active / "workers").mkdir(parents=True)
+        (stopped_active / "workers").mkdir(parents=True)
+        write_json(
+            completed_active / "state.json",
+            {
+                "active_tasks": ["T063"],
+                "task_graph": {"nodes": [{"id": "T063", "status": "active"}]},
+            },
+        )
+        write_json(completed_active / "workers" / "T063.json", {"task_id": "T063", "status": "completed"})
+        write_json(
+            stopped_active / "state.json",
+            {
+                "active_tasks": ["T006"],
+                "task_graph": {"nodes": [{"id": "T006", "status": "active"}]},
+            },
+        )
+        write_json(stopped_active / "workers" / "T006.json", {"task_id": "T006", "status": "running"})
+        write_json(stopped_active / "supervisor_stop.json", {"reason": "duplicate resume stopped"})
+
+        resume = interrupted_phase_resume_source(phase_dir)
+
+        self.assertEqual(resume.resume_from, completed_active)
+        self.assertEqual(resume.active_run_dir, completed_active)
         self.assertEqual(resume.blockers, [])
 
     def test_completed_phase_record_reuses_stable_run_directory(self) -> None:
@@ -3070,6 +3169,81 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertTrue((output_dir / "attempt_002.json").exists())
         self.assertGreaterEqual(captured[0]["max_iterations"], 24)
 
+    def test_final_verification_worker_resumes_completed_active_attempt_for_reconciliation(self) -> None:
+        root = temp_root()
+        doc = root / "roadmap.md"
+        write_v3_docs(doc)
+        output_dir = root / "final_verification"
+        interrupted = output_dir / "run_attempt_061"
+        (interrupted / "workers").mkdir(parents=True)
+        write_json(
+            interrupted / "state.json",
+            {
+                "active_tasks": ["T063"],
+                "completed_tasks": ["T006", "T009", "T041", "T058", "T060", "T061", "T062"],
+                "task_graph": {
+                    "nodes": [
+                        {"id": "T062", "status": "completed"},
+                        {"id": "T063", "status": "active"},
+                    ]
+                },
+            },
+        )
+        write_json(interrupted / "workers" / "T063.json", {"task_id": "T063", "status": "completed"})
+        captured: list[dict[str, object]] = []
+
+        def fake_runner(**kwargs):
+            captured.append(dict(kwargs))
+            return FakePhaseResult(
+                "Final Full-System Audit And Testing",
+                evidence=[
+                    "FINAL_AUDIT_STATUS: PASS",
+                    "SIMULATION_TEST_STATUS: PASS",
+                    "REAL_TEST_STATUS: PASS",
+                ],
+            )
+
+        report = FullRoadmapExecutor(document_runner=fake_runner)._run_final_verification_worker(
+            objective="Finish CRM",
+            plan=RoadmapExecutionPlan(root_objective="Finish CRM", phases=[]),
+            phase_records=[],
+            documents=[doc],
+            attachments=[],
+            repository_url="",
+            repository_path=root / "repo",
+            repository_visibility="private",
+            output_dir=output_dir,
+            run_payload={"real_codex": True, "boundary_mode": "large_refactor", "max_final_verification_attempts": 1},
+        )
+
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(captured[0]["resume_from"], interrupted)
+        self.assertEqual(captured[0]["output_dir"], interrupted)
+        self.assertEqual(report["attempts"][0]["resume_from"], str(interrupted))
+
+    def test_final_verification_repair_scope_does_not_preserve_gate_tasks(self) -> None:
+        runtime_state = {
+            "completed_tasks": ["T060", "T061", "T062", "T063", "T064"],
+            "task_graph": {
+                "nodes": [
+                    {"id": "T060", "title": "Repair final frontend payment usage API contract leaf", "status": "completed"},
+                    {"id": "T061", "title": "Audit final requirements and phase evidence", "status": "completed"},
+                    {"id": "T062", "title": "Run final simulation probes", "status": "completed"},
+                    {"id": "T063", "title": "Run final real repository checks", "status": "completed"},
+                    {"id": "T064", "title": "Review final handoff markers", "status": "completed"},
+                ]
+            },
+        }
+
+        lines = phase_focused_repair_lines({"runtime_state": runtime_state}, [])
+        completed_line = next(line for line in lines if line.startswith("- Completed tasks to preserve:"))
+
+        self.assertIn("T060", completed_line)
+        self.assertNotIn("T061", completed_line)
+        self.assertNotIn("T062", completed_line)
+        self.assertNotIn("T063", completed_line)
+        self.assertNotIn("T064", completed_line)
+
     def test_final_verification_worker_stops_after_non_partial_blocker(self) -> None:
         root = temp_root()
         doc = root / "roadmap.md"
@@ -3366,6 +3540,47 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertNotIn("Primary failed task IDs: T056", text)
         docs_again = final_verification_resume_repair_documents(output_dir)
         self.assertEqual(Path(docs_again[-1]).name, "final_verification_repair_resume_047.md")
+
+    def test_final_verification_resume_skips_weak_none_reported_noise(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        (output_dir / "final_verification_repair_resume_001.md").write_text(
+            "\n".join(
+                [
+                    "Repair attempt: run_attempt_150",
+                    "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                    "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+                    "- Focused timeout task titles: T004: Repair final backend provider proxy ops service quarantine exact files.",
+                    "- Primary failed task IDs: T004.",
+                    "- Frontend typecheck remains part of the final verification closure.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (output_dir / "final_verification_repair_resume_002.md").write_text(
+            "\n".join(
+                [
+                    "Repair attempt: run_attempt_151",
+                    "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                    "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+                    "- Primary failed task IDs: none reported; infer the narrowest failing task from the gate evidence.",
+                    "- Frontend typecheck remains part of the final verification closure.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "passed",
+                "attempts": [{"attempt": 150, "output_dir": str(output_dir / "run_attempt_150")}],
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+
+        self.assertEqual(Path(docs[-1]).name, "final_verification_repair_resume_001.md")
 
     def test_final_verification_relaunch_carries_previous_failure_repair_context(self) -> None:
         root = temp_root()
@@ -3871,6 +4086,67 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertNotIn("T010", completed_line)
         self.assertIn("Task T010 - Repair final frontend view and component contracts", text)
         self.assertIn("Worker summary: Codex worker timed out after 900 seconds.", text)
+
+    def test_component_composable_timeout_resume_requires_split(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [{"attempt": 103, "output_dir": str(output_dir / "run_attempt_103")}],
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {
+                        "failed_tasks": ["T057"],
+                        "blockers": [
+                            {
+                                "id": "B-T057-1",
+                                "type": "technical_limit",
+                                "description": "T057 exceeded the Codex worker timeout.",
+                                "task_ids": ["T057"],
+                            }
+                        ],
+                        "task_graph": {
+                            "nodes": [
+                                {
+                                    "id": "T057",
+                                    "title": "Repair final frontend component and composable test contracts",
+                                    "status": "failed",
+                                    "relevant_files": [
+                                        "frontend/src/components/**/__tests__/**",
+                                        "frontend/src/components/**/*.spec.ts",
+                                        "frontend/src/composables/**/__tests__/**",
+                                        "frontend/src/composables/**/*.spec.ts",
+                                    ],
+                                    "evidence": [
+                                        {
+                                            "type": "worker_result",
+                                            "result": {
+                                                "status": "failed",
+                                                "summary": "Codex worker timed out after 1800 seconds.",
+                                                "worker_lifecycle": {
+                                                    "status": "timed_out",
+                                                    "timeout_seconds": 1800,
+                                                },
+                                            },
+                                        }
+                                    ],
+                                }
+                            ]
+                        },
+                    }
+                },
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+
+        self.assertIn("Timeout split required", text)
+        self.assertIn("frontend/src/components/**/__tests__", text)
+        self.assertIn("frontend/src/composables/**/__tests__", text)
 
     def test_final_verification_resume_records_frontend_admin_component_timeout_focus(self) -> None:
         root = temp_root()
@@ -4628,6 +4904,43 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         for task_id in ("T036", "T037", "T038", "T039", "T040", "T041"):
             self.assertIn(task_id, completed_line)
 
+    def test_settings_view_boundary_gap_reopens_legacy_admin_cleanup(self) -> None:
+        nodes = [
+            {
+                "id": "T042",
+                "title": "Repair final frontend legacy admin view cleanup",
+                "status": "failed",
+                "relevant_files": [
+                    "frontend/src/views/admin/SettingsView.vue",
+                    "frontend/src/views/admin/__tests__/**",
+                ],
+                "evidence": [
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "status": "failed",
+                            "summary": (
+                                "The remaining acceptance gap is a reachable legacy admin settings surface in "
+                                "`frontend/src/views/admin/SettingsView.vue`, which is outside `allowed_files`."
+                            ),
+                            "known_issues": [
+                                "Expand `allowed_files` to include `frontend/src/views/admin/SettingsView.vue`."
+                            ],
+                        },
+                    }
+                ],
+            }
+        ]
+        runtime_state = {
+            "completed_tasks": ["T042"],
+            "failed_tasks": ["T042"],
+            "task_graph": {"nodes": nodes},
+        }
+
+        preserved = repair_completed_task_ids(runtime_state, nodes, focus_task_ids=["T042"])
+
+        self.assertNotIn("T042", preserved)
+
     def test_final_verification_resume_reopens_preserved_task_when_later_failure_targets_its_scope(self) -> None:
         root = temp_root()
         doc = root / "roadmap.md"
@@ -4806,6 +5119,16 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                 ],
             },
             {
+                "id": "T058",
+                "title": "Repair final frontend view router i18n utility test contracts",
+                "status": "completed",
+                "relevant_files": [
+                    "frontend/src/views/**/__tests__/**",
+                    "frontend/src/router/__tests__/**",
+                    "frontend/src/views/**/*.spec.ts",
+                ],
+            },
+            {
                 "id": "T060",
                 "title": "Audit final requirements and phase evidence",
                 "status": "blocked",
@@ -4814,10 +5137,15 @@ class FullRoadmapExecutionTests(unittest.TestCase):
                         "type": "worker_result",
                         "result": {
                             "status": "blocked",
-                            "summary": "FINAL_AUDIT_STATUS=FAIL: /admin/ops and UsageTable findings remain.",
+                            "summary": (
+                                "FINAL_AUDIT_STATUS=FAIL: /admin/ops and UsageTable findings remain. "
+                                "No repository files were edited because allowed_files is empty."
+                            ),
                             "tests_failed": [
                                 "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts failed image usage tooltip labels.",
                                 "frontend/src/api/admin/ops.ts still exposes old-domain operations API concepts.",
+                                "frontend/src/components/layout/AppSidebar.vue and frontend/src/views/admin/ops/components/OpsDashboardHeader.vue have parsing errors.",
+                                "frontend/src/views/admin/__tests__/legacyAdminRoutes.spec.ts still preserves admin.ops coverage.",
                             ],
                             "follow_up_tasks": [
                                 "Repair frontend/src/components/admin/usage/UsageTable.vue image usage tooltip rendering.",
@@ -4835,15 +5163,782 @@ class FullRoadmapExecutionTests(unittest.TestCase):
             },
         ]
         runtime_state = {
-            "completed_tasks": ["T006", "T009", "T024", "T041", "T057"],
+            "completed_tasks": ["T006", "T009", "T024", "T041", "T057", "T058"],
             "failed_tasks": ["T060"],
             "task_graph": {"nodes": nodes},
         }
 
         preserved = repair_completed_task_ids(runtime_state, nodes, focus_task_ids=["T060"])
 
-        for reopened in ("T006", "T009", "T024", "T041", "T057"):
+        for reopened in ("T006", "T009", "T024", "T041", "T057", "T058"):
             self.assertNotIn(reopened, preserved)
+
+    def test_final_verification_rewrites_stale_resume_that_preserves_targeted_tasks(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        stale = output_dir / "final_verification_repair_resume_001.md"
+        stale.write_text(
+            "\n".join(
+                [
+                    "# Final Verification Repair Resume",
+                    "",
+                    "Repair attempt: run_attempt_086",
+                    "",
+                    "## Focused Repair Scope",
+                    "",
+                    "- Primary failed task IDs: T061.",
+                    "- Completed tasks to preserve: T009, T041, T058, T060.",
+                    "",
+                    "### Task T061 - Audit final requirements and phase evidence",
+                    "",
+                    "- Worker summary: FINAL_AUDIT_STATUS=FAIL. /admin/ops and frontend parse failures remain.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        nodes = [
+            {
+                "id": "T009",
+                "title": "Repair final frontend route and app shell contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/router/**", "frontend/src/components/layout/**"],
+            },
+            {
+                "id": "T041",
+                "title": "Repair final frontend admin operations view contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/views/admin/ops/**"],
+            },
+            {
+                "id": "T058",
+                "title": "Repair final frontend view router i18n utility test contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/router/__tests__/**", "frontend/src/views/**/*.spec.ts"],
+            },
+            {
+                "id": "T060",
+                "title": "Repair final delivery artifact contracts",
+                "status": "completed",
+                "relevant_files": ["README.md"],
+            },
+            {
+                "id": "T061",
+                "title": "Audit final requirements and phase evidence",
+                "status": "blocked",
+                "evidence": [
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "status": "blocked",
+                            "summary": "FINAL_AUDIT_STATUS=FAIL. No repository files were edited because allowed_files is empty.",
+                            "tests_failed": [
+                                "frontend/src/components/layout/AppSidebar.vue and frontend/src/views/admin/ops/components/OpsDashboardHeader.vue have parsing errors.",
+                                "frontend/src/views/admin/__tests__/legacyAdminRoutes.spec.ts still preserves admin.ops coverage.",
+                            ],
+                            "follow_up_tasks": ["Remove or redesign /admin/ops frontend route, API service, and views."],
+                        },
+                    }
+                ],
+            },
+        ]
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [{"attempt": 86, "output_dir": str(output_dir / "run_attempt_086"), "status": "blocked"}],
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {
+                        "completed_tasks": ["T009", "T041", "T058", "T060"],
+                        "failed_tasks": ["T061"],
+                        "blockers": [{"id": "B-T061", "type": "technical_limit", "task_ids": ["T061"]}],
+                        "task_graph": {"nodes": nodes},
+                    },
+                },
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+
+        self.assertTrue(docs[-1].endswith("final_verification_repair_resume_002.md"))
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+        completed_line = next(line for line in text.splitlines() if line.startswith("- Completed tasks to preserve:"))
+        self.assertNotIn("T009", completed_line)
+        self.assertNotIn("T041", completed_line)
+        self.assertNotIn("T058", completed_line)
+        self.assertIn("T060", completed_line)
+
+    def test_completed_final_gate_failures_reopen_frontend_verification_targets(self) -> None:
+        nodes = [
+            {
+                "id": "T006",
+                "title": "Repair final frontend API module contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/api/**", "frontend/src/api/__tests__/**"],
+            },
+            {
+                "id": "T009",
+                "title": "Repair final frontend route and app shell contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/router/**", "frontend/src/components/layout/**"],
+            },
+            {
+                "id": "T041",
+                "title": "Repair final frontend admin operations view contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/views/admin/ops/**"],
+            },
+            {
+                "id": "T057",
+                "title": "Repair final frontend component and composable test contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/components/**/__tests__/**"],
+            },
+            {
+                "id": "T061",
+                "title": "Audit final requirements and phase evidence",
+                "status": "completed",
+                "evidence": [
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "status": "completed",
+                            "summary": (
+                                "FINAL_AUDIT_STATUS: FAIL. Repair frontend/src/api/payment.ts payment-order "
+                                "normalization and AppSidebar.vue parse errors."
+                            ),
+                            "tests_failed": [
+                                "frontend/src/api/__tests__/crm-billing-core-contracts.spec.ts failed: "
+                                "catalog_item_id should be omitted and plan_id alias is missing.",
+                                "frontend/src/components/layout/AppSidebar.vue has parse errors.",
+                            ],
+                            "follow_up_tasks": [
+                                "Fix frontend/src/views/admin/ops/components/OpsDashboardHeader.vue parse errors.",
+                                "Fix frontend/src/views/admin/ops/components/__tests__/OpsSettingsDialog.spec.ts lint.",
+                            ],
+                        },
+                    }
+                ],
+            },
+        ]
+        runtime_state = {
+            "completed_tasks": ["T006", "T009", "T041", "T057", "T061"],
+            "failed_tasks": [],
+            "task_graph": {"nodes": nodes},
+        }
+
+        preserved = repair_completed_task_ids(runtime_state, nodes, focus_task_ids=[])
+
+        self.assertNotIn("T006", preserved)
+        self.assertNotIn("T009", preserved)
+        self.assertNotIn("T041", preserved)
+        self.assertIn("T057", preserved)
+
+    def test_final_gate_broad_relevant_files_do_not_reopen_unmentioned_api_task(self) -> None:
+        nodes = [
+            {
+                "id": "T006",
+                "title": "Repair final frontend API module contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/api/**", "frontend/src/api/__tests__/**"],
+            },
+            {
+                "id": "T009",
+                "title": "Repair final frontend route and app shell contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/router/**", "frontend/src/components/layout/**"],
+            },
+            {
+                "id": "T041",
+                "title": "Repair final frontend admin operations view contracts",
+                "status": "completed",
+                "relevant_files": ["frontend/src/views/admin/ops/**"],
+            },
+            {
+                "id": "T061",
+                "title": "Audit final requirements and phase evidence",
+                "status": "completed",
+                "relevant_files": ["frontend/src/api/**", "frontend/src/api/__tests__/**", "frontend/package.json"],
+                "evidence": [
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "status": "completed",
+                            "summary": (
+                                "FINAL_AUDIT_STATUS=FAIL. frontend/src/components/layout/AppSidebar.vue "
+                                "has parse errors and frontend/src/router/index.ts has an unused import."
+                            ),
+                            "tests_failed": [
+                                "frontend/src/views/admin/ops/components/__tests__/OpsSettingsDialog.spec.ts "
+                                "uses reserved component name Select."
+                            ],
+                        },
+                    }
+                ],
+            },
+        ]
+        runtime_state = {
+            "completed_tasks": ["T006", "T009", "T041", "T061"],
+            "failed_tasks": [],
+            "task_graph": {"nodes": nodes},
+        }
+
+        preserved = repair_completed_task_ids(runtime_state, nodes, focus_task_ids=[])
+
+        self.assertIn("T006", preserved)
+        self.assertNotIn("T009", preserved)
+        self.assertNotIn("T041", preserved)
+
+    def test_previous_final_repair_context_sanitizes_stale_control_lines(self) -> None:
+        text = "\n".join(
+            [
+                "# Final Verification Repair Resume",
+                "",
+                "## Focused Repair Scope",
+                "",
+                "- Primary failed task IDs: T099.",
+                "- Completed tasks to preserve: T001, T002.",
+                "- Target files: frontend/src/api/admin/settings.ts, backend/internal/server/routes.go.",
+                "- Preserve previous repair context from final_verification_repair_resume_095.md: frontend route repair.",
+                "- Known issues: keep this human-readable clue.",
+            ]
+        )
+
+        sanitized = sanitize_final_verification_previous_repair_context_text(text)
+
+        self.assertNotIn("Primary failed task IDs", sanitized)
+        self.assertNotIn("Completed tasks to preserve", sanitized)
+        self.assertNotIn("Target files:", sanitized)
+        self.assertIn("Known issues: keep this human-readable clue.", sanitized)
+
+    def test_latest_failed_attempt_report_uses_completed_gate_hard_failures(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        older = output_dir / "run_attempt_090"
+        newer = output_dir / "run_attempt_091"
+        older.mkdir(parents=True)
+        newer.mkdir(parents=True)
+        write_json(
+            older / "state.json",
+            {
+                "done": False,
+                "failed_tasks": ["T042"],
+                "blockers": [{"id": "B-T042", "description": "Connectivity failed.", "task_ids": ["T042"]}],
+                "task_graph": {"nodes": [{"id": "T042", "status": "blocked"}]},
+            },
+        )
+        write_json(
+            newer / "state.json",
+            {
+                "done": False,
+                "completed_tasks": ["T061", "T062", "T063"],
+                "failed_tasks": [],
+                "blockers": [],
+                "evaluation": {
+                    "status": "failed",
+                    "hard_failures": [
+                        "FINAL_AUDIT_STATUS is failed.",
+                        "SIMULATION_TEST_STATUS is failed.",
+                        "REAL_TEST_STATUS is failed.",
+                    ],
+                },
+                "task_graph": {
+                    "nodes": [
+                        {
+                            "id": "T061",
+                            "title": "Audit final requirements and phase evidence",
+                            "status": "completed",
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "completed",
+                                        "summary": "FINAL_AUDIT_STATUS: FAIL. frontend/src/api/payment.ts failed.",
+                                    },
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+
+        report = final_verification_latest_failed_attempt_state_report(output_dir)
+
+        self.assertEqual(final_verification_report_attempt_index(report), 91)
+        self.assertIn("FINAL_AUDIT_STATUS is failed.", report["blockers"])
+
+    def test_stopped_gate_replay_does_not_hide_previous_gate_failure(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        failed_gate = output_dir / "run_attempt_097"
+        stopped_replay = output_dir / "run_attempt_098"
+        failed_gate.mkdir(parents=True)
+        stopped_replay.mkdir(parents=True)
+        write_json(
+            failed_gate / "state.json",
+            {
+                "done": False,
+                "completed_tasks": ["T061", "T062", "T063", "T064", "T065"],
+                "failed_tasks": [],
+                "blockers": [],
+                "evaluation": {
+                    "status": "failed",
+                    "hard_failures": [
+                        "FINAL_AUDIT_STATUS is failed.",
+                        "REAL_TEST_STATUS is failed.",
+                    ],
+                },
+                "task_graph": {
+                    "nodes": [
+                        {
+                            "id": "T061",
+                            "title": "Audit final requirements and phase evidence",
+                            "status": "completed",
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "completed",
+                                        "summary": "FINAL_AUDIT_STATUS: FAIL. frontend/src/components/layout/AppSidebar.vue failed.",
+                                    },
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+        write_json(stopped_replay / "supervisor_stop.json", {"reason": "stopped stale gate replay"})
+        write_json(
+            stopped_replay / "state.json",
+            {
+                "done": False,
+                "active_tasks": ["T061"],
+                "failed_tasks": [],
+                "blockers": [],
+                "evaluation": {
+                    "status": "failed",
+                    "hard_failures": [
+                        "Required tasks are unfinished: T061, T062, T063, T064, T065.",
+                    ],
+                },
+            },
+        )
+
+        report = final_verification_latest_failed_attempt_state_report(output_dir)
+
+        self.assertEqual(final_verification_report_attempt_index(report), 97)
+        self.assertIn("FINAL_AUDIT_STATUS is failed.", report["blockers"])
+
+    def test_newer_stale_replay_resume_does_not_hide_current_gate_failure(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        (output_dir / "final_verification_repair_resume_001.md").write_text(
+            "\n".join(
+                [
+                    "# Final Verification Repair Resume",
+                    "",
+                    "Repair attempt: run_attempt_098",
+                    "",
+                    "## Requirements",
+                    "",
+                    "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                    "- Must grant the repair worker edit access to frontend files.",
+                    "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [{"attempt": 96, "output_dir": str(output_dir / "run_attempt_096")}],
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {
+                        "completed_tasks": ["T009", "T041", "T061", "T062", "T063"],
+                        "failed_tasks": [],
+                        "blockers": [],
+                        "evaluation": {
+                            "status": "failed",
+                            "hard_failures": ["FINAL_AUDIT_STATUS is failed.", "REAL_TEST_STATUS is failed."],
+                        },
+                        "task_graph": {
+                            "nodes": [
+                                {
+                                    "id": "T009",
+                                    "title": "Repair final frontend route registration file",
+                                    "status": "completed",
+                                    "relevant_files": [
+                                        "frontend/src/router/index.ts",
+                                        "frontend/src/components/layout/AppSidebar.vue",
+                                    ],
+                                },
+                                {
+                                    "id": "T061",
+                                    "title": "Audit final requirements and phase evidence",
+                                    "status": "completed",
+                                    "evidence": [
+                                        {
+                                            "type": "worker_result",
+                                            "result": {
+                                                "status": "completed",
+                                                "summary": "FINAL_AUDIT_STATUS: FAIL. frontend/src/components/layout/AppSidebar.vue still fails build.",
+                                            },
+                                        }
+                                    ],
+                                },
+                            ]
+                        },
+                    }
+                },
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+
+        self.assertIn("Repair attempt: run_attempt_096", text)
+        self.assertNotIn("Repair attempt: run_attempt_098", text)
+        completed_line = next(line for line in text.splitlines() if "Completed tasks to preserve:" in line)
+        self.assertNotIn("T009", completed_line)
+        self.assertIn("AppSidebar.vue", text)
+
+    def test_simulation_gate_failure_writes_final_repair_resume(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [{"attempt": 161, "output_dir": str(output_dir / "run_attempt_161")}],
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {
+                        "completed_tasks": ["T002", "T003"],
+                        "failed_tasks": ["T004"],
+                        "blockers": [
+                            {
+                                "id": "B-T004-1",
+                                "type": "technical_limit",
+                                "can_continue_partially": False,
+                                "description": (
+                                    "SIMULATION_TEST_STATUS=FAIL. Full frontend and backend suites fail; "
+                                    "focused contract probes pass. Repairs could not be applied because allowed_files is empty."
+                                ),
+                                "task_ids": ["T004"],
+                            }
+                        ],
+                        "task_graph": {
+                            "nodes": [
+                                {
+                                    "id": "T004",
+                                    "title": "Run final simulation probes",
+                                    "status": "failed",
+                                    "evidence": [
+                                        {
+                                            "type": "worker_result",
+                                            "result": {
+                                                "status": "partial",
+                                                "summary": (
+                                                    "SIMULATION_TEST_STATUS=FAIL. Final verification probes were run "
+                                                    "without repository edits."
+                                                ),
+                                                "tests_failed": [
+                                                    "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts: image usage tooltip tests fail.",
+                                                    "backend/internal/handler/admin::TestExportDataIncludesSecrets",
+                                                    "backend/internal/handler/dto::TestUsageLogFromService_UsesRequestedModelAndKeepsUpstreamAdminOnly",
+                                                ],
+                                                "known_issues": [
+                                                    "Frontend UsageTable image metering tooltip omits Image count.",
+                                                    "Backend admin and dto tests fail.",
+                                                ],
+                                                "follow_up_tasks": [
+                                                    "Open a repair task with write access to the failing frontend UsageTable component/test files and backend admin/dto implementation or tests.",
+                                                ],
+                                            },
+                                        }
+                                    ],
+                                }
+                            ]
+                        },
+                    }
+                },
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+
+        self.assertEqual(Path(docs[-1]).name, "final_verification_repair_resume_001.md")
+        self.assertIn("Repair attempt: run_attempt_161", text)
+        self.assertIn("SIMULATION_TEST_STATUS=FAIL", text)
+        self.assertIn("UsageTable.spec.ts", text)
+        self.assertIn("Completed tasks to preserve: T002, T003", text)
+
+    def test_stopped_global_report_replays_previous_gate_failure(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        failed_gate = output_dir / "run_attempt_097"
+        stopped_replay = output_dir / "run_attempt_098"
+        failed_gate.mkdir(parents=True)
+        stopped_replay.mkdir(parents=True)
+        write_json(stopped_replay / "supervisor_stop.json", {"reason": "stopped stale gate replay"})
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [{"attempt": 98, "output_dir": str(stopped_replay)}],
+                "result": {
+                    "status": "blocked",
+                    "runtime_state": {
+                        "active_tasks": ["T061"],
+                        "failed_tasks": [],
+                        "blockers": [],
+                        "evaluation": {
+                            "status": "failed",
+                            "hard_failures": ["Required tasks are unfinished: T061, T062, T063."],
+                        },
+                    }
+                },
+            },
+        )
+        write_json(
+            failed_gate / "state.json",
+            {
+                "done": False,
+                "completed_tasks": ["T009", "T041", "T061", "T062", "T063", "T064", "T065"],
+                "failed_tasks": [],
+                "blockers": [],
+                "evaluation": {
+                    "status": "failed",
+                    "hard_failures": ["FINAL_AUDIT_STATUS is failed.", "REAL_TEST_STATUS is failed."],
+                },
+                "task_graph": {
+                    "nodes": [
+                        {
+                            "id": "T009",
+                            "title": "Repair final frontend route registration file",
+                            "status": "completed",
+                            "relevant_files": [
+                                "frontend/src/router/index.ts",
+                                "frontend/src/components/layout/AppSidebar.vue",
+                            ],
+                        },
+                        {
+                            "id": "T061",
+                            "title": "Audit final requirements and phase evidence",
+                            "status": "completed",
+                            "evidence": [
+                                {
+                                    "type": "worker_result",
+                                    "result": {
+                                        "status": "completed",
+                                        "summary": "FINAL_AUDIT_STATUS: FAIL. frontend/src/components/layout/AppSidebar.vue still fails build.",
+                                    },
+                                }
+                            ],
+                        },
+                    ]
+                },
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+
+        self.assertIn("Repair attempt: run_attempt_097", text)
+        self.assertNotIn("Repair attempt: run_attempt_098", text)
+        completed_line = next(line for line in text.splitlines() if "Completed tasks to preserve:" in line)
+        self.assertNotIn("T009", completed_line)
+
+    def test_stopped_gate_preserve_replay_recovers_latest_promotion_failure(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        older_failed = output_dir / "run_attempt_106"
+        gate_preserved = output_dir / "run_attempt_108"
+        stopped_replay = output_dir / "run_attempt_109"
+        older_failed.mkdir(parents=True)
+        gate_preserved.mkdir()
+        stopped_replay.mkdir()
+        write_json(stopped_replay / "supervisor_stop.json", {"reason": "stopped stale gate-preserve replay"})
+        (output_dir / "final_verification_repair_resume_093.md").write_text(
+            "\n".join(
+                [
+                    "# Final Verification Repair Resume",
+                    "",
+                    "Repair attempt: run_attempt_106",
+                    "",
+                    "## Requirements",
+                    "",
+                    "- Must repair the previous final-verification source-boundary findings before reporting PASS.",
+                    "- Must grant the repair worker edit access to frontend files.",
+                    "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+                    "",
+                    "## Focused Repair Scope",
+                    "",
+                    "- Primary failed task IDs: T057.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        write_json(
+            older_failed / "state.json",
+            {
+                "done": False,
+                "failed_tasks": ["T057"],
+                "blockers": [{"id": "B-T057", "task_ids": ["T057"], "type": "technical_limit"}],
+                "task_graph": {"nodes": [{"id": "T057", "title": "Repair final frontend component and composable test contracts", "status": "failed"}]},
+            },
+        )
+        gate_reason = "Final verification gate tasks must rerun after repair, not be preserved as completed: T016, T017, T018, T019."
+        gate_nodes = [
+            {
+                "id": "T016",
+                "title": "Audit final requirements and phase evidence",
+                "status": "completed",
+                "evidence": [{"type": "focused_repair_preserved_task"}],
+            },
+            {
+                "id": "T017",
+                "title": "Run final simulation probes",
+                "status": "completed",
+                "evidence": [{"type": "focused_repair_preserved_task"}],
+            },
+            {
+                "id": "T018",
+                "title": "Run final real repository checks",
+                "status": "completed",
+                "evidence": [{"type": "focused_repair_preserved_task"}],
+            },
+            {
+                "id": "T019",
+                "title": "Review final handoff markers",
+                "status": "completed",
+                "evidence": [{"type": "focused_repair_preserved_task"}],
+            },
+            {"id": "T020", "title": "Record delivery evidence", "status": "completed"},
+        ]
+        write_json(
+            gate_preserved / "state.json",
+            {
+                "done": True,
+                "completed_tasks": ["T016", "T017", "T018", "T019", "T020"],
+                "failed_tasks": [],
+                "blockers": [],
+                "evaluation": {"status": "passed", "hard_failures": []},
+                "task_graph": {"nodes": gate_nodes},
+            },
+        )
+        write_json(gate_preserved / "document_run_report.json", {"status": "done"})
+        write_json(
+            output_dir / "attempt_108.json",
+            {
+                "attempt": 108,
+                "output_dir": str(gate_preserved),
+                "promotion": {"can_promote": False, "status": "blocked", "reasons": [gate_reason]},
+                "status": "blocked",
+            },
+        )
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [
+                    {
+                        "attempt": 109,
+                        "output_dir": str(stopped_replay),
+                        "promotion": {"can_promote": False, "status": "blocked", "reasons": [gate_reason]},
+                        "status": "blocked",
+                    }
+                ],
+                "result": {"status": "blocked", "runtime_state": {"active_tasks": ["T016"]}},
+                "required_actions": [gate_reason],
+            },
+        )
+
+        report = final_verification_latest_failed_attempt_state_report(output_dir)
+        docs = final_verification_resume_repair_documents(output_dir)
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+
+        self.assertEqual(final_verification_report_attempt_index(report), 108)
+        self.assertIn("Repair attempt: run_attempt_108", text)
+        self.assertNotIn("Repair attempt: run_attempt_106", text)
+        self.assertIn(gate_reason, text)
+        completed_line = next(line for line in text.splitlines() if "Completed tasks to preserve:" in line)
+        self.assertIn("T020", completed_line)
+        self.assertNotIn("T016", completed_line)
+
+    def test_boundary_violation_out_of_scope_paths_reopen_matching_completed_task(self) -> None:
+        nodes = [
+            {
+                "id": "T005",
+                "title": "Repair final backend service handler server contracts",
+                "status": "completed",
+                "relevant_files": ["backend/internal/server/**"],
+            },
+            {
+                "id": "T009",
+                "title": "Repair final frontend route and app shell contracts",
+                "status": "failed",
+                "relevant_files": ["frontend/src/router/**", "frontend/src/components/layout/**"],
+                "evidence": [
+                    {
+                        "type": "worker_result",
+                        "result": {
+                            "status": "failed",
+                            "summary": "Codex worker modified files outside the task boundary; offending changes were rolled back.",
+                            "files_changed": [
+                                "backend/internal/server/api_contract_test.go",
+                                "frontend/src/components/layout/AppSidebar.vue",
+                            ],
+                            "known_issues": [
+                                "Out-of-scope files changed: backend/internal/server/api_contract_test.go",
+                            ],
+                        },
+                    }
+                ],
+            },
+        ]
+        runtime_state = {
+            "completed_tasks": ["T005"],
+            "failed_tasks": ["T009"],
+            "task_graph": {"nodes": nodes},
+        }
+
+        preserved = repair_completed_task_ids(runtime_state, nodes, focus_task_ids=["T009"])
+
+        self.assertNotIn("T005", preserved)
+
+    def test_stopped_final_gate_failure_is_not_operator_noise(self) -> None:
+        root = temp_root()
+        run_dir = root / "final_verification" / "run_attempt_092"
+        run_dir.mkdir(parents=True)
+        write_json(run_dir / "supervisor_stop.json", {"reason": "stopped gate-only replay"})
+        state = {
+            "done": False,
+            "active_tasks": ["T062"],
+            "completed_tasks": ["T061"],
+            "failed_tasks": [],
+            "blockers": [],
+            "evaluation": {"hard_failures": ["FINAL_AUDIT_STATUS is failed."]},
+        }
+
+        self.assertFalse(final_verification_state_is_operator_stop_noise(state))
+
+    def test_stale_live_worker_guard_report_is_recoverable(self) -> None:
+        report = {
+            "status": "failed",
+            "blockers": ["Previous phase attempt still has live worker process(es): T062 pid=987654321."],
+            "attempts": [{"attempt": 93, "output_dir": "run_attempt_092"}],
+        }
+
+        self.assertTrue(final_verification_report_is_stale_live_worker_guard(report))
 
     def test_final_audit_resume_records_deep_tail_shape_separately_from_preserve(self) -> None:
         root = temp_root()
@@ -4920,6 +6015,77 @@ class FullRoadmapExecutionTests(unittest.TestCase):
         self.assertNotIn("T057", completed_line)
         self.assertIn("T058", completed_line)
         self.assertIn("T059", completed_line)
+
+    def test_final_verification_resume_includes_completed_gate_failure_targets(self) -> None:
+        root = temp_root()
+        output_dir = root / "final_verification"
+        output_dir.mkdir()
+        write_json(
+            output_dir / "final_verification_worker_report.json",
+            {
+                "status": "failed",
+                "attempts": [
+                    {
+                        "attempt": 71,
+                        "output_dir": str(output_dir / "run_attempt_071"),
+                        "promotion": {
+                            "can_promote": False,
+                            "reasons": [
+                                "FINAL_AUDIT_STATUS is failed.",
+                                "SIMULATION_TEST_STATUS is failed.",
+                                "REAL_TEST_STATUS is failed.",
+                            ],
+                        },
+                        "status": "blocked",
+                    }
+                ],
+                "result": {
+                    "status": "done",
+                    "runtime_state": {
+                        "done": True,
+                        "completed_tasks": ["T061", "T062", "T063", "T064", "T065"],
+                        "task_graph": {
+                            "nodes": [
+                                {
+                                    "id": "T063",
+                                    "title": "Run final real repository checks",
+                                    "status": "completed",
+                                    "evidence": [
+                                        {
+                                            "type": "worker_result",
+                                            "result": {
+                                                "status": "partial",
+                                                "summary": "REAL_TEST_STATUS=FAIL. Frontend tests and build failed.",
+                                                "tests_failed": [
+                                                    "frontend/src/__tests__/integration/navigation.spec.ts:272 expected walletCredits prefetch once.",
+                                                    "pnpm build failed in frontend/src/composables/useTableSelection.ts, frontend/src/views/admin/UsageView.vue, and frontend/src/views/user/UserOrdersView.vue.",
+                                                ],
+                                                "commands_run": [
+                                                    {
+                                                        "command": "pnpm --dir frontend run build",
+                                                        "exit_code": 1,
+                                                        "stderr": "frontend/src/composables/useTableSelection.ts TS2345; frontend/src/views/admin/UsageView.vue missing upstream_endpoints.",
+                                                    }
+                                                ],
+                                            },
+                                        }
+                                    ],
+                                }
+                            ]
+                        },
+                    },
+                },
+            },
+        )
+
+        docs = final_verification_resume_repair_documents(output_dir)
+        text = Path(docs[-1]).read_text(encoding="utf-8")
+
+        self.assertIn("Repair attempt: run_attempt_071", text)
+        self.assertIn("Must repair T063 verification issue", text)
+        self.assertIn("frontend/src/__tests__/integration/navigation.spec.ts", text)
+        self.assertIn("frontend/src/composables/useTableSelection.ts", text)
+        self.assertIn("frontend/src/views/admin/UsageView.vue", text)
 
     def test_executor_generates_document_package_for_one_sentence_mode(self) -> None:
         root = temp_root()

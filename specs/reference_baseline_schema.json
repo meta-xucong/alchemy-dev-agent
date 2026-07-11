@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "V2.187 Reference Baseline",
+  "type": "object",
+  "required": ["schema_version", "target", "references"],
+  "properties": {
+    "schema_version": { "const": "2.187" },
+    "target": { "type": "object", "required": ["path", "role", "writable"] },
+    "references": { "type": "array" },
+    "orchestrator": { "type": "object" },
+    "validation_errors": { "type": "array" }
+  }
+}

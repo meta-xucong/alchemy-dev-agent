@@ -33,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--real-codex", action="store_true")
     parser.add_argument("--real-github", action="store_true")
     parser.add_argument("--codex-executable", default="codex")
+    parser.add_argument("--codex-model", default="")
     parser.add_argument("--max-worker-seconds", type=int, default=1800)
     parser.add_argument("--no-github-ci", action="store_true")
     parser.add_argument("--github-ci-wait-seconds", type=float, default=120.0)
@@ -50,6 +51,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--write-native-ui-tests", action="store_true")
     parser.add_argument("--auto-merge", action="store_true")
     parser.add_argument("--full-roadmap", action="store_true", help="Execute every required roadmap phase before final handoff.")
+    parser.add_argument(
+        "--legacy-unlocked",
+        action="store_true",
+        help="Use the advisory legacy planner for compatibility instead of V2.187 goal locking.",
+    )
+    parser.add_argument("--reference-repository-path", action="append", dest="reference_repository_paths", default=[])
     parser.add_argument("--max-phases", type=int, default=50)
     parser.add_argument("--boundary-mode", choices=["auto", "strict", "large_refactor"], default="auto")
     parser.add_argument("--preflight-only", action="store_true", help="Validate the unified run request without creating or executing a project.")
@@ -77,6 +84,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "prepare_repository": args.prepare_repository,
             "max_iterations": args.max_iterations,
             "codex_executable": args.codex_executable,
+            "codex_model": args.codex_model,
             "max_worker_seconds": args.max_worker_seconds,
             "github_collect_ci": not args.no_github_ci,
             "github_ci_wait_seconds": args.github_ci_wait_seconds,
@@ -94,6 +102,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "write_native_ui_tests": args.write_native_ui_tests,
             "auto_merge": args.auto_merge,
             "full_roadmap": args.full_roadmap,
+            "goal_locked_convergence": not args.legacy_unlocked,
+            "reference_repository_paths": args.reference_repository_paths,
             "max_phases": args.max_phases,
             "boundary_mode": args.boundary_mode,
             "constraints": args.constraints,

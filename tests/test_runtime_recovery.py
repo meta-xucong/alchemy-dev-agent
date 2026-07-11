@@ -103,6 +103,43 @@ class RuntimeRecoveryTests(unittest.TestCase):
         self.assertTrue(result.blockers)
         self.assertIn("No retryable", result.blockers[0])
 
+    def test_prepare_reconciles_completed_active_worker_from_directory(self) -> None:
+        root = temp_root()
+        graph = TaskGraphEngine().create_default_graph("objective")
+        graph.nodes[0].status = "active"
+        state = RuntimeState(
+            objective="objective",
+            task_graph=graph,
+            active_tasks=["T001"],
+        )
+        (root / "state.json").write_text(json.dumps(state.to_dict(), indent=2) + "\n", encoding="utf-8")
+        workers = root / "workers"
+        workers.mkdir()
+        (workers / "T001.json").write_text(
+            json.dumps(
+                {
+                    "task_id": "T001",
+                    "status": "completed",
+                    "returncode": 0,
+                    "worker_pid": 123,
+                    "cleanup_required": False,
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        source = RuntimeRecovery().load_source(root)
+        result = RuntimeRecovery().prepare(source)
+
+        self.assertFalse(result.blockers)
+        self.assertEqual(result.state.active_tasks, [])
+        self.assertEqual(result.state.completed_tasks, ["T001"])
+        self.assertEqual(result.state.task_graph.nodes[0].status, "completed")
+        self.assertEqual(result.checkpoint["reset_task_ids"], [])
+        self.assertEqual(result.checkpoint["reconciled_completed_task_ids"], ["T001"])
+
 
 def write_report(root: Path, state: RuntimeState) -> Path:
     report = root / "run.json"

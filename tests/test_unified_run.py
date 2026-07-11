@@ -238,6 +238,7 @@ class UnifiedRunTests(unittest.TestCase):
                     "--repository-path",
                     str(repo),
                     "--full-roadmap",
+                    "--legacy-unlocked",
                     "--output",
                     str(output),
                 ],

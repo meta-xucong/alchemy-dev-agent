@@ -14,7 +14,7 @@ class RoadmapAuditor:
         repaired = False
         if not plan.root_objective.strip():
             issues.append("Root objective is empty.")
-        if plan.completion_policy != "full_roadmap":
+        if plan.completion_policy not in {"full_roadmap", "goal_locked_full_roadmap"}:
             plan.completion_policy = "full_roadmap"
             repaired = True
         if not plan.phases:

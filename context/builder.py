@@ -82,6 +82,7 @@ class ContextBundleBuilder:
             lint_commands=repository_index.lint_commands if repository_index else [],
             coverage_unknown=repository_index.coverage_unknown if repository_index else True,
             scope_controls=scope_controls_payload(scope_controls),
+            goal_lock=goal_lock_from_constraints([str(item) for item in payload.get("constraints", [])]),
         )
 
     def _document_summary(
@@ -251,6 +252,28 @@ def scope_controls_payload(scope_controls: object | None) -> dict[str, object]:
         "protected_prefixes": list(getattr(scope_controls, "protected_prefixes", []) or []),
         "target_files": list(getattr(scope_controls, "target_files", []) or []),
         "boundary_mode": str(getattr(scope_controls, "boundary_mode", "strict") or "strict"),
+    }
+
+
+def goal_lock_from_constraints(constraints: list[str]) -> dict[str, object]:
+    revision = ""
+    artifact_dir = ""
+    enabled = False
+    for constraint in constraints:
+        lowered = constraint.lower()
+        if "goal-locked" in lowered or "goal_locked" in lowered:
+            enabled = True
+        if lowered.startswith("goal-locked objective revision:"):
+            revision = constraint.split(":", 1)[1].strip()
+        if lowered.startswith("goal-locked artifact directory:"):
+            artifact_dir = constraint.split(":", 1)[1].strip()
+    if not enabled:
+        return {}
+    return {
+        "mode": "goal_locked_convergence",
+        "objective_contract_revision": revision,
+        "artifact_dir": artifact_dir,
+        "legacy_unlocked": False,
     }
 
 

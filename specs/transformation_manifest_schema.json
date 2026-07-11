@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "V2.187 Transformation Manifest",
+  "type": "object",
+  "required": ["schema_version", "items"],
+  "properties": {
+    "schema_version": { "const": "2.187" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "requirements", "domain", "action", "expected_final_state", "verification"],
+        "properties": {
+          "action": {
+            "enum": ["add", "modify", "delete", "transplant", "regenerate", "rename_with_semantic_change", "archive", "inspect", "verify", "waive"]
+          }
+        }
+      }
+    }
+  }
+}

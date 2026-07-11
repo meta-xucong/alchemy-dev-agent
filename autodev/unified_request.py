@@ -34,6 +34,7 @@ class AutoDevRunRequest:
     prepare_repository: bool = False
     max_iterations: int = 50
     codex_executable: str = "codex"
+    codex_model: str = ""
     max_worker_seconds: int = 0
     github_collect_ci: bool = True
     github_ci_wait_seconds: float = 120.0
@@ -51,6 +52,8 @@ class AutoDevRunRequest:
     write_native_ui_tests: bool = False
     auto_merge: bool = False
     full_roadmap: bool = False
+    goal_locked_convergence: bool = True
+    reference_repository_paths: tuple[str, ...] = ()
     max_phases: int = 50
     boundary_mode: str = "auto"
     constraints: tuple[str, ...] = ()
@@ -95,6 +98,9 @@ class AutoDevRunRequest:
         attachments = _string_tuple(payload.get("attachments", payload.get("attachment", source.get("attachments", ()))))
         resume_tasks = _string_tuple(payload.get("resume_tasks", payload.get("resume_task", execution.get("resume_tasks", ()))))
         feedback_files = _string_tuple(payload.get("feedback_files", payload.get("feedback_file", ())))
+        reference_repository_paths = _string_tuple(
+            payload.get("reference_repository_paths", payload.get("reference_repository_path", ()))
+        )
         constraints = _string_tuple(payload.get("constraints", ()))
         boundary_mode = str(payload.get("boundary_mode", execution.get("boundary_mode", "auto")) or "auto")
         acceptance = _string_tuple(payload.get("acceptance_criteria", payload.get("acceptance", ())))
@@ -116,6 +122,7 @@ class AutoDevRunRequest:
             prepare_repository=_bool(payload.get("prepare_repository", source.get("prepare_repository")), False),
             max_iterations=_int(payload.get("max_iterations", execution.get("max_iterations")), 50),
             codex_executable=str(payload.get("codex_executable", execution.get("codex_executable", "codex")) or "codex"),
+            codex_model=str(payload.get("codex_model", execution.get("codex_model", "")) or ""),
             max_worker_seconds=_int(payload.get("max_worker_seconds", execution.get("max_worker_seconds")), 0),
             github_collect_ci=_bool(payload.get("github_collect_ci", verification.get("github_collect_ci")), True),
             github_ci_wait_seconds=_float(payload.get("github_ci_wait_seconds", verification.get("github_ci_wait_seconds")), 120.0),
@@ -139,6 +146,11 @@ class AutoDevRunRequest:
             write_native_ui_tests=_bool(payload.get("write_native_ui_tests", verification.get("write_native_ui_tests")), False),
             auto_merge=_bool(payload.get("auto_merge", delivery.get("auto_merge")), False),
             full_roadmap=_bool(payload.get("full_roadmap", execution.get("full_roadmap")), False),
+            goal_locked_convergence=_bool(
+                payload.get("goal_locked_convergence", execution.get("goal_locked_convergence")),
+                True,
+            ),
+            reference_repository_paths=reference_repository_paths,
             max_phases=_int(payload.get("max_phases", execution.get("max_phases")), 50),
             boundary_mode=boundary_mode,
             constraints=constraints,
@@ -172,6 +184,7 @@ class AutoDevRunRequest:
             prepare_repository=self.prepare_repository,
             max_iterations=self.max_iterations,
             codex_executable=self.codex_executable,
+            codex_model=self.codex_model,
             max_worker_seconds=self.max_worker_seconds,
             github_collect_ci=self.github_collect_ci,
             github_ci_wait_seconds=self.github_ci_wait_seconds,
@@ -189,6 +202,8 @@ class AutoDevRunRequest:
             write_native_ui_tests=self.write_native_ui_tests,
             auto_merge=self.auto_merge,
             full_roadmap=self.full_roadmap,
+            goal_locked_convergence=self.goal_locked_convergence,
+            reference_repository_paths=self.reference_repository_paths,
             max_phases=self.max_phases,
             boundary_mode=boundary_mode,
             constraints=self.constraints,
@@ -234,6 +249,9 @@ class AutoDevRunRequest:
         for path in self.feedback_files:
             if not Path(path).exists():
                 errors.append(f"Feedback file path does not exist: {path}")
+        for path in self.reference_repository_paths:
+            if not Path(path).is_dir():
+                errors.append(f"Reference repository path does not exist or is not a directory: {path}")
         repository_path_is_checkout_target = bool(self.repository_url and self.prepare_repository)
         if self.repository_path and not repository_path_is_checkout_target and not Path(self.repository_path).exists():
             errors.append(f"Repository path does not exist: {self.repository_path}")
@@ -268,6 +286,7 @@ class AutoDevRunRequest:
             "real_codex": self.real_codex,
             "real_github": self.real_github,
             "codex_executable": self.codex_executable,
+            "codex_model": self.codex_model,
             "max_worker_seconds": self.max_worker_seconds,
             "github_collect_ci": self.github_collect_ci,
             "github_ci_wait_seconds": self.github_ci_wait_seconds,
@@ -285,9 +304,12 @@ class AutoDevRunRequest:
             "write_native_ui_tests": self.write_native_ui_tests,
             "auto_merge": self.auto_merge,
             "full_roadmap": self.full_roadmap,
+            "goal_locked_convergence": self.goal_locked_convergence,
+            "reference_repository_paths": list(self.reference_repository_paths),
             "max_phases": self.max_phases,
             "boundary_mode": self.boundary_mode,
             "constraints": list(self.document_run_constraints()),
+            "acceptance_criteria": list(self.acceptance_criteria),
         }
 
     def to_document_run_kwargs(self) -> dict[str, Any]:
@@ -305,6 +327,7 @@ class AutoDevRunRequest:
             "real_codex": self.real_codex,
             "real_github": self.real_github,
             "codex_executable": self.codex_executable,
+            "codex_model": self.codex_model,
             "max_worker_seconds": self.max_worker_seconds,
             "github_collect_ci": self.github_collect_ci,
             "github_ci_wait_seconds": self.github_ci_wait_seconds,
@@ -339,6 +362,7 @@ class AutoDevRunRequest:
             "prepare_repository": self.prepare_repository,
             "max_iterations": self.max_iterations,
             "codex_executable": self.codex_executable,
+            "codex_model": self.codex_model,
             "max_worker_seconds": self.max_worker_seconds,
             "github_collect_ci": self.github_collect_ci,
             "github_ci_wait_seconds": self.github_ci_wait_seconds,
@@ -356,6 +380,8 @@ class AutoDevRunRequest:
             "write_native_ui_tests": self.write_native_ui_tests,
             "auto_merge": self.auto_merge,
             "full_roadmap": self.full_roadmap,
+            "goal_locked_convergence": self.goal_locked_convergence,
+            "reference_repository_paths": list(self.reference_repository_paths),
             "max_phases": self.max_phases,
             "boundary_mode": self.boundary_mode,
             "constraints": list(self.constraints),

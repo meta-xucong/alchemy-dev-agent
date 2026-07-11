@@ -23,6 +23,13 @@ from .final_verification_loop import (
     write_final_verification_document,
 )
 from .generated_development_package import GeneratedDevelopmentPackage
+from .goal_locked_run import (
+    GOAL_LOCKED_SCHEMA_VERSION,
+    GoalLockedBootstrap,
+    GoalLockedRunCoordinator,
+    goal_locked_enabled,
+    reference_paths_from_payload,
+)
 from .phase_promotion import next_ready_phase, phase_promotion_decision
 from .project_analysis_gate import ProjectAnalysisGate, write_project_analysis_report
 from .roadmap_auditor import RoadmapAuditor
@@ -82,6 +89,7 @@ class FullRoadmapExecutionResult:
     final_audit: dict[str, object] = field(default_factory=dict)
     final_verification_worker: dict[str, object] = field(default_factory=dict)
     generated_development_package: dict[str, object] = field(default_factory=dict)
+    goal_locked: dict[str, object] = field(default_factory=dict)
     output_dir: str = ""
     blockers: list[str] = field(default_factory=list)
 
@@ -96,6 +104,7 @@ class FullRoadmapExecutionResult:
             "final_audit": dict(self.final_audit),
             "final_verification_worker": dict(self.final_verification_worker),
             "generated_development_package": dict(self.generated_development_package),
+            "goal_locked": dict(self.goal_locked),
             "output_dir": self.output_dir,
             "blockers": list(self.blockers),
         }
@@ -131,6 +140,14 @@ class FullRoadmapExecutor:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
         run_payload = dict(run_payload or {})
+        use_goal_locked = goal_locked_enabled(run_payload)
+        goal_coordinator = GoalLockedRunCoordinator(output) if use_goal_locked else None
+        goal_bootstrap: GoalLockedBootstrap | None = None
+        goal_locked_report: dict[str, object] = {
+            "enabled": use_goal_locked,
+            "mode": "goal_locked_convergence" if use_goal_locked else "legacy_unlocked",
+            "status": "initializing" if use_goal_locked else "advisory",
+        }
         max_phase_repair_attempts = max(0, int(run_payload.get("max_phase_repair_attempts", 2) or 0))
         generated_package: dict[str, object] = {}
         source_mode = source_mode_for(primary_input_mode, repository_url=repository_url, repository_path=repository_path)
@@ -154,7 +171,29 @@ class FullRoadmapExecutor:
                 generated_development_package=generated_package,
                 phase_records=phase_records,
                 active_phase=None,
+                goal_locked=goal_locked_report,
             )
+            if use_goal_locked:
+                goal_bootstrap, goal_locked_report = self._bootstrap_goal_locked(
+                    coordinator=goal_coordinator,
+                    objective=objective,
+                    documents=[*roadmap_documents, *attachments],
+                    repository_path=repository_path,
+                    run_payload=run_payload,
+                    resume=True,
+                )
+                if goal_bootstrap:
+                    run_payload["goal_locked_objective_revision"] = goal_bootstrap.contract.revision
+                    run_payload["goal_locked_artifact_dir"] = goal_bootstrap.artifact_dir
+                if plan.schema_version != GOAL_LOCKED_SCHEMA_VERSION:
+                    goal_locked_report = {
+                        **goal_locked_report,
+                        "status": "blocked",
+                        "validation_errors": [
+                            *[str(item) for item in goal_locked_report.get("validation_errors", [])],
+                            "Cannot resume a legacy unlocked roadmap as goal-locked; start a new goal-locked run.",
+                        ],
+                    }
         else:
             roadmap_documents = list(documents)
             if not roadmap_documents and primary_input_mode in {"one_line_fallback", "document_driven"}:
@@ -187,12 +226,41 @@ class FullRoadmapExecutor:
                     "allow_destructive_actions": False,
                 },
             )
+            if use_goal_locked:
+                goal_bootstrap, goal_locked_report = self._bootstrap_goal_locked(
+                    coordinator=goal_coordinator,
+                    objective=objective,
+                    documents=[*roadmap_documents, *attachments],
+                    repository_path=repository_path,
+                    run_payload=run_payload,
+                    resume=False,
+                )
+                if goal_bootstrap:
+                    run_payload["goal_locked_objective_revision"] = goal_bootstrap.contract.revision
+                    run_payload["goal_locked_artifact_dir"] = goal_bootstrap.artifact_dir
+                if goal_bootstrap and goal_bootstrap.ready:
+                    plan = goal_coordinator.build_plan(plan, goal_bootstrap)
             plan, audit = RoadmapAuditor().audit_and_repair(plan)
             audit_payload = audit.to_dict()
             write_json(output / "roadmap_execution_plan.json", plan.to_dict())
             write_json(output / "roadmap_audit.json", audit_payload)
             analysis_payload = {}
             phase_records = []
+        if use_goal_locked and goal_locked_report.get("status") == "blocked":
+            blockers = [str(item) for item in goal_locked_report.get("validation_errors", []) if str(item)]
+            result = FullRoadmapExecutionResult(
+                status="blocked",
+                roadmap=plan.to_dict(),
+                roadmap_audit=audit_payload,
+                project_analysis=analysis_payload,
+                document_expansion=document_expansion_payload,
+                generated_development_package=generated_package,
+                goal_locked=goal_locked_report,
+                output_dir=str(output),
+                blockers=blockers or ["Goal-locked bootstrap failed."],
+            )
+            write_json(output / "full_roadmap_report.json", result.to_dict())
+            return result
         if audit_payload.get("status") != "passed":
             result = FullRoadmapExecutionResult(
                 status="blocked",
@@ -201,6 +269,7 @@ class FullRoadmapExecutor:
                 project_analysis={},
                 document_expansion=document_expansion_payload,
                 generated_development_package=generated_package,
+                goal_locked=goal_locked_report,
                 output_dir=str(output),
                 blockers=[str(item) for item in audit_payload.get("issues", [])],
             )
@@ -226,6 +295,7 @@ class FullRoadmapExecutor:
                 project_analysis=analysis_payload,
                 document_expansion=document_expansion_payload,
                 generated_development_package=generated_package,
+                goal_locked=goal_locked_report,
                 output_dir=str(output),
                 blockers=blockers or ["Project analysis gate did not allow development to start."],
             )
@@ -262,6 +332,7 @@ class FullRoadmapExecutor:
                     generated_development_package=generated_package,
                     phase_records=phase_records,
                     active_phase=None,
+                    goal_locked=goal_locked_report,
                 )
                 continue
             write_running_report(
@@ -273,6 +344,7 @@ class FullRoadmapExecutor:
                 generated_development_package=generated_package,
                 phase_records=phase_records,
                 active_phase=phase,
+                goal_locked=goal_locked_report,
             )
             phase_document = write_phase_document(
                 phase_dir / "phase_requirements.md",
@@ -338,6 +410,15 @@ class FullRoadmapExecutor:
                     "promotion": promotion,
                     "status": "done" if promotion["can_promote"] else "blocked",
                 }
+                convergence_decision: dict[str, object] = {}
+                if goal_coordinator and goal_bootstrap and not promotion["can_promote"]:
+                    convergence_decision = goal_coordinator.diagnose_phase_failure(
+                        bootstrap=goal_bootstrap,
+                        phase=phase,
+                        repository_path=result_repository_path(phase_payload) or effective_repository_path,
+                        phase_payload=phase_payload,
+                    )
+                    attempt_record["convergence_decision"] = convergence_decision
                 if interrupted_resume.resume_from is not None:
                     attempt_record["resume_from"] = str(interrupted_resume.resume_from)
                 attempt_records.append(attempt_record)
@@ -345,6 +426,13 @@ class FullRoadmapExecutor:
                 if promotion["can_promote"]:
                     phase.status = "completed"
                     record_status = "done"
+                    break
+                if convergence_decision.get("action") in {"environment_repair", "strategy_backtrack"}:
+                    phase.status = "blocked"
+                    blockers.append(
+                        f"Goal-locked convergence selected {convergence_decision.get('action')}: "
+                        f"{convergence_decision.get('reason', '')}"
+                    )
                     break
                 if phase_has_worker_timeout_stop_boundary(phase_payload):
                     phase.status = "blocked"
@@ -399,6 +487,32 @@ class FullRoadmapExecutor:
                 },
             )
             phase_records.append(record)
+            if goal_coordinator and goal_bootstrap and record_status == "done":
+                proof_repository_path = phase_repository_path(
+                    repository_path,
+                    phase_records,
+                    run_payload=run_payload,
+                )
+                phase_proof = goal_coordinator.record_phase(
+                    phase=phase,
+                    phase_record=record.to_dict(),
+                    repository_path=proof_repository_path,
+                )
+                record.promotion["goal_locked_proof"] = {
+                    "repository_fingerprint": phase_proof["repository_fingerprint"],
+                    "requirement_ids": phase_proof["requirement_ids"],
+                    "transformation_ids": phase_proof["transformation_ids"],
+                    "changed_files": phase_proof["changed_files"],
+                }
+                phase_proof_blockers = [
+                    *[str(item) for item in phase_proof.get("reference_drift", [])],
+                    *[str(item) for item in phase_proof.get("proof_gaps", [])],
+                ]
+                if phase_proof_blockers:
+                    record_status = "blocked"
+                    record.status = "blocked"
+                    phase.status = "blocked"
+                    blockers.extend(phase_proof_blockers)
             write_json(phase_dir / "phase_record.json", record.to_dict())
             write_json(output / "roadmap_execution_plan.json", plan.to_dict())
             write_running_report(
@@ -410,6 +524,7 @@ class FullRoadmapExecutor:
                 generated_development_package=generated_package,
                 phase_records=phase_records,
                 active_phase=None,
+                goal_locked=goal_locked_report,
             )
             if record_status != "done":
                 break
@@ -432,6 +547,21 @@ class FullRoadmapExecutor:
                 run_payload=run_payload,
             )
 
+        if goal_coordinator and goal_bootstrap:
+            final_repository_path = phase_repository_path(
+                repository_path,
+                phase_records,
+                run_payload=run_payload,
+            )
+            goal_locked_report = goal_coordinator.finalize(
+                bootstrap=goal_bootstrap,
+                plan=plan,
+                phase_records=phase_records,
+                final_worker=final_verification_worker,
+                repository_path=final_repository_path,
+                waivers=[dict(item) for item in run_payload.get("goal_locked_waivers", []) if isinstance(item, dict)],
+            )
+
         final_audit = FinalSystemAudit().audit(
             plan,
             phase_records,
@@ -441,6 +571,7 @@ class FullRoadmapExecutor:
         result_blockers = dedupe_strings(
             [
                 *blockers,
+                *[str(item) for item in goal_locked_report.get("blockers", []) if str(item)],
                 *[
                     str(item)
                     for item in final_audit.get("blockers", [])
@@ -459,11 +590,43 @@ class FullRoadmapExecutor:
             final_audit=final_audit,
             final_verification_worker=final_verification_worker,
             generated_development_package=generated_package,
+            goal_locked=goal_locked_report,
             output_dir=str(output),
             blockers=result_blockers,
         )
         write_json(output / "full_roadmap_report.json", result.to_dict())
         return result
+
+    def _bootstrap_goal_locked(
+        self,
+        *,
+        coordinator: GoalLockedRunCoordinator | None,
+        objective: str,
+        documents: Sequence[str | Path],
+        repository_path: str | Path | None,
+        run_payload: dict[str, Any],
+        resume: bool,
+    ) -> tuple[GoalLockedBootstrap | None, dict[str, object]]:
+        if coordinator is None:
+            return None, {"enabled": False, "mode": "legacy_unlocked", "status": "advisory"}
+        if repository_path is None or not Path(repository_path).is_dir():
+            return None, {
+                "enabled": True,
+                "mode": "goal_locked_convergence",
+                "status": "blocked",
+                "validation_errors": [
+                    "Goal-locked execution requires an existing local target repository path for semantic inventory."
+                ],
+            }
+        bootstrap = coordinator.bootstrap(
+            objective=objective,
+            documents=documents,
+            repository_path=repository_path,
+            reference_paths=reference_paths_from_payload(run_payload),
+            acceptance_criteria=[str(item) for item in run_payload.get("acceptance_criteria", []) if str(item)],
+            resume=resume,
+        )
+        return bootstrap, bootstrap.report()
 
     def _run_phase(
         self,
@@ -493,6 +656,7 @@ class FullRoadmapExecutor:
             real_codex=bool(run_payload.get("real_codex", False)),
             real_github=bool(run_payload.get("real_github", False)),
             codex_executable=str(run_payload.get("codex_executable", "codex")),
+            codex_model=str(run_payload.get("codex_model", "")),
             max_worker_seconds=int(run_payload.get("max_worker_seconds", 0) or 0),
             github_collect_ci=bool(run_payload.get("github_collect_ci", True)),
             github_ci_wait_seconds=float(run_payload.get("github_ci_wait_seconds", 120)),
@@ -559,8 +723,36 @@ class FullRoadmapExecutor:
         final_run_payload["max_iterations"] = max(int(final_run_payload.get("max_iterations", 0) or 0), 24)
         first_attempt_index = next_final_verification_attempt_index(output_dir)
         for attempt_offset in range(max_attempts):
-            attempt_index = first_attempt_index + attempt_offset
-            attempt_dir = output_dir / f"run_attempt_{attempt_index:03d}"
+            interrupted_resume = interrupted_phase_resume_source(output_dir)
+            if interrupted_resume.blockers:
+                payload = {
+                    "status": "blocked",
+                    "blockers": list(interrupted_resume.blockers),
+                    "runtime_state": {"done": False, "blockers": list(interrupted_resume.blockers)},
+                }
+                promotion = {
+                    "can_promote": False,
+                    "phase_id": final_phase.phase_id,
+                    "status": "blocked",
+                    "reasons": list(interrupted_resume.blockers),
+                    "score": 0.0,
+                    "required_score": float(final_phase.promotion_gate.get("required_score", 0.85) or 0.85),
+                }
+                attempts.append(
+                    {
+                        "attempt": first_attempt_index + attempt_offset,
+                        "output_dir": str(interrupted_resume.active_run_dir or output_dir),
+                        "promotion": promotion,
+                        "status": "blocked",
+                    }
+                )
+                break
+            if interrupted_resume.resume_from is not None:
+                attempt_dir = interrupted_resume.resume_from
+                attempt_index = _phase_run_sort_key(attempt_dir)[0]
+            else:
+                attempt_index = first_attempt_index + attempt_offset
+                attempt_dir = output_dir / f"run_attempt_{attempt_index:03d}"
             payload_result = self._run_phase(
                 objective=(
                     f"{objective}\n\n"
@@ -573,6 +765,7 @@ class FullRoadmapExecutor:
                 repository_path=effective_repository_path,
                 repository_visibility=repository_visibility,
                 output_dir=attempt_dir,
+                resume_from=interrupted_resume.resume_from,
                 run_payload=final_run_payload,
             )
             payload = payload_result.to_dict() if hasattr(payload_result, "to_dict") else dict(payload_result)
@@ -586,6 +779,8 @@ class FullRoadmapExecutor:
             }
             if non_partial_stop:
                 attempt_record["stop_boundary"] = "non_partial_blocker"
+            if interrupted_resume.resume_from is not None:
+                attempt_record["resume_from"] = str(interrupted_resume.resume_from)
             attempts.append(attempt_record)
             write_json(output_dir / f"attempt_{attempt_index:03d}.json", attempt_record)
             if promotion["can_promote"]:
@@ -764,6 +959,20 @@ def phase_run_payload(
 ) -> dict[str, Any]:
     payload = dict(run_payload)
     constraints = list(payload.get("constraints", []) or [])
+    if goal_locked_enabled(payload):
+        constraints.extend(
+            [
+                "Goal-locked convergence is active: the phase requirement IDs and expected final state are immutable.",
+                f"Goal-locked objective revision: {payload.get('goal_locked_objective_revision', '')}",
+                f"Goal-locked artifact directory: {payload.get('goal_locked_artifact_dir', '')}",
+                "Do not replace deletion with hiding, route unregistration, renaming, compatibility shims, or weakened tests.",
+                "Task completion is provisional until independent inventory and proof verification pass.",
+                *[
+                    f"Read-only reference repository: {path}"
+                    for path in reference_paths_from_payload(payload)
+                ],
+            ]
+        )
     boundary_mode = str(payload.get("boundary_mode", "auto") or "auto")
     if is_schema_build_phase(phase):
         payload["max_iterations"] = max(int(payload.get("max_iterations", 50) or 0), 8)
@@ -1482,7 +1691,7 @@ def phase_verification_issue_lines(result: dict[str, object]) -> list[str]:
     nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
     lines: list[str] = []
     for node in nodes:
-        if str(node.get("type", "")).lower() not in {"test", "review"}:
+        if str(node.get("type", "")).lower() not in {"test", "review"} and not final_verification_gate_task_node(node):
             continue
         worker_result = latest_worker_result_from_task(node)
         if not worker_result_has_repair_issue(worker_result):
@@ -1524,6 +1733,8 @@ def worker_result_has_repair_issue(worker_result: dict[str, object]) -> bool:
         if isinstance(command, dict) and int_or_zero(command.get("exit_code")) != 0:
             return True
     status = str(worker_result.get("status", "")).lower()
+    if status == "partial":
+        return True
     if status in REPAIR_WORKER_STATUSES:
         return True
     if status not in SUCCESSFUL_WORKER_STATUSES and (
@@ -1581,17 +1792,22 @@ def repair_issue_target_paths(node: dict[str, object], worker_result: dict[str, 
     for command in _list(worker_result.get("commands_run")):
         if not isinstance(command, dict):
             continue
+        if int_or_zero(command.get("exit_code")) == 0:
+            continue
         texts.extend(
             str(command.get(key, "") or "")
             for key in ("command", "summary", "stderr", "stdout")
             if str(command.get(key, "") or "")
         )
-    texts.extend(str(item) for item in _list(node.get("relevant_files")))
-    return dedupe_strings(
+    if not final_verification_gate_task_node(node):
+        texts.extend(str(item) for item in _list(node.get("relevant_files")))
+    paths = repair_result_target_path_hints(texts)
+    paths.extend(
         normalize_repair_path(match.group("path"))
         for text in texts
         for match in REPAIR_EVIDENCE_PATH_PATTERN.finditer(text)
-    )[:12]
+    )
+    return dedupe_strings(paths)[:12]
 
 
 def normalize_repair_path(path: str) -> str:
@@ -1616,6 +1832,7 @@ def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[obj
         focus_task_ids,
         protected_dependency_focus_task_ids=debug_parent_focus_ids,
     )
+    completed_task_ids = exclude_final_verification_gate_task_ids(nodes, completed_task_ids)
     lines = ["", "## Focused Repair Scope", ""]
     if focus_task_ids:
         lines.append(f"- Primary failed task IDs: {', '.join(focus_task_ids)}.")
@@ -1633,6 +1850,10 @@ def phase_focused_repair_lines(result: dict[str, object], blockers: Sequence[obj
             lines.append(f"- Focused timeout task titles: {'; '.join(timeout_titles)}.")
     if completed_task_ids:
         lines.append(f"- Completed tasks to preserve: {', '.join(completed_task_ids)}.")
+        for task_id in completed_task_ids:
+            title = str(nodes_by_id.get(task_id, {}).get("title", "")).strip()
+            if title:
+                lines.append(f"- Task {task_id} - {title} was completed and should be preserved.")
     deep_tail_ids = final_frontend_deep_tail_task_ids(nodes)
     if deep_tail_ids:
         lines.append(f"- Preserve final frontend split tail graph shape: {', '.join(deep_tail_ids)}.")
@@ -1664,6 +1885,31 @@ def final_frontend_deep_tail_task_ids(nodes: Sequence[dict[str, object]]) -> lis
     if all(expected in titles_by_id.get(task_id, "") for task_id, expected in expected_titles.items()):
         return list(expected_titles)
     return []
+
+
+def exclude_final_verification_gate_task_ids(
+    nodes: Sequence[dict[str, object]],
+    task_ids: Sequence[str],
+) -> list[str]:
+    gate_ids = {
+        str(node.get("id", "") or "")
+        for node in nodes
+        if final_verification_gate_task_node(node)
+    }
+    if not gate_ids:
+        return list(task_ids)
+    return [task_id for task_id in task_ids if str(task_id) not in gate_ids]
+
+
+def final_verification_gate_task_node(node: dict[str, object]) -> bool:
+    title = str(node.get("title", "") or "").lower()
+    gate_title_markers = (
+        "audit final requirements",
+        "run final simulation probes",
+        "run final real repository checks",
+        "review final handoff markers",
+    )
+    return any(marker in title for marker in gate_title_markers)
 
 
 def repair_focus_task_ids(blockers: Sequence[object], nodes: Sequence[dict[str, object]]) -> list[str]:
@@ -1844,7 +2090,7 @@ def repair_completed_task_ids_to_reopen(
         return set()
     task_nodes = [dict(node) for node in nodes]
     nodes_by_id = {str(node.get("id", "") or ""): node for node in task_nodes}
-    target_paths = unresolved_repair_target_paths(task_nodes)
+    target_paths = repair_reopen_target_paths(unresolved_repair_target_paths(task_nodes))
     if not target_paths:
         return set()
     reopen_ids: set[str] = set()
@@ -1857,6 +2103,24 @@ def repair_completed_task_ids_to_reopen(
     return reopen_ids
 
 
+def repair_reopen_target_paths(paths: Sequence[str]) -> list[str]:
+    ignored_exact = {
+        "frontend/package.json",
+        "frontend/pnpm-lock.yaml",
+        "frontend/package-lock.json",
+        "frontend/yarn.lock",
+        "package.json",
+        "pnpm-lock.yaml",
+        "phase_record.json",
+        "final_verification_worker_report.json",
+    }
+    return [
+        path
+        for path in dedupe_strings(paths)
+        if normalize_repair_path(path).lower() not in ignored_exact
+    ]
+
+
 def unresolved_repair_target_paths(nodes: Sequence[dict[str, object]]) -> list[str]:
     target_paths: list[str] = []
     unresolved_statuses = {"failed", "blocked", "timed_out", "cancelled"}
@@ -1865,10 +2129,12 @@ def unresolved_repair_target_paths(nodes: Sequence[dict[str, object]]) -> list[s
         worker_result = latest_worker_result_from_task(node)
         if not worker_result:
             continue
-        if repair_worker_result_is_boundary_violation(worker_result):
-            continue
         worker_status = str(worker_result.get("status", "") or "").lower()
-        if status not in unresolved_statuses and worker_status not in REPAIR_WORKER_STATUSES:
+        gate_failure = repair_worker_result_has_final_gate_failure(worker_result)
+        if status not in unresolved_statuses and worker_status not in REPAIR_WORKER_STATUSES and not gate_failure:
+            continue
+        if repair_worker_result_is_boundary_violation(worker_result) and not gate_failure:
+            target_paths.extend(repair_worker_result_changed_paths(worker_result))
             continue
         target_paths.extend(repair_result_target_paths(worker_result, include_raw_output=False))
     return dedupe_strings(target_paths)
@@ -1881,10 +2147,34 @@ def repair_worker_result_is_boundary_violation(worker_result: dict[str, object])
         for marker in (
             "modified files outside allowed_files",
             "modified files outside the task boundary",
-            "outside allowed_files",
-            "outside the task boundary",
             "out-of-scope files changed",
         )
+    )
+
+
+def repair_worker_result_has_final_gate_failure(worker_result: dict[str, object]) -> bool:
+    text = json.dumps(worker_result, ensure_ascii=False).lower()
+    return any(
+        marker in text
+        for marker in (
+            "final_audit_status=fail",
+            "final_audit_status: fail",
+            "simulation_test_status=fail",
+            "simulation_test_status: fail",
+            "real_test_status=fail",
+            "real_test_status: fail",
+            "final_audit_status is failed",
+            "simulation_test_status is failed",
+            "real_test_status is failed",
+        )
+    )
+
+
+def repair_worker_result_changed_paths(worker_result: dict[str, object]) -> list[str]:
+    return dedupe_strings(
+        normalize_repair_path(str(item))
+        for item in _list(worker_result.get("files_changed"))
+        if normalize_repair_path(str(item))
     )
 
 
@@ -1917,18 +2207,56 @@ def repair_result_target_paths(
                 for key in ("command", "summary", "stderr", "stdout")
                 if str(command.get(key, "") or "")
             )
-    paths = [
+    paths = repair_result_target_path_hints(texts)
+    paths.extend(
         normalize_repair_path(match.group("path"))
         for text in texts
         for match in REPAIR_EVIDENCE_PATH_PATTERN.finditer(text)
-    ]
-    paths.extend(repair_result_target_path_hints(texts))
+    )
     return dedupe_strings(paths)[:16]
 
 
 def repair_result_target_path_hints(texts: Sequence[str]) -> list[str]:
     joined = "\n".join(texts).lower()
     hints: list[str] = []
+    if "embed_on.go" in joined or ("backend/internal/web" in joined and "ai api gateway" in joined):
+        hints.extend(
+            [
+                "backend/internal/web/embed_on.go",
+                "backend/internal/web/embed_test.go",
+            ]
+        )
+    embedded_runtime_already_resolved = any(
+        marker in joined
+        for marker in (
+            "previous embedded",
+            "portal_dist/app.js blocker now pass",
+            "0 hits for sub2api-console",
+            "stale route-key issue is resolved",
+        )
+    )
+    if ("portal_dist" in joined or "veyra portal" in joined) and not embedded_runtime_already_resolved:
+        hints.extend(
+            [
+                "backend/internal/veyra/portal_dist/index.html",
+                "backend/internal/veyra/portal_dist/mobile.html",
+                "backend/internal/veyra/portal_dist/app.js",
+                "extensions/veyra/portal/**",
+            ]
+        )
+    if (
+        "backend/internal/veyra/intent.go" in joined
+        or "portalintentsub2api" in joined
+        or "sub2api-admin" in joined
+        or "sec-websocket-protocol" in joined
+    ):
+        hints.extend(
+            [
+                "backend/internal/veyra/intent.go",
+                "backend/internal/veyra/ticket_test.go",
+                "backend/internal/server/middleware/admin_auth.go",
+            ]
+        )
     if "accounttypeupstream" in joined or "account_data.go" in joined:
         hints.extend(
             [
@@ -1942,10 +2270,36 @@ def repair_result_target_path_hints(texts: Sequence[str]) -> list[str]:
         hints.extend(
             [
                 "frontend/src/router/index.ts",
-                "frontend/src/api/admin/ops.ts",
-                "frontend/src/views/admin/ops/**",
+                "frontend/src/components/layout/AppSidebar.vue",
             ]
         )
+    if "frontend/src/api/admin/ops.ts" in joined or "admin ops api" in joined or "ops api service" in joined:
+        hints.append("frontend/src/api/admin/ops.ts")
+    if "frontend/src/views/admin/ops" in joined or "opsdashboardheader.vue" in joined or "opssettingsdialog.spec.ts" in joined:
+        hints.append("frontend/src/views/admin/ops/**")
+    if "appsidebar.vue" in joined:
+        hints.append("frontend/src/components/layout/AppSidebar.vue")
+    if "opsdashboardheader.vue" in joined:
+        hints.append("frontend/src/views/admin/ops/components/OpsDashboardHeader.vue")
+    if "legacyadminroutes" in joined:
+        hints.append("frontend/src/views/admin/__tests__/legacyAdminRoutes.spec.ts")
+    if (
+        "crm-billing-core-contracts.spec.ts" in joined
+        or "catalog_item_id" in joined
+        or "balance-order checkout" in joined
+        or "payment-order normalization" in joined
+        or "resolved public-order" in joined
+    ):
+        hints.extend(
+            [
+                "frontend/src/api/payment.ts",
+                "frontend/src/api/__tests__/crm-billing-core-contracts.spec.ts",
+            ]
+        )
+    if "opssettingsdialog.spec.ts" in joined:
+        hints.append("frontend/src/views/admin/ops/components/__tests__/OpsSettingsDialog.spec.ts")
+    if "usenavigationloadingstate" in joined:
+        hints.append("frontend/src/router/index.ts")
     if "usagetable" in joined or "image usage tooltip" in joined:
         hints.extend(
             [
@@ -1953,6 +2307,14 @@ def repair_result_target_path_hints(texts: Sequence[str]) -> list[str]:
                 "frontend/src/components/admin/usage/__tests__/UsageTable.spec.ts",
             ]
         )
+    if "usetableselection" in joined:
+        hints.append("frontend/src/composables/useTableSelection.ts")
+    if "upstream_endpoints" in joined or "usageview.vue" in joined:
+        hints.append("frontend/src/views/admin/UsageView.vue")
+    if "settingsview.vue" in joined:
+        hints.append("frontend/src/views/admin/SettingsView.vue")
+    if "userordersview.vue" in joined or "incompatible function cast" in joined:
+        hints.append("frontend/src/views/user/UserOrdersView.vue")
     return hints
 
 
@@ -2063,9 +2425,45 @@ def repair_task_focus_lines(task_id: str, task: dict[str, object]) -> list[str]:
             lines.append(
                 "- Timeout note: preserve the last evidence and split this workflow before increasing the hard timeout."
             )
+            split_lines = timeout_split_focus_lines(task)
+            if split_lines:
+                lines.extend(split_lines)
     else:
         lines.append("- Worker result: none recorded for this task; inspect task evidence before widening scope.")
     return lines
+
+
+def timeout_split_focus_lines(task: dict[str, object]) -> list[str]:
+    title = str(task.get("title", "") or "").lower()
+    relevant = "\n".join(str(item) for item in _list(task.get("relevant_files"))).lower()
+    if (
+        "component and composable test" in title
+        or (
+            "test contract" in title
+            and "frontend/src/components" in relevant
+            and "frontend/src/composables" in relevant
+        )
+    ):
+        return [
+            "- Timeout split required: do not replay the combined component/composable test repair as one worker.",
+            "- Split into one worker for frontend/src/components/**/__tests__ and component *.spec files.",
+            "- Split into one worker for frontend/src/composables/**/__tests__ and composable *.spec files.",
+        ]
+    if "routes views and tests" in title:
+        return [
+            "- Timeout split required: do not replay the combined route/view/component/state/test repair as one worker.",
+            "- Split into one worker for frontend/src/router/** and frontend/src/components/layout/**.",
+            "- Split into one worker for frontend/src/views/** and frontend/src/components/**.",
+            "- Split into one worker for frontend/src/stores/**, frontend/src/composables/**, and frontend/src/utils/**.",
+            "- Split into one worker for frontend/src/tests/** and frontend/tests/**.",
+        ]
+    if "admin settings legacy surface" in title:
+        return [
+            "- Timeout split required: do not replay the combined admin settings legacy repair as one worker.",
+            "- Split into one worker for backend/internal/handler/admin, backend/internal/service, backend/internal/model, backend/internal/dto, and backend/internal/config settings contracts.",
+            "- Split into one worker for frontend/src/api/admin/settings.ts, frontend/src/views/admin/SettingsView.vue, frontend i18n, and admin settings tests.",
+        ]
+    return []
 
 
 def latest_worker_result_from_task(task: dict[str, object]) -> dict[str, object]:
@@ -2125,6 +2523,28 @@ def phase_has_worker_timeout_stop_boundary(result: dict[str, object]) -> bool:
 def phase_has_non_partial_stop_boundary(result: dict[str, object]) -> bool:
     for blocker in phase_result_blockers(result):
         if isinstance(blocker, dict) and blocker.get("can_continue_partially") is False:
+            return True
+    if final_verification_result_has_fail_marker(result):
+        return True
+    return False
+
+
+def final_verification_result_has_fail_marker(result: dict[str, object]) -> bool:
+    runtime_state = _dict(result.get("runtime_state"))
+    task_graph = _dict(runtime_state.get("task_graph"))
+    for node in [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]:
+        if not final_verification_gate_task_node(node):
+            continue
+        worker_result = latest_worker_result_from_task(node)
+        text = json.dumps(worker_result, ensure_ascii=False).lower()
+        if any(
+            marker in text
+            for marker in (
+                "final_audit_status=fail",
+                "simulation_test_status=fail",
+                "real_test_status=fail",
+            )
+        ):
             return True
     return False
 
@@ -2245,7 +2665,9 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
     report = read_optional_json(output_dir / "final_verification_worker_report.json")
     recovered_report = final_verification_latest_failed_attempt_state_report(output_dir)
     if str(report.get("status", "")).lower() == "failed":
-        if final_verification_report_attempt_is_operator_stopped(report) and recovered_report:
+        if final_verification_report_is_stale_live_worker_guard(report) and recovered_report:
+            report = recovered_report
+        elif final_verification_report_attempt_is_operator_stopped(report) and recovered_report:
             report = recovered_report
         elif recovered_report:
             report_index = final_verification_report_attempt_index(report)
@@ -2261,31 +2683,62 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
     report_is_operator_stopped = (
         str(report.get("status", "")).lower() == "failed" and final_verification_report_attempt_is_operator_stopped(report)
     )
+    report_attempt_is_supervisor_stopped = (
+        str(report.get("status", "")).lower() == "failed"
+        and final_verification_report_attempt_has_supervisor_stop(report)
+    )
+    if report_attempt_is_supervisor_stopped and recovered_report:
+        report = recovered_report
+        report_is_operator_stopped = (
+            str(report.get("status", "")).lower() == "failed"
+            and final_verification_report_attempt_is_operator_stopped(report)
+        )
     if stopped_progress_context and (
         report_is_operator_stopped
         or int(stopped_progress_context["attempt_index"]) > final_verification_report_attempt_index(report)
     ):
-        return [
-            str(
-                write_final_verification_supervisor_progress_resume(
-                    output_dir,
-                    existing,
-                    stopped_progress_context,
-                ).resolve()
-            )
+        stopped_attempt_index = int(stopped_progress_context["attempt_index"])
+        prior_valid_resumes = [
+            path
+            for path in existing
+            if final_verification_repair_resume_attempt_index(path) < stopped_attempt_index
+            and final_verification_progress_resume_has_repair_context(path)
         ]
+        latest_valid_resume = prior_valid_resumes[-1] if prior_valid_resumes else None
+        progress_resume = write_final_verification_supervisor_progress_resume(
+            output_dir,
+            existing,
+            stopped_progress_context,
+        ).resolve()
+        return [str(progress_resume)]
     latest_valid_resume = latest_valid_final_verification_repair_resume(existing)
+    if (
+        latest_valid_resume
+        and final_verification_report_attempt_index(report) >= 0
+        and final_verification_repair_resume_attempt_index(latest_valid_resume)
+        > final_verification_report_attempt_index(report)
+    ):
+        latest_valid_resume = None
     if latest_valid_resume and (
         report_is_operator_stopped
         or final_verification_repair_resume_attempt_index(latest_valid_resume) > final_verification_report_attempt_index(report)
     ):
         return [str(latest_valid_resume.resolve())]
+    existing_resume_fallback = latest_valid_resume or (existing[-1] if existing else None)
     if str(report.get("status", "")).lower() != "failed":
-        return [str(existing[-1].resolve())] if existing else []
+        return [str(existing_resume_fallback.resolve())] if existing_resume_fallback else []
     report_text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
     lowered = report_text.lower()
     repair_markers = [
         "final_audit_status=fail",
+        "simulation_test_status=fail",
+        "real_test_status=fail",
+        "final_audit_status: fail",
+        "simulation_test_status: fail",
+        "real_test_status: fail",
+        "final_audit_status is failed",
+        "simulation_test_status is failed",
+        "real_test_status is failed",
         "source-boundary",
         "allowed_files",
         "worker timeout",
@@ -2299,20 +2752,23 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
         "blocked",
     ]
     if not any(token in lowered for token in repair_markers):
-        return [str(existing[-1].resolve())] if existing else []
+        return [str(existing_resume_fallback.resolve())] if existing_resume_fallback else []
     attempt_marker = final_verification_report_attempt_marker(report)
     result = _dict(report.get("result"))
     runtime_state = _dict(result.get("runtime_state"))
     blockers = [*(_list(result.get("blockers"))), *(_list(runtime_state.get("blockers")))]
+    verification_issue_lines = phase_verification_issue_lines(result)
     focused_lines = phase_focused_repair_lines(result, blockers)
     previous_repair_context = final_verification_previous_repair_context(report)
     if previous_repair_context:
         focused_lines.extend(previous_repair_context["focused_lines"])
-    if existing and (
+    match_lines = [*verification_issue_lines, *focused_lines]
+    if existing_resume_fallback and (
         not attempt_marker
-        or final_verification_repair_resume_matches_focus(existing[-1], attempt_marker, focused_lines)
+        or final_verification_repair_resume_matches_focus(existing_resume_fallback, attempt_marker, match_lines)
     ):
-        return [str(existing[-1].resolve())]
+        if not final_verification_repair_resume_preserves_unresolved_target_tasks(existing_resume_fallback, report):
+            return [str(existing_resume_fallback.resolve())]
     path = next_final_verification_repair_resume_path(output_dir)
     lines = [
         "# Final Verification Repair Resume",
@@ -2329,6 +2785,7 @@ def final_verification_resume_repair_documents(output_dir: Path) -> list[str]:
         "- Implementation repair tasks must use narrow static or package-level checks; broad Go/frontend verification is reserved for final real repository checks.",
         "- Must rerun final audit, simulation/static probes, and real repository checks after repair.",
         "- Must report FINAL_AUDIT_STATUS, SIMULATION_TEST_STATUS, REAL_TEST_STATUS, REQUIRED_ACTIONS, and BLOCKERS after repair.",
+        *(["", "## Failing Verification Issues", "", *verification_issue_lines] if verification_issue_lines else []),
         *focused_lines,
         "",
         "## Previous Final Verification Failure",
@@ -2377,9 +2834,38 @@ def final_verification_previous_repair_context(report: dict[str, object]) -> dic
             "focused_lines": [
                 f"- Preserve previous repair context from {path.name}: {signal_text}.",
             ],
-            "text": text[:8000],
+            "text": sanitize_final_verification_previous_repair_context_text(text)[:8000],
         }
     return {}
+
+
+def final_verification_repair_resume_preserves_unresolved_target_tasks(
+    path: Path,
+    report: dict[str, object],
+) -> bool:
+    completed_task_ids = final_verification_repair_resume_completed_task_ids(path)
+    if not completed_task_ids:
+        return False
+    result = _dict(report.get("result"))
+    runtime_state = _dict(result.get("runtime_state"))
+    task_graph = _dict(runtime_state.get("task_graph"))
+    nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
+    if not nodes:
+        return False
+    return bool(repair_completed_task_ids_to_reopen(nodes, completed_task_ids))
+
+
+def sanitize_final_verification_previous_repair_context_text(text: str) -> str:
+    lines: list[str] = []
+    for line in text.splitlines():
+        if re.match(
+            r"\s*-\s*(Completed tasks to preserve|Target files|Primary failed task IDs):",
+            line,
+            flags=re.IGNORECASE,
+        ):
+            continue
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def final_verification_previous_repair_paths(report: dict[str, object]) -> list[Path]:
@@ -2462,6 +2948,8 @@ def final_verification_latest_supervisor_stopped_progress_context(
     for run_dir in reversed(sorted(output_dir.glob("run_attempt_*"), key=_phase_run_sort_key)):
         if not run_dir.is_dir() or not supervisor_stop_marker_exists(run_dir):
             continue
+        if supervisor_stop_marker_is_bad_resume_noise(run_dir):
+            continue
         state = read_optional_json(run_dir / "state.json")
         if not state or bool(state.get("done")):
             continue
@@ -2469,6 +2957,8 @@ def final_verification_latest_supervisor_stopped_progress_context(
             continue
         task_graph = _dict(state.get("task_graph"))
         nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
+        if final_verification_nodes_have_preserved_gate_tasks(nodes):
+            continue
         completed_task_ids = repair_completed_task_ids(state, nodes)
         if not any(task_id.upper() not in already_preserved for task_id in completed_task_ids):
             continue
@@ -2482,6 +2972,17 @@ def final_verification_latest_supervisor_stopped_progress_context(
     return {}
 
 
+def final_verification_nodes_have_preserved_gate_tasks(nodes: Sequence[dict[str, object]]) -> bool:
+    for node in nodes:
+        if not final_verification_gate_task_node(node):
+            continue
+        evidence = _list(node.get("evidence"))
+        latest = evidence[-1] if evidence else {}
+        if isinstance(latest, dict) and latest.get("type") == "focused_repair_preserved_task":
+            return True
+    return False
+
+
 def write_final_verification_supervisor_progress_resume(
     output_dir: Path,
     existing: Sequence[Path],
@@ -2490,6 +2991,7 @@ def write_final_verification_supervisor_progress_resume(
     attempt_marker = str(context.get("attempt_marker") or "latest supervisor-stopped final verification attempt")
     completed_task_ids = [str(item) for item in _list(context.get("completed_task_ids"))]
     deep_tail_ids = [str(item) for item in _list(context.get("deep_tail_ids"))]
+    repair_order_line = final_verification_supervisor_repair_order_line(_dict(context.get("state")))
     focused_lines = [
         "",
         "## Focused Repair Scope",
@@ -2500,6 +3002,8 @@ def write_final_verification_supervisor_progress_resume(
         focused_lines.append(f"- Completed tasks to preserve: {', '.join(completed_task_ids)}.")
     if deep_tail_ids:
         focused_lines.append(f"- Preserve final frontend split tail graph shape: {', '.join(deep_tail_ids)}.")
+    if repair_order_line:
+        focused_lines.append(repair_order_line)
     focused_lines.extend(
         [
             "- Do not regenerate a broad phase graph when supervisor-stopped progress only needs preservation.",
@@ -2540,10 +3044,37 @@ def write_final_verification_supervisor_progress_resume(
     return path
 
 
+def final_verification_supervisor_repair_order_line(state: dict[str, object]) -> str:
+    task_graph = _dict(state.get("task_graph"))
+    nodes = [dict(item) for item in _list(task_graph.get("nodes")) if isinstance(item, dict)]
+    repair_nodes = [
+        node
+        for node in nodes
+        if not final_verification_gate_task_node(node)
+        and str(node.get("type", "")).lower() not in {"architecture", "test", "review", "release"}
+    ]
+    if not repair_nodes:
+        return ""
+    fragments = [
+        f"{str(node.get('id', '') or 'unknown')}: {str(node.get('title', '') or 'Untitled repair')}"
+        for node in repair_nodes
+    ]
+    return f"- Preserve final verification repair task order: {'; '.join(fragments)}."
+
+
 def final_verification_progress_resume_has_repair_context(path: Path) -> bool:
     try:
         text = path.read_text(encoding="utf-8", errors="replace").lower()
     except OSError:
+        return False
+    if "primary failed task ids: none reported" in text and not any(
+        marker in text
+        for marker in (
+            "continue from the next incomplete final-verification repair task",
+            "preserve final verification repair task order",
+            "preserve final frontend split tail graph shape",
+        )
+    ):
         return False
     return "source-boundary" in text and "frontend" in text and "final_audit_status" in text
 
@@ -2586,19 +3117,43 @@ def final_verification_report_attempt_is_operator_stopped(report: dict[str, obje
     return not state or final_verification_state_is_operator_stop_noise(state)
 
 
+def final_verification_report_attempt_has_supervisor_stop(report: dict[str, object]) -> bool:
+    attempts = [item for item in _list(report.get("attempts")) if isinstance(item, dict)]
+    if not attempts:
+        return False
+    output_dir = str(attempts[-1].get("output_dir", "") or "")
+    return bool(output_dir) and supervisor_stop_marker_exists(Path(output_dir))
+
+
+def final_verification_report_is_stale_live_worker_guard(report: dict[str, object]) -> bool:
+    text = json.dumps(report, ensure_ascii=False).lower()
+    if "still has live worker process" not in text and "live worker process(es)" not in text:
+        return False
+    pids = [int(match.group(1)) for match in re.finditer(r"\bpid=(\d+)\b", text)]
+    return bool(pids) and all(not process_exists(pid) for pid in pids)
+
+
 def final_verification_latest_failed_attempt_state_report(output_dir: Path) -> dict[str, object]:
     for run_dir in reversed(sorted(output_dir.glob("run_attempt_*"), key=_phase_run_sort_key)):
         if not run_dir.is_dir():
             continue
         state = read_optional_json(run_dir / "state.json")
-        if supervisor_stop_marker_exists(run_dir) and final_verification_state_is_operator_stop_noise(state):
+        if not state:
             continue
-        if not state or bool(state.get("done")):
+        if supervisor_stop_marker_exists(run_dir) and not final_verification_state_has_gate_failure(state):
             continue
         blockers = _list(state.get("blockers"))
         failed_tasks = failed_task_ids_from_state(state)
-        if not blockers and not failed_tasks:
+        evaluation = _dict(state.get("evaluation_result") or state.get("evaluation"))
+        hard_failures = _list(evaluation.get("hard_failures"))
+        promotion_reasons = final_verification_attempt_promotion_reasons(run_dir)
+        if bool(state.get("done")) and not promotion_reasons:
             continue
+        if not blockers and not failed_tasks and not hard_failures:
+            if promotion_reasons:
+                blockers = promotion_reasons
+            else:
+                continue
         attempt_index = _phase_run_sort_key(run_dir)[0]
         result = {
             "status": "blocked",
@@ -2616,22 +3171,75 @@ def final_verification_latest_failed_attempt_state_report(output_dir: Path) -> d
                 }
             ],
             "result": result,
-            "required_actions": repairable_blocker_summaries(blockers),
-            "blockers": repairable_blocker_summaries(blockers),
+            "required_actions": repairable_blocker_summaries(blockers) or [str(item) for item in hard_failures],
+            "blockers": repairable_blocker_summaries(blockers) or [str(item) for item in hard_failures],
             "recovered_from_state_json": True,
         }
     return {}
 
 
+def final_verification_attempt_promotion_reasons(run_dir: Path) -> list[str]:
+    report = read_optional_json(run_dir / "document_run_report.json")
+    promotion = _dict(report.get("promotion"))
+    reasons = [str(item) for item in _list(promotion.get("reasons")) if str(item)]
+    if reasons:
+        return reasons
+    attempt_index = _phase_run_sort_key(run_dir)[0]
+    attempt_report = read_optional_json(run_dir.parent / f"attempt_{attempt_index:03d}.json")
+    promotion = _dict(attempt_report.get("promotion"))
+    reasons = [str(item) for item in _list(promotion.get("reasons")) if str(item)]
+    if reasons:
+        return reasons
+    final_report = read_optional_json(run_dir.parent / "final_verification_worker_report.json")
+    for attempt in reversed([item for item in _list(final_report.get("attempts")) if isinstance(item, dict)]):
+        output_dir = str(attempt.get("output_dir", "") or "")
+        if output_dir and Path(output_dir).resolve() != run_dir.resolve():
+            continue
+        promotion = _dict(attempt.get("promotion"))
+        return [str(item) for item in _list(promotion.get("reasons")) if str(item)]
+    return []
+
+
 def final_verification_state_is_operator_stop_noise(state: dict[str, object]) -> bool:
+    if final_verification_state_has_gate_failure(state):
+        return False
     blockers = [item for item in _list(state.get("blockers")) if isinstance(item, dict)]
     failed_tasks = failed_task_ids_from_state(state)
+    evaluation = _dict(state.get("evaluation_result") or state.get("evaluation"))
+    hard_failure_text = "\n".join(str(item) for item in _list(evaluation.get("hard_failures"))).lower()
+    if any(
+        marker in hard_failure_text
+        for marker in (
+            "final_audit_status is failed",
+            "simulation_test_status is failed",
+            "real_test_status is failed",
+        )
+    ):
+        return False
     if not blockers:
         return not failed_tasks
     if all(final_verification_blocker_is_operator_stop_noise(blocker) for blocker in blockers):
         return True
     noisy_types = {"", "environment", "operator_control", "external_dependency"}
     return all(str(blocker.get("type", "") or "").lower() in noisy_types for blocker in blockers)
+
+
+def final_verification_state_has_gate_failure(state: dict[str, object]) -> bool:
+    result = {"runtime_state": state}
+    if final_verification_result_has_fail_marker(result):
+        return True
+    text = json.dumps(_dict(state.get("evaluation_result") or state.get("evaluation")), ensure_ascii=False).lower()
+    return any(
+        marker in text
+        for marker in (
+            "final_audit_status is failed",
+            "simulation_test_status is failed",
+            "real_test_status is failed",
+            "final_audit_status=fail",
+            "simulation_test_status=fail",
+            "real_test_status=fail",
+        )
+    )
 
 
 def final_verification_blocker_is_operator_stop_noise(blocker: dict[str, object]) -> bool:
@@ -2686,6 +3294,7 @@ def final_verification_repair_resume_matches_focus(path: Path, marker: str, focu
         or line.startswith("- Focused timeout task IDs:")
         or line.startswith("- Focused timeout task titles:")
         or line.startswith("- Completed tasks to preserve:")
+        or line.startswith("- Task ")
         or line.startswith("- Preserve final frontend split tail graph shape:")
         or line.startswith("- Preserve previous repair context from")
     ]
@@ -2697,7 +3306,7 @@ def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:
 
     for run_dir in reversed(list_phase_run_dirs(phase_dir)):
         if supervisor_stop_marker_exists(run_dir):
-            return InterruptedPhaseResume()
+            continue
         state = read_optional_json(run_dir / "state.json")
         active_task_ids = active_task_ids_from_state(state)
         if not active_task_ids:
@@ -2723,6 +3332,8 @@ def interrupted_phase_resume_source(phase_dir: Path) -> InterruptedPhaseResume:
                     + ". Stop or wait for those workers before starting another resume."
                 ],
             )
+        if active_tasks_have_completed_lifecycle(active_task_ids, lifecycle_records):
+            return InterruptedPhaseResume(resume_from=run_dir, active_run_dir=run_dir)
         if active_tasks_have_terminal_lifecycle(active_task_ids, lifecycle_records):
             return InterruptedPhaseResume()
         if active_debug_tasks_have_dead_running_lifecycle(active_task_ids, lifecycle_records):
@@ -2741,7 +3352,27 @@ def list_phase_run_dirs(phase_dir: Path) -> list[Path]:
 
 
 def supervisor_stop_marker_exists(run_dir: Path) -> bool:
-    return any((run_dir / name).exists() for name in ("supervisor_stop.json", "operator_stop.json"))
+    return any((run_dir / name).exists() for name in ("supervisor_stop.json", "operator_stop.json", "supervisor_stop", "operator_stop"))
+
+
+def supervisor_stop_marker_is_bad_resume_noise(run_dir: Path) -> bool:
+    for name in ("supervisor_stop.json", "operator_stop.json"):
+        marker = run_dir / name
+        if not marker.exists():
+            continue
+        data = read_optional_json(marker)
+        text = json.dumps(data, ensure_ascii=False).lower() if data else marker.read_text(encoding="utf-8", errors="replace").lower()
+        if any(
+            token in text
+            for token in (
+                "mixed stale",
+                "replayed completed",
+                "wrong resume",
+                "stale final_verification_repair_resume",
+            )
+        ):
+            return True
+    return False
 
 
 def active_task_ids_from_state(state: dict[str, object]) -> list[str]:
@@ -2779,6 +3410,15 @@ def active_tasks_have_terminal_lifecycle(task_ids: Sequence[str], records: Seque
         if str(record.get("status", "")).lower() in {"completed", "failed", "timed_out", "cancelled"}
     }
     return bool(task_ids) and all(str(task_id) in terminal_task_ids for task_id in task_ids)
+
+
+def active_tasks_have_completed_lifecycle(task_ids: Sequence[str], records: Sequence[dict[str, object]]) -> bool:
+    completed_task_ids = {
+        str(record.get("task_id", ""))
+        for record in records
+        if str(record.get("status", "")).lower() == "completed"
+    }
+    return bool(task_ids) and all(str(task_id) in completed_task_ids for task_id in task_ids)
 
 
 def active_debug_tasks_have_dead_running_lifecycle(task_ids: Sequence[str], records: Sequence[dict[str, object]]) -> bool:
@@ -2843,6 +3483,7 @@ def write_running_report(
     generated_development_package: dict[str, object],
     phase_records: Sequence[PhaseExecutionRecord],
     active_phase: RoadmapPhase | None,
+    goal_locked: dict[str, object] | None = None,
 ) -> None:
     """Persist a live full-roadmap snapshot so monitors do not show stale blockers."""
 
@@ -2863,6 +3504,7 @@ def write_running_report(
         document_expansion=document_expansion,
         phase_records=[record.to_dict() for record in phase_records],
         generated_development_package=generated_development_package,
+        goal_locked=dict(goal_locked or {}),
         output_dir=str(path.parent),
     ).to_dict()
     payload["active_phase"] = active

@@ -10,6 +10,7 @@ from typing import Protocol
 
 from intake.gh_auth import GitHubAuthPreflight, safe_text
 from runtime.subprocess_utils import run_hidden
+from runtime.tool_discovery import is_codex_command, resolve_codex_executable
 
 
 class CommandRunner(Protocol):
@@ -99,11 +100,15 @@ class ExecutionPreflight:
 
     def _command_check(self, executable: str, *, required: bool, display_name: str | None = None) -> PreflightCheck:
         name = display_name or executable
-        resolved = shutil.which(executable) or (executable if Path(executable).is_file() else "")
+        resolved = (
+            resolve_codex_executable(executable)
+            if is_codex_command(executable)
+            else shutil.which(executable) or (executable if Path(executable).is_file() else "")
+        )
         if not resolved:
             return PreflightCheck(name, "failed", f"Executable not found on PATH: {executable}", required=required)
         try:
-            result = run_hidden(self.runner, [executable, "--version"], cwd=None, capture_output=True, text=False, check=False)
+            result = run_hidden(self.runner, [resolved, "--version"], cwd=None, capture_output=True, text=False, check=False)
         except OSError as exc:
             return PreflightCheck(name, "failed", f"Executable is not launchable: {exc}", required=required)
         summary = (safe_text(result.stdout) or safe_text(result.stderr) or resolved).strip().splitlines()[0]

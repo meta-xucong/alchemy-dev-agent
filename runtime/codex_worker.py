@@ -13,6 +13,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -23,6 +24,7 @@ from typing import Any, Callable, Literal, Protocol
 
 from .models import WorkerStatus
 from .subprocess_utils import clean_git_env, run_hidden
+from .tool_discovery import codex_executable_candidates, is_codex_command, resolve_codex_executable
 from .worker_lifecycle import ManagedSubprocessRunner, WorkerLifecycleRecorder
 
 
@@ -54,7 +56,7 @@ class CommandResult:
     def from_dict(cls, payload: dict[str, Any]) -> "CommandResult":
         return cls(
             command=_truncate_text(str(payload.get("command", "")), limit=WORKER_TEXT_FIELD_LIMIT),
-            exit_code=int(payload.get("exit_code", 0)),
+            exit_code=_coerce_exit_code(payload.get("exit_code")),
             summary=_truncate_text(str(payload.get("summary", "")), limit=WORKER_TEXT_FIELD_LIMIT),
             stdout=_truncate_text(str(payload.get("stdout", "")), limit=COMMAND_OUTPUT_FIELD_LIMIT),
             stderr=_truncate_text(str(payload.get("stderr", "")), limit=COMMAND_OUTPUT_FIELD_LIMIT),
@@ -93,6 +95,7 @@ class CodexWorkerInput:
     expected_output_format: str = "codex_worker_result_v1"
     retry_context: str = ""
     boundary_mode: str = "strict"
+    task_packet: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -111,6 +114,7 @@ class CodexWorkerInput:
             "expected_output_format": self.expected_output_format,
             "retry_context": self.retry_context,
             "boundary_mode": self.boundary_mode,
+            "task_packet": dict(self.task_packet),
         }
 
 
@@ -191,6 +195,7 @@ class CodexWorkerAdapter:
         self,
         *,
         executable: str = "codex",
+        model: str = "",
         dry_run: bool = True,
         sandbox: Literal["read-only", "workspace-write", "danger-full-access"] = "workspace-write",
         timeout_seconds: int | None = 1800,
@@ -199,6 +204,7 @@ class CodexWorkerAdapter:
         cancellation_check: Callable[[str], bool] | None = None,
     ) -> None:
         self.executable = executable
+        self.model = model.strip() or os.environ.get("ALCHEMY_CODEX_MODEL", "").strip()
         self.dry_run = dry_run
         self.sandbox = sandbox
         self.timeout_seconds = timeout_seconds if timeout_seconds and timeout_seconds > 0 else None
@@ -283,11 +289,13 @@ class CodexWorkerAdapter:
         def _build_args(executable: str) -> list[str]:
             if not _is_codex_cli_executable(executable):
                 return [executable, "exec", "--json", "--sandbox", self.sandbox]
+            model_args = ["-m", self.model] if self.model else []
             if _should_bypass_codex_cli_sandbox(self.sandbox):
                 return [
                     executable,
                     "--disable",
                     "plugins",
+                    *model_args,
                     "--dangerously-bypass-approvals-and-sandbox",
                     "exec",
                     "--json",
@@ -298,6 +306,7 @@ class CodexWorkerAdapter:
                 executable,
                 "--disable",
                 "plugins",
+                *model_args,
                 "-c",
                 'approval_policy="never"',
                 "-c",
@@ -312,7 +321,10 @@ class CodexWorkerAdapter:
                 repository_path,
             ]
 
-        args = _build_args(self.executable)
+        selected_executable = self.executable
+        if self.runner is subprocess.run and _is_codex_cli_executable(self.executable):
+            selected_executable = resolve_codex_executable(self.executable) or self.executable
+        args = _build_args(selected_executable)
         codex_env = _build_codex_subprocess_env(worker_input.repository_path) if self.runner is subprocess.run else None
         _cleanup_codex_windows_scratch_files(worker_input.repository_path)
         before_snapshot = self._capture_worktree_snapshot(worker_input.repository_path)
@@ -342,16 +354,13 @@ class CodexWorkerAdapter:
             if codex_env is not None:
                 kwargs["env"] = codex_env
             completed = runner(args, **kwargs)
-        except FileNotFoundError as exc:
-            if lifecycle_record is not None:
-                self.lifecycle_recorder.fail(lifecycle_record, str(exc))
-            return self._blocked(worker_input, f"Codex executable not found: {exc}", lifecycle_record)
-        except PermissionError as exc:
-            fallback_executable = _fallback_codex_executable(self.executable)
+        except (FileNotFoundError, PermissionError) as exc:
+            fallback_executable = _fallback_codex_executable(selected_executable)
             if not fallback_executable:
                 if lifecycle_record is not None:
                     self.lifecycle_recorder.fail(lifecycle_record, str(exc))
-                return self._blocked(worker_input, f"Codex executable is not launchable: {exc}", lifecycle_record)
+                failure = "not found" if isinstance(exc, FileNotFoundError) else "not launchable"
+                return self._blocked(worker_input, f"Codex executable is {failure}: {exc}", lifecycle_record)
             try:
                 args = _build_args(fallback_executable)
                 completed = runner(args, **kwargs)
@@ -870,6 +879,15 @@ def _coerce_command_result(value: Any) -> CommandResult:
     return CommandResult(command=str(value), exit_code=0)
 
 
+def _coerce_exit_code(value: Any) -> int:
+    if value in (None, ""):
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _coerce_float(value: Any) -> float:
     try:
         return float(value)
@@ -1086,7 +1104,7 @@ def _is_ignorable_generated_file(path: str) -> bool:
         return True
     if "node_modules" in parts:
         return True
-    if any(part.startswith(".gocache") for part in parts):
+    if any(part.startswith(".gocache") or part.startswith(".gobuildcache") for part in parts):
         return True
     if ".entc" in parts:
         return True
@@ -1136,37 +1154,24 @@ def _should_bypass_codex_cli_sandbox(sandbox: str) -> bool:
         return False
     if _truthy_env(os.environ.get("ALCHEMY_FORCE_CODEX_CLI_BYPASS", "")):
         return True
-    return os.name == "nt" and sandbox == "workspace-write"
+    return False
 
 
 def _is_codex_cli_executable(executable: str) -> bool:
-    name = Path(str(executable)).name.lower()
-    return name in {"codex", "codex.exe", "codex.cmd", "codex.bat"}
+    return is_codex_command(executable)
 
 
 def _fallback_codex_executable(executable: str) -> str:
     if not _is_codex_cli_executable(executable) or os.name != "nt":
         return ""
     for candidate in _windows_local_codex_executable_candidates():
-        if candidate.is_file():
+        if candidate.is_file() and os.path.normcase(str(candidate)) != os.path.normcase(str(executable)):
             return str(candidate)
     return ""
 
 
 def _windows_local_codex_executable_candidates() -> list[Path]:
-    local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
-    if not local_appdata:
-        return []
-    base = Path(local_appdata) / "OpenAI" / "Codex" / "bin"
-    candidates: list[Path] = [base / "codex.exe"]
-    if base.is_dir():
-        versioned = sorted(
-            (path / "codex.exe" for path in base.iterdir() if path.is_dir()),
-            key=lambda path: path.stat().st_mtime if path.exists() else 0.0,
-            reverse=True,
-        )
-        candidates.extend(versioned)
-    return candidates
+    return [candidate for candidate in codex_executable_candidates("codex") if candidate.name.lower() == "codex.exe"]
 
 
 def _timeout_progress_grace_seconds(timeout_seconds: int | None) -> float:
@@ -1188,6 +1193,7 @@ def _build_codex_subprocess_env(repository_path: str | Path) -> dict[str, str]:
     target_home.mkdir(parents=True, exist_ok=True)
     if redirected_home:
         _seed_codex_home(target_home)
+        _sanitize_worker_codex_config(target_home / "config.toml")
     temp_dir = str(Path(codex_home) / "tmp")
     Path(temp_dir).mkdir(parents=True, exist_ok=True)
     env["TMP"] = temp_dir
@@ -1283,7 +1289,7 @@ def _repository_has_go_module(repository_path: Path) -> bool:
         children = list(repository_path.iterdir())
     except OSError:
         return False
-    skip = {".git", ".alchemy", ".gocache", "node_modules", "vendor"}
+    skip = {".git", ".alchemy", ".gocache", ".gobuildcache", "node_modules", "vendor"}
     return any(child.is_dir() and child.name not in skip and (child / "go.mod").is_file() for child in children)
 
 
@@ -1320,11 +1326,23 @@ def _shared_go_mod_cache_candidates(repository_path: Path, env: dict[str, str]) 
 
 
 def _select_go_build_cache(env: dict[str, str], repository_path: Path) -> Path | None:
-    value = env.get("GOCACHE", "").strip()
-    if value:
-        candidate = Path(value)
-        return candidate if _probe_writable_dir(candidate) else None
-    return candidate if _probe_writable_dir(candidate := repository_path / ".gocache-alchemy") else None
+    for value in (env.get("ALCHEMY_GOCACHE", "").strip(), env.get("GOCACHE", "").strip()):
+        if value:
+            candidate = Path(value)
+            return candidate if _probe_writable_dir(candidate) else None
+    candidates: list[Path] = []
+    codex_home = env.get("CODEX_HOME", "").strip()
+    if codex_home:
+        candidates.append(Path(codex_home) / "tmp" / "go-build-cache")
+    local_app_data = env.get("LOCALAPPDATA", "").strip()
+    if local_app_data:
+        candidates.append(Path(local_app_data) / "Alchemy" / "go-build-cache")
+    candidates.append(Path(tempfile.gettempdir()) / "alchemy-go-build-cache")
+    candidates.append(repository_path / ".gocache-alchemy")
+    for candidate in candidates:
+        if _probe_writable_dir(candidate):
+            return candidate
+    return None
 
 
 def _probe_writable_dir(candidate: Path) -> bool:
@@ -1401,6 +1419,25 @@ def _seed_codex_home(target_home: Path) -> None:
             shutil.copy2(source, destination)
         except OSError:
             continue
+
+
+def _sanitize_worker_codex_config(path: Path) -> None:
+    """Repair known-invalid copied values without mutating the user's source config."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    repaired = re.sub(
+        r'(?m)^(\s*service_tier\s*=\s*)["\']default["\']\s*$',
+        r'\1"fast"',
+        text,
+    )
+    if repaired == text:
+        return
+    try:
+        path.write_text(repaired, encoding="utf-8")
+    except OSError:
+        return
 
 
 def _codex_source_home() -> Path:

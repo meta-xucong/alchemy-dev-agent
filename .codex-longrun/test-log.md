@@ -6148,3 +6148,191 @@
 - result: T006 completed under 1800s worker budget; T009 started next; failed_tasks=[]; blockers=[].
 - next verification command: monitor T009 completion or blocker.
 
+
+- 2026-07-02T09:26:39.091801+00:00 PASS: targeted final verification repair resume tests for completed gate failure targets and resume reuse behavior.
+
+## 2026-07-05T02:00:00+08:00 Final source-boundary sweep planner fix
+
+- command: python -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py
+- result: passed.
+- next verification command: targeted planner/runtime regressions.
+
+- command: python -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_final_source_boundary_sweep_splits_backend_migration_and_frontend_leftovers tests.test_document_to_plan.DocumentToPlanTests.test_final_simulation_backend_identity_strings_override_stale_frontend_context tests.test_document_to_plan.DocumentToPlanTests.test_final_gate_route_sidebar_contract_overrides_stale_settings_timeout tests.test_document_to_plan.DocumentToPlanTests.test_final_verification_admin_settings_legacy_timeout_is_split tests.test_runtime.OrchestratorTests.test_partial_final_gate_fail_does_not_handoff_downstream
+- result: 5 passed.
+- next verification command: real final-verification graph probe and controlled Billing Core relaunch.
+
+- command: real planner graph probe using latest `final_verification_repair_resume_119.md`
+- result: produced T002 backend migration source-boundary, T003 backend production source-boundary, T004 frontend retired source-boundary, then T005 audit/T006 simulation/T007 real checks/T008 handoff review.
+- next verification command: monitor the relaunched final verification attempt.
+
+- command: monitor Billing Core `final_verification/run_attempt_145`
+- result: T002 migration source-boundary completed; T003 backend production source-boundary completed; T004 frontend retired source-boundary timed out at 900s and stopped with non-partial blocker, no downstream dispatch.
+- next verification command: split T004 frontend scope and relaunch.
+
+- command: python -m py_compile autodev\full_roadmap_executor.py planner\task_graph_builder.py tests\test_document_to_plan.py
+- result: passed.
+- next verification command: targeted split/preserve tests.
+
+- command: python -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_final_frontend_retired_source_boundary_timeout_is_split tests.test_document_to_plan.DocumentToPlanTests.test_final_source_boundary_sweep_splits_backend_migration_and_frontend_leftovers tests.test_document_to_plan.DocumentToPlanTests.test_final_simulation_backend_identity_strings_override_stale_frontend_context tests.test_runtime.OrchestratorTests.test_partial_final_gate_fail_does_not_handoff_downstream
+- result: 4 passed.
+- next verification command: real graph probe using generated `final_verification_repair_resume_121.md`.
+
+- command: real planner graph probe using `final_verification_repair_resume_121.md`
+- result: T002/T003 preserved completed; T004/T005/T006 split frontend source-boundary tasks pending before final audit/simulation/real gates.
+- next verification command: relaunch supervised final verification.
+
+- command: monitor Billing Core `final_verification/run_attempt_146`
+- result: T004 API/type, T005 composable/store, and T006 view/component frontend source-boundary repairs completed; T007 audit failed on remaining backend production/delivery source-boundary hits, frontend retired consumers, and `pnpm exec vue-tsc --noEmit` errors.
+- next verification command: create follow-up repair specs and verify final gates rerun.
+
+- command: python -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py autodev\full_roadmap_executor.py
+- result: passed.
+- next verification command: targeted planner/runtime regressions.
+
+- command: python -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_final_audit_remaining_source_boundary_after_frontend_split_creates_followups tests.test_document_to_plan.DocumentToPlanTests.test_final_frontend_retired_source_boundary_timeout_is_split tests.test_runtime.OrchestratorTests.test_partial_final_gate_fail_does_not_handoff_downstream
+- result: 3 passed.
+- next verification command: real graph probe using `final_verification_repair_resume_122.md`.
+
+- command: real planner graph probe using `final_verification_repair_resume_122.md`
+- result: T002 backend legacy production quarantine, T003 frontend API/settings typecheck, T004 frontend view/component typecheck pending; T005 audit, T006 simulation, T007 real checks, and T008 handoff all pending.
+- next verification command: relaunch supervised final verification.
+
+- command: monitor Billing Core `final_verification/run_attempt_147`
+- result: T002 backend legacy production quarantine timed out after 900s; scheduler stopped with non-partial blocker and did not dispatch T003.
+- next verification command: split backend quarantine scope and relaunch.
+
+- command: python -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py
+- result: passed.
+- next verification command: targeted split/regression tests.
+
+- command: python -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_final_backend_legacy_quarantine_timeout_is_split tests.test_document_to_plan.DocumentToPlanTests.test_final_audit_remaining_source_boundary_after_frontend_split_creates_followups tests.test_runtime.OrchestratorTests.test_partial_final_gate_fail_does_not_handoff_downstream
+- result: 3 passed.
+- next verification command: real graph probe using `final_verification_repair_resume_123.md`.
+
+- command: real planner graph probe using `final_verification_repair_resume_123.md`
+- result: T002 handler/server quarantine, T003 service/repository quarantine, T004 config/runtime quarantine, T005 frontend API/settings typecheck, T006 frontend view/component typecheck, then final gates.
+- next verification command: relaunch supervised final verification.
+
+- command: monitor Billing Core `final_verification/run_attempt_148`
+- result: T002 handler/server quarantine timed out after 900s; scheduler stopped with non-partial blocker and did not dispatch downstream.
+- next verification command: switch handler/server recovery to exact-file groups.
+
+- command: python -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_final_backend_handler_server_quarantine_timeout_uses_exact_files tests.test_runtime.OrchestratorTests.test_partial_final_gate_fail_does_not_handoff_downstream
+- result: 2 passed.
+- next verification command: real graph probe using `final_verification_repair_resume_124.md`.
+
+- command: real planner graph probe using `final_verification_repair_resume_124.md`
+- result: T002 exact admin handler, T003 exact gateway/protocol handler, T004 exact server/middleware, T005 service/repository, T006 config/runtime, T007/T008 frontend typecheck leftovers, then final gates.
+- next verification command: relaunch supervised final verification.
+
+- command: python -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py
+- result: passed after final RPM override leftover narrowing.
+- next verification command: targeted planner regression and real `_138` graph probe.
+
+- command: python -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_final_audit_rpm_override_leftovers_do_not_reopen_completed_capacity_tasks tests.test_document_to_plan.DocumentToPlanTests.test_final_audit_platform_rpm_capacity_failure_uses_exact_task
+- result: 2 passed.
+- next verification command: real graph probe using `final_verification_repair_resume_138.md`.
+
+- command: real planner graph probe using `final_verification_repair_resume_138.md`
+- result: T001 preserved; T002 exact `Repair final RPM override route contract leftovers`; T003 final audit; T004 simulation; T005 real checks; T006 review.
+- next verification command: relaunch supervised final verification and monitor T002.
+
+- command: monitor Billing Core `final_verification/run_attempt_161`
+- result: T002 RPM override leftovers completed; T003 final audit completed; T004 simulation probes failed on frontend UsageTable tooltip tests and backend admin/dto suites. Scheduler stopped with non-partial blocker and did not dispatch T005.
+- next verification command: generate focused simulation repair resume and preflight the graph.
+
+- command: python -m py_compile planner\task_graph_builder.py tests\test_document_to_plan.py autodev\full_roadmap_executor.py tests\test_full_roadmap_execution.py
+- result: passed after simulation failure recovery mapping.
+- next verification command: targeted planner/recovery regression tests.
+
+- command: python -m unittest tests.test_document_to_plan.DocumentToPlanTests.test_final_simulation_suite_failure_preserves_prior_repair_and_adds_narrow_tasks tests.test_document_to_plan.DocumentToPlanTests.test_final_audit_rpm_override_leftovers_do_not_reopen_completed_capacity_tasks tests.test_full_roadmap_execution.FullRoadmapExecutionTests.test_simulation_gate_failure_writes_final_repair_resume
+- result: 3 passed.
+- next verification command: relaunch supervised final verification from `final_verification_repair_resume_139.md`.
+
+- command: monitor Billing Core `final_verification/run_attempt_162`
+- result: T003 UsageTable repair completed; T004 backend admin repair was rolled back after a false boundary violation from `backend/.gobuildcache/**` Go cache files.
+- next verification command: fix Alchemy Go cache/boundary handling and relaunch T004.
+
+- command: python -m py_compile runtime\codex_worker.py tests\test_runtime.py
+- result: passed after Go build cache boundary fix.
+- next verification command: runtime targeted tests.
+
+- command: python -m unittest tests.test_runtime.CodexWorkerTests.test_build_codex_subprocess_env_bootstraps_go_worker_environment tests.test_runtime.CodexWorkerTests.test_real_worker_ignores_generated_cache_files_for_boundary_audit
+- result: 2 passed.
+- next verification command: real graph probe using `final_verification_repair_resume_140.md`.
+
+- command: real planner graph probe using `final_verification_repair_resume_140.md`
+- result: T002 RPM override and T003 UsageTable preserved completed; T004 backend admin and T005 DTO pending before final gates.
+- next verification command: relaunch supervised final verification from `_140`.
+
+- command: monitor Billing Core `final_verification/run_attempt_168`
+- result: T002 user platform capacity API completed; T003 admin settings RPM capacity timed out after 900 seconds. Scheduler stopped with active_tasks=[] and blocker B-T003-1; no T004/downstream dispatch.
+- next verification command: generate focused repair resume and verify it does not reopen the broad T003 task.
+
+- command: generate final verification repair resume from run_attempt_168
+- result: generated `final_verification_repair_resume_146.md`.
+- next verification command: dry-run task graph probe for `_146`.
+
+- command: dry-run graph probe using `final_verification_repair_resume_146.md`
+- result: T001 preserved; T002 backend admin RPM capacity and T003 frontend admin RPM capacity settings pending before final audit/simulation/real gates.
+- next verification command: one controlled relaunch with reduced worker budget or stop for review.
+
+- command: monitor Billing Core `final_verification/run_attempt_169`
+- result: T002 backend admin RPM capacity timed out after 600 seconds. Scheduler stopped with active_tasks=[] and blocker B-T002-1; no T003/T004/downstream dispatch.
+- next verification command: generate narrower backend admin RPM repair resume.
+
+- command: dry-run graph probe using `final_verification_repair_resume_147.md`
+- result: T001 preserved; T002 backend admin RPM route/settings and T003 backend admin user capacity handler pending before final audit/simulation/real gates.
+- next verification command: resume only from `_147` if continuing; do not rerun the broader run_attempt_169 T002 task.
+
+- command: python -m py_compile context\objective_models.py context\objective_compiler.py context\reference_baseline.py context\semantic_inventory.py planner\transformation_manifest.py planner\convergence_graph_builder.py planner\task_contract_validator.py runtime\independent_verifier.py runtime\verification_matrix.py runtime\progress_model.py runtime\convergence_controller.py runtime\failure_fingerprint.py runtime\decision_record.py runtime\task_packet.py runtime\accepted_checkpoint.py runtime\delivery_ledger.py runtime\evaluator.py tests\test_goal_locked_convergence.py
+- result: not run; PowerShell reported `python` is not recognized as a cmdlet, function, script file, or executable.
+- relevant error summary: no Python launcher available in this worker shell for syntax compilation.
+- fix attempted: checked `py`, local recursive `python.exe`, venv-like folders, `where.exe python`, `where.exe py`, `where.exe uv`, and common Windows launcher paths. No usable interpreter was found; some WindowsApps/Programs probes returned access denied.
+- next verification command: rerun the same `py_compile` command with an explicit Python 3.11+ executable or after restoring `python`/`py` on PATH.
+
+- command: python -m unittest tests.test_goal_locked_convergence
+- result: not run; PowerShell reported `python` is not recognized as a cmdlet, function, script file, or executable.
+- relevant error summary: focused V2.187 regression suite could not execute because the worker shell has no Python launcher.
+- fix attempted: same interpreter discovery as above; no usable `python`, `py`, or `uv` launcher was available.
+- next verification command: `python -m unittest tests.test_goal_locked_convergence` once Python 3.11+ is available.
+
+- command: rg "Repair final backend admin RPM capacity contracts|goal_locked|objective_contract|verification_matrix|DeliveryLedger|ConvergenceGraphBuilder|ObjectiveCompiler" -n context planner runtime tests docs specs
+- result: passed as source inventory; new goal-locked code, tests, schemas, and docs are discoverable. Legacy compatibility planner still contains Billing Core-specific title matching, while the new convergence graph test asserts the goal-locked path does not emit that retained-contract repair title.
+- next verification command: focused Python regression suite after interpreter availability is restored.
+
+- command: PowerShell ServerChan notification using `Invoke-RestMethod` with SendKey from environment or `%USERPROFILE%\.codex\secrets\serverchan_sendkey.txt`
+- result: failed after 3 attempts.
+- relevant error summary: `Unable to connect to the remote server`.
+- fix attempted: retried three times with a short delay as required by the long-running-task skill.
+- next verification command: rerun notification when network access to `https://sctapi.ftqq.com` is available, or run the bundled `notify_serverchan.py` once Python is available.
+## 2026-07-10T23:57:00+08:00 V2.187 Controller Verification
+
+- Command: `python -m py_compile context\objective_models.py context\objective_compiler.py context\reference_baseline.py context\semantic_inventory.py planner\transformation_manifest.py planner\convergence_graph_builder.py planner\task_contract_validator.py runtime\independent_verifier.py runtime\verification_matrix.py runtime\progress_model.py runtime\convergence_controller.py runtime\failure_fingerprint.py runtime\decision_record.py runtime\task_packet.py runtime\accepted_checkpoint.py runtime\delivery_ledger.py runtime\evaluator.py tests\test_goal_locked_convergence.py`
+  - Result: passed with Python 3.12.
+- Command: `python -m unittest tests.test_goal_locked_convergence`
+  - Result: passed, 6 tests.
+  - Next verification: integrate goal-locked execution and add executor/artifact/Billing Core fixture regressions.
+
+## 2026-07-11T01:02:52+08:00 V2.187 Final Verification
+
+- Command: `python -m unittest tests.test_document_to_plan`
+  - Result: passed, 97 tests.
+- Command: `python -m unittest tests.test_document_run_pipeline tests.test_api_server tests.test_goal_locked_convergence`
+  - Result: passed, 83 tests.
+- Command: `python -m unittest tests.test_full_roadmap_execution tests.test_unified_run`
+  - Result: passed, 146 tests.
+- Command: `python -m unittest tests.test_runtime`
+  - Result: passed, 158 tests.
+- Command: resolved Codex Desktop CLI read-only smoke with `gpt-5.5`
+  - Result: passed with `codex-cli 0.144.0-alpha.4`; returned `ALCHEMY_V2187_SMOKE_OK`; git status was unchanged.
+- Command: `python -m compileall -q autodev context planner runtime server tests`
+  - Result: passed.
+- Command: parse every `specs/*.json` document with Python JSON parser
+  - Result: passed, 17 schemas.
+- Command: `git diff --check -- ':!.codex-longrun/**'`
+  - Result: passed.
+- Command: `python -m unittest discover -s tests`
+  - Result: passed, 610 tests in 239.830 seconds.
+- Command: generic-core business vocabulary scan and Alchemy process audit
+  - Result: no Billing Core-specific terms in the new goal-locked core; no residual Alchemy worker processes.

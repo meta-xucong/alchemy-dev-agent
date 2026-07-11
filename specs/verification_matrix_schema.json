@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "V2.187 Verification Matrix",
+  "type": "object",
+  "required": ["schema_version", "repository_fingerprint", "revision", "items", "hard_failures"],
+  "properties": {
+    "schema_version": { "const": "2.187" },
+    "repository_fingerprint": { "type": "string" },
+    "revision": { "type": "string" },
+    "items": { "type": "array" },
+    "hard_failures": { "type": "array" }
+  }
+}

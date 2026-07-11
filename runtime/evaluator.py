@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass, field
 
 from .models import RuntimeState, TaskNode, utc_now_iso
@@ -120,9 +122,13 @@ class Evaluator:
                 hard_failures.append("Must requirements are missing coverage: " + ", ".join(missing_must) + ".")
             if partial_must:
                 hard_failures.append("Must requirements have only partial coverage: " + ", ".join(partial_must) + ".")
+        verification_matrix = state.repository.get("verification_matrix", {})
+        if isinstance(verification_matrix, dict):
+            hard_failures.extend(_verification_matrix_hard_failures(verification_matrix))
         artifact_report = state.repository.get("artifact_report", {})
         if isinstance(artifact_report, dict):
             hard_failures.extend(_artifact_hard_failures(artifact_report))
+        hard_failures.extend(_final_gate_marker_hard_failures(nodes))
 
         for node in nodes:
             if node.status == "completed":
@@ -291,6 +297,73 @@ def _artifact_hard_failures(artifact_report: dict) -> list[str]:
     elif gameplay_status == "failed":
         failures.append("Gameplay browser probe failed.")
     return failures
+
+
+def _verification_matrix_hard_failures(matrix: dict) -> list[str]:
+    failures: list[str] = []
+    hard_failures = [str(item) for item in matrix.get("hard_failures", []) if str(item)]
+    failures.extend(hard_failures)
+    for item in matrix.get("items", []):
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status", "")).lower()
+        requirement_id = str(item.get("requirement_id", "unknown"))
+        obligation = str(item.get("obligation", "unknown"))
+        if status in {"failed", "stale", "unproven", "blocked"}:
+            failures.append(f"Verification matrix item {requirement_id}/{obligation} is {status}.")
+    return failures
+
+
+FINAL_GATE_STATUS_MARKERS = {
+    "audit final requirements": "FINAL_AUDIT_STATUS",
+    "run final simulation probes": "SIMULATION_TEST_STATUS",
+    "run final real repository checks": "REAL_TEST_STATUS",
+}
+
+
+def _final_gate_marker_hard_failures(nodes: list[TaskNode]) -> list[str]:
+    failures: list[str] = []
+    for node in nodes:
+        marker = _final_gate_marker_for_node(node)
+        if not marker:
+            continue
+        status = _latest_final_gate_marker_status(node, marker)
+        if status in {"failed", "blocked"}:
+            failures.append(f"{marker} is {status}.")
+    return failures
+
+
+def _final_gate_marker_for_node(node: TaskNode) -> str:
+    title = node.title.lower()
+    for title_marker, status_marker in FINAL_GATE_STATUS_MARKERS.items():
+        if title_marker in title:
+            return status_marker
+    return ""
+
+
+def _latest_final_gate_marker_status(node: TaskNode, marker: str) -> str:
+    if not node.evidence:
+        return ""
+    latest = node.evidence[-1]
+    result = latest.get("result", latest) if isinstance(latest, dict) else latest
+    text = json.dumps(result, ensure_ascii=False)
+    label = re.escape(marker).replace("_", r"[_\s-]?")
+    pattern = rf"['\"]?{label}['\"]?\s*[:=]\s*['\"]?(pass|passed|fail|failed|block|blocked)"
+    match = re.search(pattern, text, flags=re.IGNORECASE)
+    if not match:
+        return ""
+    return _normalize_final_gate_marker_status(match.group(1))
+
+
+def _normalize_final_gate_marker_status(value: object) -> str:
+    text = str(value).strip().lower()
+    if text in {"pass", "passed", "ok", "success", "successful"}:
+        return "passed"
+    if text in {"block", "blocked"}:
+        return "blocked"
+    if text in {"fail", "failed", "failure"}:
+        return "failed"
+    return text
 
 
 def _is_risk_relevant_known_issue(issue: str) -> bool:

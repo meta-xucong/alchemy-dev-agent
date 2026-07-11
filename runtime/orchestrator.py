@@ -17,6 +17,7 @@ from .models import RuntimeState, TaskGraph, TaskNode, utc_now_iso
 from .state_manager import StateManager
 from .task_graph_engine import TaskGraphEngine
 from .worker_lifecycle import WorkerLifecycleRecorder
+from .task_packet import TaskPacket, validate_task_packet
 
 
 ENVIRONMENT_BLOCKER_PATTERNS = (
@@ -49,6 +50,17 @@ CODEX_USAGE_LIMIT_ENVIRONMENT_PATTERNS = (
 )
 NON_USAGE_ENVIRONMENT_BLOCKER_PATTERNS = tuple(
     pattern for pattern in ENVIRONMENT_BLOCKER_PATTERNS if pattern not in CODEX_USAGE_LIMIT_ENVIRONMENT_PATTERNS
+)
+STRUCTURED_PRODUCT_FAILURE_PATTERNS = (
+    "final_audit_status=fail",
+    "simulation_test_status=fail",
+    "real_test_status=fail",
+    "source-boundary",
+    "allowed_files is empty",
+    "build failed",
+    "lint failed",
+    "parsing error",
+    "ts1005",
 )
 
 PACKAGE_LOCKFILE_COMPANIONS = (
@@ -105,6 +117,7 @@ class Orchestrator:
         real_codex: bool = False,
         real_github: bool = False,
         codex_executable: str = "codex",
+        codex_model: str = "",
         max_worker_seconds: int = 1800,
         github_collect_ci: bool = True,
         github_ci_wait_seconds: float = 0,
@@ -116,6 +129,7 @@ class Orchestrator:
             StateManager(project_path / state_file),
             worker=CodexWorkerAdapter(
                 executable=codex_executable,
+                model=codex_model,
                 dry_run=not real_codex,
                 timeout_seconds=max_worker_seconds,
                 lifecycle_recorder=WorkerLifecycleRecorder(project_path / ".alchemy" / "workers") if real_codex else None,
@@ -432,6 +446,8 @@ class Orchestrator:
                 else:
                     missing.append(clean)
                 continue
+            if path.suffix.lower() not in {".md", ".txt", ".rst"}:
+                continue
             if path.exists():
                 paths.append(path)
             else:
@@ -504,6 +520,17 @@ class Orchestrator:
         retry_context = ""
         if task.retry_count:
             retry_context = f"Retry attempt {task.retry_count + 1}; use prior evidence to avoid repeating failures."
+        task_packet = self._goal_locked_task_packet(state, task)
+        constraints = self._constraints_for_task(task)
+        if task_packet:
+            validation_errors = validate_task_packet(task_packet)
+            constraints.extend(
+                [
+                    "This is a goal-locked task. Preserve requirement IDs, transformation IDs, and expected final state in all evidence.",
+                    "For a required strategy, emit DECISION_RECORD: before reporting edits; for reference use, emit REFERENCE_FILES: with consulted paths.",
+                    *[f"Task packet validation error: {error}" for error in validation_errors],
+                ]
+            )
         return CodexWorkerInput(
             task_id=task.id,
             goal=self.router.build_worker_goal(task),
@@ -519,13 +546,51 @@ class Orchestrator:
             },
             relevant_files=list(task.relevant_files),
             allowed_files=self._allowed_files_for_task(task),
-            constraints=self._constraints_for_task(task),
+            constraints=constraints,
             commands_to_run=list(task.commands_to_run),
             retry_context=retry_context,
             boundary_mode=task.boundary_mode,
+            task_packet=task_packet.to_dict() if task_packet else {},
+        )
+
+    def _goal_locked_task_packet(self, state: RuntimeState, task: TaskNode) -> TaskPacket | None:
+        contract = next(
+            (
+                item
+                for item in task.evidence
+                if isinstance(item, dict) and item.get("type") == "task_contract"
+            ),
+            None,
+        )
+        if not contract:
+            return None
+        return TaskPacket(
+            task_id=task.id,
+            target_root=str(self.repository_path.resolve()),
+            allowed_write_paths=[str(item) for item in contract.get("allowed_write_paths", [])],
+            reference_roots=[str(item) for item in contract.get("reference_roots", [])],
+            requirement_ids=[str(item) for item in contract.get("requirement_ids", [])],
+            transformation_ids=[str(item) for item in contract.get("transformation_ids", [])],
+            objective_slice=[{"objective": state.objective, "expected_final_state": contract.get("expected_final_state", {})}],
+            required_strategy_decision=str(contract.get("required_strategy_decision", "")),
+            repository_fingerprint=str(state.repository.get("repository_fingerprint", "")),
         )
 
     def _allowed_files_for_task(self, task: TaskNode) -> list[str]:
+        task_contract = next(
+            (
+                item
+                for item in task.evidence
+                if isinstance(item, dict) and item.get("type") == "task_contract"
+            ),
+            None,
+        )
+        if task_contract:
+            if bool(task_contract.get("read_only")):
+                return []
+            return _expand_package_lockfile_boundaries(
+                _clean_paths([str(item) for item in task_contract.get("allowed_write_paths", [])])
+            )
         if task.type in {"architecture", "review", "test"}:
             return []
         if self._is_read_only_inventory_task(task):
@@ -575,6 +640,8 @@ class Orchestrator:
         result: CodexWorkerResult,
     ) -> list[TaskNode]:
         if task.type == "debug" or result.status != "partial":
+            return []
+        if _worker_result_final_gate_failure_summary(result):
             return []
         if _worker_result_environment_blocker_summary(result) or _worker_result_timed_out(result):
             return []
@@ -680,6 +747,22 @@ class Orchestrator:
                 state,
                 "worker_boundary_blocker",
                 f"{task.id} blocked after an out-of-scope file boundary violation.",
+                task.id,
+            )
+            return
+
+        final_gate_failure_summary = _worker_result_final_gate_failure_summary(result)
+        if final_gate_failure_summary:
+            self._record_blocker(
+                state,
+                task,
+                final_gate_failure_summary,
+                blocker_type="technical_limit",
+            )
+            self._record_history(
+                state,
+                "final_gate_blocker",
+                f"{task.id} stopped after final gate failure.",
                 task.id,
             )
             return
@@ -1517,6 +1600,61 @@ def _worker_result_boundary_violation(result: CodexWorkerResult | dict | None) -
     )
 
 
+def _worker_result_final_gate_failure_summary(result: CodexWorkerResult | dict | None) -> str:
+    if result is None:
+        return ""
+
+    if isinstance(result, CodexWorkerResult):
+        summary = result.summary
+        text_values: list[object] = [
+            result.summary,
+            result.tests_failed,
+            result.known_issues,
+            result.evidence,
+            result.follow_up_tasks,
+            result.raw_output,
+        ]
+        for command in result.commands_run:
+            text_values.extend([command.summary, command.stdout, command.stderr])
+    elif isinstance(result, dict):
+        summary = str(result.get("summary", "") or "")
+        text_values = [
+            summary,
+            result.get("tests_failed", []),
+            result.get("known_issues", []),
+            result.get("evidence", []),
+            result.get("follow_up_tasks", []),
+            result.get("raw_output", ""),
+        ]
+        for command in _list(result.get("commands_run", [])):
+            if isinstance(command, dict):
+                text_values.extend(
+                    [
+                        str(command.get("summary", "") or ""),
+                        str(command.get("stdout", "") or ""),
+                        str(command.get("stderr", "") or ""),
+                    ]
+                )
+    else:
+        return ""
+
+    text = "\n".join(fragment.lower() for value in text_values for fragment in _value_text_fragments(value))
+    markers = (
+        "final_audit_status=fail",
+        "final_audit_status: fail",
+        "final_audit_status is failed",
+        "simulation_test_status=fail",
+        "simulation_test_status: fail",
+        "simulation_test_status is failed",
+        "real_test_status=fail",
+        "real_test_status: fail",
+        "real_test_status is failed",
+    )
+    if not any(marker in text for marker in markers):
+        return ""
+    return summary or "Final verification gate reported FAIL."
+
+
 def _worker_result_environment_blocker_summary(result: CodexWorkerResult | dict | None) -> str:
     if result is None:
         return ""
@@ -1561,10 +1699,11 @@ def _worker_result_environment_blocker_summary(result: CodexWorkerResult | dict 
         _codex_usage_limit_message(part) for part in raw_text_parts if part
     )
     has_environment_pattern = any(pattern in text for pattern in ENVIRONMENT_BLOCKER_PATTERNS)
+    structured_product_failure = any(pattern in text for pattern in STRUCTURED_PRODUCT_FAILURE_PATTERNS)
     if raw_environment_patterns_are_authoritative:
-        has_environment_pattern = has_environment_pattern or any(
-            pattern in raw_text for pattern in NON_USAGE_ENVIRONMENT_BLOCKER_PATTERNS
-        )
+        raw_has_environment_pattern = any(pattern in raw_text for pattern in NON_USAGE_ENVIRONMENT_BLOCKER_PATTERNS)
+        if raw_has_environment_pattern and not structured_product_failure:
+            has_environment_pattern = True
     if not has_environment_pattern and not usage_limit_in_structured_error:
         return ""
     return (
