@@ -1139,6 +1139,12 @@ class CodexWorkerTests(unittest.TestCase):
                     ent_cache = Path(cwd, "backend", "ent", "schema", ".entc")
                     ent_cache.mkdir(parents=True)
                     (ent_cache / "entc.go").write_text("package entc\n", encoding="utf-8")
+                    npm_cache = Path(cwd, ".npm-cache", "_cacache", "content-v2")
+                    npm_cache.mkdir(parents=True)
+                    (npm_cache / "cache-entry").write_text("cache\n", encoding="utf-8")
+                    node_modules = Path(cwd, "node_modules", "vite")
+                    node_modules.mkdir(parents=True)
+                    (node_modules / "package.json").write_text("{}\n", encoding="utf-8")
                     payload = {
                         "task_id": "T013A",
                         "status": "completed",

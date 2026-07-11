@@ -22,6 +22,22 @@ SOURCE_SCOPE_MARKERS = ("source", "source code", "codebase", "源码", "源代�
 REFERENCE_MARKERS = (
     "reference", "read-only", "read only", "original", "transplant", "compare",
     "参考", "只读", "原版", "原始", "对照", "移植",
+    "参考", "只读", "原版", "原始", "对照", "移植",
+)
+EXTERNAL_REFERENCE_MARKERS = (
+    "read-only",
+    "read only",
+    "reference repository",
+    "reference repo",
+    "structural reference",
+    "transplant",
+    "compare against",
+    "只读",
+    "移植",
+    "对照",
+    "鍙",
+    "绉绘",
+    "瀵圭収",
 )
 VERIFY_MARKERS = (
     "test", "verify", "build", "smoke", "startup", "probe", "acceptance",
@@ -139,6 +155,9 @@ class ObjectiveCompiler:
     ) -> ObjectiveRequirement:
         class_name = classify_requirement(statement, section=source.section)
         domain = infer_domain(statement)
+        subjects = infer_subjects(statement, domain)
+        if class_name.startswith("must_absent") and not subjects:
+            subjects = infer_negative_subjects(statement, domain)
         return ObjectiveRequirement(
             id=requirement_id,
             source=source,
@@ -146,7 +165,7 @@ class ObjectiveCompiler:
             strength="may" if class_name in {"may_reframe", "may_waive"} else "must",
             class_name=class_name,
             domain=domain,
-            subjects=infer_subjects(statement, domain),
+            subjects=subjects,
             scope=infer_scope(statement, class_name),
             allowed_exceptions=infer_allowed_exceptions(statement),
             proof_obligations=infer_proof_obligations(class_name),
@@ -181,7 +200,7 @@ def classify_requirement(statement: str, *, section: str = "") -> RequirementCla
         return "must_absent_source"
     if any(marker in lowered or marker in statement for marker in PRESERVE_MARKERS):
         return "must_preserve"
-    if any(marker in lowered or marker in statement for marker in REFERENCE_MARKERS):
+    if _has_external_reference_intent(statement):
         return "must_reference"
     if any(marker in lowered or marker in statement for marker in DECIDE_MARKERS):
         return "must_decide"
@@ -210,6 +229,31 @@ def infer_subjects(statement: str, domain: str) -> list[str]:
     for word in re.findall(r"\b[A-Z][A-Za-z0-9_]{3,}\b", statement):
         subjects.append(word)
     return _dedupe(subjects)
+
+
+def infer_negative_subjects(statement: str, domain: str) -> list[str]:
+    lowered = statement.lower()
+    protected_terms = [
+        "rom",
+        "logo",
+        "brand",
+        "branding",
+        "sprite",
+        "sprites",
+        "music",
+        "audio",
+        "asset",
+        "assets",
+        "layout",
+        "route",
+        "api",
+    ]
+    subjects = [term for term in protected_terms if term in lowered]
+    if subjects:
+        return _dedupe(subjects)
+    if domain and domain not in {"general", "multi_domain"}:
+        return [domain]
+    return ["prohibited_content"]
 
 
 def infer_scope(statement: str, class_name: RequirementClass) -> list[str]:
@@ -277,7 +321,7 @@ def validate_objective_contract(contract: ObjectiveContract) -> list[str]:
         for subject in requirement.subjects:
             key = (requirement.domain, subject.lower())
             previous = seen_subjects.get(key)
-            if previous and _classes_conflict(previous, requirement.class_name):
+            if previous and _classes_conflict(previous, requirement.class_name, requirement.domain, subject):
                 errors.append(f"{requirement.id} conflicts with another requirement for {requirement.domain}:{subject}.")
             seen_subjects[key] = requirement.class_name
     if not contract.requirements:
@@ -285,10 +329,29 @@ def validate_objective_contract(contract: ObjectiveContract) -> list[str]:
     return errors
 
 
-def _classes_conflict(left: str, right: str) -> bool:
+def _classes_conflict(left: str, right: str, domain: str, subject: str) -> bool:
+    if domain.lower() in {"general", "ui", "frontend", "backend", "source", "code", "id", "tile", "level", "layoutrevision"} and subject.lower() in {
+        domain.lower(),
+        "ui",
+        "prohibited_content",
+        "id",
+        "tile",
+        "level",
+        "layoutrevision",
+    }:
+        return False
     return (left.startswith("must_absent") and right in {"must_implement", "must_preserve"}) or (
         right.startswith("must_absent") and left in {"must_implement", "must_preserve"}
     )
+
+
+def _has_external_reference_intent(statement: str) -> bool:
+    lowered = statement.lower()
+    if not any(marker in lowered or marker in statement for marker in REFERENCE_MARKERS):
+        return False
+    if any(marker in lowered or marker in statement for marker in EXTERNAL_REFERENCE_MARKERS):
+        return True
+    return False
 
 
 def _looks_requirement_like(line: str, *, section: str = "") -> bool:

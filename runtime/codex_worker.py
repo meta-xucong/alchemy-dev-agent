@@ -1104,6 +1104,11 @@ def _is_ignorable_generated_file(path: str) -> bool:
         return True
     if "node_modules" in parts:
         return True
+    # Package-manager caches are transient execution artifacts.  Workers may
+    # deliberately place npm's cache inside an isolated worktree so the host
+    # cache remains untouched; that must not become an out-of-bound source edit.
+    if ".npm-cache" in parts:
+        return True
     if any(part.startswith(".gocache") or part.startswith(".gobuildcache") for part in parts):
         return True
     if ".entc" in parts:

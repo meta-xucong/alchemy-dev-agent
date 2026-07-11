@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from autodev.full_roadmap_executor import FullRoadmapExecutor
-from autodev.goal_locked_run import _verification_evidence, goal_locked_enabled
+from autodev.goal_locked_run import GoalLockedRunCoordinator, _verification_evidence, goal_locked_enabled
 from autodev.unified_request import AutoDevRunRequest
 from context.objective_compiler import ObjectiveCompiler
 from context.builder import goal_lock_from_constraints
@@ -300,6 +300,36 @@ class GoalLockedConvergenceTests(unittest.TestCase):
         )
         self.assertFalse(legacy.full_roadmap)
         self.assertFalse(legacy.goal_locked_convergence)
+
+    def test_generic_game_reference_and_asset_safety_language_does_not_require_reference_repo(self) -> None:
+        document = self.root / "game_spec.md"
+        document.write_text(
+            "\n".join(
+                [
+                    "# Browser Game Spec",
+                    "## Requirements",
+                    "- reference records are design evidence for the side-scrolling layout.",
+                    "- all visuals and sounds must be original assets and must not use protected sprites, music, logo, ROM data, or branding.",
+                    "- implement input, physics, renderer, entities, scoring, and finish flow.",
+                    "- verify static checks and browser smoke evidence.",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        contract = ObjectiveCompiler().compile("Deliver original browser game", [document])
+        bootstrap = GoalLockedRunCoordinator(self.root / "game-run").bootstrap(
+            objective="Deliver original browser game",
+            documents=[document],
+            repository_path=self.target,
+        )
+
+        self.assertEqual(contract.validation_errors, [])
+        self.assertFalse(any(requirement.class_name == "must_reference" for requirement in contract.requirements))
+        self.assertNotIn(
+            "Objective requires a reference repository",
+            "\n".join(bootstrap.validation_errors),
+        )
 
     def test_independent_check_uses_real_exit_code_instead_of_worker_claim(self) -> None:
         tests_dir = self.target / "tests"
