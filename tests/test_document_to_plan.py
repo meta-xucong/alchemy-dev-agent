@@ -262,6 +262,25 @@ class DocumentToPlanTests(unittest.TestCase):
         self.assertEqual(implementation["assigned_agent"], "frontend")
         self.assertEqual(implementation["commands_to_run"], ["npm test", "npm run build", "static artifact inspection"])
 
+    def test_browser_canvas_repair_objective_forces_one_frontend_game_delivery(self) -> None:
+        bundle = ContextBundle(
+            project_id="objective-game-repair",
+            objective="Repair the existing browser canvas game only.",
+            requirements=[
+                Requirement(id="REQ-001", source_document_id="spec", text="Repair the deterministic browser acceptance hook."),
+                Requirement(id="REQ-002", source_document_id="spec", text="Movement must update player state."),
+            ],
+            test_commands=["npm test", "npm run build"],
+            scope_controls={"boundary_mode": ["large_refactor"]},
+        )
+
+        graph = TaskGraphBuilder().build(bundle).to_dict()
+        implementation = next(node for node in graph["nodes"] if node["id"] == "T002")
+
+        self.assertEqual(implementation["title"], "Implement complete web game delivery")
+        self.assertEqual(implementation["assigned_agent"], "frontend")
+        self.assertIn("src/engine.js", implementation["relevant_files"])
+
     def test_partial_web_game_scaffold_signals_are_still_one_delivery(self) -> None:
         requirements = [
             Requirement(

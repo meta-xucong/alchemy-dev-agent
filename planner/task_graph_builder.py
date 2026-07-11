@@ -77,6 +77,7 @@ class TaskGraphBuilder:
             repository_files=context_bundle.repository_files,
             package_files=context_bundle.package_files,
             ci_files=context_bundle.ci_files,
+            force_web_game_delivery=is_web_game_objective(context_bundle.objective),
         )
         nodes.extend(implementation_nodes)
         implementation_ids = [node.id for node in implementation_nodes]
@@ -367,6 +368,7 @@ class TaskGraphBuilder:
         repository_files: list[RepositoryFile] | None = None,
         package_files: list[str] | None = None,
         ci_files: list[str] | None = None,
+        force_web_game_delivery: bool = False,
     ) -> tuple[list[TaskNode], dict[str, str]]:
         nodes: list[TaskNode] = []
         requirement_task_ids: dict[str, str] = {}
@@ -374,8 +376,10 @@ class TaskGraphBuilder:
             return nodes, requirement_task_ids
         scoped_targets = scoped_target_files(scope_controls)
         docs_only_scope = is_docs_only_scope(scoped_targets)
-        is_web_game_delivery = should_group_as_single_web_game_delivery(requirements) or is_existing_canvas_game_repository(
-            repository_files or []
+        is_web_game_delivery = (
+            force_web_game_delivery
+            or should_group_as_single_web_game_delivery(requirements)
+            or is_existing_canvas_game_repository(repository_files or [])
         )
         if scoped_targets and (docs_only_scope or boundary_mode(scope_controls) != "large_refactor"):
             task_id = "T002"
@@ -477,7 +481,7 @@ class TaskGraphBuilder:
                 requirement_task_ids[item.id] = task_id
                 item.related_files = scoped_files(item.related_files, scope_controls, fallback=relevant_files)
             return nodes, requirement_task_ids
-        grouped_delivery = group_implementation_requirements(requirements)
+        grouped_delivery = [list(requirements)] if is_web_game_delivery else group_implementation_requirements(requirements)
         is_web_game_delivery = len(grouped_delivery) == 1 and is_web_game_delivery
         for index, grouped_requirements in enumerate(grouped_delivery, start=2):
             requirement = grouped_requirements[0]
@@ -9703,6 +9707,12 @@ def is_existing_canvas_game_repository(repository_files: list[RepositoryFile]) -
     has_package = "package.json" in paths
     game_modules = len(paths & WEB_GAME_SCAFFOLD_FILES)
     return has_entrypoint and has_package and game_modules >= 3
+
+
+def is_web_game_objective(objective: str) -> bool:
+    text = objective.lower()
+    markers = ("canvas game", "browser game", "browser canvas", "platformer", "webgl game", "网页游戏", "浏览器游戏", "横版游戏")
+    return any(marker in text for marker in markers)
 
 
 def priority_for_requirement(requirement: Requirement) -> int:
