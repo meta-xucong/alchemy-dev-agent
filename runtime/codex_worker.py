@@ -1104,6 +1104,8 @@ def _is_ignorable_generated_file(path: str) -> bool:
         return True
     if "node_modules" in parts:
         return True
+    if any(part in {"dist", "build", "out", "coverage", ".vite"} for part in parts):
+        return True
     # Package-manager caches are transient execution artifacts.  Workers may
     # deliberately place npm's cache inside an isolated worktree so the host
     # cache remains untouched; that must not become an out-of-bound source edit.
@@ -1204,6 +1206,10 @@ def _build_codex_subprocess_env(repository_path: str | Path) -> dict[str, str]:
     env["TMP"] = temp_dir
     env["TEMP"] = temp_dir
     env["TMPDIR"] = temp_dir
+    npm_cache_dir = str(Path(codex_home) / "npm-cache")
+    Path(npm_cache_dir).mkdir(parents=True, exist_ok=True)
+    env["NPM_CONFIG_CACHE"] = npm_cache_dir
+    env["npm_config_cache"] = npm_cache_dir
     _seed_tls_cert_env(env)
     _seed_go_worker_env(env, repo_path)
     return env

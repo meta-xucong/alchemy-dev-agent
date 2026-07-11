@@ -11,6 +11,7 @@ from pathlib import Path
 from autodev.real_unified_delivery import (
     RealUnifiedDeliveryHarness,
     build_unified_run_command,
+    has_passing_browser_evidence,
     report_summary,
 )
 from autodev.unified_request import AutoDevRunRequest
@@ -121,6 +122,18 @@ class RealUnifiedDeliveryTests(unittest.TestCase):
         self.assertEqual(report["status"], "blocked")
         self.assertTrue(any(blocker["id"] == "B-V2-47-UNIFIED-COMMAND" for blocker in report["blockers"]))
         self.assertTrue(any(gate["name"] == "unified_command_exit_zero" and gate["status"] == "failed" for gate in report["gates"]))
+
+    def test_completed_browser_evidence_with_no_failures_passes_gate(self) -> None:
+        artifact_report = {
+            "browser_verification": {
+                "status": "completed",
+                "tests_failed": [],
+                "console_errors": [],
+                "tests_passed": ["browser artifact evidence"],
+            }
+        }
+
+        self.assertTrue(has_passing_browser_evidence(artifact_report))
 
     def test_cli_outputs_summary(self) -> None:
         root = temp_root()

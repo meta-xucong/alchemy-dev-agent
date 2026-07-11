@@ -167,6 +167,31 @@ class AcceptanceScenarioPlannerTests(unittest.TestCase):
         crud = next(scenario for scenario in plan.scenarios if scenario.kind == "crud")
         self.assertIn("delete", crud.required_behaviors)
 
+    def test_game_delivery_does_not_infer_irrelevant_crud_or_auth_scenarios(self) -> None:
+        plan = AcceptanceScenarioPlanner().build(
+            {
+                "objective": "Deliver a browser platform game",
+                "requirement_map": {
+                    "requirements": [
+                        {
+                            "id": "REQ-001",
+                            "domain": "gameplay",
+                            "text": "Create a playable level with player physics, collectible items, and a finish flow.",
+                            "acceptance_criteria": ["The game can restart and complete the level."],
+                        },
+                        {
+                            "id": "REQ-002",
+                            "text": "Record asset decisions and do not use protected source materials.",
+                            "acceptance_criteria": [],
+                        },
+                    ]
+                },
+            }
+        )
+
+        self.assertEqual(plan.status, "skipped")
+        self.assertEqual(plan.scenarios, [])
+
 
 class CodexWorkerTests(unittest.TestCase):
     def test_worker_returns_completed_result_by_default(self) -> None:
@@ -1145,6 +1170,12 @@ class CodexWorkerTests(unittest.TestCase):
                     node_modules = Path(cwd, "node_modules", "vite")
                     node_modules.mkdir(parents=True)
                     (node_modules / "package.json").write_text("{}\n", encoding="utf-8")
+                    dist = Path(cwd, "dist", "assets")
+                    dist.mkdir(parents=True)
+                    (dist / "index.js").write_text("console.log('built')\n", encoding="utf-8")
+                    vite_cache = Path(cwd, "node_modules", ".vite")
+                    vite_cache.mkdir(parents=True)
+                    (vite_cache / "deps.json").write_text("{}\n", encoding="utf-8")
                     payload = {
                         "task_id": "T013A",
                         "status": "completed",
@@ -1180,6 +1211,19 @@ class CodexWorkerTests(unittest.TestCase):
             self.assertTrue((Path(tmp_dir) / "backend" / ".gocache-t013" / "00" / "cache-entry-a").exists())
             self.assertTrue((Path(tmp_dir) / "backend" / ".gobuildcache" / "00" / "cache-entry-b").exists())
             self.assertTrue((Path(tmp_dir) / "backend" / "ent" / "schema" / ".entc" / "entc.go").exists())
+            self.assertTrue((Path(tmp_dir) / "dist" / "assets" / "index.js").exists())
+            self.assertTrue((Path(tmp_dir) / "node_modules" / ".vite" / "deps.json").exists())
+
+    def test_real_worker_redirects_npm_cache_to_worker_home(self) -> None:
+        with temp_project_dir() as tmp_dir, patch.dict(os.environ, {"CODEX_HOME": ""}, clear=False):
+            repo = Path(tmp_dir)
+            env = _build_codex_subprocess_env(repo)
+
+        npm_cache = Path(env["NPM_CONFIG_CACHE"])
+        self.assertEqual(env["npm_config_cache"], str(npm_cache))
+        self.assertTrue(npm_cache.exists())
+        self.assertIn("npm-cache", npm_cache.parts)
+        self.assertNotEqual(str(npm_cache), str(Path.home() / "AppData" / "Local" / "npm-cache"))
 
     def test_real_worker_removes_nested_codex_scratch_before_execution(self) -> None:
         with temp_project_dir() as tmp_dir:

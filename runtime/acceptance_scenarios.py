@@ -49,6 +49,11 @@ class AcceptanceScenarioPlanner:
 
     def build(self, context_bundle: dict[str, Any]) -> AcceptanceScenarioPlan:
         requirements = list(context_bundle.get("requirement_map", {}).get("requirements", []))
+        if _is_game_delivery_context(context_bundle, requirements):
+            return AcceptanceScenarioPlan(
+                status="skipped",
+                summary="No CRUD, account, upload, or dashboard scenarios were generated for a game delivery.",
+            )
         scenarios: list[AcceptanceScenario] = []
         seen: set[tuple[str, str]] = set()
         for requirement in requirements:
@@ -84,6 +89,23 @@ def _requirement_text(requirement: dict[str, Any]) -> str:
     parts = [str(requirement.get("text", ""))]
     parts.extend(str(item) for item in requirement.get("acceptance_criteria", []) if str(item).strip())
     return " ".join(parts).lower()
+
+
+def _is_game_delivery_context(context_bundle: dict[str, Any], requirements: list[dict[str, Any]]) -> bool:
+    """Prevent web-app heuristics from inventing CRUD flows for a game specification."""
+    fragments = [str(context_bundle.get("objective", ""))]
+    for requirement in requirements:
+        fragments.append(str(requirement.get("domain", "")))
+        fragments.append(_requirement_text(requirement))
+    text = " ".join(fragments).lower()
+    return bool(
+        re.search(
+            r"\b(game|gameplay|platformer|platforming|level|tilemap|player|renderer|physics|boss)\b"
+            r"|游戏|玩法|关卡|玩家|物理|平台跳跃",
+            text,
+            flags=re.IGNORECASE,
+        )
+    )
 
 
 def _matches_kind(text: str, kind: str) -> bool:

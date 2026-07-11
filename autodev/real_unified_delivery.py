@@ -392,7 +392,18 @@ def has_passing_browser_evidence(artifact_report: Mapping[str, Any]) -> bool:
     browser = as_dict(artifact_report.get("browser_verification"))
     if not browser:
         return False
-    return browser.get("status") == "passed"
+    status = str(browser.get("status", "") or "")
+    if status == "passed":
+        return True
+    if status != "completed":
+        return False
+    failures = browser.get("tests_failed")
+    console_errors = browser.get("console_errors")
+    if isinstance(failures, Sequence) and not isinstance(failures, (str, bytes)) and failures:
+        return False
+    if isinstance(console_errors, Sequence) and not isinstance(console_errors, (str, bytes)) and console_errors:
+        return False
+    return bool(browser.get("tests_passed") or browser.get("evidence") or browser.get("screenshots"))
 
 
 def blockers_from_gates(gates: Sequence[DeliveryGate]) -> list[dict[str, object]]:
